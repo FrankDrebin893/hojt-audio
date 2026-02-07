@@ -1,0 +1,5 @@
+<UserControl x:Class="PianoMidiVisualizationApp.Views.PianoKeyboardControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Canvas x:Name="PianoCanvas" Height="160" ClipToBounds="True" Background="#333333"/>
+</UserControl>

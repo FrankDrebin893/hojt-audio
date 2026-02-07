@@ -1,0 +1,123 @@
+<UserControl x:Class="PianoMidiVisualizationApp.Views.SettingsPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:PianoMidiVisualizationApp.Converters">
+    <UserControl.Resources>
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
+    </UserControl.Resources>
+
+    <Border Background="#2D2D2D" Padding="12,8">
+        <WrapPanel Orientation="Horizontal">
+            <!-- MIDI Device -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,16,0" VerticalAlignment="Center">
+                <TextBlock Text="MIDI:" Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold"/>
+                <ComboBox Width="180" Height="26"
+                          ItemsSource="{Binding Settings.MidiDevices}"
+                          SelectedItem="{Binding Settings.SelectedMidiDevice}"
+                          DisplayMemberPath="Name"/>
+                <!-- Show Connect when NOT connected -->
+                <Button Content="Connect" Margin="4,0,0,0" Padding="10,3"
+                        Command="{Binding ConnectMidiCommand}">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsMidiConnected}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <!-- Show Disconnect when connected -->
+                <Button Content="Disconnect" Margin="4,0,0,0" Padding="10,3"
+                        Command="{Binding DisconnectMidiCommand}"
+                        Visibility="{Binding IsMidiConnected, Converter={StaticResource BoolToVisConverter}}"/>
+                <!-- MIDI activity indicator -->
+                <Ellipse Width="10" Height="10" Margin="6,0,0,0" VerticalAlignment="Center"
+                         ToolTip="{Binding LastMidiMessage}">
+                    <Ellipse.Style>
+                        <Style TargetType="Ellipse">
+                            <Setter Property="Fill" Value="#555555"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsMidiConnected}" Value="True">
+                                    <Setter Property="Fill" Value="#337733"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding MidiActivity}" Value="True">
+                                    <Setter Property="Fill" Value="#00FF00"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Ellipse.Style>
+                </Ellipse>
+            </StackPanel>
+
+            <!-- Audio Mode -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,16,0" VerticalAlignment="Center">
+                <TextBlock Text="Audio:" Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold"/>
+                <RadioButton Content="ASIO" Foreground="White" VerticalAlignment="Center"
+                             IsChecked="{Binding Settings.UseAsio}" GroupName="AudioMode" Margin="0,0,8,0"/>
+                <RadioButton Content="WASAPI" Foreground="White" VerticalAlignment="Center"
+                             IsChecked="{Binding Settings.UseAsio, Converter={StaticResource InverseBoolConverter}}"
+                             GroupName="AudioMode"/>
+            </StackPanel>
+
+            <!-- Audio Driver -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,16,0" VerticalAlignment="Center">
+                <TextBlock Text="Driver:" Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold"/>
+                <!-- ASIO drivers shown when ASIO selected -->
+                <ComboBox Width="200" Height="26"
+                          ItemsSource="{Binding Settings.AsioDriverNames}"
+                          SelectedItem="{Binding Settings.SelectedAudioDriver}"
+                          Visibility="{Binding Settings.UseAsio, Converter={StaticResource BoolToVisConverter}}"/>
+                <!-- WASAPI devices shown when WASAPI selected -->
+                <ComboBox Width="200" Height="26"
+                          ItemsSource="{Binding Settings.WasapiDeviceNames}"
+                          SelectedItem="{Binding Settings.SelectedAudioDriver}">
+                    <ComboBox.Style>
+                        <Style TargetType="ComboBox">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Settings.UseAsio}" Value="False">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ComboBox.Style>
+                </ComboBox>
+            </StackPanel>
+
+            <!-- SoundFont -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,16,0" VerticalAlignment="Center">
+                <TextBlock Text="SF2:" Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold"/>
+                <TextBox Width="180" Height="26" IsReadOnly="True"
+                         Text="{Binding Settings.SoundFontPath, Mode=OneWay}"
+                         ToolTip="{Binding Settings.SoundFontPath}"/>
+                <Button Content="..." Margin="4,0,0,0" Padding="8,3"
+                        Command="{Binding BrowseSoundFontCommand}"/>
+            </StackPanel>
+
+            <!-- Audio Start/Stop -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,16,0" VerticalAlignment="Center">
+                <Button Content="Start Audio" Margin="0,0,4,0" Padding="10,3"
+                        Command="{Binding StartAudioCommand}"
+                        IsEnabled="{Binding IsAudioRunning, Converter={StaticResource InverseBoolConverter}}"/>
+                <Button Content="Stop" Padding="10,3"
+                        Command="{Binding StopAudioCommand}"
+                        IsEnabled="{Binding IsAudioRunning}"/>
+            </StackPanel>
+
+            <!-- Volume -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,16,0" VerticalAlignment="Center">
+                <TextBlock Text="Vol:" Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold"/>
+                <Slider Width="100" Minimum="0" Maximum="1" Value="{Binding Settings.Volume}"
+                        VerticalAlignment="Center" TickFrequency="0.1"/>
+            </StackPanel>
+
+            <!-- Refresh -->
+            <Button Content="↻" Padding="6,3" ToolTip="Refresh devices"
+                    Command="{Binding RefreshDeviceListCommand}" VerticalAlignment="Center"/>
+        </WrapPanel>
+    </Border>
+</UserControl>
