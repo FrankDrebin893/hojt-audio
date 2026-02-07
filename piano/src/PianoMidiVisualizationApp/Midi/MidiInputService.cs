@@ -66,28 +66,32 @@ public class MidiInputService : IMidiInputService
             {
                 case MidiCommandCode.NoteOn:
                 {
-                    var noteOn = (NoteOnEvent)evt;
+                    // NAudio may return NoteEvent or NoteOnEvent for NoteOn commands.
+                    // Use the base NoteEvent type to avoid cast failures.
+                    var noteEvt = (NoteEvent)evt;
+                    int velocity = noteEvt is NoteOnEvent noteOnEvt ? noteOnEvt.Velocity : 0;
+
                     MessageReceived?.Invoke(this, new RawMidiMessageEventArgs
                     {
-                        Description = $"NoteOn Ch{noteOn.Channel} Note={noteOn.NoteNumber} ({noteOn.NoteName}) Vel={noteOn.Velocity}"
+                        Description = $"NoteOn Ch{noteEvt.Channel} Note={noteEvt.NoteNumber} ({noteEvt.NoteName}) Vel={velocity}"
                     });
 
-                    if (noteOn.Velocity > 0)
+                    if (velocity > 0)
                     {
                         NoteOn?.Invoke(this, new NoteEventArgs
                         {
-                            NoteNumber = noteOn.NoteNumber,
-                            Velocity = noteOn.Velocity,
-                            Channel = noteOn.Channel - 1
+                            NoteNumber = noteEvt.NoteNumber,
+                            Velocity = velocity,
+                            Channel = noteEvt.Channel - 1
                         });
                     }
                     else
                     {
                         NoteOff?.Invoke(this, new NoteEventArgs
                         {
-                            NoteNumber = noteOn.NoteNumber,
+                            NoteNumber = noteEvt.NoteNumber,
                             Velocity = 0,
-                            Channel = noteOn.Channel - 1
+                            Channel = noteEvt.Channel - 1
                         });
                     }
                     break;
