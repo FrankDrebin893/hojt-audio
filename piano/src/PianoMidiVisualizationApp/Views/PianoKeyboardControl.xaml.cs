@@ -32,8 +32,8 @@ public partial class PianoKeyboardControl : UserControl
     private static readonly LinearGradientBrush BlackKeyPressedGradient;
 
     private static readonly SolidColorBrush KeyBorder = new(Color.FromRgb(60, 60, 60));
-    private static readonly SolidColorBrush WhiteKeyLabel = new(Color.FromRgb(170, 170, 165));
-    private static readonly SolidColorBrush BlackKeyLabel = new(Color.FromRgb(100, 100, 100));
+    private static readonly SolidColorBrush WhiteKeyLabel = new(Color.FromRgb(130, 130, 125));
+    private static readonly SolidColorBrush BlackKeyLabel = new(Color.FromRgb(140, 140, 140));
 
     private readonly Dictionary<int, Rectangle> _keyRectangles = new();
 
@@ -207,14 +207,15 @@ public partial class PianoKeyboardControl : UserControl
         var label = new TextBlock
         {
             Text = labelText,
-            FontSize = isC ? 9 : 8,
-            FontWeight = isC ? FontWeights.SemiBold : FontWeights.Normal,
+            FontSize = isC ? 10 : 9,
+            FontWeight = FontWeights.Medium,
+            FontFamily = new FontFamily("Segoe UI"),
             Foreground = WhiteKeyLabel,
             TextAlignment = TextAlignment.Center,
             Width = WhiteKeyWidth - 1
         };
         Canvas.SetLeft(label, index * WhiteKeyWidth);
-        Canvas.SetTop(label, WhiteKeyHeight - (isC ? 16 : 14));
+        Canvas.SetTop(label, WhiteKeyHeight - (isC ? 18 : 16));
         Panel.SetZIndex(label, 0);
         return label;
     }
@@ -226,13 +227,15 @@ public partial class PianoKeyboardControl : UserControl
         var label = new TextBlock
         {
             Text = labelText,
-            FontSize = 7,
+            FontSize = 8,
+            FontWeight = FontWeights.Medium,
+            FontFamily = new FontFamily("Segoe UI"),
             Foreground = BlackKeyLabel,
             TextAlignment = TextAlignment.Center,
             Width = BlackKeyWidth
         };
         Canvas.SetLeft(label, x);
-        Canvas.SetTop(label, BlackKeyHeight - 12);
+        Canvas.SetTop(label, BlackKeyHeight - 14);
         Panel.SetZIndex(label, 2);
         return label;
     }
