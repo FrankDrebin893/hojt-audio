@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using PianoMidiVisualizationApp.Models;
 using PianoMidiVisualizationApp.ViewModels;
@@ -15,15 +16,61 @@ public partial class PianoKeyboardControl : UserControl
     private const double BlackKeyWidth = 16;
     private const double BlackKeyHeight = 100;
 
-    private static readonly SolidColorBrush WhiteDefault = new(Colors.White);
-    private static readonly SolidColorBrush WhitePressed = new(Color.FromRgb(100, 180, 255));
-    private static readonly SolidColorBrush BlackDefault = new(Color.FromRgb(30, 30, 30));
-    private static readonly SolidColorBrush BlackPressed = new(Color.FromRgb(30, 120, 255));
-    private static readonly SolidColorBrush KeyBorder = new(Color.FromRgb(80, 80, 80));
-    private static readonly SolidColorBrush WhiteKeyLabel = new(Color.FromRgb(180, 180, 180));
-    private static readonly SolidColorBrush BlackKeyLabel = new(Color.FromRgb(120, 120, 120));
+    // White key gradients - ivory to light gray for 3D effect
+    private static readonly LinearGradientBrush WhiteKeyGradient = new(
+        Color.FromRgb(255, 255, 253), // Warm white at top
+        Color.FromRgb(235, 235, 230), // Slightly darker at bottom
+        new Point(0, 0), new Point(0, 1));
+
+    private static readonly LinearGradientBrush WhiteKeyPressedGradient = new(
+        Color.FromRgb(140, 200, 255), // Lighter blue at top
+        Color.FromRgb(80, 160, 235),  // Darker blue at bottom
+        new Point(0, 0), new Point(0, 1));
+
+    // Black key gradients - creates beveled top effect
+    private static readonly LinearGradientBrush BlackKeyGradient;
+    private static readonly LinearGradientBrush BlackKeyPressedGradient;
+
+    private static readonly SolidColorBrush KeyBorder = new(Color.FromRgb(60, 60, 60));
+    private static readonly SolidColorBrush WhiteKeyLabel = new(Color.FromRgb(170, 170, 165));
+    private static readonly SolidColorBrush BlackKeyLabel = new(Color.FromRgb(100, 100, 100));
 
     private readonly Dictionary<int, Rectangle> _keyRectangles = new();
+
+    static PianoKeyboardControl()
+    {
+        // Black key gradient with highlight at top for 3D bevel
+        BlackKeyGradient = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(0, 1),
+            GradientStops = new GradientStopCollection
+            {
+                new(Color.FromRgb(70, 70, 70), 0.0),    // Lighter top edge
+                new(Color.FromRgb(35, 35, 35), 0.08),   // Quick transition
+                new(Color.FromRgb(25, 25, 25), 0.5),    // Dark middle
+                new(Color.FromRgb(15, 15, 15), 1.0)     // Darker bottom
+            }
+        };
+        BlackKeyGradient.Freeze();
+
+        BlackKeyPressedGradient = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(0, 1),
+            GradientStops = new GradientStopCollection
+            {
+                new(Color.FromRgb(80, 150, 220), 0.0),
+                new(Color.FromRgb(40, 120, 200), 0.08),
+                new(Color.FromRgb(25, 100, 180), 0.5),
+                new(Color.FromRgb(20, 80, 160), 1.0)
+            }
+        };
+        BlackKeyPressedGradient.Freeze();
+
+        WhiteKeyGradient.Freeze();
+        WhiteKeyPressedGradient.Freeze();
+    }
 
     public PianoKeyboardControl()
     {
@@ -103,12 +150,20 @@ public partial class PianoKeyboardControl : UserControl
         {
             Width = WhiteKeyWidth - 1,
             Height = WhiteKeyHeight,
-            Fill = WhiteDefault,
+            Fill = WhiteKeyGradient,
             Stroke = KeyBorder,
             StrokeThickness = 0.5,
             RadiusX = 0,
-            RadiusY = 3,
-            Tag = key.NoteNumber
+            RadiusY = 4,
+            Tag = key.NoteNumber,
+            Effect = new DropShadowEffect
+            {
+                Color = Colors.Black,
+                Direction = 270,
+                ShadowDepth = 1,
+                Opacity = 0.15,
+                BlurRadius = 2
+            }
         };
         Canvas.SetLeft(rect, index * WhiteKeyWidth);
         Canvas.SetTop(rect, 0);
@@ -122,12 +177,20 @@ public partial class PianoKeyboardControl : UserControl
         {
             Width = BlackKeyWidth,
             Height = BlackKeyHeight,
-            Fill = BlackDefault,
-            Stroke = KeyBorder,
+            Fill = BlackKeyGradient,
+            Stroke = new SolidColorBrush(Color.FromRgb(20, 20, 20)),
             StrokeThickness = 0.5,
-            RadiusX = 0,
-            RadiusY = 3,
-            Tag = key.NoteNumber
+            RadiusX = 2,
+            RadiusY = 2,
+            Tag = key.NoteNumber,
+            Effect = new DropShadowEffect
+            {
+                Color = Colors.Black,
+                Direction = 315,
+                ShadowDepth = 3,
+                Opacity = 0.5,
+                BlurRadius = 5
+            }
         };
         Canvas.SetLeft(rect, x);
         Canvas.SetTop(rect, 0);
@@ -209,9 +272,9 @@ public partial class PianoKeyboardControl : UserControl
             if (_keyRectangles.TryGetValue(key.NoteNumber, out var rect))
             {
                 if (key.IsBlack)
-                    rect.Fill = key.IsPressed ? BlackPressed : BlackDefault;
+                    rect.Fill = key.IsPressed ? BlackKeyPressedGradient : BlackKeyGradient;
                 else
-                    rect.Fill = key.IsPressed ? WhitePressed : WhiteDefault;
+                    rect.Fill = key.IsPressed ? WhiteKeyPressedGradient : WhiteKeyGradient;
             }
         }
     }
