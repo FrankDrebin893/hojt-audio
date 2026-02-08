@@ -41,7 +41,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private string _currentChord = "";
 
     private const int MaxLogLines = 100;
+    private const int MaxSavedChords = 8;
     public ObservableCollection<string> MidiLog { get; } = new();
+    public ObservableCollection<SavedChord> SavedChords { get; } = new();
 
     public MainViewModel(IMidiInputService midiInput, IAudioEngine audioEngine, Dispatcher dispatcher)
     {
@@ -178,6 +180,58 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         RefreshDevices();
         StatusText = "Devices refreshed";
+    }
+
+    [RelayCommand]
+    private void SaveCurrentChord()
+    {
+        if (string.IsNullOrEmpty(CurrentChord))
+        {
+            StatusText = "No chord to save";
+            return;
+        }
+
+        if (SavedChords.Count >= MaxSavedChords)
+        {
+            StatusText = "Maximum 8 chords saved - remove one first";
+            return;
+        }
+
+        var pressedNotes = PianoKeyboard.GetPressedNotes().OrderBy(n => n).ToList();
+        if (pressedNotes.Count == 0)
+        {
+            StatusText = "No notes held";
+            return;
+        }
+
+        var noteNames = pressedNotes.Select(n => GetNoteName(n)).ToList();
+
+        var savedChord = new SavedChord
+        {
+            ChordName = CurrentChord,
+            NoteNumbers = pressedNotes,
+            NoteNames = noteNames
+        };
+
+        SavedChords.Add(savedChord);
+        StatusText = $"Saved chord: {CurrentChord}";
+    }
+
+    [RelayCommand]
+    private void RemoveChord(SavedChord? chord)
+    {
+        if (chord != null && SavedChords.Contains(chord))
+        {
+            SavedChords.Remove(chord);
+            StatusText = $"Removed chord: {chord.ChordName}";
+        }
+    }
+
+    private static string GetNoteName(int noteNumber)
+    {
+        string[] noteNames = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+        int octave = (noteNumber / 12) - 1;
+        return $"{noteNames[noteNumber % 12]}{octave}";
     }
 
     public void AutoConnect()

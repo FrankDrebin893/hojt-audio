@@ -5,7 +5,8 @@
         Title="Piano MIDI Visualization"
         Width="1400" Height="500"
         WindowStartupLocation="CenterScreen"
-        Background="#1E1E1E">
+        Background="#1E1E1E"
+        KeyDown="Window_KeyDown">
     <DockPanel>
         <!-- Settings panel at top -->
         <views:SettingsPanel DockPanel.Dock="Top" DataContext="{Binding}"/>
@@ -36,9 +37,71 @@
 
         <!-- Chord display -->
         <Border DockPanel.Dock="Bottom" Background="#252525" Padding="12,8">
-            <TextBlock Text="{Binding CurrentChord}"
-                       Foreground="White" FontSize="24" FontWeight="Bold"
-                       HorizontalAlignment="Center"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock Text="{Binding CurrentChord}"
+                           Foreground="White" FontSize="24" FontWeight="Bold"
+                           VerticalAlignment="Center"/>
+                <TextBlock Text="  (Space to save)" Foreground="#666666" FontSize="12"
+                           VerticalAlignment="Center"
+                           Visibility="{Binding CurrentChord, Converter={StaticResource StringToVisibilityConverter}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Saved chords panel on right -->
+        <Border DockPanel.Dock="Right" Background="#252525" Width="180" Padding="8">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="Chord Progression"
+                           Foreground="#AAAAAA" FontSize="12" FontWeight="SemiBold"
+                           Margin="0,0,0,8"/>
+                <TextBlock DockPanel.Dock="Bottom" Text="{Binding SavedChords.Count, StringFormat='{}{0}/8 chords'}"
+                           Foreground="#666666" FontSize="10" Margin="0,8,0,0"/>
+                <ItemsControl ItemsSource="{Binding SavedChords}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#303030" CornerRadius="4" Margin="0,0,0,6" Padding="8,6">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding ChordName}"
+                                                   Foreground="White" FontSize="16" FontWeight="Bold"/>
+                                        <TextBlock Text="{Binding NotesDisplay}"
+                                                   Foreground="#888888" FontSize="10" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="✕"
+                                            Command="{Binding DataContext.RemoveChordCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"
+                                            Background="Transparent" Foreground="#888888"
+                                            BorderThickness="0" FontSize="14" Cursor="Hand"
+                                            VerticalAlignment="Top" Padding="4,0"
+                                            ToolTip="Remove chord">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Foreground" Value="#FF6666"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </DockPanel>
         </Border>
 
         <!-- Piano keyboard fills remaining space -->
