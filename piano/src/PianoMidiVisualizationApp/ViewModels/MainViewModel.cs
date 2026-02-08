@@ -175,6 +175,45 @@ public partial class MainViewModel : ObservableObject, IDisposable
         StatusText = "Devices refreshed";
     }
 
+    public void AutoConnect()
+    {
+        // Auto-connect MIDI if a device is selected
+        if (Settings.SelectedMidiDevice != null && !IsMidiConnected)
+        {
+            try
+            {
+                _midiInput.Open(Settings.SelectedMidiDevice.Index);
+                IsMidiConnected = true;
+                StatusText = $"MIDI auto-connected: {Settings.SelectedMidiDevice.Name}";
+            }
+            catch (Exception ex)
+            {
+                StatusText = $"MIDI auto-connect failed: {ex.Message}";
+            }
+        }
+
+        // Auto-start audio if we have a SoundFont and audio driver
+        if (!string.IsNullOrEmpty(Settings.SoundFontPath)
+            && System.IO.File.Exists(Settings.SoundFontPath)
+            && !string.IsNullOrEmpty(Settings.SelectedAudioDriver)
+            && !IsAudioRunning)
+        {
+            try
+            {
+                _audioEngine.Initialize(Settings.SelectedAudioDriver, Settings.UseAsio, Settings.SoundFontPath);
+                _audioEngine.Volume = Settings.Volume;
+                _audioEngine.Start();
+                IsAudioRunning = true;
+                StatusText = $"Audio auto-started: {Settings.SelectedAudioDriver} ({(Settings.UseAsio ? "ASIO" : "WASAPI")})";
+            }
+            catch (Exception ex)
+            {
+                IsAudioRunning = false;
+                StatusText = $"Audio auto-start failed: {ex.Message}";
+            }
+        }
+    }
+
     private void OnRawMidiMessage(object? sender, RawMidiMessageEventArgs e)
     {
         _dispatcher.BeginInvoke(() =>

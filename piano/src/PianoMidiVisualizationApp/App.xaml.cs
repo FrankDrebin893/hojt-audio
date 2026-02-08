@@ -22,9 +22,10 @@ public partial class App : Application
         // Enumerate devices
         _mainViewModel.RefreshDevices();
 
-        // Load saved settings
+        // Load saved settings and auto-connect
         var saved = AppSettings.Load();
         _mainViewModel.Settings.ApplyFrom(saved);
+        _mainViewModel.AutoConnect();
 
         var window = new MainWindow { DataContext = _mainViewModel };
         window.Closing += (_, _) =>
