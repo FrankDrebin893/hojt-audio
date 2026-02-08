@@ -7,6 +7,7 @@ using Microsoft.Win32;
 using PianoMidiVisualizationApp.Audio;
 using PianoMidiVisualizationApp.Midi;
 using PianoMidiVisualizationApp.Models;
+using PianoMidiVisualizationApp.Services;
 
 namespace PianoMidiVisualizationApp.ViewModels;
 
@@ -15,6 +16,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly IMidiInputService _midiInput;
     private readonly IAudioEngine _audioEngine;
     private readonly Dispatcher _dispatcher;
+    private readonly ChordDetector _chordDetector = new();
     private System.Threading.Timer? _activityTimer;
 
     public PianoKeyboardViewModel PianoKeyboard { get; }
@@ -34,6 +36,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private string _lastMidiMessage = "";
+
+    [ObservableProperty]
+    private string _currentChord = "";
 
     private const int MaxLogLines = 100;
     public ObservableCollection<string> MidiLog { get; } = new();
@@ -242,6 +247,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _dispatcher.BeginInvoke(() =>
         {
             PianoKeyboard.SetKeyPressed(e.NoteNumber, e.Velocity);
+            CurrentChord = _chordDetector.Detect(PianoKeyboard.GetPressedNotes()) ?? "";
         });
     }
 
@@ -252,6 +258,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _dispatcher.BeginInvoke(() =>
         {
             PianoKeyboard.SetKeyReleased(e.NoteNumber);
+            CurrentChord = _chordDetector.Detect(PianoKeyboard.GetPressedNotes()) ?? "";
         });
     }
 

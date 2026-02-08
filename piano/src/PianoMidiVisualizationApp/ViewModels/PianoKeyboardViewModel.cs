@@ -45,6 +45,9 @@ public class PianoKeyboardViewModel : ObservableObject
         }
     }
 
+    public IEnumerable<int> GetPressedNotes()
+        => Keys.Where(k => k.IsPressed).Select(k => k.NoteNumber);
+
     public static bool IsBlackKey(int noteNumber)
     {
         return (noteNumber % 12) is 1 or 3 or 6 or 8 or 10;

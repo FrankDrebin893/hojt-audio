@@ -34,6 +34,13 @@
             </DockPanel>
         </Border>
 
+        <!-- Chord display -->
+        <Border DockPanel.Dock="Bottom" Background="#252525" Padding="12,8">
+            <TextBlock Text="{Binding CurrentChord}"
+                       Foreground="White" FontSize="24" FontWeight="Bold"
+                       HorizontalAlignment="Center"/>
+        </Border>
+
         <!-- Piano keyboard fills remaining space -->
         <ScrollViewer HorizontalScrollBarVisibility="Auto"
                       VerticalScrollBarVisibility="Disabled"
