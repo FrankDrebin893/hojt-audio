@@ -10,7 +10,7 @@ dotnet build D:\Repos\PianoMidiVisualizationApp\PianoMidiVisualizationApp.sln
 ```
 
 ## Tech Stack
-- C# / .NET 9 / WPF
+- C# / .NET 10 / WPF
 - NAudio 2.2.1 (MIDI input, ASIO/WASAPI audio output)
 - MeltySynth 2.4.1 (SoundFont synthesis)
 - CommunityToolkit.Mvvm 8.4.0 (MVVM)
