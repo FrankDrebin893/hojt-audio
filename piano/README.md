@@ -2,6 +2,8 @@
 
 A Windows desktop app that accepts MIDI input from a physical keyboard, plays piano sounds using SoundFont (.sf2) files, and visualizes the played notes on a virtual 88-key piano in real-time.
 
+![Piano MIDI Visualization Demo](demo.png)
+
 ## Features
 
 - **MIDI input** — connect any MIDI keyboard and see notes light up as you play
