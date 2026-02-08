@@ -17,7 +17,7 @@ A Windows desktop app that accepts MIDI input from a physical keyboard, plays pi
 ## Requirements
 
 - Windows 10/11
-- [.NET 8 Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)
 - A MIDI keyboard (connected via USB or MIDI interface)
 - A SoundFont (.sf2) file — free options include [GeneralUser GS](https://schristiancollins.com/generaluser.php) or [FluidR3](https://github.com/musescore/MuseScore/tree/master/share/sound)
 - (Optional) An ASIO driver — [ASIO4ALL](https://asio4all.org/) works as a universal option
@@ -46,7 +46,7 @@ The green dot next to the MIDI controls flashes when MIDI data is received. The 
 
 ## Tech Stack
 
-- **C# / .NET 8 / WPF** — desktop UI framework
+- **C# / .NET 10 / WPF** — desktop UI framework
 - **NAudio** — MIDI input, ASIO and WASAPI audio output
 - **MeltySynth** — pure C# SoundFont synthesizer
 - **CommunityToolkit.Mvvm** — MVVM data binding
