@@ -128,20 +128,18 @@ public partial class PianoKeyboardControl : UserControl
 
     private double GetBlackKeyX(int noteNumber, PianoKeyboardViewModel vm)
     {
-        // Find the white key index of the white key just before this black key
-        int whiteKeyIndex = 0;
+        // Count white keys before this black key
+        int whiteKeysBefore = 0;
         foreach (var k in vm.Keys)
         {
             if (k.NoteNumber >= noteNumber) break;
-            if (!k.IsBlack) whiteKeyIndex++;
+            if (!k.IsBlack) whiteKeysBefore++;
         }
 
+        // The black key sits after the white key at index (whiteKeysBefore - 1)
+        int leftWhiteKeyIndex = whiteKeysBefore - 1;
+
         // Black key offsets within an octave (relative to the left white key)
-        // C#: between C and D -> offset ~0.6 of white key width
-        // D#: between D and E -> offset ~0.6
-        // F#: between F and G -> offset ~0.6
-        // G#: between G and A -> offset ~0.6
-        // A#: between A and B -> offset ~0.6
         int noteInOctave = noteNumber % 12;
         double offset = noteInOctave switch
         {
@@ -153,7 +151,7 @@ public partial class PianoKeyboardControl : UserControl
             _ => 0.6
         };
 
-        return (whiteKeyIndex * WhiteKeyWidth) + (WhiteKeyWidth * offset) - (BlackKeyWidth / 2.0);
+        return (leftWhiteKeyIndex * WhiteKeyWidth) + (WhiteKeyWidth * offset) - (BlackKeyWidth / 2.0);
     }
 
     private void OnKeyPropertyChanged(object? sender, PropertyChangedEventArgs e)
