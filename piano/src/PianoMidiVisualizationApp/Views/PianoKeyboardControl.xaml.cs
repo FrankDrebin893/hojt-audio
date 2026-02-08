@@ -20,6 +20,8 @@ public partial class PianoKeyboardControl : UserControl
     private static readonly SolidColorBrush BlackDefault = new(Color.FromRgb(30, 30, 30));
     private static readonly SolidColorBrush BlackPressed = new(Color.FromRgb(30, 120, 255));
     private static readonly SolidColorBrush KeyBorder = new(Color.FromRgb(80, 80, 80));
+    private static readonly SolidColorBrush WhiteKeyLabel = new(Color.FromRgb(180, 180, 180));
+    private static readonly SolidColorBrush BlackKeyLabel = new(Color.FromRgb(120, 120, 120));
 
     private readonly Dictionary<int, Rectangle> _keyRectangles = new();
 
@@ -48,7 +50,7 @@ public partial class PianoKeyboardControl : UserControl
         PianoCanvas.Children.Clear();
         _keyRectangles.Clear();
 
-        // First pass: draw white keys
+        // First pass: draw white keys and their labels
         int whiteKeyIndex = 0;
         foreach (var key in vm.Keys)
         {
@@ -57,11 +59,15 @@ public partial class PianoKeyboardControl : UserControl
                 var rect = CreateWhiteKey(whiteKeyIndex, key);
                 PianoCanvas.Children.Add(rect);
                 _keyRectangles[key.NoteNumber] = rect;
+
+                var label = CreateWhiteKeyLabel(whiteKeyIndex, key);
+                PianoCanvas.Children.Add(label);
+
                 whiteKeyIndex++;
             }
         }
 
-        // Second pass: draw black keys on top
+        // Second pass: draw black keys and their labels on top
         whiteKeyIndex = 0;
         for (int i = 0; i < vm.Keys.Count; i++)
         {
@@ -72,6 +78,9 @@ public partial class PianoKeyboardControl : UserControl
                 var rect = CreateBlackKey(x, key);
                 PianoCanvas.Children.Add(rect);
                 _keyRectangles[key.NoteNumber] = rect;
+
+                var label = CreateBlackKeyLabel(x, key);
+                PianoCanvas.Children.Add(label);
             }
             else
             {
@@ -124,6 +133,45 @@ public partial class PianoKeyboardControl : UserControl
         Canvas.SetTop(rect, 0);
         Panel.SetZIndex(rect, 1);
         return rect;
+    }
+
+    private TextBlock CreateWhiteKeyLabel(int index, PianoKey key)
+    {
+        // Show full name (with octave) for C notes, just letter for others
+        bool isC = key.NoteNumber % 12 == 0;
+        string labelText = isC ? key.NoteName : key.NoteName.TrimEnd('0', '1', '2', '3', '4', '5', '6', '7', '8', '9');
+
+        var label = new TextBlock
+        {
+            Text = labelText,
+            FontSize = isC ? 9 : 8,
+            FontWeight = isC ? FontWeights.SemiBold : FontWeights.Normal,
+            Foreground = WhiteKeyLabel,
+            TextAlignment = TextAlignment.Center,
+            Width = WhiteKeyWidth - 1
+        };
+        Canvas.SetLeft(label, index * WhiteKeyWidth);
+        Canvas.SetTop(label, WhiteKeyHeight - (isC ? 16 : 14));
+        Panel.SetZIndex(label, 0);
+        return label;
+    }
+
+    private TextBlock CreateBlackKeyLabel(double x, PianoKey key)
+    {
+        string labelText = key.NoteName.TrimEnd('0', '1', '2', '3', '4', '5', '6', '7', '8', '9');
+
+        var label = new TextBlock
+        {
+            Text = labelText,
+            FontSize = 7,
+            Foreground = BlackKeyLabel,
+            TextAlignment = TextAlignment.Center,
+            Width = BlackKeyWidth
+        };
+        Canvas.SetLeft(label, x);
+        Canvas.SetTop(label, BlackKeyHeight - 12);
+        Panel.SetZIndex(label, 2);
+        return label;
     }
 
     private double GetBlackKeyX(int noteNumber, PianoKeyboardViewModel vm)
