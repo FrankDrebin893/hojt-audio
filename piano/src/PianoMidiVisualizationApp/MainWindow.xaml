@@ -16,6 +16,9 @@
             <TextBlock Text="{Binding StatusText}" Foreground="#AAAAAA" FontSize="12"/>
         </Border>
 
+        <!-- AI Chat panel -->
+        <views:ChatPanel DockPanel.Dock="Bottom" DataContext="{Binding Chat}"/>
+
         <!-- MIDI log panel at bottom -->
         <Border DockPanel.Dock="Bottom" Background="#1A1A1A" Height="120" Padding="4">
             <DockPanel>

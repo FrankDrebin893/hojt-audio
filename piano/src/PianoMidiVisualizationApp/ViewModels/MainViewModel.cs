@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Windows;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -21,6 +20,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public PianoKeyboardViewModel PianoKeyboard { get; }
     public SettingsViewModel Settings { get; }
+    public ChatViewModel Chat { get; }
 
     [ObservableProperty]
     private string _statusText = "Ready";
@@ -54,6 +54,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         PianoKeyboard = new PianoKeyboardViewModel();
         Settings = new SettingsViewModel();
 
+        var chatService = new ChatService();
+        Chat = new ChatViewModel(chatService, GetMusicContext);
+
         _midiInput.NoteOn += OnMidiNoteOn;
         _midiInput.NoteOff += OnMidiNoteOff;
         _midiInput.MessageReceived += OnRawMidiMessage;
@@ -62,7 +65,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             if (e.PropertyName == nameof(Settings.Volume))
                 _audioEngine.Volume = Settings.Volume;
+            else if (e.PropertyName == nameof(Settings.AnthropicApiKey))
+                Chat.Configure(Settings.AnthropicApiKey);
         };
+    }
+
+    private MusicContext GetMusicContext()
+    {
+        return new MusicContext(
+            CurrentChord,
+            SavedChords.Select(c => c.ChordName).ToList(),
+            MidiLog.TakeLast(10).ToList());
     }
 
     public void RefreshDevices()

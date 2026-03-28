@@ -10,6 +10,7 @@ public class AppSettings
     public bool UseAsio { get; set; } = true;
     public string? SoundFontPath { get; set; }
     public float Volume { get; set; } = 0.8f;
+    public string? AnthropicApiKey { get; set; }
 
     private static string DirectoryPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

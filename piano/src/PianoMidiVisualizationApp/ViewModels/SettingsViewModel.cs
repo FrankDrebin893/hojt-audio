@@ -21,6 +21,9 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private float _volume = 0.8f;
 
+    [ObservableProperty]
+    private string _anthropicApiKey = "";
+
     public ObservableCollection<DeviceInfo> MidiDevices { get; } = new();
     public ObservableCollection<string> AsioDriverNames { get; } = new();
     public ObservableCollection<string> WasapiDeviceNames { get; } = new();
@@ -30,6 +33,7 @@ public partial class SettingsViewModel : ObservableObject
         UseAsio = settings.UseAsio;
         SoundFontPath = settings.SoundFontPath ?? "";
         Volume = settings.Volume;
+        AnthropicApiKey = settings.AnthropicApiKey ?? "";
 
         // Device selection will be applied after enumeration
         if (settings.LastMidiDevice != null)
@@ -50,7 +54,8 @@ public partial class SettingsViewModel : ObservableObject
             LastAudioDriver = SelectedAudioDriver,
             UseAsio = UseAsio,
             SoundFontPath = SoundFontPath,
-            Volume = Volume
+            Volume = Volume,
+            AnthropicApiKey = AnthropicApiKey
         };
     }
 }

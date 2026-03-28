@@ -25,6 +25,13 @@ public partial class App : Application
         // Load saved settings and auto-connect
         var saved = AppSettings.Load();
         _mainViewModel.Settings.ApplyFrom(saved);
+
+        // Configure chat service with saved API key
+        if (!string.IsNullOrEmpty(saved.AnthropicApiKey))
+        {
+            _mainViewModel.Chat.Configure(saved.AnthropicApiKey);
+        }
+
         _mainViewModel.AutoConnect();
 
         var window = new MainWindow { DataContext = _mainViewModel };
