@@ -120,7 +120,7 @@
                 <TextBlock Text="AI:" Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold"/>
                 <PasswordBox x:Name="ApiKeyBox" Width="120" Height="26"
                              PasswordChanged="ApiKeyBox_PasswordChanged"
-                             ToolTip="Anthropic API Key"/>
+                             ToolTip="Google Gemini API Key"/>
             </StackPanel>
 
             <!-- Refresh -->

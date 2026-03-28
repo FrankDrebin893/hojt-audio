@@ -10,9 +10,8 @@ public class ChatService : IChatService
 {
     private readonly HttpClient _httpClient;
     private string? _apiKey;
-    private const string ApiUrl = "https://api.anthropic.com/v1/messages";
-    private const string Model = "claude-sonnet-4-20250514";
-    private const int MaxTokens = 1024;
+    private const string Model = "gemini-2.0-flash";
+    private const string ApiBaseUrl = "https://generativelanguage.googleapis.com/v1beta/models";
 
     public ChatService()
     {
@@ -36,19 +35,16 @@ public class ChatService : IChatService
             throw new InvalidOperationException("Chat service is not configured. Please set your API key in settings.");
 
         var systemPrompt = BuildSystemPrompt(context);
-        var messages = BuildMessages(history, userMessage);
+        var contents = BuildContents(history, userMessage, systemPrompt);
 
-        var requestBody = new AnthropicRequest
+        var requestBody = new GeminiRequest
         {
-            Model = Model,
-            MaxTokens = MaxTokens,
-            System = systemPrompt,
-            Messages = messages
+            Contents = contents
         };
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, ApiUrl);
-        request.Headers.Add("x-api-key", _apiKey);
-        request.Headers.Add("anthropic-version", "2023-06-01");
+        var url = $"{ApiBaseUrl}/{Model}:generateContent?key={_apiKey}";
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, url);
         request.Content = JsonContent.Create(requestBody, options: JsonOptions);
 
         var response = await _httpClient.SendAsync(request, cancellationToken);
@@ -59,8 +55,8 @@ public class ChatService : IChatService
             throw new HttpRequestException($"API error ({response.StatusCode}): {errorContent}");
         }
 
-        var result = await response.Content.ReadFromJsonAsync<AnthropicResponse>(JsonOptions, cancellationToken);
-        return result?.Content?.FirstOrDefault()?.Text ?? "";
+        var result = await response.Content.ReadFromJsonAsync<GeminiResponse>(JsonOptions, cancellationToken);
+        return result?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text ?? "";
     }
 
     private static string BuildSystemPrompt(MusicContext context)
@@ -92,56 +88,72 @@ public class ChatService : IChatService
         return sb.ToString();
     }
 
-    private static List<AnthropicMessage> BuildMessages(IReadOnlyList<ChatMessageDto> history, string userMessage)
+    private static List<GeminiContent> BuildContents(IReadOnlyList<ChatMessageDto> history, string userMessage, string systemPrompt)
     {
-        var messages = new List<AnthropicMessage>();
+        var contents = new List<GeminiContent>();
 
+        // Add system context as first user message
+        contents.Add(new GeminiContent
+        {
+            Role = "user",
+            Parts = [new GeminiPart { Text = $"[System context - respond naturally to my questions]\n\n{systemPrompt}" }]
+        });
+
+        contents.Add(new GeminiContent
+        {
+            Role = "model",
+            Parts = [new GeminiPart { Text = "I understand. I'm ready to help you with music theory, chord progressions, and piano practice. What would you like to know?" }]
+        });
+
+        // Add conversation history
         foreach (var msg in history)
         {
-            messages.Add(new AnthropicMessage
+            contents.Add(new GeminiContent
             {
-                Role = msg.Role,
-                Content = msg.Content
+                Role = msg.Role == "user" ? "user" : "model",
+                Parts = [new GeminiPart { Text = msg.Content }]
             });
         }
 
-        messages.Add(new AnthropicMessage
+        // Add current user message
+        contents.Add(new GeminiContent
         {
             Role = "user",
-            Content = userMessage
+            Parts = [new GeminiPart { Text = userMessage }]
         });
 
-        return messages;
+        return contents;
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    private class AnthropicRequest
+    private class GeminiRequest
     {
-        public required string Model { get; set; }
-        public int MaxTokens { get; set; }
-        public string? System { get; set; }
-        public List<AnthropicMessage> Messages { get; set; } = new();
+        public List<GeminiContent> Contents { get; set; } = new();
     }
 
-    private class AnthropicMessage
+    private class GeminiContent
     {
         public required string Role { get; set; }
-        public required string Content { get; set; }
+        public List<GeminiPart> Parts { get; set; } = new();
     }
 
-    private class AnthropicResponse
+    private class GeminiPart
     {
-        public List<ContentBlock>? Content { get; set; }
-    }
-
-    private class ContentBlock
-    {
-        public string? Type { get; set; }
         public string? Text { get; set; }
+    }
+
+    private class GeminiResponse
+    {
+        public List<GeminiCandidate>? Candidates { get; set; }
+    }
+
+    private class GeminiCandidate
+    {
+        public GeminiContent? Content { get; set; }
     }
 }
