@@ -40,6 +40,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _currentChord = "";
 
+    [ObservableProperty]
+    private bool _isMidiLogVisible = true;
+
+    [ObservableProperty]
+    private bool _isChatPanelVisible = true;
+
     private const int MaxLogLines = 100;
     private const int MaxSavedChords = 8;
     public ObservableCollection<string> MidiLog { get; } = new();
@@ -239,6 +245,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
             StatusText = $"Removed chord: {chord.ChordName}";
         }
     }
+
+    [RelayCommand]
+    private void ToggleMidiLog() => IsMidiLogVisible = !IsMidiLogVisible;
+
+    [RelayCommand]
+    private void ToggleChatPanel() => IsChatPanelVisible = !IsChatPanelVisible;
 
     private static string GetNoteName(int noteNumber)
     {

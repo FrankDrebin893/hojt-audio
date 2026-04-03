@@ -6,8 +6,93 @@
         Width="1400" Height="500"
         WindowStartupLocation="CenterScreen"
         Background="#1E1E1E"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        ResizeMode="CanResizeWithGrip"
         KeyDown="Window_KeyDown">
     <DockPanel>
+        <!-- Custom title bar -->
+        <Border DockPanel.Dock="Top" Background="#1A1A1A" Height="32"
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- App title and menu -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Source="app.png" Width="18" Height="18" Margin="10,0,8,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <TextBlock Text="Piano MIDI Visualization" Foreground="#CCCCCC" FontSize="12"
+                               VerticalAlignment="Center" Margin="0,0,16,0"/>
+
+                    <!-- Menu -->
+                    <Menu Background="Transparent" VerticalAlignment="Center">
+                        <Menu.Resources>
+                            <Style TargetType="MenuItem">
+                                <Setter Property="Foreground" Value="#CCCCCC"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Padding" Value="8,4"/>
+                            </Style>
+                        </Menu.Resources>
+                        <MenuItem Header="_View">
+                            <MenuItem Header="_AI Music Assistant" InputGestureText="Shift+F2"
+                                      IsCheckable="True" IsChecked="{Binding IsChatPanelVisible}"
+                                      Command="{Binding ToggleChatPanelCommand}"/>
+                            <MenuItem Header="_MIDI Log" InputGestureText="Shift+F3"
+                                      IsCheckable="True" IsChecked="{Binding IsMidiLogVisible}"
+                                      Command="{Binding ToggleMidiLogCommand}"/>
+                        </MenuItem>
+                    </Menu>
+                </StackPanel>
+
+                <!-- Window buttons -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button Content="─" Width="46" Height="32" Click="MinimizeButton_Click"
+                            Background="Transparent" Foreground="#AAAAAA" BorderThickness="0"
+                            FontSize="12" FontFamily="Segoe UI">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#333333"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="□" Width="46" Height="32" Click="MaximizeButton_Click"
+                            Background="Transparent" Foreground="#AAAAAA" BorderThickness="0"
+                            FontSize="14" FontFamily="Segoe UI">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#333333"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="✕" Width="46" Height="32" Click="CloseButton_Click"
+                            Background="Transparent" Foreground="#AAAAAA" BorderThickness="0"
+                            FontSize="12" FontFamily="Segoe UI">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#C42B1C"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
         <!-- Settings panel at top -->
         <views:SettingsPanel DockPanel.Dock="Top" DataContext="{Binding}"/>
 
@@ -17,10 +102,12 @@
         </Border>
 
         <!-- AI Chat panel -->
-        <views:ChatPanel DockPanel.Dock="Bottom" DataContext="{Binding Chat}"/>
+        <views:ChatPanel DockPanel.Dock="Bottom" DataContext="{Binding Chat}"
+                         Visibility="{Binding IsChatPanelVisible, Converter={StaticResource BoolToVisConverter}}"/>
 
         <!-- MIDI log panel at bottom -->
-        <Border DockPanel.Dock="Bottom" Background="#1A1A1A" Height="120" Padding="4">
+        <Border DockPanel.Dock="Bottom" Background="#1A1A1A" Height="120" Padding="4"
+                Visibility="{Binding IsMidiLogVisible, Converter={StaticResource BoolToVisConverter}}">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Text="MIDI Log" Foreground="#888888" FontSize="11" Margin="4,0,0,2"/>
                 <ListBox ItemsSource="{Binding MidiLog}"
