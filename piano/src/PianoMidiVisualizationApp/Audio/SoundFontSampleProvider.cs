@@ -3,7 +3,7 @@ using NAudio.Wave;
 
 namespace PianoMidiVisualizationApp.Audio;
 
-public class SoundFontSampleProvider : ISampleProvider
+public class SoundFontSampleProvider : INotePlayer
 {
     private readonly Synthesizer _synthesizer;
     private readonly object _synthLock = new();

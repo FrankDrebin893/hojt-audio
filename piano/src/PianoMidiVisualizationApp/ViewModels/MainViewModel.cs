@@ -184,8 +184,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         var dialog = new OpenFileDialog
         {
-            Filter = "SoundFont files (*.sf2)|*.sf2|All files (*.*)|*.*",
-            Title = "Select SoundFont File"
+            Filter = "SoundFont/SFZ files (*.sf2;*.sfz)|*.sf2;*.sfz|SoundFont files (*.sf2)|*.sf2|SFZ files (*.sfz)|*.sfz|All files (*.*)|*.*",
+            Title = "Select SoundFont/SFZ File"
         };
 
         if (dialog.ShowDialog() == true)

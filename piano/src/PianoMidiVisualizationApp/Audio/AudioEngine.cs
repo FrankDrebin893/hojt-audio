@@ -1,13 +1,15 @@
+using System.IO;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
+using PianoMidiVisualizationApp.Audio.Sfz;
 
 namespace PianoMidiVisualizationApp.Audio;
 
 public class AudioEngine : IAudioEngine
 {
     private IWavePlayer? _outputDevice;
-    private SoundFontSampleProvider? _sampleProvider;
+    private INotePlayer? _sampleProvider;
     private VolumeSampleProvider? _volumeProvider;
 
     public bool IsRunning { get; private set; }
@@ -55,7 +57,9 @@ public class AudioEngine : IAudioEngine
         Stop();
         DisposeOutput();
 
-        _sampleProvider = new SoundFontSampleProvider(soundFontPath, 44100);
+        _sampleProvider = Path.GetExtension(soundFontPath).Equals(".sfz", StringComparison.OrdinalIgnoreCase)
+            ? new SfzSampleProvider(soundFontPath, 44100)
+            : new SoundFontSampleProvider(soundFontPath, 44100);
         _volumeProvider = new VolumeSampleProvider(_sampleProvider) { Volume = 1.0f };
 
         if (useAsio)
