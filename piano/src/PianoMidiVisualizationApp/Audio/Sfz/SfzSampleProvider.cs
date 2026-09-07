@@ -5,6 +5,7 @@ namespace PianoMidiVisualizationApp.Audio.Sfz;
 public class SfzSampleProvider : INotePlayer
 {
     private readonly List<SfzRegion> _regions;
+    private readonly SfzSampleCache _sampleCache = new();
     private readonly List<SfzVoice> _voices = new();
     private readonly object _voicesLock = new();
     private readonly int _sampleRate;
@@ -24,7 +25,8 @@ public class SfzSampleProvider : INotePlayer
         if (region == null)
             return;
 
-        var voice = new SfzVoice(region, channel, note, velocity, _sampleRate);
+        var sampleData = _sampleCache.Get(region.SamplePath);
+        var voice = new SfzVoice(sampleData, region, channel, note, velocity, _sampleRate);
         lock (_voicesLock)
         {
             _voices.Add(voice);

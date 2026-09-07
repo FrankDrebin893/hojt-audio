@@ -1,5 +1,3 @@
-using NAudio.Wave;
-
 namespace PianoMidiVisualizationApp.Audio.Sfz;
 
 public class SfzVoice
@@ -16,17 +14,16 @@ public class SfzVoice
     public int Channel { get; }
     public int Note { get; }
 
-    public SfzVoice(SfzRegion region, int channel, int note, int velocity, int outputSampleRate)
+    public SfzVoice(SfzSampleData sampleData, SfzRegion region, int channel, int note, int velocity, int outputSampleRate)
     {
         Channel = channel;
         Note = note;
 
-        using var reader = new AudioFileReader(region.SamplePath);
-        _channels = reader.WaveFormat.Channels;
-        _samples = ReadAllSamples(reader);
+        _samples = sampleData.Samples;
+        _channels = sampleData.Channels;
 
         var pitchRatio = Math.Pow(2.0, (note - region.PitchKeyCenter) / 12.0);
-        _step = pitchRatio * reader.WaveFormat.SampleRate / outputSampleRate;
+        _step = pitchRatio * sampleData.SampleRate / outputSampleRate;
 
         var trackFraction = Math.Clamp(region.AmpVelTrack, 0, 100) / 100.0;
         _gain = (float)((1 - trackFraction) + trackFraction * (velocity / 127.0));
@@ -79,16 +76,6 @@ public class SfzVoice
         }
 
         return true;
-    }
-
-    private static float[] ReadAllSamples(ISampleProvider reader)
-    {
-        var samples = new List<float>();
-        var chunk = new float[16384];
-        int read;
-        while ((read = reader.Read(chunk, 0, chunk.Length)) > 0)
-            samples.AddRange(chunk.AsSpan(0, read).ToArray());
-        return samples.ToArray();
     }
 
     private static float Lerp(float a, float b, float t) => a + (b - a) * t;
