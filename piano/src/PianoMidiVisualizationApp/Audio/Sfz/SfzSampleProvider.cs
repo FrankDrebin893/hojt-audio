@@ -9,6 +9,7 @@ public class SfzSampleProvider : INotePlayer
     private readonly List<SfzVoice> _voices = new();
     private readonly object _voicesLock = new();
     private readonly int _sampleRate;
+    private float[] _scratch = Array.Empty<float>();
 
     public WaveFormat WaveFormat { get; }
 
@@ -47,16 +48,25 @@ public class SfzSampleProvider : INotePlayer
 
     public int Read(float[] buffer, int offset, int count)
     {
-        Array.Clear(buffer, offset, count);
+        // Mix into a private buffer that only we ever touch, then copy the finished result
+        // into the caller's buffer at the end. NAudio's ASIO buffer can otherwise get written
+        // into by the native interop layer while we're still accumulating into it mid-render,
+        // corrupting the tail of the buffer with stale/unrelated audio.
+        if (_scratch.Length < count)
+            _scratch = new float[count];
+        Array.Clear(_scratch, 0, count);
 
         lock (_voicesLock)
         {
             for (var i = _voices.Count - 1; i >= 0; i--)
             {
-                if (!_voices[i].Mix(buffer, offset, count / 2))
+                if (!_voices[i].Mix(_scratch, 0, count / 2))
                     _voices.RemoveAt(i);
             }
         }
+
+        for (var i = 0; i < count; i++)
+            buffer[offset + i] = _scratch[i];
 
         return count;
     }
