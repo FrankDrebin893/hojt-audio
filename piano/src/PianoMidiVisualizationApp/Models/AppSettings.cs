@@ -12,6 +12,20 @@ public class AppSettings
     public float Volume { get; set; } = 0.8f;
     public string? AnthropicApiKey { get; set; }
 
+    // Panel visibility. These defaults ARE the first-launch zen layout, and they also apply to
+    // an existing settings.json written before these keys existed — Deserialize runs the
+    // parameterless constructor and only overwrites keys actually present in the file.
+    public bool ShowMidiLog { get; set; } = false;
+    public bool ShowChatPanel { get; set; } = false;
+    public bool ShowProgression { get; set; } = true;
+    public bool ShowStatusBar { get; set; } = true;
+
+    // Window placement. Nullable so "never saved" is distinguishable from 0.
+    public double? WindowLeft { get; set; }
+    public double? WindowTop { get; set; }
+    public double? WindowWidth { get; set; }
+    public double? WindowHeight { get; set; }
+
     private static string DirectoryPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "PianoMidiVisualizationApp");

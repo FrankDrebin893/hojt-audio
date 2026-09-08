@@ -3,16 +3,26 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:PianoMidiVisualizationApp.Views"
         Title="Piano MIDI Visualization"
-        Width="1400" Height="500"
+        Width="1400" Height="620"
+        MinWidth="900" MinHeight="420"
         WindowStartupLocation="CenterScreen"
-        Background="#1E1E1E"
+        Background="{StaticResource Brush.Window}"
         WindowStyle="None"
         AllowsTransparency="True"
         ResizeMode="CanResizeWithGrip"
         KeyDown="Window_KeyDown">
-    <DockPanel>
-        <!-- Custom title bar -->
-        <Border DockPanel.Dock="Top" Background="#1A1A1A" Height="32"
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>   <!-- title bar -->
+            <RowDefinition Height="*"/>      <!-- stage: readout + keyboard, with the settings overlay -->
+            <RowDefinition Height="Auto"/>   <!-- MIDI log -->
+            <RowDefinition Height="Auto"/>   <!-- AI chat -->
+            <RowDefinition Height="Auto"/>   <!-- status bar -->
+        </Grid.RowDefinitions>
+
+        <!-- ===================== Title bar ===================== -->
+        <Border Grid.Row="0" Background="{StaticResource Brush.TitleBar}" Height="32"
                 MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -21,188 +31,202 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- App title and menu -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Image Source="app.png" Width="18" Height="18" Margin="10,0,8,0" RenderOptions.BitmapScalingMode="HighQuality"/>
-                    <TextBlock Text="Piano MIDI Visualization" Foreground="#CCCCCC" FontSize="12"
-                               VerticalAlignment="Center" Margin="0,0,16,0"/>
+                    <Image Source="app.png" Width="18" Height="18" Margin="10,0,8,0"
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <TextBlock Text="Piano MIDI Visualization" Foreground="{StaticResource Brush.Text.Secondary}"
+                               FontSize="12" VerticalAlignment="Center" Margin="0,0,16,0"/>
 
-                    <!-- Menu -->
-                    <Menu Background="Transparent" VerticalAlignment="Center">
-                        <Menu.Resources>
-                            <Style TargetType="MenuItem">
-                                <Setter Property="Foreground" Value="#CCCCCC"/>
-                                <Setter Property="Background" Value="Transparent"/>
-                                <Setter Property="Padding" Value="8,4"/>
-                            </Style>
-                        </Menu.Resources>
+                    <Menu VerticalAlignment="Center">
                         <MenuItem Header="_View">
+                            <!-- Settings and Zen are command items, not checkable ones: MenuItem.IsChecked
+                                 binds two-way by default, so a Command on a checkable item would undo the
+                                 click. Neither has a plain settable bool behind it anyway. -->
+                            <MenuItem Header="_Settings…" InputGestureText="Ctrl+,"
+                                      Command="{Binding ToggleSettingsOverlayCommand}"/>
+                            <Separator/>
+                            <MenuItem Header="Chord _Progression" InputGestureText="Shift+F4"
+                                      IsCheckable="True" IsChecked="{Binding IsProgressionVisible}"/>
                             <MenuItem Header="_AI Music Assistant" InputGestureText="Shift+F2"
-                                      IsCheckable="True" IsChecked="{Binding IsChatPanelVisible}"
-                                      Command="{Binding ToggleChatPanelCommand}"/>
+                                      IsCheckable="True" IsChecked="{Binding IsChatPanelVisible}"/>
                             <MenuItem Header="_MIDI Log" InputGestureText="Shift+F3"
-                                      IsCheckable="True" IsChecked="{Binding IsMidiLogVisible}"
-                                      Command="{Binding ToggleMidiLogCommand}"/>
+                                      IsCheckable="True" IsChecked="{Binding IsMidiLogVisible}"/>
+                            <MenuItem Header="Status _Bar" InputGestureText="Shift+F1"
+                                      IsCheckable="True" IsChecked="{Binding IsStatusBarVisible}"/>
+                            <Separator/>
+                            <MenuItem InputGestureText="F11" Command="{Binding ToggleZenModeCommand}">
+                                <MenuItem.Style>
+                                    <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                        <Setter Property="Header" Value="Enter _Zen Mode"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsZenMode}" Value="True">
+                                                <Setter Property="Header" Value="Exit _Zen Mode"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </MenuItem.Style>
+                            </MenuItem>
                         </MenuItem>
                     </Menu>
                 </StackPanel>
 
-                <!-- Window buttons -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <Button Content="─" Width="46" Height="32" Click="MinimizeButton_Click"
-                            Background="Transparent" Foreground="#AAAAAA" BorderThickness="0"
-                            FontSize="12" FontFamily="Segoe UI">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Style.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#333333"/>
-                                    </Trigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Button.Style>
-                    </Button>
-                    <Button Content="□" Width="46" Height="32" Click="MaximizeButton_Click"
-                            Background="Transparent" Foreground="#AAAAAA" BorderThickness="0"
-                            FontSize="14" FontFamily="Segoe UI">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Style.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#333333"/>
-                                    </Trigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Button.Style>
-                    </Button>
-                    <Button Content="✕" Width="46" Height="32" Click="CloseButton_Click"
-                            Background="Transparent" Foreground="#AAAAAA" BorderThickness="0"
-                            FontSize="12" FontFamily="Segoe UI">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Style.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#C42B1C"/>
-                                        <Setter Property="Foreground" Value="White"/>
-                                    </Trigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Button.Style>
-                    </Button>
+                    <Button Content="─" Click="MinimizeButton_Click" ToolTip="Minimise"
+                            Style="{StaticResource Style.TitleBarButton}"/>
+                    <Button Content="□" Click="MaximizeButton_Click" FontSize="14" ToolTip="Maximise"
+                            Style="{StaticResource Style.TitleBarButton}"/>
+                    <Button Content="✕" Click="CloseButton_Click" ToolTip="Close"
+                            Style="{StaticResource Style.TitleBarClose}"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Settings panel at top -->
-        <views:SettingsPanel DockPanel.Dock="Top" DataContext="{Binding}"/>
+        <!-- ===================== Stage ===================== -->
+        <Grid Grid.Row="1" Background="{StaticResource Brush.Stage}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>   <!-- collapses to zero with the sidebar -->
+            </Grid.ColumnDefinitions>
 
-        <!-- Status bar at bottom -->
-        <Border DockPanel.Dock="Bottom" Background="#252525" Padding="10,4">
-            <TextBlock Text="{Binding StatusText}" Foreground="#AAAAAA" FontSize="12"/>
-        </Border>
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>      <!-- readout -->
+                    <RowDefinition Height="Auto"/>   <!-- keyboard -->
+                </Grid.RowDefinitions>
 
-        <!-- AI Chat panel -->
-        <views:ChatPanel DockPanel.Dock="Bottom" DataContext="{Binding Chat}"
-                         Visibility="{Binding IsChatPanelVisible, Converter={StaticResource BoolToVisConverter}}"/>
+                <!-- Chord readout. Every line has a MinHeight so releasing the keys empties the
+                     text without collapsing the line box and shifting the layout. -->
+                <StackPanel Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Center"
+                            Margin="24,12">
+                    <TextBlock Text="{Binding Analysis.Name}"
+                               FontSize="{StaticResource Size.Readout.Name}" FontWeight="Bold"
+                               Foreground="{StaticResource Brush.Text.Primary}"
+                               MinHeight="80" TextAlignment="Center"/>
+                    <TextBlock Text="{Binding Analysis.Notes}" FontFamily="Consolas"
+                               FontSize="{StaticResource Size.Readout.Notes}"
+                               Foreground="{StaticResource Brush.Text.Tertiary}"
+                               MinHeight="26" TextAlignment="Center"/>
+                    <TextBlock Text="{Binding Analysis.Intervals}" FontFamily="Consolas"
+                               FontSize="{StaticResource Size.Readout.Intervals}"
+                               Foreground="{StaticResource Brush.Text.Muted}"
+                               MinHeight="22" TextAlignment="Center"/>
+                    <TextBlock Text="Space to save" FontSize="11" Margin="0,10,0,0"
+                               Foreground="{StaticResource Brush.Text.Faint}"
+                               MinHeight="18" TextAlignment="Center"
+                               Visibility="{Binding Analysis.Name,
+                                            Converter={StaticResource StringToVisibilityConverter}}"/>
+                </StackPanel>
 
-        <!-- MIDI log panel at bottom -->
-        <Border DockPanel.Dock="Bottom" Background="#1A1A1A" Height="120" Padding="4"
+                <!-- The keyboard scales to the window. Stretch must be Uniform (never distort a
+                     piano) and StretchDirection Both, so it shrinks rather than clipping on a
+                     narrow window. MaxHeight stops it from dwarfing the readout on a wide one. -->
+                <Viewbox Grid.Row="1" Stretch="Uniform" StretchDirection="Both"
+                         MaxHeight="260" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                         Margin="16,16,16,0" TextOptions.TextFormattingMode="Ideal">
+                    <views:PianoKeyboardControl DataContext="{Binding PianoKeyboard}"/>
+                </Viewbox>
+            </Grid>
+
+            <!-- Chord progression sidebar -->
+            <Border Grid.Column="1" Background="{StaticResource Brush.Surface}" Width="200" Padding="8"
+                    Visibility="{Binding IsProgressionVisible, Converter={StaticResource BoolToVisConverter}}">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Chord Progression"
+                               Foreground="{StaticResource Brush.Text.Tertiary}" FontSize="12" FontWeight="SemiBold"
+                               Margin="0,0,0,8"/>
+                    <TextBlock DockPanel.Dock="Bottom" Text="{Binding SavedChords.Count, StringFormat='{}{0}/8 chords'}"
+                               Foreground="{StaticResource Brush.Text.Faint}" FontSize="10" Margin="0,8,0,0"/>
+                    <ItemsControl ItemsSource="{Binding SavedChords}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource Brush.SurfaceRaised}" CornerRadius="4"
+                                        Margin="0,0,0,6" Padding="8,6">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="{Binding ChordName}"
+                                                       Foreground="{StaticResource Brush.Text.Primary}"
+                                                       FontSize="16" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding NotesDisplay}"
+                                                       Foreground="{StaticResource Brush.Text.Muted}"
+                                                       FontSize="10" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                        <!-- The sidebar stays in the window's visual tree (this is one
+                                             reason the settings overlay is a Grid child, not a Popup) -->
+                                        <Button Grid.Column="1" Content="✕"
+                                                Style="{StaticResource Style.IconButton}"
+                                                Command="{Binding DataContext.RemoveChordCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding}"
+                                                VerticalAlignment="Top" ToolTip="Remove chord"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DockPanel>
+            </Border>
+
+            <!-- Settings overlay: scrim first, panel second, so the panel paints on top.
+                 Both span the stage; neither displaces the keyboard. -->
+            <Border Grid.Column="0" Grid.ColumnSpan="2" Background="{StaticResource Brush.Scrim}"
+                    Visibility="{Binding IsSettingsOverlayVisible, Converter={StaticResource BoolToVisConverter}}"
+                    MouseLeftButtonDown="SettingsScrim_MouseLeftButtonDown"/>
+
+            <Border Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Top"
+                    Background="{StaticResource Brush.SurfaceAlt}"
+                    BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,0,0,1"
+                    Visibility="{Binding IsSettingsOverlayVisible, Converter={StaticResource BoolToVisConverter}}">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="✕" Width="32" Height="32"
+                            Style="{StaticResource Style.IconButton}"
+                            Command="{Binding CloseSettingsOverlayCommand}"
+                            VerticalAlignment="Top" Margin="4,4,8,0"
+                            ToolTip="Close settings (Esc)"/>
+                    <!-- No DataContext override here on purpose: SettingsPanel's code-behind seeds the
+                         API key box by casting DataContext to MainViewModel. Interposing anything
+                         else silently stops the saved key from appearing. -->
+                    <views:SettingsPanel/>
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <!-- ===================== MIDI log ===================== -->
+        <Border Grid.Row="2" Background="{StaticResource Brush.TitleBar}" Height="120" Padding="4"
                 Visibility="{Binding IsMidiLogVisible, Converter={StaticResource BoolToVisConverter}}">
             <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Text="MIDI Log" Foreground="#888888" FontSize="11" Margin="4,0,0,2"/>
+                <TextBlock DockPanel.Dock="Top" Text="MIDI Log" Foreground="{StaticResource Brush.Text.Muted}"
+                           FontSize="11" Margin="4,0,0,2"/>
                 <ListBox ItemsSource="{Binding MidiLog}"
-                         Background="#111111" Foreground="#00DD00" FontFamily="Consolas" FontSize="11"
+                         Background="{StaticResource Brush.Console}" Foreground="{StaticResource Brush.Log.Text}"
+                         FontFamily="Consolas" FontSize="11"
                          BorderThickness="0"
                          x:Name="MidiLogList"
                          ScrollViewer.HorizontalScrollBarVisibility="Auto">
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="ListBoxItem">
                             <Setter Property="Padding" Value="2,0"/>
-                            <Setter Property="Foreground" Value="#00DD00"/>
+                            <Setter Property="Foreground" Value="{StaticResource Brush.Log.Text}"/>
                         </Style>
                     </ListBox.ItemContainerStyle>
                 </ListBox>
             </DockPanel>
         </Border>
 
-        <!-- Chord display -->
-        <Border DockPanel.Dock="Bottom" Background="#252525" Padding="12,8">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <TextBlock Text="{Binding CurrentChord}"
-                           Foreground="White" FontSize="24" FontWeight="Bold"
-                           VerticalAlignment="Center"/>
-                <TextBlock Text="  (Space to save)" Foreground="#666666" FontSize="12"
-                           VerticalAlignment="Center"
-                           Visibility="{Binding CurrentChord, Converter={StaticResource StringToVisibilityConverter}}"/>
-            </StackPanel>
+        <!-- ===================== AI chat =====================
+             The wrapper carries the visibility binding so it resolves against MainViewModel;
+             ChatPanel keeps its own ChatViewModel DataContext. -->
+        <Border Grid.Row="3"
+                Visibility="{Binding IsChatPanelVisible, Converter={StaticResource BoolToVisConverter}}">
+            <views:ChatPanel DataContext="{Binding Chat}"/>
         </Border>
 
-        <!-- Saved chords panel on right -->
-        <Border DockPanel.Dock="Right" Background="#252525" Width="180" Padding="8">
-            <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Text="Chord Progression"
-                           Foreground="#AAAAAA" FontSize="12" FontWeight="SemiBold"
-                           Margin="0,0,0,8"/>
-                <TextBlock DockPanel.Dock="Bottom" Text="{Binding SavedChords.Count, StringFormat='{}{0}/8 chords'}"
-                           Foreground="#666666" FontSize="10" Margin="0,8,0,0"/>
-                <ItemsControl ItemsSource="{Binding SavedChords}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Background="#303030" CornerRadius="4" Margin="0,0,0,6" Padding="8,6">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="{Binding ChordName}"
-                                                   Foreground="White" FontSize="16" FontWeight="Bold"/>
-                                        <TextBlock Text="{Binding NotesDisplay}"
-                                                   Foreground="#888888" FontSize="10" TextWrapping="Wrap"/>
-                                    </StackPanel>
-                                    <Button Grid.Column="1" Content="✕"
-                                            Command="{Binding DataContext.RemoveChordCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                            CommandParameter="{Binding}"
-                                            Background="Transparent" Foreground="#888888"
-                                            BorderThickness="0" FontSize="14" Cursor="Hand"
-                                            VerticalAlignment="Top" Padding="4,0"
-                                            ToolTip="Remove chord">
-                                        <Button.Style>
-                                            <Style TargetType="Button">
-                                                <Setter Property="Template">
-                                                    <Setter.Value>
-                                                        <ControlTemplate TargetType="Button">
-                                                            <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
-                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                            </Border>
-                                                        </ControlTemplate>
-                                                    </Setter.Value>
-                                                </Setter>
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Foreground" Value="#FF6666"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
-                                    </Button>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </DockPanel>
+        <!-- ===================== Status bar ===================== -->
+        <Border Grid.Row="4" Background="{StaticResource Brush.Surface}" Padding="10,4"
+                Visibility="{Binding IsStatusBarVisible, Converter={StaticResource BoolToVisConverter}}">
+            <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource Brush.Text.Tertiary}" FontSize="12"/>
         </Border>
-
-        <!-- Piano keyboard fills remaining space -->
-        <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                      VerticalScrollBarVisibility="Disabled"
-                      Background="#333333"
-                      Padding="0,20,0,0">
-            <views:PianoKeyboardControl
-                DataContext="{Binding PianoKeyboard}"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Top"/>
-        </ScrollViewer>
-    </DockPanel>
+    </Grid>
 </Window>

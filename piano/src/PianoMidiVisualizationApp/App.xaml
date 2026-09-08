@@ -4,7 +4,14 @@
              xmlns:converters="clr-namespace:PianoMidiVisualizationApp.Converters"
              ShutdownMode="OnMainWindowClose">
     <Application.Resources>
-        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
-        <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Dark.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+            <converters:InverseBoolConverter x:Key="InverseBoolConverter"/>
+            <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

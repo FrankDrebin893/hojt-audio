@@ -1,13 +1,12 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using PianoMidiVisualizationApp.Models;
+using PianoMidiVisualizationApp.Services;
 
 namespace PianoMidiVisualizationApp.ViewModels;
 
 public class PianoKeyboardViewModel : ObservableObject
 {
-    private static readonly string[] NoteNames = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
-
     public ObservableCollection<PianoKey> Keys { get; } = new();
 
     private readonly Dictionary<int, PianoKey> _keyLookup = new();
@@ -53,9 +52,5 @@ public class PianoKeyboardViewModel : ObservableObject
         return (noteNumber % 12) is 1 or 3 or 6 or 8 or 10;
     }
 
-    private static string GetNoteName(int noteNumber)
-    {
-        int octave = (noteNumber / 12) - 1;
-        return $"{NoteNames[noteNumber % 12]}{octave}";
-    }
+    private static string GetNoteName(int noteNumber) => MusicNaming.WithOctave(noteNumber);
 }

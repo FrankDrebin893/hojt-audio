@@ -15,7 +15,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly IMidiInputService _midiInput;
     private readonly IAudioEngine _audioEngine;
     private readonly Dispatcher _dispatcher;
-    private readonly ChordDetector _chordDetector = new();
+    private readonly ChordAnalyzer _analyzer = new();
     private System.Threading.Timer? _activityTimer;
 
     public PianoKeyboardViewModel PianoKeyboard { get; }
@@ -38,13 +38,43 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private string _lastMidiMessage = "";
 
     [ObservableProperty]
-    private string _currentChord = "";
+    [NotifyPropertyChangedFor(nameof(CurrentChord))]
+    [NotifyPropertyChangedFor(nameof(HasChord))]
+    private ChordAnalysis _analysis = ChordAnalysis.Empty;
+
+    /// <summary>The chord name alone — what gets saved to the progression and sent to the AI.</summary>
+    public string CurrentChord => Analysis.Name;
+
+    public bool HasChord => !Analysis.IsEmpty;
+
+    // ----- Panel visibility. Defaults are the zen layout; AppSettings overrides them on load. -----
+
+    /// <summary>A transient surface rather than a layout panel, so it is excluded from zen mode.</summary>
+    [ObservableProperty]
+    private bool _isSettingsOverlayVisible;
 
     [ObservableProperty]
-    private bool _isMidiLogVisible = true;
+    [NotifyPropertyChangedFor(nameof(IsZenMode))]
+    private bool _isMidiLogVisible;
 
     [ObservableProperty]
-    private bool _isChatPanelVisible = true;
+    [NotifyPropertyChangedFor(nameof(IsZenMode))]
+    private bool _isChatPanelVisible;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsZenMode))]
+    private bool _isProgressionVisible = true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsZenMode))]
+    private bool _isStatusBarVisible = true;
+
+    /// <summary>
+    /// Derived rather than stored, so it can never desync: turning any panel back on
+    /// manually leaves zen mode with no extra bookkeeping.
+    /// </summary>
+    public bool IsZenMode => !IsChatPanelVisible && !IsMidiLogVisible
+                          && !IsProgressionVisible && !IsStatusBarVisible;
 
     private const int MaxLogLines = 100;
     private const int MaxSavedChords = 8;
@@ -223,7 +253,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var noteNames = pressedNotes.Select(n => GetNoteName(n)).ToList();
+        var noteNames = pressedNotes.Select(MusicNaming.WithOctave).ToList();
 
         var savedChord = new SavedChord
         {
@@ -247,16 +277,69 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    private void ToggleSettingsOverlay() => IsSettingsOverlayVisible = !IsSettingsOverlayVisible;
+
+    [RelayCommand]
+    private void CloseSettingsOverlay() => IsSettingsOverlayVisible = false;
+
+    [RelayCommand]
     private void ToggleMidiLog() => IsMidiLogVisible = !IsMidiLogVisible;
 
     [RelayCommand]
     private void ToggleChatPanel() => IsChatPanelVisible = !IsChatPanelVisible;
 
-    private static string GetNoteName(int noteNumber)
+    [RelayCommand]
+    private void ToggleProgression() => IsProgressionVisible = !IsProgressionVisible;
+
+    [RelayCommand]
+    private void ToggleStatusBar() => IsStatusBarVisible = !IsStatusBarVisible;
+
+    private readonly record struct PanelLayout(bool Chat, bool MidiLog, bool Progression, bool StatusBar);
+
+    private PanelLayout? _preZenLayout;
+
+    [RelayCommand]
+    private void ToggleZenMode()
     {
-        string[] noteNames = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
-        int octave = (noteNumber / 12) - 1;
-        return $"{noteNames[noteNumber % 12]}{octave}";
+        if (IsZenMode)
+        {
+            // Nothing was saved if the app started in zen — restore a sensible layout instead.
+            var restore = _preZenLayout ?? new PanelLayout(false, false, true, true);
+            IsChatPanelVisible = restore.Chat;
+            IsMidiLogVisible = restore.MidiLog;
+            IsProgressionVisible = restore.Progression;
+            IsStatusBarVisible = restore.StatusBar;
+        }
+        else
+        {
+            _preZenLayout = new PanelLayout(
+                IsChatPanelVisible, IsMidiLogVisible, IsProgressionVisible, IsStatusBarVisible);
+            IsChatPanelVisible = IsMidiLogVisible = IsProgressionVisible = IsStatusBarVisible = false;
+            IsSettingsOverlayVisible = false;
+        }
+    }
+
+    /// <summary>
+    /// Applies saved settings, including the panel flags that <see cref="SettingsViewModel"/>
+    /// cannot see. The overlay's visibility is deliberately not restored.
+    /// </summary>
+    public void ApplySettings(AppSettings saved)
+    {
+        Settings.ApplyFrom(saved);
+        IsMidiLogVisible = saved.ShowMidiLog;
+        IsChatPanelVisible = saved.ShowChatPanel;
+        IsProgressionVisible = saved.ShowProgression;
+        IsStatusBarVisible = saved.ShowStatusBar;
+    }
+
+    public AppSettings CaptureSettings()
+    {
+        var saved = Settings.ToAppSettings();
+        saved.ShowMidiLog = IsMidiLogVisible;
+        saved.ShowChatPanel = IsChatPanelVisible;
+        saved.ShowProgression = IsProgressionVisible;
+        saved.ShowStatusBar = IsStatusBarVisible;
+        return saved;
     }
 
     public void AutoConnect()
@@ -326,7 +409,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _dispatcher.BeginInvoke(() =>
         {
             PianoKeyboard.SetKeyPressed(e.NoteNumber, e.Velocity);
-            CurrentChord = _chordDetector.Detect(PianoKeyboard.GetPressedNotes()) ?? "";
+            Analysis = _analyzer.Analyze(PianoKeyboard.GetPressedNotes());
         });
     }
 
@@ -337,7 +420,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _dispatcher.BeginInvoke(() =>
         {
             PianoKeyboard.SetKeyReleased(e.NoteNumber);
-            CurrentChord = _chordDetector.Detect(PianoKeyboard.GetPressedNotes()) ?? "";
+            Analysis = _analyzer.Analyze(PianoKeyboard.GetPressedNotes());
         });
     }
 
