@@ -11,10 +11,15 @@ namespace PianoMidiVisualizationApp.Views;
 
 public partial class PianoKeyboardControl : UserControl
 {
+    // These are intrinsic dimensions, not on-screen pixels: the control sits in a Viewbox that
+    // scales it to the window, so what these really fix is the keyboard's aspect ratio.
     private const double WhiteKeyWidth = 26;
-    private const double WhiteKeyHeight = 155;
+    private const double WhiteKeyHeight = 200;
     private const double BlackKeyWidth = 16;
-    private const double BlackKeyHeight = 100;
+    private const double BlackKeyHeight = 128;
+
+    /// <summary>Drawing height, leaving a little headroom below the keys for their shadows.</summary>
+    public const double CanvasHeight = WhiteKeyHeight + 6;
 
     // White key gradients - ivory to light gray for 3D effect
     private static readonly LinearGradientBrush WhiteKeyGradient = new(
@@ -135,9 +140,11 @@ public partial class PianoKeyboardControl : UserControl
             }
         }
 
-        // Set canvas width
+        // Size the canvas to the keys actually drawn. The Viewbox divides by this, so it is what
+        // makes a narrower range render larger rather than leaving a gap.
         int totalWhiteKeys = vm.Keys.Count(k => !k.IsBlack);
         PianoCanvas.Width = totalWhiteKeys * WhiteKeyWidth;
+        PianoCanvas.Height = CanvasHeight;
 
         // Subscribe to property changes
         foreach (var key in vm.Keys)

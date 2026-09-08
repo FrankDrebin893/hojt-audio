@@ -11,7 +11,15 @@ public class PianoKeyboardViewModel : ObservableObject
 
     private readonly Dictionary<int, PianoKey> _keyLookup = new();
 
-    public PianoKeyboardViewModel(int lowestNote = 21, int highestNote = 108)
+    /// <summary>
+    /// Sounding notes, tracked independently of the drawn key range so that notes outside it
+    /// (a Keystation's octave-shift buttons transmit well beyond its 61 physical keys) still
+    /// reach chord detection instead of silently vanishing from the readout.
+    /// </summary>
+    private readonly HashSet<int> _pressedNotes = new();
+
+    /// <summary>C2-C7 — the 61 keys on the user's controller.</summary>
+    public PianoKeyboardViewModel(int lowestNote = 36, int highestNote = 96)
     {
         for (int note = lowestNote; note <= highestNote; note++)
         {
@@ -28,6 +36,8 @@ public class PianoKeyboardViewModel : ObservableObject
 
     public void SetKeyPressed(int noteNumber, int velocity)
     {
+        _pressedNotes.Add(noteNumber);
+
         if (_keyLookup.TryGetValue(noteNumber, out var key))
         {
             key.IsPressed = true;
@@ -37,6 +47,8 @@ public class PianoKeyboardViewModel : ObservableObject
 
     public void SetKeyReleased(int noteNumber)
     {
+        _pressedNotes.Remove(noteNumber);
+
         if (_keyLookup.TryGetValue(noteNumber, out var key))
         {
             key.IsPressed = false;
@@ -44,8 +56,8 @@ public class PianoKeyboardViewModel : ObservableObject
         }
     }
 
-    public IEnumerable<int> GetPressedNotes()
-        => Keys.Where(k => k.IsPressed).Select(k => k.NoteNumber);
+    /// <summary>Every sounding note, including any outside the drawn range.</summary>
+    public IEnumerable<int> GetPressedNotes() => _pressedNotes;
 
     public static bool IsBlackKey(int noteNumber)
     {

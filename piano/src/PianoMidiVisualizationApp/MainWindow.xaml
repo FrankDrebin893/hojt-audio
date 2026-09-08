@@ -90,8 +90,11 @@
 
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>      <!-- readout -->
-                    <RowDefinition Height="Auto"/>   <!-- keyboard -->
+                    <!-- MinHeight reserves the readout's own lines: on a wide but short window
+                         the Auto keyboard row would otherwise take everything and clip it.
+                         The Viewbox scales down to whatever height is left. -->
+                    <RowDefinition Height="*" MinHeight="170"/>   <!-- readout -->
+                    <RowDefinition Height="Auto"/>                <!-- keyboard -->
                 </Grid.RowDefinitions>
 
                 <!-- Chord readout. Every line has a MinHeight so releasing the keys empties the
@@ -121,7 +124,7 @@
                      piano) and StretchDirection Both, so it shrinks rather than clipping on a
                      narrow window. MaxHeight stops it from dwarfing the readout on a wide one. -->
                 <Viewbox Grid.Row="1" Stretch="Uniform" StretchDirection="Both"
-                         MaxHeight="260" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                         MaxHeight="360" HorizontalAlignment="Center" VerticalAlignment="Bottom"
                          Margin="16,16,16,0" TextOptions.TextFormattingMode="Ideal">
                     <views:PianoKeyboardControl DataContext="{Binding PianoKeyboard}"/>
                 </Viewbox>

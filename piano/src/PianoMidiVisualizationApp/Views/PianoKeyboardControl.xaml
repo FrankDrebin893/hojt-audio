@@ -1,5 +1,8 @@
 <UserControl x:Class="PianoMidiVisualizationApp.Views.PianoKeyboardControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Canvas x:Name="PianoCanvas" Height="160" ClipToBounds="True" Background="{StaticResource Brush.Stage}"/>
+    <!-- Width and Height are set in BuildKeyboard from the key-size constants, so they can't
+         drift apart from them. A Canvas measures to zero until they are, which the Viewbox
+         handles (it guards a zero content size and re-scales once they're assigned). -->
+    <Canvas x:Name="PianoCanvas" ClipToBounds="True" Background="{StaticResource Brush.Stage}"/>
 </UserControl>
