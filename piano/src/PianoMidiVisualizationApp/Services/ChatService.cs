@@ -10,7 +10,7 @@ public class ChatService : IChatService
 {
     private readonly HttpClient _httpClient;
     private string? _apiKey;
-    private const string Model = "gemini-2.0-flash";
+    private const string Model = "gemini-2.5-flash-lite";
     private const string ApiBaseUrl = "https://generativelanguage.googleapis.com/v1beta/models";
 
     public ChatService()
