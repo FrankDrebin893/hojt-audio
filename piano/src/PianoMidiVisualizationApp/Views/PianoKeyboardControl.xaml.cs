@@ -32,9 +32,23 @@ public partial class PianoKeyboardControl : UserControl
         Color.FromRgb(80, 160, 235),  // Darker blue at bottom
         new Point(0, 0), new Point(0, 1));
 
+    // Key-signature highlights. Green reads as "belongs here", amber marks the tonic so the
+    // key centre is findable at a glance; both stay pale enough to leave the labels legible.
+    private static readonly LinearGradientBrush WhiteKeyInKeyGradient = new(
+        Color.FromRgb(232, 244, 228),
+        Color.FromRgb(198, 226, 192),
+        new Point(0, 0), new Point(0, 1));
+
+    private static readonly LinearGradientBrush WhiteKeyTonicGradient = new(
+        Color.FromRgb(255, 233, 184),
+        Color.FromRgb(242, 201, 120),
+        new Point(0, 0), new Point(0, 1));
+
     // Black key gradients - creates beveled top effect
     private static readonly LinearGradientBrush BlackKeyGradient;
     private static readonly LinearGradientBrush BlackKeyPressedGradient;
+    private static readonly LinearGradientBrush BlackKeyInKeyGradient;
+    private static readonly LinearGradientBrush BlackKeyTonicGradient;
 
     private static readonly SolidColorBrush KeyBorder = new(Color.FromRgb(60, 60, 60));
     private static readonly SolidColorBrush WhiteKeyLabel = new(Color.FromRgb(130, 130, 125));
@@ -42,39 +56,64 @@ public partial class PianoKeyboardControl : UserControl
 
     private readonly Dictionary<int, Rectangle> _keyRectangles = new();
 
+    /// <summary>Labels are tracked too, because the selected key re-spells their text.</summary>
+    private readonly Dictionary<int, TextBlock> _keyLabels = new();
+
     static PianoKeyboardControl()
     {
         // Black key gradient with highlight at top for 3D bevel
-        BlackKeyGradient = new LinearGradientBrush
-        {
-            StartPoint = new Point(0, 0),
-            EndPoint = new Point(0, 1),
-            GradientStops = new GradientStopCollection
-            {
-                new(Color.FromRgb(70, 70, 70), 0.0),    // Lighter top edge
-                new(Color.FromRgb(35, 35, 35), 0.08),   // Quick transition
-                new(Color.FromRgb(25, 25, 25), 0.5),    // Dark middle
-                new(Color.FromRgb(15, 15, 15), 1.0)     // Darker bottom
-            }
-        };
-        BlackKeyGradient.Freeze();
+        BlackKeyGradient = BeveledBlackKeyBrush(
+            Color.FromRgb(70, 70, 70),   // Lighter top edge
+            Color.FromRgb(35, 35, 35),   // Quick transition
+            Color.FromRgb(25, 25, 25),   // Dark middle
+            Color.FromRgb(15, 15, 15));  // Darker bottom
 
-        BlackKeyPressedGradient = new LinearGradientBrush
-        {
-            StartPoint = new Point(0, 0),
-            EndPoint = new Point(0, 1),
-            GradientStops = new GradientStopCollection
-            {
-                new(Color.FromRgb(80, 150, 220), 0.0),
-                new(Color.FromRgb(40, 120, 200), 0.08),
-                new(Color.FromRgb(25, 100, 180), 0.5),
-                new(Color.FromRgb(20, 80, 160), 1.0)
-            }
-        };
-        BlackKeyPressedGradient.Freeze();
+        BlackKeyPressedGradient = BeveledBlackKeyBrush(
+            Color.FromRgb(80, 150, 220),
+            Color.FromRgb(40, 120, 200),
+            Color.FromRgb(25, 100, 180),
+            Color.FromRgb(20, 80, 160));
+
+        // The same bevel structure, tinted: a flat fill here would read as a dead rectangle
+        // next to the unhighlighted black keys.
+        BlackKeyInKeyGradient = BeveledBlackKeyBrush(
+            Color.FromRgb(58, 90, 56),
+            Color.FromRgb(40, 62, 39),
+            Color.FromRgb(32, 50, 31),
+            Color.FromRgb(28, 46, 27));
+
+        BlackKeyTonicGradient = BeveledBlackKeyBrush(
+            Color.FromRgb(106, 83, 38),
+            Color.FromRgb(78, 60, 26),
+            Color.FromRgb(66, 50, 22),
+            Color.FromRgb(58, 44, 18));
 
         WhiteKeyGradient.Freeze();
         WhiteKeyPressedGradient.Freeze();
+        WhiteKeyInKeyGradient.Freeze();
+        WhiteKeyTonicGradient.Freeze();
+    }
+
+    /// <summary>
+    /// The four-stop vertical bevel every black key shares: a lit top edge, a fast falloff,
+    /// then a slow darkening to the bottom.
+    /// </summary>
+    private static LinearGradientBrush BeveledBlackKeyBrush(Color top, Color shoulder, Color middle, Color bottom)
+    {
+        var brush = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(0, 1),
+            GradientStops = new GradientStopCollection
+            {
+                new(top, 0.0),
+                new(shoulder, 0.08),
+                new(middle, 0.5),
+                new(bottom, 1.0)
+            }
+        };
+        brush.Freeze();
+        return brush;
     }
 
     public PianoKeyboardControl()
@@ -101,6 +140,7 @@ public partial class PianoKeyboardControl : UserControl
     {
         PianoCanvas.Children.Clear();
         _keyRectangles.Clear();
+        _keyLabels.Clear();
 
         // First pass: draw white keys and their labels
         int whiteKeyIndex = 0;
@@ -114,6 +154,7 @@ public partial class PianoKeyboardControl : UserControl
 
                 var label = CreateWhiteKeyLabel(whiteKeyIndex, key);
                 PianoCanvas.Children.Add(label);
+                _keyLabels[key.NoteNumber] = label;
 
                 whiteKeyIndex++;
             }
@@ -133,12 +174,18 @@ public partial class PianoKeyboardControl : UserControl
 
                 var label = CreateBlackKeyLabel(x, key);
                 PianoCanvas.Children.Add(label);
+                _keyLabels[key.NoteNumber] = label;
             }
             else
             {
                 whiteKeyIndex++;
             }
         }
+
+        // Paint in the current scale roles. Done after registration rather than inside the
+        // Create* helpers so a key signature chosen before this control existed still shows.
+        foreach (var key in vm.Keys)
+            ApplyKeyFill(key);
 
         // Size the canvas to the keys actually drawn. The Viewbox divides by this, so it is what
         // makes a narrower range render larger rather than leaving a gap.
@@ -153,11 +200,12 @@ public partial class PianoKeyboardControl : UserControl
 
     private Rectangle CreateWhiteKey(int index, PianoKey key)
     {
+        // Fill is deliberately left unset here; ApplyKeyFill assigns it once the key is
+        // registered, so there is exactly one place that decides a key's colour.
         var rect = new Rectangle
         {
             Width = WhiteKeyWidth - 1,
             Height = WhiteKeyHeight,
-            Fill = WhiteKeyGradient,
             Stroke = KeyBorder,
             StrokeThickness = 0.5,
             RadiusX = 0,
@@ -184,7 +232,6 @@ public partial class PianoKeyboardControl : UserControl
         {
             Width = BlackKeyWidth,
             Height = BlackKeyHeight,
-            Fill = BlackKeyGradient,
             Stroke = new SolidColorBrush(Color.FromRgb(20, 20, 20)),
             StrokeThickness = 0.5,
             RadiusX = 2,
@@ -205,15 +252,24 @@ public partial class PianoKeyboardControl : UserControl
         return rect;
     }
 
+    /// <summary>C notes show the full name with octave, everything else just the letter.</summary>
+    /// <remarks>
+    /// The C test is on the note number, not the text: in a flat key "Db" contains no "C".
+    /// </remarks>
+    private static string LabelTextFor(PianoKey key) =>
+        IsOctaveC(key)
+            ? key.NoteName
+            : key.NoteName.TrimEnd('0', '1', '2', '3', '4', '5', '6', '7', '8', '9');
+
+    private static bool IsOctaveC(PianoKey key) => key.NoteNumber % 12 == 0;
+
     private TextBlock CreateWhiteKeyLabel(int index, PianoKey key)
     {
-        // Show full name (with octave) for C notes, just letter for others
-        bool isC = key.NoteNumber % 12 == 0;
-        string labelText = isC ? key.NoteName : key.NoteName.TrimEnd('0', '1', '2', '3', '4', '5', '6', '7', '8', '9');
+        bool isC = IsOctaveC(key);
 
         var label = new TextBlock
         {
-            Text = labelText,
+            Text = LabelTextFor(key),
             FontSize = isC ? 10 : 9,
             FontWeight = FontWeights.Medium,
             FontFamily = new FontFamily("Segoe UI"),
@@ -229,11 +285,9 @@ public partial class PianoKeyboardControl : UserControl
 
     private TextBlock CreateBlackKeyLabel(double x, PianoKey key)
     {
-        string labelText = key.NoteName.TrimEnd('0', '1', '2', '3', '4', '5', '6', '7', '8', '9');
-
         var label = new TextBlock
         {
-            Text = labelText,
+            Text = LabelTextFor(key),
             FontSize = 8,
             FontWeight = FontWeights.Medium,
             FontFamily = new FontFamily("Segoe UI"),
@@ -275,17 +329,41 @@ public partial class PianoKeyboardControl : UserControl
         return (leftWhiteKeyIndex * WhiteKeyWidth) + (WhiteKeyWidth * offset) - (BlackKeyWidth / 2.0);
     }
 
+    /// <summary>
+    /// Resolves a key's fill from all of its states at once. Every fill change goes through
+    /// here: deciding "pressed or not" in isolation is exactly what would make releasing a
+    /// key wipe out its key-signature highlight.
+    /// </summary>
+    private void ApplyKeyFill(PianoKey key)
+    {
+        if (!_keyRectangles.TryGetValue(key.NoteNumber, out var rect))
+            return;
+
+        rect.Fill = key.IsPressed
+            ? (key.IsBlack ? BlackKeyPressedGradient : WhiteKeyPressedGradient)
+            : key.ScaleRole switch
+            {
+                KeyRole.Tonic => key.IsBlack ? BlackKeyTonicGradient : WhiteKeyTonicGradient,
+                KeyRole.InKey => key.IsBlack ? BlackKeyInKeyGradient : WhiteKeyInKeyGradient,
+                _ => key.IsBlack ? BlackKeyGradient : WhiteKeyGradient
+            };
+    }
+
     private void OnKeyPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(PianoKey.IsPressed) && sender is PianoKey key)
+        if (sender is not PianoKey key) return;
+
+        switch (e.PropertyName)
         {
-            if (_keyRectangles.TryGetValue(key.NoteNumber, out var rect))
-            {
-                if (key.IsBlack)
-                    rect.Fill = key.IsPressed ? BlackKeyPressedGradient : BlackKeyGradient;
-                else
-                    rect.Fill = key.IsPressed ? WhiteKeyPressedGradient : WhiteKeyGradient;
-            }
+            case nameof(PianoKey.IsPressed):
+            case nameof(PianoKey.ScaleRole):
+                ApplyKeyFill(key);
+                break;
+
+            case nameof(PianoKey.NoteName):
+                if (_keyLabels.TryGetValue(key.NoteNumber, out var label))
+                    label.Text = LabelTextFor(key);
+                break;
         }
     }
 }

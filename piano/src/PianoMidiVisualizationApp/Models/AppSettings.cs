@@ -12,6 +12,12 @@ public class AppSettings
     public float Volume { get; set; } = 0.8f;
     public string? AnthropicApiKey { get; set; }
 
+    // Key signature highlighted on the keyboard. Quality is stored as its enum name so the
+    // file stays readable; anything unparseable falls back to Major rather than throwing.
+    public bool KeyHighlightEnabled { get; set; }
+    public int KeyTonicPitchClass { get; set; }
+    public string KeyQuality { get; set; } = "Major";
+
     // Panel visibility. These defaults ARE the first-launch zen layout, and they also apply to
     // an existing settings.json written before these keys existed — Deserialize runs the
     // parameterless constructor and only overwrites keys actually present in the file.

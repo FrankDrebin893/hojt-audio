@@ -103,6 +103,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 _audioEngine.Volume = Settings.Volume;
             else if (e.PropertyName == nameof(Settings.AnthropicApiKey))
                 Chat.Configure(Settings.AnthropicApiKey);
+            else if (e.PropertyName is nameof(Settings.IsKeyHighlightEnabled)
+                                    or nameof(Settings.KeyTonicPitchClass)
+                                    or nameof(Settings.KeyQuality))
+            {
+                PianoKeyboard.SetKey(Settings.CurrentKey);
+                RefreshAnalysis();   // the readout re-spells with the new key
+            }
         };
     }
 
@@ -113,6 +120,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
             SavedChords.Select(c => c.ChordName).ToList(),
             MidiLog.TakeLast(10).ToList());
     }
+
+    /// <summary>Whether note names should read as flats, per the selected key signature.</summary>
+    private bool UseFlats => Settings.CurrentKey?.UsesFlats ?? false;
+
+    private void RefreshAnalysis() =>
+        Analysis = _analyzer.Analyze(PianoKeyboard.GetPressedNotes(), UseFlats);
 
     public void RefreshDevices()
     {
@@ -253,7 +266,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var noteNames = pressedNotes.Select(MusicNaming.WithOctave).ToList();
+        var noteNames = pressedNotes.Select(n => MusicNaming.WithOctave(n, UseFlats)).ToList();
 
         var savedChord = new SavedChord
         {
@@ -275,6 +288,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
             StatusText = $"Removed chord: {chord.ChordName}";
         }
     }
+
+    /// <summary>Turns the key highlight off. Picking from either dropdown turns it back on.</summary>
+    [RelayCommand]
+    private void ClearKey() => Settings.IsKeyHighlightEnabled = false;
 
     [RelayCommand]
     private void ToggleSettingsOverlay() => IsSettingsOverlayVisible = !IsSettingsOverlayVisible;
@@ -330,6 +347,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IsChatPanelVisible = saved.ShowChatPanel;
         IsProgressionVisible = saved.ShowProgression;
         IsStatusBarVisible = saved.ShowStatusBar;
+        PianoKeyboard.SetKey(Settings.CurrentKey);
     }
 
     public AppSettings CaptureSettings()
@@ -409,7 +427,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _dispatcher.BeginInvoke(() =>
         {
             PianoKeyboard.SetKeyPressed(e.NoteNumber, e.Velocity);
-            Analysis = _analyzer.Analyze(PianoKeyboard.GetPressedNotes());
+            RefreshAnalysis();
         });
     }
 
@@ -420,7 +438,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _dispatcher.BeginInvoke(() =>
         {
             PianoKeyboard.SetKeyReleased(e.NoteNumber);
-            Analysis = _analyzer.Analyze(PianoKeyboard.GetPressedNotes());
+            RefreshAnalysis();
         });
     }
 

@@ -18,6 +18,9 @@ public class PianoKeyboardViewModel : ObservableObject
     /// </summary>
     private readonly HashSet<int> _pressedNotes = new();
 
+    /// <summary>The selected key signature, or null when highlighting is off.</summary>
+    private MusicKey? _activeKey;
+
     /// <summary>C2-C7 — the 61 keys on the user's controller.</summary>
     public PianoKeyboardViewModel(int lowestNote = 36, int highestNote = 96)
     {
@@ -33,6 +36,32 @@ public class PianoKeyboardViewModel : ObservableObject
             _keyLookup[note] = key;
         }
     }
+
+    /// <summary>
+    /// Points every key at a new key signature: recolours it by scale role and re-spells its
+    /// label. Passing null clears the highlight and returns every name to sharps.
+    /// </summary>
+    public void SetKey(MusicKey? key)
+    {
+        _activeKey = key;
+        bool useFlats = key?.UsesFlats ?? false;
+
+        foreach (var pianoKey in Keys)
+        {
+            int pitchClass = MusicNaming.PitchClassOf(pianoKey.NoteNumber);
+
+            pianoKey.NoteName = MusicNaming.WithOctave(pianoKey.NoteNumber, useFlats);
+            pianoKey.ScaleRole = key switch
+            {
+                { } k when k.IsTonic(pitchClass) => KeyRole.Tonic,
+                { } k when k.Contains(pitchClass) => KeyRole.InKey,
+                _ => KeyRole.None
+            };
+        }
+    }
+
+    /// <summary>The key signature currently highlighted, if any.</summary>
+    public MusicKey? ActiveKey => _activeKey;
 
     public void SetKeyPressed(int noteNumber, int velocity)
     {

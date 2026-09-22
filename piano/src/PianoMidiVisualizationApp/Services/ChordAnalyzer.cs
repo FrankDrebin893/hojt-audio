@@ -16,7 +16,11 @@ public class ChordAnalyzer
     private static readonly string[] CompoundLabels =
         { "R", "b9", "9", "b3", "3", "11", "#11", "5", "b13", "13", "b7", "7" };
 
-    public ChordAnalysis Analyze(IEnumerable<int> midiNoteNumbers)
+    /// <param name="useFlats">
+    /// Spell note and root names with flats, as the selected key signature requires.
+    /// Interval labels are relative to the chord root and never change with the key.
+    /// </param>
+    public ChordAnalysis Analyze(IEnumerable<int> midiNoteNumbers, bool useFlats = false)
     {
         var notes = midiNoteNumbers.ToList();
         if (notes.Count == 0)
@@ -41,7 +45,7 @@ public class ChordAnalyzer
 
         for (int i = 0; i < notes.Count; i++)
         {
-            noteTokens[i] = MusicNaming.WithOctave(notes[i]);
+            noteTokens[i] = MusicNaming.WithOctave(notes[i], useFlats);
 
             int semitones = ((MusicNaming.PitchClassOf(notes[i]) - rootPitchClass) % 12 + 12) % 12;
             bool isCompound = notes[i] - rootReference > 12;
@@ -57,7 +61,7 @@ public class ChordAnalyzer
         }
 
         return new ChordAnalysis(
-            chord.Name,
+            MusicNaming.Respell(chord.Name, useFlats),
             string.Join(" ", noteTokens).TrimEnd(),
             string.Join(" ", intervalTokens).TrimEnd());
     }

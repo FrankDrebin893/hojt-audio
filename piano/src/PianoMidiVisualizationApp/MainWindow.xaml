@@ -92,8 +92,10 @@
                 <Grid.RowDefinitions>
                     <!-- MinHeight reserves the readout's own lines: on a wide but short window
                          the Auto keyboard row would otherwise take everything and clip it.
-                         The Viewbox scales down to whatever height is left. -->
-                    <RowDefinition Height="*" MinHeight="170"/>   <!-- readout -->
+                         The Viewbox scales down to whatever height is left. Trimmed from 170
+                         to pay for the key selector without squeezing the keyboard at 900x420. -->
+                    <RowDefinition Height="*" MinHeight="140"/>   <!-- readout -->
+                    <RowDefinition Height="Auto"/>                <!-- key selector -->
                     <RowDefinition Height="Auto"/>                <!-- keyboard -->
                 </Grid.RowDefinitions>
 
@@ -123,7 +125,51 @@
                 <!-- The keyboard scales to the window. Stretch must be Uniform (never distort a
                      piano) and StretchDirection Both, so it shrinks rather than clipping on a
                      narrow window. MaxHeight stops it from dwarfing the readout on a wide one. -->
-                <Viewbox Grid.Row="1" Stretch="Uniform" StretchDirection="Both"
+                <!-- Key selector. A practice control, so it lives on the stage rather than
+                     behind the settings overlay. Both dropdowns write to Settings, which is
+                     what persists them; picking from either one turns the highlight on. -->
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center"
+                            Margin="0,0,0,2">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsZenMode}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+
+                    <TextBlock Text="Key:" Foreground="{StaticResource Brush.Text.Tertiary}"
+                               FontSize="12" FontWeight="SemiBold"
+                               VerticalAlignment="Center" Margin="0,0,6,0"/>
+
+                    <!-- SelectedValue, not SelectedItem: KeyRoots is rebuilt whenever the
+                         quality changes so the roots re-spell, and the item instances go with it. -->
+                    <ComboBox Width="72" Height="26"
+                              ItemsSource="{Binding Settings.KeyRoots}"
+                              DisplayMemberPath="Name"
+                              SelectedValuePath="PitchClass"
+                              SelectedValue="{Binding Settings.KeyTonicPitchClass}"
+                              ToolTip="Key centre"/>
+
+                    <ComboBox Width="86" Height="26" Margin="6,0,0,0"
+                              ItemsSource="{Binding Settings.KeyQualities}"
+                              DisplayMemberPath="Name"
+                              SelectedValuePath="Quality"
+                              SelectedValue="{Binding Settings.KeyQuality}"
+                              ToolTip="Major or natural minor"/>
+
+                    <Button Content="✕" Width="26" Height="26" Margin="4,0,0,0"
+                            Style="{StaticResource Style.IconButton}"
+                            Command="{Binding ClearKeyCommand}"
+                            ToolTip="Clear key highlight"
+                            Visibility="{Binding Settings.IsKeyHighlightEnabled,
+                                         Converter={StaticResource BoolToVisConverter}}"/>
+                </StackPanel>
+
+                <Viewbox Grid.Row="2" Stretch="Uniform" StretchDirection="Both"
                          MaxHeight="360" HorizontalAlignment="Center" VerticalAlignment="Bottom"
                          Margin="16,16,16,0" TextOptions.TextFormattingMode="Ideal">
                     <views:PianoKeyboardControl DataContext="{Binding PianoKeyboard}"/>
