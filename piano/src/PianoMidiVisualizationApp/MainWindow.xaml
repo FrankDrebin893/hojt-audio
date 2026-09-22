@@ -176,6 +176,14 @@
                             </ComboBox.ItemTemplate>
                         </ComboBox>
 
+                        <!-- Disabled rather than hidden with no key selected: muting is
+                             meaningless then, but hiding it would make it undiscoverable. -->
+                        <CheckBox Content="Mute out-of-key" Margin="12,0,0,0" FontSize="11"
+                                  VerticalAlignment="Center"
+                                  IsChecked="{Binding Settings.MuteOutOfKeyNotes}"
+                                  IsEnabled="{Binding Settings.IsKeyHighlightEnabled}"
+                                  ToolTip="Silence notes outside the key. They still light up."/>
+
                         <Button Content="✕" Width="24" Height="24" Margin="6,0,0,0"
                                 Style="{StaticResource Style.IconButton}"
                                 Command="{Binding ClearKeyCommand}"

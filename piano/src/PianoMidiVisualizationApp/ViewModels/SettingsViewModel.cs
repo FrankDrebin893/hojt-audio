@@ -43,17 +43,28 @@ public partial class SettingsViewModel : ObservableObject
 
     // ----- Key signature -----
 
+    /// <summary>
+    /// The selected key centre, or null for no key at all. One nullable field rather than a
+    /// root plus a separate "enabled" flag: with two, re-picking the root the dropdown was
+    /// already showing raised no change, so the highlight could never be switched on that way.
+    /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CurrentKey))]
-    private bool _isKeyHighlightEnabled;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CurrentKey))]
-    private int _keyTonicPitchClass;
+    [NotifyPropertyChangedFor(nameof(IsKeyHighlightEnabled))]
+    private int? _keyTonicPitchClass;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CurrentKey))]
     private KeyQuality _keyQuality = KeyQuality.Major;
+
+    public bool IsKeyHighlightEnabled => KeyTonicPitchClass.HasValue;
+
+    /// <summary>
+    /// Silence notes outside the selected key. Inert while no key is selected, which is why
+    /// the checkbox is disabled rather than hidden then.
+    /// </summary>
+    [ObservableProperty]
+    private bool _muteOutOfKeyNotes;
 
     public ObservableCollection<DeviceInfo> MidiDevices { get; } = new();
     public ObservableCollection<string> AsioDriverNames { get; } = new();
@@ -68,10 +79,9 @@ public partial class SettingsViewModel : ObservableObject
         new(KeyQuality.Minor, "Minor")
     };
 
-    /// <summary>The selected key signature, or null when highlighting is off.</summary>
-    public MusicKey? CurrentKey => IsKeyHighlightEnabled
-        ? new MusicKey(KeyTonicPitchClass, KeyQuality)
-        : null;
+    /// <summary>The selected key signature, or null when no key is selected.</summary>
+    public MusicKey? CurrentKey =>
+        KeyTonicPitchClass is { } pitchClass ? new MusicKey(pitchClass, KeyQuality) : null;
 
     public SettingsViewModel()
     {
@@ -86,15 +96,7 @@ public partial class SettingsViewModel : ObservableObject
             root.Name = MusicKey.RootName(root.PitchClass, KeyQuality);
     }
 
-    // Touching either dropdown is itself the act of choosing a key, so it turns highlighting
-    // on. The explicit clear button is the only way back to "no key".
-    partial void OnKeyQualityChanged(KeyQuality value)
-    {
-        RespellKeyRoots();
-        IsKeyHighlightEnabled = true;
-    }
-
-    partial void OnKeyTonicPitchClassChanged(int value) => IsKeyHighlightEnabled = true;
+    partial void OnKeyQualityChanged(KeyQuality value) => RespellKeyRoots();
 
     public void ApplyFrom(AppSettings settings)
     {
@@ -106,9 +108,10 @@ public partial class SettingsViewModel : ObservableObject
         KeyQuality = Enum.TryParse<KeyQuality>(settings.KeyQuality, out var quality)
             ? quality
             : KeyQuality.Major;
-        KeyTonicPitchClass = ((settings.KeyTonicPitchClass % 12) + 12) % 12;
-        // Last, because setting either of the two above flips it on.
-        IsKeyHighlightEnabled = settings.KeyHighlightEnabled;
+        KeyTonicPitchClass = settings.KeyHighlightEnabled
+            ? ((settings.KeyTonicPitchClass % 12) + 12) % 12
+            : null;
+        MuteOutOfKeyNotes = settings.MuteOutOfKeyNotes;
 
         // Device selection will be applied after enumeration
         if (settings.LastMidiDevice != null)
@@ -131,9 +134,10 @@ public partial class SettingsViewModel : ObservableObject
             SoundFontPath = SoundFontPath,
             Volume = Volume,
             AnthropicApiKey = AnthropicApiKey,
-            KeyHighlightEnabled = IsKeyHighlightEnabled,
-            KeyTonicPitchClass = KeyTonicPitchClass,
-            KeyQuality = KeyQuality.ToString()
+            KeyHighlightEnabled = KeyTonicPitchClass.HasValue,
+            KeyTonicPitchClass = KeyTonicPitchClass ?? 0,
+            KeyQuality = KeyQuality.ToString(),
+            MuteOutOfKeyNotes = MuteOutOfKeyNotes
         };
     }
 }

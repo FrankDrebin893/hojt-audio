@@ -18,6 +18,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly ChordAnalyzer _analyzer = new();
     private System.Threading.Timer? _activityTimer;
 
+    /// <summary>Every pitch class, i.e. nothing muted.</summary>
+    private const int AllPitchClasses = 0xFFF;
+
+    /// <summary>
+    /// The pitch classes the audio engine is allowed to sound, as a 12-bit mask. Read on the
+    /// MIDI callback thread, so it is one volatile int rather than three settings properties
+    /// that thread could catch mid-update and combine into a key that was never selected.
+    /// </summary>
+    private volatile int _audiblePitchClasses = AllPitchClasses;
+
     public PianoKeyboardViewModel PianoKeyboard { get; }
     public SettingsViewModel Settings { get; }
     public ChatViewModel Chat { get; }
@@ -103,13 +113,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 _audioEngine.Volume = Settings.Volume;
             else if (e.PropertyName == nameof(Settings.AnthropicApiKey))
                 Chat.Configure(Settings.AnthropicApiKey);
-            else if (e.PropertyName is nameof(Settings.IsKeyHighlightEnabled)
-                                    or nameof(Settings.KeyTonicPitchClass)
+            else if (e.PropertyName is nameof(Settings.KeyTonicPitchClass)
                                     or nameof(Settings.KeyQuality))
             {
                 PianoKeyboard.SetKey(Settings.CurrentKey);
+                UpdateAudiblePitchClasses();
                 RefreshAnalysis();   // the readout re-spells with the new key
             }
+            else if (e.PropertyName == nameof(Settings.MuteOutOfKeyNotes))
+                UpdateAudiblePitchClasses();
         };
     }
 
@@ -123,6 +135,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Whether note names should read as flats, per the selected key signature.</summary>
     private bool UseFlats => Settings.CurrentKey?.UsesFlats ?? false;
+
+    private void UpdateAudiblePitchClasses() =>
+        _audiblePitchClasses = Settings.MuteOutOfKeyNotes && Settings.CurrentKey is { } key
+            ? key.PitchClassMask
+            : AllPitchClasses;
 
     private void RefreshAnalysis() =>
         Analysis = _analyzer.Analyze(PianoKeyboard.GetPressedNotes(), UseFlats);
@@ -291,7 +308,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Turns the key highlight off. Picking from either dropdown turns it back on.</summary>
     [RelayCommand]
-    private void ClearKey() => Settings.IsKeyHighlightEnabled = false;
+    private void ClearKey() => Settings.KeyTonicPitchClass = null;
 
     [RelayCommand]
     private void ToggleSettingsOverlay() => IsSettingsOverlayVisible = !IsSettingsOverlayVisible;
@@ -348,6 +365,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IsProgressionVisible = saved.ShowProgression;
         IsStatusBarVisible = saved.ShowStatusBar;
         PianoKeyboard.SetKey(Settings.CurrentKey);
+        UpdateAudiblePitchClasses();
     }
 
     public AppSettings CaptureSettings()
@@ -422,7 +440,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private void OnMidiNoteOn(object? sender, NoteEventArgs e)
     {
-        _audioEngine.NoteOn(e.Channel, e.NoteNumber, e.Velocity);
+        // An out-of-key note is silenced, not swallowed: it still lights its key and still
+        // counts toward the chord readout, so you can see what you actually played.
+        if ((_audiblePitchClasses & (1 << MusicNaming.PitchClassOf(e.NoteNumber))) != 0)
+            _audioEngine.NoteOn(e.Channel, e.NoteNumber, e.Velocity);
 
         _dispatcher.BeginInvoke(() =>
         {
@@ -433,6 +454,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private void OnMidiNoteOff(object? sender, NoteEventArgs e)
     {
+        // Always released, never gated: a note-off for a note that never sounded is a no-op,
+        // whereas gating here would strand a note that was audible when the key changed
+        // under it and would then sustain forever.
         _audioEngine.NoteOff(e.Channel, e.NoteNumber);
 
         _dispatcher.BeginInvoke(() =>

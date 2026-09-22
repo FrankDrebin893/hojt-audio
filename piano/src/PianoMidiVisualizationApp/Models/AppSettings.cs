@@ -17,6 +17,7 @@ public class AppSettings
     public bool KeyHighlightEnabled { get; set; }
     public int KeyTonicPitchClass { get; set; }
     public string KeyQuality { get; set; } = "Major";
+    public bool MuteOutOfKeyNotes { get; set; }
 
     // Panel visibility. These defaults ARE the first-launch zen layout, and they also apply to
     // an existing settings.json written before these keys existed — Deserialize runs the

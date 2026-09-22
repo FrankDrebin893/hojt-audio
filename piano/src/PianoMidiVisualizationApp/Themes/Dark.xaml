@@ -479,4 +479,42 @@
         </Setter>
     </Style>
 
+    <!-- Mirrors the RadioButton above: a square box with a tick instead of a ring with a dot.
+         Without this the stock CheckBox chrome renders light against the dark stage. -->
+    <Style TargetType="CheckBox">
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <StackPanel Orientation="Horizontal" Background="Transparent">
+                        <Border x:Name="Box" Width="14" Height="14" CornerRadius="3"
+                                VerticalAlignment="Center" Margin="0,0,6,0"
+                                Background="{StaticResource Brush.Input}"
+                                BorderBrush="{StaticResource Brush.Border}" BorderThickness="1.4">
+                            <Path x:Name="Tick" Visibility="Collapsed"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Data="M 0,3 L 2.6,5.6 L 7,0.6"
+                                  Stroke="{StaticResource Brush.Text.Primary}" StrokeThickness="1.6"
+                                  StrokeEndLineCap="Round" StrokeStartLineCap="Round"/>
+                        </Border>
+                        <ContentPresenter VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Tick" Property="Visibility" Value="Visible"/>
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Brush.Text.Muted}"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Brush.Text.Muted}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{StaticResource Brush.Text.Disabled}"/>
+                            <Setter TargetName="Tick" Property="Stroke" Value="{StaticResource Brush.Text.Disabled}"/>
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Brush.Text.Disabled}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
 </ResourceDictionary>
