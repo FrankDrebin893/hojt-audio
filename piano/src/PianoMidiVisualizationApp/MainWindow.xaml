@@ -128,10 +128,11 @@
                 <!-- Key selector. A practice control, so it lives on the stage rather than
                      behind the settings overlay. Both dropdowns write to Settings, which is
                      what persists them; picking from either one turns the highlight on. -->
-                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center"
-                            Margin="0,0,0,2">
-                    <StackPanel.Style>
-                        <Style TargetType="StackPanel">
+                <Border Grid.Row="1" HorizontalAlignment="Center" Margin="0,0,0,6"
+                        Background="{StaticResource Brush.Surface}" CornerRadius="6"
+                        Padding="10,5">
+                    <Border.Style>
+                        <Style TargetType="Border">
                             <Setter Property="Visibility" Value="Visible"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsZenMode}" Value="True">
@@ -139,35 +140,51 @@
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
-                    </StackPanel.Style>
+                    </Border.Style>
 
-                    <TextBlock Text="Key:" Foreground="{StaticResource Brush.Text.Tertiary}"
-                               FontSize="12" FontWeight="SemiBold"
-                               VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Key" Foreground="{StaticResource Brush.Text.Muted}"
+                                   FontSize="11" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
 
-                    <!-- SelectedValue, not SelectedItem: KeyRoots is rebuilt whenever the
-                         quality changes so the roots re-spell, and the item instances go with it. -->
-                    <ComboBox Width="72" Height="26"
-                              ItemsSource="{Binding Settings.KeyRoots}"
-                              DisplayMemberPath="Name"
-                              SelectedValuePath="PitchClass"
-                              SelectedValue="{Binding Settings.KeyTonicPitchClass}"
-                              ToolTip="Key centre"/>
+                        <!-- ItemTemplate, not DisplayMemberPath: the ComboBox template shows
+                             SelectionBoxItemTemplate, which DisplayMemberPath does not fill in,
+                             so the closed box would fall back to ToString() and print the type
+                             name. DeviceInfo overrides ToString(), which is why the settings
+                             dropdowns never exposed this. -->
+                        <ComboBox Width="76" Height="26"
+                                  ItemsSource="{Binding Settings.KeyRoots}"
+                                  SelectedValuePath="PitchClass"
+                                  SelectedValue="{Binding Settings.KeyTonicPitchClass}"
+                                  ToolTip="Key centre">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
 
-                    <ComboBox Width="86" Height="26" Margin="6,0,0,0"
-                              ItemsSource="{Binding Settings.KeyQualities}"
-                              DisplayMemberPath="Name"
-                              SelectedValuePath="Quality"
-                              SelectedValue="{Binding Settings.KeyQuality}"
-                              ToolTip="Major or natural minor"/>
+                        <ComboBox Width="92" Height="26" Margin="6,0,0,0"
+                                  ItemsSource="{Binding Settings.KeyQualities}"
+                                  SelectedValuePath="Quality"
+                                  SelectedValue="{Binding Settings.KeyQuality}"
+                                  ToolTip="Major or natural minor">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
 
-                    <Button Content="✕" Width="26" Height="26" Margin="4,0,0,0"
-                            Style="{StaticResource Style.IconButton}"
-                            Command="{Binding ClearKeyCommand}"
-                            ToolTip="Clear key highlight"
-                            Visibility="{Binding Settings.IsKeyHighlightEnabled,
-                                         Converter={StaticResource BoolToVisConverter}}"/>
-                </StackPanel>
+                        <Button Content="✕" Width="24" Height="24" Margin="6,0,0,0"
+                                Style="{StaticResource Style.IconButton}"
+                                Command="{Binding ClearKeyCommand}"
+                                VerticalAlignment="Center"
+                                ToolTip="Clear key highlight"
+                                Visibility="{Binding Settings.IsKeyHighlightEnabled,
+                                             Converter={StaticResource BoolToVisConverter}}"/>
+                    </StackPanel>
+                </Border>
 
                 <Viewbox Grid.Row="2" Stretch="Uniform" StretchDirection="Both"
                          MaxHeight="360" HorizontalAlignment="Center" VerticalAlignment="Bottom"
