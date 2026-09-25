@@ -1,5 +1,7 @@
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using PianoMidiVisualizationApp.Services;
 
 namespace PianoMidiVisualizationApp.Models;
 
@@ -12,12 +14,37 @@ public class AppSettings
     public float Volume { get; set; } = 0.8f;
     public string? AnthropicApiKey { get; set; }
 
-    // Key signature highlighted on the keyboard. Quality is stored as its enum name so the
-    // file stays readable; anything unparseable falls back to Major rather than throwing.
+    // Key highlighted on the keyboard. The scale is stored as its enum name so the file stays
+    // readable; read it through ResolveKeyScale, which also handles files from before it existed.
     public bool KeyHighlightEnabled { get; set; }
     public int KeyTonicPitchClass { get; set; }
-    public string KeyQuality { get; set; } = "Major";
+    public string? KeyScale { get; set; }
     public bool MuteOutOfKeyNotes { get; set; }
+
+    /// <summary>
+    /// The pre-scale-types setting ("Major" or "Minor"). Only ever read, to migrate an old file;
+    /// it is never assigned on save, so being null keeps it out of every file written since.
+    /// </summary>
+    [JsonPropertyName("KeyQuality")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LegacyKeyQuality { get; set; }
+
+    /// <summary>
+    /// The saved scale. A file without KeyScale predates it, so its old major/minor choice maps
+    /// across; a KeyScale that is present but unrecognised falls back to Major, never throws.
+    /// </summary>
+    public ScaleType ResolveKeyScale()
+    {
+        if (KeyScale is null)
+            return LegacyKeyQuality == "Minor" ? ScaleType.NaturalMinor : ScaleType.Major;
+
+        // Enum.TryParse also accepts "3" or "99"; only a defined member's name counts here.
+        return Enum.TryParse<ScaleType>(KeyScale, out var scale)
+               && Enum.IsDefined(scale)
+               && !int.TryParse(KeyScale, out _)
+            ? scale
+            : ScaleType.Major;
+    }
 
     // Panel visibility. These defaults ARE the first-launch zen layout, and they also apply to
     // an existing settings.json written before these keys existed — Deserialize runs the

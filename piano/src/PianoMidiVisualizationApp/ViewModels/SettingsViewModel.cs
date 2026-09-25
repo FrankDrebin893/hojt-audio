@@ -6,7 +6,7 @@ using PianoMidiVisualizationApp.Services;
 namespace PianoMidiVisualizationApp.ViewModels;
 
 /// <summary>
-/// One entry in the key-root dropdown. The name depends on the selected quality (Ab Major
+/// One entry in the key-root dropdown. The name depends on the selected scale (Ab Major
 /// but G# Minor), so it is observable and re-spelled in place: swapping the collection's
 /// contents instead would clear the ComboBox's selection along with the old items.
 /// </summary>
@@ -18,8 +18,8 @@ public partial class KeyRootOption : ObservableObject
     private string _name = "";
 }
 
-/// <summary>One entry in the key-quality dropdown.</summary>
-public record KeyQualityOption(KeyQuality Quality, string Name);
+/// <summary>One entry in the scale dropdown. <see cref="Group"/> is its header in the list.</summary>
+public record ScaleOption(ScaleType Scale, string Name, string Group);
 
 public partial class SettingsViewModel : ObservableObject
 {
@@ -55,7 +55,7 @@ public partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CurrentKey))]
-    private KeyQuality _keyQuality = KeyQuality.Major;
+    private ScaleType _keyScale = ScaleType.Major;
 
     public bool IsKeyHighlightEnabled => KeyTonicPitchClass.HasValue;
 
@@ -70,33 +70,51 @@ public partial class SettingsViewModel : ObservableObject
     public ObservableCollection<string> AsioDriverNames { get; } = new();
     public ObservableCollection<string> WasapiDeviceNames { get; } = new();
 
-/// <summary>The twelve roots, spelled for the selected quality — Eb Minor, not D# Minor.</summary>
+    /// <summary>The twelve roots, spelled for the selected scale — Eb Minor, not D# Minor.</summary>
     public ObservableCollection<KeyRootOption> KeyRoots { get; } = new();
 
-    public ObservableCollection<KeyQualityOption> KeyQualities { get; } = new()
-    {
-        new(KeyQuality.Major, "Major"),
-        new(KeyQuality.Minor, "Minor")
-    };
+    /// <summary>
+    /// Every scale in picker order: the major and minor family first, then the modes in the
+    /// order they sit on the major scale's degrees, then the five- and six-note scales. Static
+    /// because it never changes, which also lets the view group it without a DataContext.
+    /// </summary>
+    public static IReadOnlyList<ScaleOption> ScaleOptions { get; } =
+        new (ScaleType Scale, string Group)[]
+        {
+            (ScaleType.Major, "Major & minor"),
+            (ScaleType.NaturalMinor, "Major & minor"),
+            (ScaleType.HarmonicMinor, "Major & minor"),
+            (ScaleType.MelodicMinor, "Major & minor"),
+            (ScaleType.Dorian, "Modes"),
+            (ScaleType.Phrygian, "Modes"),
+            (ScaleType.Lydian, "Modes"),
+            (ScaleType.Mixolydian, "Modes"),
+            (ScaleType.Locrian, "Modes"),
+            (ScaleType.MajorPentatonic, "Pentatonic & blues"),
+            (ScaleType.MinorPentatonic, "Pentatonic & blues"),
+            (ScaleType.Blues, "Pentatonic & blues"),
+        }
+        .Select(o => new ScaleOption(o.Scale, o.Scale.DisplayName(), o.Group))
+        .ToArray();
 
-    /// <summary>The selected key signature, or null when no key is selected.</summary>
+    /// <summary>The selected key, or null when no key is selected.</summary>
     public MusicKey? CurrentKey =>
-        KeyTonicPitchClass is { } pitchClass ? new MusicKey(pitchClass, KeyQuality) : null;
+        KeyTonicPitchClass is { } pitchClass ? new MusicKey(pitchClass, KeyScale) : null;
 
     public SettingsViewModel()
     {
         for (int pc = 0; pc < 12; pc++)
-            KeyRoots.Add(new KeyRootOption { PitchClass = pc, Name = MusicKey.RootName(pc, KeyQuality) });
+            KeyRoots.Add(new KeyRootOption { PitchClass = pc, Name = MusicKey.RootName(pc, KeyScale) });
     }
 
     /// <summary>Renames the existing roots; deliberately does not replace them.</summary>
     private void RespellKeyRoots()
     {
         foreach (var root in KeyRoots)
-            root.Name = MusicKey.RootName(root.PitchClass, KeyQuality);
+            root.Name = MusicKey.RootName(root.PitchClass, KeyScale);
     }
 
-    partial void OnKeyQualityChanged(KeyQuality value) => RespellKeyRoots();
+    partial void OnKeyScaleChanged(ScaleType value) => RespellKeyRoots();
 
     public void ApplyFrom(AppSettings settings)
     {
@@ -105,9 +123,7 @@ public partial class SettingsViewModel : ObservableObject
         Volume = settings.Volume;
         AnthropicApiKey = settings.AnthropicApiKey ?? "";
 
-        KeyQuality = Enum.TryParse<KeyQuality>(settings.KeyQuality, out var quality)
-            ? quality
-            : KeyQuality.Major;
+        KeyScale = settings.ResolveKeyScale();
         KeyTonicPitchClass = settings.KeyHighlightEnabled
             ? ((settings.KeyTonicPitchClass % 12) + 12) % 12
             : null;
@@ -136,7 +152,7 @@ public partial class SettingsViewModel : ObservableObject
             AnthropicApiKey = AnthropicApiKey,
             KeyHighlightEnabled = KeyTonicPitchClass.HasValue,
             KeyTonicPitchClass = KeyTonicPitchClass ?? 0,
-            KeyQuality = KeyQuality.ToString(),
+            KeyScale = KeyScale.ToString(),
             MuteOutOfKeyNotes = MuteOutOfKeyNotes
         };
     }

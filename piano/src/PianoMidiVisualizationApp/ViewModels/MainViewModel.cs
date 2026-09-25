@@ -114,7 +114,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             else if (e.PropertyName == nameof(Settings.AnthropicApiKey))
                 Chat.Configure(Settings.AnthropicApiKey);
             else if (e.PropertyName is nameof(Settings.KeyTonicPitchClass)
-                                    or nameof(Settings.KeyQuality))
+                                    or nameof(Settings.KeyScale))
             {
                 PianoKeyboard.SetKey(Settings.CurrentKey);
                 UpdateAudiblePitchClasses();

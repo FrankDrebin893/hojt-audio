@@ -25,4 +25,11 @@ public partial class PianoKey : ObservableObject
 
     [ObservableProperty]
     private int _velocity;
+
+    /// <summary>
+    /// The app is suggesting this key: a chord to try, the next note of a song. Drawn as an
+    /// overlay rather than a fill, so it shows alongside the pressed and scale-role colours.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isHinted;
 }

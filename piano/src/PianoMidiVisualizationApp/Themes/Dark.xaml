@@ -383,8 +383,12 @@
                             <Border Background="{StaticResource Brush.Popup.Background}"
                                     BorderBrush="{StaticResource Brush.Popup.Border}" BorderThickness="1"
                                     MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                <!-- ItemsPresenter, not a bare IsItemsHost panel: grouping (the
+                                     scale picker's section headers) generates each group's items
+                                     through it, and without it every group renders empty. The
+                                     default ItemsPanel is still a StackPanel. -->
                                 <ScrollViewer>
-                                    <StackPanel IsItemsHost="True"/>
+                                    <ItemsPresenter/>
                                 </ScrollViewer>
                             </Border>
                         </Popup>
