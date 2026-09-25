@@ -49,6 +49,7 @@ public partial class MainWindow : Window
 
         bool shift = Keyboard.Modifiers == ModifierKeys.Shift;
         bool ctrl = Keyboard.Modifiers == ModifierKeys.Control;
+        bool ctrlShift = Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift);
 
         switch (e.Key)
         {
@@ -76,6 +77,15 @@ public partial class MainWindow : Window
                 break;
             case Key.F4 when shift:
                 vm.ToggleProgressionCommand.Execute(null);
+                break;
+            case Key.R when ctrl && !IsTextEntryFocused():
+                vm.Recorder.ToggleRecordCommand.Execute(null);
+                break;
+            case Key.R when ctrlShift && !IsTextEntryFocused():
+                vm.Recorder.TogglePlaybackCommand.Execute(null);
+                break;
+            case Key.F5 when shift && !IsTextEntryFocused():
+                vm.ToggleRecorderCommand.Execute(null);
                 break;
             default:
                 return;
