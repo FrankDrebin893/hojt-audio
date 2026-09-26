@@ -1,0 +1,20 @@
+<UserControl x:Class="PianoMidiVisualizationApp.Views.CircleOfFifthsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Focusable="False">
+
+    <!-- The host stretches to whatever space the control is given and exists only to measure
+         it: the code-behind draws the circle at the largest diameter that fits, and aligns the
+         circle and its caption within the host (see CircleAlignment). -->
+    <Grid x:Name="Host" SizeChanged="Host_SizeChanged">
+        <StackPanel x:Name="Stack" VerticalAlignment="Center">
+            <Canvas x:Name="CircleCanvas"/>
+            <!-- One line, never wrapped: a caption that wrapped for some keys and not others
+                 would resize the circle every time the key changed. Too long for the space, it
+                 is trimmed, and the tooltip carries the whole text. -->
+            <TextBlock x:Name="CaptionText" FontSize="11" Margin="0,3,0,0"
+                       TextAlignment="Center" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                       ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

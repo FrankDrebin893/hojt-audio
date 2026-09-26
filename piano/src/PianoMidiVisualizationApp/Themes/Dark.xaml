@@ -49,6 +49,17 @@
     <SolidColorBrush x:Key="Brush.Metronome.Beat"   Color="#FFFFFF"/>
     <SolidColorBrush x:Key="Brush.Metronome.Accent" Color="#FFB547"/>
 
+    <!-- ================= Circle of fifths =================
+         The selected key is amber, echoing the keyboard's tonic fill; its neighbours and
+         relative take a faint wash of the same. The chord-root outline is the pressed-key
+         blue, since it follows what is being played. -->
+    <SolidColorBrush x:Key="Brush.Circle.Major"      Color="#2A2A2A"/>
+    <SolidColorBrush x:Key="Brush.Circle.Minor"      Color="#232323"/>
+    <SolidColorBrush x:Key="Brush.Circle.Related"    Color="#3F3727"/>
+    <SolidColorBrush x:Key="Brush.Circle.Selected"   Color="#7E6128"/>
+    <SolidColorBrush x:Key="Brush.Circle.Hover"      Color="#8A8A8A"/>
+    <SolidColorBrush x:Key="Brush.Circle.RootMarker" Color="#50A0EB"/>
+
     <!-- ================= Readout type scale ================= -->
     <sys:Double x:Key="Size.Readout.Name">64</sys:Double>
     <sys:Double x:Key="Size.Readout.Voicing">14</sys:Double>

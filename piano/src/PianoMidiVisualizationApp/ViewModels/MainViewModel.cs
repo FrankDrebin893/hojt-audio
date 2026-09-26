@@ -129,13 +129,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(IsZenMode))]
     private bool _isRecorderVisible;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsZenMode))]
+    private bool _isCircleOfFifthsVisible = true;
+
     /// <summary>
     /// Derived rather than stored, so it can never desync: turning any panel back on
     /// manually leaves zen mode with no extra bookkeeping.
     /// </summary>
     public bool IsZenMode => !IsChatPanelVisible && !IsMidiLogVisible
                           && !IsProgressionVisible && !IsStatusBarVisible
-                          && !IsRecorderVisible;
+                          && !IsRecorderVisible && !IsCircleOfFifthsVisible;
 
     private const int MaxLogLines = 100;
     private const int MaxSavedChords = 8;
@@ -440,8 +444,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ToggleRecorder() => IsRecorderVisible = !IsRecorderVisible;
 
+    [RelayCommand]
+    private void ToggleCircleOfFifths() => IsCircleOfFifthsVisible = !IsCircleOfFifthsVisible;
+
     private readonly record struct PanelLayout(bool Chat, bool MidiLog, bool Progression, bool StatusBar,
-                                               bool Recorder);
+                                               bool Recorder, bool CircleOfFifths);
 
     private PanelLayout? _preZenLayout;
 
@@ -451,20 +458,21 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (IsZenMode)
         {
             // Nothing was saved if the app started in zen — restore a sensible layout instead.
-            var restore = _preZenLayout ?? new PanelLayout(false, false, true, true, false);
+            var restore = _preZenLayout ?? new PanelLayout(false, false, true, true, false, true);
             IsChatPanelVisible = restore.Chat;
             IsMidiLogVisible = restore.MidiLog;
             IsProgressionVisible = restore.Progression;
             IsStatusBarVisible = restore.StatusBar;
             IsRecorderVisible = restore.Recorder;
+            IsCircleOfFifthsVisible = restore.CircleOfFifths;
         }
         else
         {
             _preZenLayout = new PanelLayout(
                 IsChatPanelVisible, IsMidiLogVisible, IsProgressionVisible, IsStatusBarVisible,
-                IsRecorderVisible);
+                IsRecorderVisible, IsCircleOfFifthsVisible);
             IsChatPanelVisible = IsMidiLogVisible = IsProgressionVisible = IsStatusBarVisible = false;
-            IsRecorderVisible = false;
+            IsRecorderVisible = IsCircleOfFifthsVisible = false;
             IsSettingsOverlayVisible = false;
         }
     }
@@ -481,6 +489,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IsProgressionVisible = saved.ShowProgression;
         IsStatusBarVisible = saved.ShowStatusBar;
         IsRecorderVisible = saved.ShowRecorder;
+        IsCircleOfFifthsVisible = saved.ShowCircleOfFifths;
         PianoKeyboard.SetKey(Settings.CurrentKey);
         UpdateAudiblePitchClasses();
         ApplyMetronomeSettings();
@@ -494,6 +503,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         saved.ShowProgression = IsProgressionVisible;
         saved.ShowStatusBar = IsStatusBarVisible;
         saved.ShowRecorder = IsRecorderVisible;
+        saved.ShowCircleOfFifths = IsCircleOfFifthsVisible;
         return saved;
     }
 

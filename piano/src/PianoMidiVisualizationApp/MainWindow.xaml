@@ -57,6 +57,8 @@
                                       IsCheckable="True" IsChecked="{Binding IsStatusBarVisible}"/>
                             <MenuItem Header="_Recorder" InputGestureText="Shift+F5"
                                       IsCheckable="True" IsChecked="{Binding IsRecorderVisible}"/>
+                            <MenuItem Header="Circle of _Fifths" InputGestureText="Shift+F6"
+                                      IsCheckable="True" IsChecked="{Binding IsCircleOfFifthsVisible}"/>
                             <Separator/>
                             <MenuItem InputGestureText="F11" Command="{Binding ToggleZenModeCommand}">
                                 <MenuItem.Style>
@@ -103,39 +105,61 @@
                     <RowDefinition Height="Auto"/>                <!-- keyboard -->
                 </Grid.RowDefinitions>
 
-                <!-- Chord readout. Every line has a MinHeight so releasing the keys empties the
-                     text without collapsing the line box and shifting the layout. -->
-                <StackPanel Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Center"
-                            Margin="24,12">
-                    <!-- Line boxes are trimmed to pay for the voicing line: the stack has to fit
-                         the 159px row at 900x420, and the 140px MinHeight row an open recorder,
-                         log or chat squeezes it to without shaving the chord name. The name's own
-                         85px line leaves ~20px empty above the tallest glyph; at 70 a slash or
-                         parenthesis still clears the voicing text by the ~4px it used to clear
-                         the notes line by. Notes and intervals keep ~1px over their natural line. -->
-                    <TextBlock Text="{Binding Analysis.Name}"
-                               FontSize="{StaticResource Size.Readout.Name}" FontWeight="Bold"
-                               Foreground="{StaticResource Brush.Text.Primary}"
-                               LineStackingStrategy="BlockLineHeight" LineHeight="70"
-                               MinHeight="70" TextAlignment="Center"/>
-                    <TextBlock Text="{Binding Analysis.Voicing}"
-                               FontSize="{StaticResource Size.Readout.Voicing}"
-                               Foreground="{StaticResource Brush.Text.Secondary}"
-                               MinHeight="19" Margin="0,3,0,0" TextAlignment="Center"/>
-                    <TextBlock Text="{Binding Analysis.Notes}" FontFamily="Consolas"
-                               FontSize="{StaticResource Size.Readout.Notes}"
-                               Foreground="{StaticResource Brush.Text.Tertiary}"
-                               MinHeight="22" TextAlignment="Center"/>
-                    <TextBlock Text="{Binding Analysis.Intervals}" FontFamily="Consolas"
-                               FontSize="{StaticResource Size.Readout.Intervals}"
-                               Foreground="{StaticResource Brush.Text.Muted}"
-                               MinHeight="18" TextAlignment="Center"/>
-                    <TextBlock Text="Space to save" FontSize="11" Margin="0,4,0,0"
-                               Foreground="{StaticResource Brush.Text.Faint}"
-                               MinHeight="18" TextAlignment="Center"
-                               Visibility="{Binding Analysis.Name,
-                                            Converter={StaticResource StringToVisibilityConverter}}"/>
-                </StackPanel>
+                <!-- Readout row, in three columns: grand staff on the left, the chord readout in
+                     the centre, circle of fifths on the right. The side columns split whatever
+                     the readout leaves, so it stays centred whichever side panels are shown. Each
+                     side panel should hug its outer edge: its column's width changes with the
+                     chord name's length, and a panel centred in it would slide as you played. -->
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>      <!-- grand staff -->
+                        <ColumnDefinition Width="Auto"/>   <!-- chord readout -->
+                        <ColumnDefinition Width="*"/>      <!-- circle of fifths -->
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Chord readout. Every line has a MinHeight so releasing the keys empties the
+                         text without collapsing the line box and shifting the layout. -->
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                Margin="24,12">
+                        <!-- Line boxes are trimmed to pay for the voicing line: the stack has to fit
+                             the 159px row at 900x420, and the 140px MinHeight row an open recorder,
+                             log or chat squeezes it to without shaving the chord name. The name's own
+                             85px line leaves ~20px empty above the tallest glyph; at 70 a slash or
+                             parenthesis still clears the voicing text by the ~4px it used to clear
+                             the notes line by. Notes and intervals keep ~1px over their natural line. -->
+                        <TextBlock Text="{Binding Analysis.Name}"
+                                   FontSize="{StaticResource Size.Readout.Name}" FontWeight="Bold"
+                                   Foreground="{StaticResource Brush.Text.Primary}"
+                                   LineStackingStrategy="BlockLineHeight" LineHeight="70"
+                                   MinHeight="70" TextAlignment="Center"/>
+                        <TextBlock Text="{Binding Analysis.Voicing}"
+                                   FontSize="{StaticResource Size.Readout.Voicing}"
+                                   Foreground="{StaticResource Brush.Text.Secondary}"
+                                   MinHeight="19" Margin="0,3,0,0" TextAlignment="Center"/>
+                        <TextBlock Text="{Binding Analysis.Notes}" FontFamily="Consolas"
+                                   FontSize="{StaticResource Size.Readout.Notes}"
+                                   Foreground="{StaticResource Brush.Text.Tertiary}"
+                                   MinHeight="22" TextAlignment="Center"/>
+                        <TextBlock Text="{Binding Analysis.Intervals}" FontFamily="Consolas"
+                                   FontSize="{StaticResource Size.Readout.Intervals}"
+                                   Foreground="{StaticResource Brush.Text.Muted}"
+                                   MinHeight="18" TextAlignment="Center"/>
+                        <TextBlock Text="Space to save" FontSize="11" Margin="0,4,0,0"
+                                   Foreground="{StaticResource Brush.Text.Faint}"
+                                   MinHeight="18" TextAlignment="Center"
+                                   Visibility="{Binding Analysis.Name,
+                                                Converter={StaticResource StringToVisibilityConverter}}"/>
+                    </StackPanel>
+
+                    <!-- Circle of fifths. Clicking a segment writes the key through these two-way
+                         bindings into Settings, which persists it and moves the key pickers. -->
+                    <views:CircleOfFifthsControl Grid.Column="2" Margin="8,4,16,4" CircleAlignment="Right"
+                                                 TonicPitchClass="{Binding Settings.KeyTonicPitchClass}"
+                                                 Scale="{Binding Settings.KeyScale}"
+                                                 RootPitchClass="{Binding Analysis.RootPitchClass}"
+                                                 Visibility="{Binding IsCircleOfFifthsVisible,
+                                                              Converter={StaticResource BoolToVisConverter}}"/>
+                </Grid>
 
                 <!-- The keyboard scales to the window. Stretch must be Uniform (never distort a
                      piano) and StretchDirection Both, so it shrinks rather than clipping on a

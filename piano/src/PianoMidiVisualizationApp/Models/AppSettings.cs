@@ -60,6 +60,7 @@ public class AppSettings
     public bool ShowProgression { get; set; } = true;
     public bool ShowStatusBar { get; set; } = true;
     public bool ShowRecorder { get; set; } = false;
+    public bool ShowCircleOfFifths { get; set; } = true;
 
     // Window placement. Nullable so "never saved" is distinguishable from 0.
     public double? WindowLeft { get; set; }
