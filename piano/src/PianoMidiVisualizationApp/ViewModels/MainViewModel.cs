@@ -58,6 +58,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public ChatViewModel Chat { get; }
     public RecorderViewModel Recorder { get; }
     public SongPracticeViewModel SongPractice { get; }
+    public ProgressionToolsViewModel ProgressionTools { get; }
 
     [ObservableProperty]
     private string _statusText = "Ready";
@@ -187,6 +188,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         SongPractice = new SongPracticeViewModel(PianoKeyboard, PlayNoteOn, PlayNoteOff, status => StatusText = status);
         SongPractice.SongLoaded += (_, _) => IsSongPracticeVisible = true;
+
+        ProgressionTools = new ProgressionToolsViewModel(SavedChords, MaxSavedChords, CreateSavedChord,
+                                                         Settings, PianoKeyboard, dispatcher,
+                                                         PlayNoteOn, PlayNoteOff, status => StatusText = status);
 
         _midiInput.NoteOn += OnMidiNoteOn;
         _midiInput.NoteOff += OnMidiNoteOff;
@@ -431,19 +436,29 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var noteNames = pressedNotes.Select(n => MusicNaming.WithOctave(n, UseFlats)).ToList();
-
-        var savedChord = new SavedChord
-        {
-            ChordName = CurrentChord,
-            NoteNumbers = pressedNotes,
-            NoteNames = noteNames,
-            Function = Analysis.Function,
-            FunctionKind = Analysis.FunctionKind,
-        };
-
+        var savedChord = CreateSavedChord(pressedNotes);
         SavedChords.Add(savedChord);
-        StatusText = $"Saved chord: {CurrentChord}";
+        StatusText = $"Saved chord: {savedChord.ChordName}";
+    }
+
+    /// <summary>
+    /// A saved chord for these notes: named, spelled and given its numeral in the current key.
+    /// The one way chords enter the progression, whether saved from the keyboard, transposed or
+    /// picked from the suggestions, so they all read alike.
+    /// </summary>
+    private SavedChord CreateSavedChord(IEnumerable<int> notes)
+    {
+        var sorted = notes.Distinct().OrderBy(n => n).ToList();
+        var analysis = _analyzer.Analyze(sorted, UseFlats, Settings.CurrentKey);
+
+        return new SavedChord
+        {
+            ChordName = analysis.Name,
+            NoteNumbers = sorted,
+            NoteNames = sorted.Select(n => MusicNaming.WithOctave(n, UseFlats)).ToList(),
+            Function = analysis.Function,
+            FunctionKind = analysis.FunctionKind,
+        };
     }
 
     [RelayCommand]
@@ -568,6 +583,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (saved.ShowSongPractice && !string.IsNullOrEmpty(saved.SongPath) && System.IO.File.Exists(saved.SongPath))
             SongPractice.LoadSong(saved.SongPath, showTrackList: false);
         IsSongPracticeVisible = saved.ShowSongPractice;
+        ProgressionTools.ApplyFrom(saved);
         PianoKeyboard.SetKey(Settings.CurrentKey);
         UpdateAudiblePitchClasses();
         ApplyMetronomeSettings();
@@ -587,6 +603,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         saved.SongPath = SongPractice.SongPath;
         saved.SongSpeed = SongPractice.Speed;
         saved.SongMode = SongPractice.Mode.ToString();
+        ProgressionTools.CaptureInto(saved);
         return saved;
     }
 
@@ -780,6 +797,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // First, while the engine can still take the note-offs the players send on the way out.
         Recorder.Dispose();
         SongPractice.Dispose();
+        ProgressionTools.Dispose();
         _activityTimer?.Dispose();
         _midiInput.NoteOn -= OnMidiNoteOn;
         _midiInput.NoteOff -= OnMidiNoteOff;

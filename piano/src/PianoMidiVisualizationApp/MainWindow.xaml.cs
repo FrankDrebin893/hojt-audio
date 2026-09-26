@@ -177,6 +177,9 @@ public partial class MainWindow : Window
             case Key.F9 when shift && !IsTextEntryFocused():
                 vm.ToggleSongPracticeCommand.Execute(null);
                 break;
+            case Key.P when ctrl && !IsTextEntryFocused():
+                vm.ProgressionTools.TogglePlaybackCommand.Execute(null);
+                break;
             default:
                 return;
         }

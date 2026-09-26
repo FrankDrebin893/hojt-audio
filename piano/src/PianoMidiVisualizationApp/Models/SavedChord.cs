@@ -21,4 +21,8 @@ public partial class SavedChord : ObservableObject
     /// <summary>How <see cref="Function"/> relates to the key. Meaningless while it is empty.</summary>
     [ObservableProperty]
     private RomanNumeralKind _functionKind;
+
+    /// <summary>True while progression playback is sounding this chord, for its highlight.</summary>
+    [ObservableProperty]
+    private bool _isSounding;
 }

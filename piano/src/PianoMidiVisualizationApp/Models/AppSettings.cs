@@ -69,6 +69,11 @@ public class AppSettings
     public double SongSpeed { get; set; } = 1.0;
     public string SongMode { get; set; } = "Wait";
 
+    // Chord progression tools. Beats per chord 0 means one bar at the metronome's bar length.
+    public bool ProgressionLoop { get; set; } = true;
+    public int ProgressionBeatsPerChord { get; set; } = 0;
+    public bool TransposeMovesKey { get; set; } = true;
+
     // Window placement. Nullable so "never saved" is distinguishable from 0.
     public double? WindowLeft { get; set; }
     public double? WindowTop { get; set; }

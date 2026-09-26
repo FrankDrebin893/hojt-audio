@@ -411,52 +411,10 @@
                 </Viewbox>
             </Grid>
 
-            <!-- Chord progression sidebar -->
-            <Border Grid.Column="1" Background="{StaticResource Brush.Surface}" Width="200" Padding="8"
-                    Visibility="{Binding IsProgressionVisible, Converter={StaticResource BoolToVisConverter}}">
-                <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="Chord Progression"
-                               Foreground="{StaticResource Brush.Text.Tertiary}" FontSize="12" FontWeight="SemiBold"
-                               Margin="0,0,0,8"/>
-                    <TextBlock DockPanel.Dock="Bottom" Text="{Binding SavedChords.Count, StringFormat='{}{0}/8 chords'}"
-                               Foreground="{StaticResource Brush.Text.Faint}" FontSize="10" Margin="0,8,0,0"/>
-                    <ItemsControl ItemsSource="{Binding SavedChords}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="{StaticResource Brush.SurfaceRaised}" CornerRadius="4"
-                                        Margin="0,0,0,6" Padding="8,6">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0">
-                                            <!-- Numeral inline after the name, so a card grows no
-                                                 taller; a long pair wraps rather than clipping. -->
-                                            <TextBlock Foreground="{StaticResource Brush.Text.Primary}"
-                                                       FontSize="16" FontWeight="Bold" TextWrapping="Wrap"><Run
-                                                           Text="{Binding ChordName, Mode=OneWay}"/><Run
-                                                           Text="{Binding Function, Mode=OneWay, StringFormat='  {0}'}"
-                                                           FontSize="12" FontWeight="SemiBold"
-                                                           Style="{StaticResource Style.Function.Numeral}"/></TextBlock>
-                                            <TextBlock Text="{Binding NotesDisplay}"
-                                                       Foreground="{StaticResource Brush.Text.Muted}"
-                                                       FontSize="10" TextWrapping="Wrap"/>
-                                        </StackPanel>
-                                        <!-- The sidebar stays in the window's visual tree (this is one
-                                             reason the settings overlay is a Grid child, not a Popup) -->
-                                        <Button Grid.Column="1" Content="✕"
-                                                Style="{StaticResource Style.IconButton}"
-                                                Command="{Binding DataContext.RemoveChordCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                CommandParameter="{Binding}"
-                                                VerticalAlignment="Top" ToolTip="Remove chord"/>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </DockPanel>
-            </Border>
+            <!-- Chord progression sidebar, with its playback, transpose and next-chord tools.
+                 Widened from 200 to fit the tool rows; hidden by Shift+F4 and zen with the rest. -->
+            <views:ProgressionPanel Grid.Column="1" Width="220"
+                                    Visibility="{Binding IsProgressionVisible, Converter={StaticResource BoolToVisConverter}}"/>
 
             <!-- Settings overlay: scrim first, panel second, so the panel paints on top.
                  Both span the stage; neither displaces the keyboard. -->
