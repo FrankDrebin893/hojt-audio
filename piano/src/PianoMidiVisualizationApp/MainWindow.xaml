@@ -134,10 +134,23 @@
                                    Foreground="{StaticResource Brush.Text.Primary}"
                                    LineStackingStrategy="BlockLineHeight" LineHeight="70"
                                    MinHeight="70" TextAlignment="Center"/>
-                        <TextBlock Text="{Binding Analysis.Voicing}"
+                        <!-- The Roman numeral leads the voicing line: "V65 · 1st inversion · close".
+                             There is no height left for a line of its own, so the numeral shares
+                             this one. The block line height pins it at 19px however large the
+                             numeral's run is, and one TextBlock keeps every run on one baseline.
+                             The runs abut with no whitespace between tags, which would render as
+                             a stray leading space and nudge the voicing off-centre with no key. -->
+                        <TextBlock DataContext="{Binding Analysis}"
                                    FontSize="{StaticResource Size.Readout.Voicing}"
                                    Foreground="{StaticResource Brush.Text.Secondary}"
-                                   MinHeight="19" Margin="0,3,0,0" TextAlignment="Center"/>
+                                   LineStackingStrategy="BlockLineHeight" LineHeight="19"
+                                   MinHeight="19" Margin="0,3,0,0" TextAlignment="Center"><Run
+                                       Text="{Binding Function, Mode=OneWay}"
+                                       FontSize="{StaticResource Size.Readout.Function}" FontWeight="SemiBold"
+                                       Style="{StaticResource Style.Function.Numeral}"/><Run
+                                       FontSize="11" Style="{StaticResource Style.Function.Tag}"/><Run
+                                       Style="{StaticResource Style.Function.VoicingSeparator}"/><Run
+                                       Text="{Binding Voicing, Mode=OneWay}"/></TextBlock>
                         <TextBlock Text="{Binding Analysis.Notes}" FontFamily="Consolas"
                                    FontSize="{StaticResource Size.Readout.Notes}"
                                    Foreground="{StaticResource Brush.Text.Tertiary}"
@@ -397,9 +410,14 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0">
-                                            <TextBlock Text="{Binding ChordName}"
-                                                       Foreground="{StaticResource Brush.Text.Primary}"
-                                                       FontSize="16" FontWeight="Bold"/>
+                                            <!-- Numeral inline after the name, so a card grows no
+                                                 taller; a long pair wraps rather than clipping. -->
+                                            <TextBlock Foreground="{StaticResource Brush.Text.Primary}"
+                                                       FontSize="16" FontWeight="Bold" TextWrapping="Wrap"><Run
+                                                           Text="{Binding ChordName, Mode=OneWay}"/><Run
+                                                           Text="{Binding Function, Mode=OneWay, StringFormat='  {0}'}"
+                                                           FontSize="12" FontWeight="SemiBold"
+                                                           Style="{StaticResource Style.Function.Numeral}"/></TextBlock>
                                             <TextBlock Text="{Binding NotesDisplay}"
                                                        Foreground="{StaticResource Brush.Text.Muted}"
                                                        FontSize="10" TextWrapping="Wrap"/>

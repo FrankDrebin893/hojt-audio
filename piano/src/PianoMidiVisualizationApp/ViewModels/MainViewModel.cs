@@ -196,6 +196,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 PianoKeyboard.SetKey(Settings.CurrentKey);
                 UpdateAudiblePitchClasses();
                 RefreshAnalysis();   // the readout re-spells with the new key
+                RefreshSavedChordFunctions();
             }
             else if (e.PropertyName == nameof(Settings.MuteOutOfKeyNotes))
                 UpdateAudiblePitchClasses();
@@ -209,9 +210,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private MusicContext GetMusicContext()
     {
         return new MusicContext(
-            CurrentChord,
-            SavedChords.Select(c => c.ChordName).ToList(),
-            MidiLog.TakeLast(10).ToList());
+            WithFunction(CurrentChord, Analysis.Function),
+            SavedChords.Select(c => WithFunction(c.ChordName, c.Function)).ToList(),
+            MidiLog.TakeLast(10).ToList(),
+            Settings.CurrentKey?.DisplayName);
+
+        static string WithFunction(string chord, string function) =>
+            string.IsNullOrEmpty(function) ? chord : $"{chord} ({function})";
     }
 
     /// <summary>Whether note names should read as flats, per the selected key signature.</summary>
@@ -259,9 +264,20 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private void RefreshAnalysis()
     {
         var pressed = PianoKeyboard.GetPressedNotes().ToList();
-        Analysis = _analyzer.Analyze(pressed, UseFlats);
+        Analysis = _analyzer.Analyze(pressed, UseFlats, Settings.CurrentKey);
         StaffSignature = KeySignature.For(Settings.CurrentKey);
         StaffNotes = NoteSpeller.SpellChord(pressed, Settings.CurrentKey);
+    }
+
+    /// <summary>Re-reads every saved chord's numeral in the current key. At most eight chords, all cached.</summary>
+    private void RefreshSavedChordFunctions()
+    {
+        foreach (var chord in SavedChords)
+        {
+            var analysis = _analyzer.Analyze(chord.NoteNumbers, UseFlats, Settings.CurrentKey);
+            chord.Function = analysis.Function;
+            chord.FunctionKind = analysis.FunctionKind;
+        }
     }
 
     public void RefreshDevices()
@@ -409,7 +425,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             ChordName = CurrentChord,
             NoteNumbers = pressedNotes,
-            NoteNames = noteNames
+            NoteNames = noteNames,
+            Function = Analysis.Function,
+            FunctionKind = Analysis.FunctionKind,
         };
 
         SavedChords.Add(savedChord);

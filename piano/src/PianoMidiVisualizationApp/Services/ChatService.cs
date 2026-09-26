@@ -68,6 +68,9 @@ public class ChatService : IChatService
         sb.AppendLine();
         sb.AppendLine("Current context from the app:");
 
+        if (!string.IsNullOrEmpty(context.Key))
+            sb.AppendLine($"- Selected key: {context.Key} (chords carry their Roman numeral in this key)");
+
         if (!string.IsNullOrEmpty(context.CurrentChord))
             sb.AppendLine($"- Currently playing chord: {context.CurrentChord}");
         else

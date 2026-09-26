@@ -20,7 +20,8 @@ public class ChordAnalyzer
     /// Spell note and root names with flats, as the selected key signature requires.
     /// Interval labels are relative to the chord root and never change with the key.
     /// </param>
-    public ChordAnalysis Analyze(IEnumerable<int> midiNoteNumbers, bool useFlats = false)
+    /// <param name="key">The selected key, for the Roman numeral. None leaves it empty.</param>
+    public ChordAnalysis Analyze(IEnumerable<int> midiNoteNumbers, bool useFlats = false, MusicKey? key = null)
     {
         var notes = midiNoteNumbers.ToList();
         if (notes.Count == 0)
@@ -60,17 +61,24 @@ public class ChordAnalyzer
             intervalTokens[i] = intervalTokens[i].PadRight(width);
         }
 
-        // A note list's "root" is only its bass, so it has no inversion or voicing to report.
+        // A note list's "root" is only its bass, so it has no inversion, voicing or numeral to report.
         var inversion = ChordInversion.None;
         string voicing = "";
+        var numeral = RomanNumeral.None;
         if (chord.IsChord)
         {
             int mask = 0;
             foreach (var n in notes)
                 mask |= 1 << MusicNaming.PitchClassOf(n);
+            int bassPitchClass = MusicNaming.PitchClassOf(notes[0]);
 
-            inversion = ChordVoicing.InversionOf(rootPitchClass, mask, MusicNaming.PitchClassOf(notes[0]));
+            inversion = ChordVoicing.InversionOf(rootPitchClass, mask, bassPitchClass);
             voicing = ChordVoicing.Describe(notes, rootPitchClass);
+
+            // Figured from the bass itself rather than from Inversion: the analyser reads a
+            // diminished seventh from its leading tone, and the figure has to follow that root.
+            if (key is { } k)
+                numeral = RomanNumeralAnalyzer.Analyze(rootPitchClass, mask, bassPitchClass, k);
         }
 
         return new ChordAnalysis(
@@ -81,6 +89,8 @@ public class ChordAnalyzer
             voicing)
         {
             Inversion = inversion,
+            Function = numeral.Text,
+            FunctionKind = numeral.Kind,
         };
     }
 }

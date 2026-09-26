@@ -67,9 +67,76 @@
     <SolidColorBrush x:Key="Brush.Staff.Symbol" Color="#AAAAAA"/>
     <SolidColorBrush x:Key="Brush.Staff.Note"   Color="#FFFFFF"/>
 
+    <!-- ================= Roman numerals =================
+         A diatonic numeral reads near-white like the chord name above it. The other kinds
+         take a desaturated tint, kept clear of the circle's key amber and chord-root blue,
+         and name themselves in a small muted tag, so colour is never the only cue. -->
+    <SolidColorBrush x:Key="Brush.Function.Diatonic"  Color="#EDEDED"/>
+    <SolidColorBrush x:Key="Brush.Function.Secondary" Color="#7FCFB0"/>
+    <SolidColorBrush x:Key="Brush.Function.Borrowed"  Color="#B4A2EE"/>
+    <SolidColorBrush x:Key="Brush.Function.Chromatic" Color="#E39B9B"/>
+
+    <!-- For a Run whose DataContext has Function and FunctionKind: ChordAnalysis, SavedChord. -->
+    <Style x:Key="Style.Function.Numeral" TargetType="Run">
+        <Setter Property="Foreground" Value="{StaticResource Brush.Function.Diatonic}"/>
+        <Setter Property="ToolTip" Value="Roman numeral in the selected key"/>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding FunctionKind}" Value="SecondaryDominant">
+                <Setter Property="Foreground" Value="{StaticResource Brush.Function.Secondary}"/>
+                <Setter Property="ToolTip" Value="Secondary dominant: the V or vii° of the chord after the slash"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding FunctionKind}" Value="Borrowed">
+                <Setter Property="Foreground" Value="{StaticResource Brush.Function.Borrowed}"/>
+                <Setter Property="ToolTip" Value="Borrowed from the parallel major or minor"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding FunctionKind}" Value="Chromatic">
+                <Setter Property="Foreground" Value="{StaticResource Brush.Function.Chromatic}"/>
+                <Setter Property="ToolTip" Value="Chromatic: outside the key and its parallel major and minor"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- The kind in words after a non-diatonic numeral. Text comes only from here; the last
+         trigger blanks it while there is no numeral to label. -->
+    <Style x:Key="Style.Function.Tag" TargetType="Run">
+        <Setter Property="Text" Value=""/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Muted}"/>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding FunctionKind}" Value="SecondaryDominant">
+                <Setter Property="Text" Value=" secondary"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding FunctionKind}" Value="Borrowed">
+                <Setter Property="Text" Value=" borrowed"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding FunctionKind}" Value="Chromatic">
+                <Setter Property="Text" Value=" chromatic"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Function}" Value="">
+                <Setter Property="Text" Value=""/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Between the numeral and the voicing on the readout (DataContext: ChordAnalysis), only
+         while both are showing. The dot matches the one inside the voicing text. -->
+    <Style x:Key="Style.Function.VoicingSeparator" TargetType="Run">
+        <Setter Property="Text" Value=" · "/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Faint}"/>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding Function}" Value="">
+                <Setter Property="Text" Value=""/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Voicing}" Value="">
+                <Setter Property="Text" Value=""/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
     <!-- ================= Readout type scale ================= -->
     <sys:Double x:Key="Size.Readout.Name">64</sys:Double>
     <sys:Double x:Key="Size.Readout.Voicing">14</sys:Double>
+    <!-- Sized to share the voicing line's 19px block line box without growing it -->
+    <sys:Double x:Key="Size.Readout.Function">18</sys:Double>
     <sys:Double x:Key="Size.Readout.Notes">18</sys:Double>
     <sys:Double x:Key="Size.Readout.Intervals">14</sys:Double>
 

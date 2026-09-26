@@ -29,5 +29,14 @@ public readonly record struct ChordAnalysis(
     /// </summary>
     public ChordInversion Inversion { get; init; }
 
+    /// <summary>
+    /// The chord as a Roman numeral in the selected key, e.g. "V65" or "bVI". Empty with no key
+    /// selected, or when the notes aren't a chord <see cref="RomanNumeralAnalyzer"/> recognises.
+    /// </summary>
+    public string Function { get; init; } = "";
+
+    /// <summary>How <see cref="Function"/> relates to the key. Meaningless while it is empty.</summary>
+    public RomanNumeralKind FunctionKind { get; init; }
+
     public bool IsEmpty => string.IsNullOrEmpty(Name);
 }
