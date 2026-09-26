@@ -171,6 +171,12 @@ public partial class MainWindow : Window
             case Key.M when ctrl && !IsTextEntryFocused():
                 vm.ToggleMetronomeCommand.Execute(null);
                 break;
+            case Key.O when ctrl && !IsTextEntryFocused():
+                vm.SongPractice.OpenSongCommand.Execute(null);
+                break;
+            case Key.F9 when shift && !IsTextEntryFocused():
+                vm.ToggleSongPracticeCommand.Execute(null);
+                break;
             default:
                 return;
         }

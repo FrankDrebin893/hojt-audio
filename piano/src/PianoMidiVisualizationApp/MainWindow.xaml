@@ -61,6 +61,10 @@
                                       IsCheckable="True" IsChecked="{Binding IsCircleOfFifthsVisible}"/>
                             <MenuItem Header="_Grand Staff" InputGestureText="Shift+F8"
                                       IsCheckable="True" IsChecked="{Binding IsGrandStaffVisible}"/>
+                            <MenuItem Header="Song Prac_tice" InputGestureText="Shift+F9"
+                                      IsCheckable="True" IsChecked="{Binding IsSongPracticeVisible}"/>
+                            <MenuItem Header="_Open MIDI Song…" InputGestureText="Ctrl+O"
+                                      Command="{Binding SongPractice.OpenSongCommand}"/>
                             <Separator/>
                             <MenuItem InputGestureText="F11" Command="{Binding ToggleZenModeCommand}">
                                 <MenuItem.Style>
@@ -113,6 +117,16 @@
                      side panel should hug its outer edge: its column's width changes with the
                      chord name's length, and a panel centred in it would slide as you played. -->
                 <Grid Grid.Row="0">
+                    <!-- Song practice takes this row over, hiding all three columns together. -->
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>      <!-- grand staff -->
                         <ColumnDefinition Width="Auto"/>   <!-- chord readout -->
@@ -188,6 +202,13 @@
                                                  Visibility="{Binding IsCircleOfFifthsVisible,
                                                               Converter={StaticResource BoolToVisConverter}}"/>
                 </Grid>
+
+                <!-- Song practice: notes fall toward the keyboard, in its key columns. -->
+                <views:SongPracticePanel Grid.Row="0" DataContext="{Binding SongPractice}"
+                                         KeyboardControl="{Binding ElementName=PianoKeys}"
+                                         Visibility="{Binding DataContext.IsSongPracticeVisible,
+                                                      RelativeSource={RelativeSource AncestorType=Window},
+                                                      Converter={StaticResource BoolToVisConverter}}"/>
 
                 <!-- The keyboard scales to the window. Stretch must be Uniform (never distort a
                      piano) and StretchDirection Both, so it shrinks rather than clipping on a
@@ -386,7 +407,7 @@
                 <Viewbox Grid.Row="2" Stretch="Uniform" StretchDirection="Both"
                          MaxHeight="360" HorizontalAlignment="Center" VerticalAlignment="Bottom"
                          Margin="16,16,16,0" TextOptions.TextFormattingMode="Ideal">
-                    <views:PianoKeyboardControl DataContext="{Binding PianoKeyboard}"/>
+                    <views:PianoKeyboardControl x:Name="PianoKeys" DataContext="{Binding PianoKeyboard}"/>
                 </Viewbox>
             </Grid>
 

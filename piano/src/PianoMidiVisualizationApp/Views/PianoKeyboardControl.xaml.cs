@@ -11,12 +11,12 @@ namespace PianoMidiVisualizationApp.Views;
 
 public partial class PianoKeyboardControl : UserControl
 {
-    // These are intrinsic dimensions, not on-screen pixels: the control sits in a Viewbox that
-    // scales it to the window, so what these really fix is the keyboard's aspect ratio.
-    private const double WhiteKeyWidth = 26;
-    private const double WhiteKeyHeight = 200;
-    private const double BlackKeyWidth = 16;
-    private const double BlackKeyHeight = 128;
+    // Key sizes live in KeyboardLayout, which the falling-notes view shares so its notes land
+    // exactly on these keys. Aliased here to keep the drawing code below readable.
+    private const double WhiteKeyWidth = KeyboardLayout.WhiteKeyWidth;
+    private const double WhiteKeyHeight = KeyboardLayout.WhiteKeyHeight;
+    private const double BlackKeyWidth = KeyboardLayout.BlackKeyWidth;
+    private const double BlackKeyHeight = KeyboardLayout.BlackKeyHeight;
 
     /// <summary>Drawing height, leaving a little headroom below the keys for their shadows.</summary>
     public const double CanvasHeight = WhiteKeyHeight + 6;
@@ -60,6 +60,9 @@ public partial class PianoKeyboardControl : UserControl
     private static readonly SolidColorBrush BlackKeyLabel = new(Color.FromRgb(140, 140, 140));
 
     private readonly Dictionary<int, Rectangle> _keyRectangles = new();
+
+    /// <summary>Where each key is drawn. Set when the keyboard is built; also read by the falling-notes view.</summary>
+    public KeyboardLayout Layout { get; private set; } = KeyboardLayout.Default;
 
     /// <summary>Labels are tracked too, because the selected key re-spells their text.</summary>
     private readonly Dictionary<int, TextBlock> _keyLabels = new();
@@ -152,36 +155,35 @@ public partial class PianoKeyboardControl : UserControl
         _keyLabels.Clear();
         _keyHints.Clear();
 
+        if (vm.Keys.Count == 0) return;
+        Layout = new KeyboardLayout(vm.Keys[0].NoteNumber, vm.Keys[^1].NoteNumber);
+
         // First pass: draw white keys and their labels
-        int whiteKeyIndex = 0;
         foreach (var key in vm.Keys)
         {
             if (!key.IsBlack)
             {
-                var rect = CreateWhiteKey(whiteKeyIndex, key);
+                double x = Layout.KeyLeft(key.NoteNumber);
+                var rect = CreateWhiteKey(x, key);
                 PianoCanvas.Children.Add(rect);
                 _keyRectangles[key.NoteNumber] = rect;
 
-                var label = CreateWhiteKeyLabel(whiteKeyIndex, key);
+                var label = CreateWhiteKeyLabel(x, key);
                 PianoCanvas.Children.Add(label);
                 _keyLabels[key.NoteNumber] = label;
 
-                var hint = CreateKeyHint(whiteKeyIndex * WhiteKeyWidth, key);
+                var hint = CreateKeyHint(x, key);
                 PianoCanvas.Children.Add(hint);
                 _keyHints[key.NoteNumber] = hint;
-
-                whiteKeyIndex++;
             }
         }
 
         // Second pass: draw black keys and their labels on top
-        whiteKeyIndex = 0;
-        for (int i = 0; i < vm.Keys.Count; i++)
+        foreach (var key in vm.Keys)
         {
-            var key = vm.Keys[i];
             if (key.IsBlack)
             {
-                double x = GetBlackKeyX(key.NoteNumber, vm);
+                double x = Layout.KeyLeft(key.NoteNumber);
                 var rect = CreateBlackKey(x, key);
                 PianoCanvas.Children.Add(rect);
                 _keyRectangles[key.NoteNumber] = rect;
@@ -193,10 +195,6 @@ public partial class PianoKeyboardControl : UserControl
                 var hint = CreateKeyHint(x, key);
                 PianoCanvas.Children.Add(hint);
                 _keyHints[key.NoteNumber] = hint;
-            }
-            else
-            {
-                whiteKeyIndex++;
             }
         }
 
@@ -210,8 +208,7 @@ public partial class PianoKeyboardControl : UserControl
 
         // Size the canvas to the keys actually drawn. The Viewbox divides by this, so it is what
         // makes a narrower range render larger rather than leaving a gap.
-        int totalWhiteKeys = vm.Keys.Count(k => !k.IsBlack);
-        PianoCanvas.Width = totalWhiteKeys * WhiteKeyWidth;
+        PianoCanvas.Width = Layout.TotalWidth;
         PianoCanvas.Height = CanvasHeight;
 
         // Subscribe to property changes
@@ -219,13 +216,13 @@ public partial class PianoKeyboardControl : UserControl
             key.PropertyChanged += OnKeyPropertyChanged;
     }
 
-    private Rectangle CreateWhiteKey(int index, PianoKey key)
+    private Rectangle CreateWhiteKey(double x, PianoKey key)
     {
         // Fill is deliberately left unset here; ApplyKeyFill assigns it once the key is
         // registered, so there is exactly one place that decides a key's colour.
         var rect = new Rectangle
         {
-            Width = WhiteKeyWidth - 1,
+            Width = KeyboardLayout.WhiteKeyDrawnWidth,
             Height = WhiteKeyHeight,
             Stroke = KeyBorder,
             StrokeThickness = 0.5,
@@ -241,7 +238,7 @@ public partial class PianoKeyboardControl : UserControl
                 BlurRadius = 2
             }
         };
-        Canvas.SetLeft(rect, index * WhiteKeyWidth);
+        Canvas.SetLeft(rect, x);
         Canvas.SetTop(rect, 0);
         Panel.SetZIndex(rect, 0);
         return rect;
@@ -284,7 +281,7 @@ public partial class PianoKeyboardControl : UserControl
 
     private static bool IsOctaveC(PianoKey key) => key.NoteNumber % 12 == 0;
 
-    private TextBlock CreateWhiteKeyLabel(int index, PianoKey key)
+    private TextBlock CreateWhiteKeyLabel(double x, PianoKey key)
     {
         bool isC = IsOctaveC(key);
 
@@ -296,9 +293,9 @@ public partial class PianoKeyboardControl : UserControl
             FontFamily = new FontFamily("Segoe UI"),
             Foreground = WhiteKeyLabel,
             TextAlignment = TextAlignment.Center,
-            Width = WhiteKeyWidth - 1
+            Width = KeyboardLayout.WhiteKeyDrawnWidth
         };
-        Canvas.SetLeft(label, index * WhiteKeyWidth);
+        Canvas.SetLeft(label, x);
         Canvas.SetTop(label, WhiteKeyHeight - (isC ? 18 : 16));
         Panel.SetZIndex(label, 0);
         return label;
@@ -332,7 +329,7 @@ public partial class PianoKeyboardControl : UserControl
     /// </remarks>
     private static Grid CreateKeyHint(double x, PianoKey key)
     {
-        double width = key.IsBlack ? BlackKeyWidth : WhiteKeyWidth - 1;
+        double width = key.IsBlack ? BlackKeyWidth : KeyboardLayout.WhiteKeyDrawnWidth;
         double height = key.IsBlack ? BlackKeyHeight : WhiteKeyHeight;
         double dot = key.IsBlack ? 7 : 8;
 
@@ -365,34 +362,6 @@ public partial class PianoKeyboardControl : UserControl
         Canvas.SetTop(hint, 0);
         Panel.SetZIndex(hint, key.IsBlack ? 2 : 0);
         return hint;
-    }
-
-    private double GetBlackKeyX(int noteNumber, PianoKeyboardViewModel vm)
-    {
-        // Count white keys before this black key
-        int whiteKeysBefore = 0;
-        foreach (var k in vm.Keys)
-        {
-            if (k.NoteNumber >= noteNumber) break;
-            if (!k.IsBlack) whiteKeysBefore++;
-        }
-
-        // The black key sits after the white key at index (whiteKeysBefore - 1)
-        int leftWhiteKeyIndex = whiteKeysBefore - 1;
-
-        // Black key offsets within an octave (relative to the left white key)
-        int noteInOctave = noteNumber % 12;
-        double offset = noteInOctave switch
-        {
-            1 => 0.6,   // C#
-            3 => 0.7,   // D#
-            6 => 0.6,   // F#
-            8 => 0.65,  // G#
-            10 => 0.7,  // A#
-            _ => 0.6
-        };
-
-        return (leftWhiteKeyIndex * WhiteKeyWidth) + (WhiteKeyWidth * offset) - (BlackKeyWidth / 2.0);
     }
 
     /// <summary>

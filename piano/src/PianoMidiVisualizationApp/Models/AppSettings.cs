@@ -62,6 +62,11 @@ public class AppSettings
     public bool ShowRecorder { get; set; } = false;
     public bool ShowCircleOfFifths { get; set; } = true;
     public bool ShowGrandStaff { get; set; } = true;
+    public bool ShowSongPractice { get; set; } = false;
+
+    // Song practice: the song reopens on launch while practice is on. Speed is clamped on load.
+    public string? SongPath { get; set; }
+    public double SongSpeed { get; set; } = 1.0;
 
     // Window placement. Nullable so "never saved" is distinguishable from 0.
     public double? WindowLeft { get; set; }

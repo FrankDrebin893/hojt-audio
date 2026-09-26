@@ -67,6 +67,27 @@
     <SolidColorBrush x:Key="Brush.Staff.Symbol" Color="#AAAAAA"/>
     <SolidColorBrush x:Key="Brush.Staff.Note"   Color="#FFFFFF"/>
 
+    <!-- ================= Song practice (falling notes) =================
+         Parts follow the practice-app convention of green for the right hand and blue for the
+         left; the rest are distinct and stay clear of the keyboard's magenta hint and its blue
+         pressed fill. Auto-play notes use the same hues, drawn translucent by the view. -->
+    <SolidColorBrush x:Key="Brush.Song.Lane"        Color="#1A1A1A"/>
+    <SolidColorBrush x:Key="Brush.Song.OctaveLine"  Color="#333333"/>
+    <SolidColorBrush x:Key="Brush.Song.GroupLine"   Color="#242424"/>
+    <SolidColorBrush x:Key="Brush.Song.BarLine"     Color="#303030"/>
+    <SolidColorBrush x:Key="Brush.Song.BarNumber"   Color="#5E5E5E"/>
+    <SolidColorBrush x:Key="Brush.Song.HitLine"     Color="#9A9A9A"/>
+    <SolidColorBrush x:Key="Brush.Song.Sounding"    Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="Brush.Song.Loop"        Color="#F2C978"/>
+    <SolidColorBrush x:Key="Brush.Song.OutsideLoop" Color="#8C000000"/>
+    <SolidColorBrush x:Key="Brush.Song.Folded"      Color="#F0F0F0"/>
+    <SolidColorBrush x:Key="Brush.Song.Part0"       Color="#6CC24A"/>   <!-- right hand -->
+    <SolidColorBrush x:Key="Brush.Song.Part1"       Color="#5B8DEF"/>   <!-- left hand -->
+    <SolidColorBrush x:Key="Brush.Song.Part2"       Color="#E8A33D"/>
+    <SolidColorBrush x:Key="Brush.Song.Part3"       Color="#3FC1B0"/>
+    <SolidColorBrush x:Key="Brush.Song.Part4"       Color="#B39DDB"/>
+    <SolidColorBrush x:Key="Brush.Song.Part5"       Color="#E07A7A"/>
+
     <!-- ================= Roman numerals =================
          A diatonic numeral reads near-white like the chord name above it. The other kinds
          take a desaturated tint, kept clear of the circle's key amber and chord-root blue,

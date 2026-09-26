@@ -57,6 +57,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public SettingsViewModel Settings { get; }
     public ChatViewModel Chat { get; }
     public RecorderViewModel Recorder { get; }
+    public SongPracticeViewModel SongPractice { get; }
 
     [ObservableProperty]
     private string _statusText = "Ready";
@@ -137,6 +138,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(IsZenMode))]
     private bool _isGrandStaffVisible = true;
 
+    /// <summary>
+    /// Song practice: while on, its falling-notes view takes the readout row, and the grand
+    /// staff, readout and circle of fifths that live there are hidden.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsZenMode))]
+    private bool _isSongPracticeVisible;
+
     // ----- Grand staff -----
 
     /// <summary>The held notes spelled for notation, lowest first. Refreshed with the chord readout.</summary>
@@ -154,7 +163,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public bool IsZenMode => !IsChatPanelVisible && !IsMidiLogVisible
                           && !IsProgressionVisible && !IsStatusBarVisible
                           && !IsRecorderVisible && !IsCircleOfFifthsVisible
-                          && !IsGrandStaffVisible;
+                          && !IsGrandStaffVisible && !IsSongPracticeVisible;
 
     private const int MaxLogLines = 100;
     private const int MaxSavedChords = 8;
@@ -175,6 +184,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         Recorder = new RecorderViewModel(dispatcher, PlayNoteOn, PlayNoteOff,
                                          () => ExportTempo, status => StatusText = status);
+
+        SongPractice = new SongPracticeViewModel(PlayNoteOn, PlayNoteOff, status => StatusText = status);
+        SongPractice.SongLoaded += (_, _) => IsSongPracticeVisible = true;
 
         _midiInput.NoteOn += OnMidiNoteOn;
         _midiInput.NoteOff += OnMidiNoteOff;
@@ -492,8 +504,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ToggleGrandStaff() => IsGrandStaffVisible = !IsGrandStaffVisible;
 
+    [RelayCommand]
+    private void ToggleSongPractice() => IsSongPracticeVisible = !IsSongPracticeVisible;
+
+    /// <summary>Hiding the practice view pauses the song rather than letting it play on unseen.</summary>
+    partial void OnIsSongPracticeVisibleChanged(bool value) => SongPractice.IsActive = value;
+
     private readonly record struct PanelLayout(bool Chat, bool MidiLog, bool Progression, bool StatusBar,
-                                               bool Recorder, bool CircleOfFifths, bool GrandStaff);
+                                               bool Recorder, bool CircleOfFifths, bool GrandStaff,
+                                               bool SongPractice);
 
     private PanelLayout? _preZenLayout;
 
@@ -503,7 +522,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (IsZenMode)
         {
             // Nothing was saved if the app started in zen — restore a sensible layout instead.
-            var restore = _preZenLayout ?? new PanelLayout(false, false, true, true, false, true, true);
+            var restore = _preZenLayout ?? new PanelLayout(false, false, true, true, false, true, true, false);
             IsChatPanelVisible = restore.Chat;
             IsMidiLogVisible = restore.MidiLog;
             IsProgressionVisible = restore.Progression;
@@ -511,14 +530,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
             IsRecorderVisible = restore.Recorder;
             IsCircleOfFifthsVisible = restore.CircleOfFifths;
             IsGrandStaffVisible = restore.GrandStaff;
+            IsSongPracticeVisible = restore.SongPractice;
         }
         else
         {
             _preZenLayout = new PanelLayout(
                 IsChatPanelVisible, IsMidiLogVisible, IsProgressionVisible, IsStatusBarVisible,
-                IsRecorderVisible, IsCircleOfFifthsVisible, IsGrandStaffVisible);
+                IsRecorderVisible, IsCircleOfFifthsVisible, IsGrandStaffVisible, IsSongPracticeVisible);
             IsChatPanelVisible = IsMidiLogVisible = IsProgressionVisible = IsStatusBarVisible = false;
             IsRecorderVisible = IsCircleOfFifthsVisible = IsGrandStaffVisible = false;
+            IsSongPracticeVisible = false;
             IsSettingsOverlayVisible = false;
         }
     }
@@ -537,6 +558,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IsRecorderVisible = saved.ShowRecorder;
         IsCircleOfFifthsVisible = saved.ShowCircleOfFifths;
         IsGrandStaffVisible = saved.ShowGrandStaff;
+        SongPractice.Speed = saved.SongSpeed;
+        // The last song reopens only if practice was on; a file since moved just leaves the
+        // empty "open a song" state rather than an error.
+        if (saved.ShowSongPractice && !string.IsNullOrEmpty(saved.SongPath) && System.IO.File.Exists(saved.SongPath))
+            SongPractice.LoadSong(saved.SongPath, showTrackList: false);
+        IsSongPracticeVisible = saved.ShowSongPractice;
         PianoKeyboard.SetKey(Settings.CurrentKey);
         UpdateAudiblePitchClasses();
         ApplyMetronomeSettings();
@@ -552,6 +579,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         saved.ShowRecorder = IsRecorderVisible;
         saved.ShowCircleOfFifths = IsCircleOfFifthsVisible;
         saved.ShowGrandStaff = IsGrandStaffVisible;
+        saved.ShowSongPractice = IsSongPracticeVisible;
+        saved.SongPath = SongPractice.SongPath;
+        saved.SongSpeed = SongPractice.Speed;
         return saved;
     }
 
@@ -740,8 +770,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        // First, while the engine can still take the note-offs the player sends on the way out.
+        // First, while the engine can still take the note-offs the players send on the way out.
         Recorder.Dispose();
+        SongPractice.Dispose();
         _activityTimer?.Dispose();
         _midiInput.NoteOn -= OnMidiNoteOn;
         _midiInput.NoteOff -= OnMidiNoteOff;
