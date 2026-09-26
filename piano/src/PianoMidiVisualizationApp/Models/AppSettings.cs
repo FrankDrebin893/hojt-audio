@@ -63,6 +63,10 @@ public class AppSettings
     public bool ShowCircleOfFifths { get; set; } = true;
     public bool ShowGrandStaff { get; set; } = true;
     public bool ShowSongPractice { get; set; } = false;
+    public bool ShowChordStrip { get; set; } = true;
+
+    // Diatonic chord strip: seventh chords rather than triads.
+    public bool ChordStripSevenths { get; set; }
 
     // Song practice: the song reopens on launch while practice is on. Speed is clamped on load.
     public string? SongPath { get; set; }

@@ -1,0 +1,45 @@
+<UserControl x:Class="PianoMidiVisualizationApp.Views.ChordStripControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             IsVisibleChanged="OnIsVisibleChanged">
+    <!-- One line, scaled down rather than wrapped on a narrow window: like the toolbar below it,
+         a second line would push the keyboard off the bottom of the stage at 900x420. -->
+    <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
+        <StackPanel Orientation="Horizontal">
+            <!-- Only for pentatonic and blues keys, whose chords come from a parent scale. -->
+            <TextBlock Text="{Binding Caption}" ToolTip="{Binding CaptionDetail}"
+                       FontSize="11" Foreground="{StaticResource Brush.Text.Muted}"
+                       VerticalAlignment="Center" Margin="0,0,8,0"
+                       Visibility="{Binding HasCaption, Converter={StaticResource BoolToVisConverter}}"/>
+
+            <ItemsControl ItemsSource="{Binding Tiles}" Focusable="False">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Style="{StaticResource Style.ChordTile}"
+                                Command="{Binding DataContext.AuditionCommand,
+                                          RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                CommandParameter="{Binding}"
+                                ToolTip="{Binding ToolTip}"
+                                MouseEnter="Tile_MouseEnter" MouseLeave="Tile_MouseLeave">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding Numeral}" FontWeight="SemiBold"
+                                           Foreground="{StaticResource Brush.Function.Diatonic}"/>
+                                <TextBlock Text="{Binding Name}" Margin="6,0,0,0"/>
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <ToggleButton Content="7ths" Height="22" Margin="8,0,0,0" FontSize="11"
+                          Focusable="False" Style="{StaticResource Style.ToolbarToggle}"
+                          IsChecked="{Binding ShowSevenths}"
+                          ToolTip="Seventh chords instead of triads"/>
+        </StackPanel>
+    </Viewbox>
+</UserControl>
