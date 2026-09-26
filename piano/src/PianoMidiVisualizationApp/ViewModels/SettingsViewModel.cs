@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using PianoMidiVisualizationApp.Audio;
 using PianoMidiVisualizationApp.Models;
 using PianoMidiVisualizationApp.Services;
 
@@ -66,6 +67,44 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool _muteOutOfKeyNotes;
 
+    // ----- Metronome -----
+    // Clamped in the setters rather than validated, so every writer (the BPM field, the -/+
+    // buttons, tap tempo, a hand-edited settings file) lands in range with one notification.
+
+    private int _metronomeBpm = 90;
+    private int _metronomeBeatsPerBar = 4;
+    private float _metronomeVolume = 0.7f;
+
+    /// <summary>
+    /// The practice tempo, 30-240. Other features read it as their tempo too, so the name and
+    /// type are part of a contract: keep them.
+    /// </summary>
+    public int MetronomeBpm
+    {
+        get => _metronomeBpm;
+        set => SetProperty(ref _metronomeBpm,
+            Math.Clamp(value, MetronomeSampleProvider.MinBpm, MetronomeSampleProvider.MaxBpm));
+    }
+
+    /// <summary>1-12. 1 means no accent: every click is the same.</summary>
+    public int MetronomeBeatsPerBar
+    {
+        get => _metronomeBeatsPerBar;
+        set => SetProperty(ref _metronomeBeatsPerBar,
+            Math.Clamp(value, MetronomeSampleProvider.MinBeatsPerBar, MetronomeSampleProvider.MaxBeatsPerBar));
+    }
+
+    /// <summary>The click's own level, 0-1. The master volume applies on top of it.</summary>
+    public float MetronomeVolume
+    {
+        get => _metronomeVolume;
+        set => SetProperty(ref _metronomeVolume, Math.Clamp(value, 0f, 1f));
+    }
+
+    public IReadOnlyList<int> MetronomeBeatsPerBarOptions { get; } = Enumerable.Range(
+        MetronomeSampleProvider.MinBeatsPerBar,
+        MetronomeSampleProvider.MaxBeatsPerBar - MetronomeSampleProvider.MinBeatsPerBar + 1).ToList();
+
     public ObservableCollection<DeviceInfo> MidiDevices { get; } = new();
     public ObservableCollection<string> AsioDriverNames { get; } = new();
     public ObservableCollection<string> WasapiDeviceNames { get; } = new();
@@ -128,6 +167,9 @@ public partial class SettingsViewModel : ObservableObject
             ? ((settings.KeyTonicPitchClass % 12) + 12) % 12
             : null;
         MuteOutOfKeyNotes = settings.MuteOutOfKeyNotes;
+        MetronomeBpm = settings.MetronomeBpm;
+        MetronomeBeatsPerBar = settings.MetronomeBeatsPerBar;
+        MetronomeVolume = settings.MetronomeVolume;
 
         // Device selection will be applied after enumeration
         if (settings.LastMidiDevice != null)
@@ -153,7 +195,10 @@ public partial class SettingsViewModel : ObservableObject
             KeyHighlightEnabled = KeyTonicPitchClass.HasValue,
             KeyTonicPitchClass = KeyTonicPitchClass ?? 0,
             KeyScale = KeyScale.ToString(),
-            MuteOutOfKeyNotes = MuteOutOfKeyNotes
+            MuteOutOfKeyNotes = MuteOutOfKeyNotes,
+            MetronomeBpm = MetronomeBpm,
+            MetronomeBeatsPerBar = MetronomeBeatsPerBar,
+            MetronomeVolume = MetronomeVolume
         };
     }
 }

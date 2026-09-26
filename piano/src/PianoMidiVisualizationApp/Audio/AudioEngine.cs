@@ -1,26 +1,36 @@
 using System.IO;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
-using NAudio.Wave.SampleProviders;
 using PianoMidiVisualizationApp.Audio.Sfz;
 
 namespace PianoMidiVisualizationApp.Audio;
 
 public class AudioEngine : IAudioEngine
 {
+    private const int SampleRate = 44100;
+
     private IWavePlayer? _outputDevice;
     private INotePlayer? _sampleProvider;
-    private VolumeSampleProvider? _volumeProvider;
+    private MasterMixSampleProvider? _mixer;
+    private float _volume = 1.0f;
 
     public bool IsRunning { get; private set; }
 
+    /// <summary>
+    /// Created once and reused by every Initialize, so its tempo and on/off state survive a
+    /// change of soundbank or output device.
+    /// </summary>
+    public MetronomeSampleProvider Metronome { get; } = new(SampleRate);
+
+    /// <summary>Master volume. Applies to the synth and the metronome click alike.</summary>
     public float Volume
     {
-        get => _volumeProvider?.Volume ?? 1.0f;
+        get => _volume;
         set
         {
-            if (_volumeProvider != null)
-                _volumeProvider.Volume = value;
+            _volume = value;
+            if (_mixer != null)
+                _mixer.Volume = value;
         }
     }
 
@@ -58,21 +68,21 @@ public class AudioEngine : IAudioEngine
         DisposeOutput();
 
         _sampleProvider = Path.GetExtension(soundFontPath).Equals(".sfz", StringComparison.OrdinalIgnoreCase)
-            ? new SfzSampleProvider(soundFontPath, 44100)
-            : new SoundFontSampleProvider(soundFontPath, 44100);
-        _volumeProvider = new VolumeSampleProvider(_sampleProvider) { Volume = 1.0f };
+            ? new SfzSampleProvider(soundFontPath, SampleRate)
+            : new SoundFontSampleProvider(soundFontPath, SampleRate);
+        _mixer = new MasterMixSampleProvider(_sampleProvider, Metronome) { Volume = _volume };
 
         if (useAsio)
         {
             var asioOut = new AsioOut(driverName);
-            asioOut.Init(_volumeProvider);
+            asioOut.Init(_mixer);
             _outputDevice = asioOut;
         }
         else
         {
             var device = GetWasapiDevice(driverName);
             var wasapiOut = new WasapiOut(device, AudioClientShareMode.Shared, true, 50);
-            wasapiOut.Init(_volumeProvider);
+            wasapiOut.Init(_mixer);
             _outputDevice = wasapiOut;
         }
     }
@@ -115,7 +125,7 @@ public class AudioEngine : IAudioEngine
         _outputDevice?.Dispose();
         _outputDevice = null;
         _sampleProvider = null;
-        _volumeProvider = null;
+        _mixer = null;
     }
 
     public void Dispose()

@@ -83,6 +83,26 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public bool HasChord => !Analysis.IsEmpty;
 
+    // ----- Metronome -----
+
+    /// <summary>Starts off on every launch and is never persisted.</summary>
+    [ObservableProperty]
+    private bool _isMetronomeOn;
+
+    /// <summary>Whether the most recent beat was a downbeat. Set just before <see cref="MetronomeBeat"/>.</summary>
+    [ObservableProperty]
+    private bool _isMetronomeAccentBeat;
+
+    /// <summary>
+    /// Raised on the UI thread once per click, marshalled from the audio thread that scheduled
+    /// it. The beat light flashes from this rather than from a UI timer of its own, so it can
+    /// never drift away from what is heard.
+    /// </summary>
+    public event EventHandler? MetronomeBeat;
+
+    private readonly TapTempo _tapTempo = new();
+    private readonly Stopwatch _tapClock = Stopwatch.StartNew();
+
     // ----- Panel visibility. Defaults are the zen layout; AppSettings overrides them on load. -----
 
     /// <summary>A transient surface rather than a layout panel, so it is excluded from zen mode.</summary>
@@ -141,6 +161,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _midiInput.NoteOff += OnMidiNoteOff;
         _midiInput.MessageReceived += OnRawMidiMessage;
 
+        if (_audioEngine.Metronome is { } metronome)
+            metronome.BeatStarted += OnMetronomeBeat;
+        ApplyMetronomeSettings();
+
         Settings.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(Settings.Volume))
@@ -156,6 +180,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
             }
             else if (e.PropertyName == nameof(Settings.MuteOutOfKeyNotes))
                 UpdateAudiblePitchClasses();
+            else if (e.PropertyName is nameof(Settings.MetronomeBpm)
+                                    or nameof(Settings.MetronomeBeatsPerBar)
+                                    or nameof(Settings.MetronomeVolume))
+                ApplyMetronomeSettings();
         };
     }
 
@@ -177,6 +205,33 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _audiblePitchClasses = Settings.MuteOutOfKeyNotes && Settings.CurrentKey is { } key
             ? key.PitchClassMask
             : AllPitchClasses;
+
+    private void ApplyMetronomeSettings()
+    {
+        if (_audioEngine.Metronome is not { } metronome) return;
+        metronome.Bpm = Settings.MetronomeBpm;
+        metronome.BeatsPerBar = Settings.MetronomeBeatsPerBar;
+        metronome.Volume = Settings.MetronomeVolume;
+    }
+
+    partial void OnIsMetronomeOnChanged(bool value)
+    {
+        if (_audioEngine.Metronome is { } metronome)
+            metronome.IsEnabled = value;
+
+        StatusText = !value ? "Metronome off"
+            : IsAudioRunning ? $"Metronome on: {Settings.MetronomeBpm} BPM"
+            : "Metronome on - start audio to hear it";
+    }
+
+    private void OnMetronomeBeat(object? sender, MetronomeBeatEventArgs e)
+    {
+        _dispatcher.BeginInvoke(() =>
+        {
+            IsMetronomeAccentBeat = e.IsAccent;
+            MetronomeBeat?.Invoke(this, EventArgs.Empty);
+        });
+    }
 
     private void RefreshAnalysis() =>
         Analysis = _analyzer.Analyze(PianoKeyboard.GetPressedNotes(), UseFlats);
@@ -348,6 +403,23 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private void ClearKey() => Settings.KeyTonicPitchClass = null;
 
     [RelayCommand]
+    private void ToggleMetronome() => IsMetronomeOn = !IsMetronomeOn;
+
+    [RelayCommand]
+    private void IncreaseMetronomeBpm() => Settings.MetronomeBpm++;
+
+    [RelayCommand]
+    private void DecreaseMetronomeBpm() => Settings.MetronomeBpm--;
+
+    /// <summary>Sets the tempo from the average of the last few taps; the first tap only starts the count.</summary>
+    [RelayCommand]
+    private void TapMetronome()
+    {
+        if (_tapTempo.Tap(_tapClock.Elapsed) is { } bpm)
+            Settings.MetronomeBpm = bpm;
+    }
+
+    [RelayCommand]
     private void ToggleSettingsOverlay() => IsSettingsOverlayVisible = !IsSettingsOverlayVisible;
 
     [RelayCommand]
@@ -411,6 +483,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IsRecorderVisible = saved.ShowRecorder;
         PianoKeyboard.SetKey(Settings.CurrentKey);
         UpdateAudiblePitchClasses();
+        ApplyMetronomeSettings();
     }
 
     public AppSettings CaptureSettings()
@@ -615,6 +688,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _midiInput.NoteOn -= OnMidiNoteOn;
         _midiInput.NoteOff -= OnMidiNoteOff;
         _midiInput.MessageReceived -= OnRawMidiMessage;
+        if (_audioEngine.Metronome is { } metronome)
+            metronome.BeatStarted -= OnMetronomeBeat;
         _audioEngine.Stop();
         _audioEngine.Dispose();
         _midiInput.Close();

@@ -46,6 +46,12 @@ public class AppSettings
             : ScaleType.Major;
     }
 
+    // Metronome. Whether it is running is deliberately not saved: a click that starts by
+    // itself on launch would be a surprise. Out-of-range values are clamped on load.
+    public int MetronomeBpm { get; set; } = 90;
+    public int MetronomeBeatsPerBar { get; set; } = 4;
+    public float MetronomeVolume { get; set; } = 0.7f;
+
     // Panel visibility. These defaults ARE the first-launch zen layout, and they also apply to
     // an existing settings.json written before these keys existed — Deserialize runs the
     // parameterless constructor and only overwrites keys actually present in the file.

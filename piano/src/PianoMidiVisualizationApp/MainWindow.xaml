@@ -99,7 +99,7 @@
                          The Viewbox scales down to whatever height is left. Trimmed from 170
                          to pay for the key selector without squeezing the keyboard at 900x420. -->
                     <RowDefinition Height="*" MinHeight="140"/>   <!-- readout -->
-                    <RowDefinition Height="Auto"/>                <!-- key selector -->
+                    <RowDefinition Height="Auto"/>                <!-- practice toolbar -->
                     <RowDefinition Height="Auto"/>                <!-- keyboard -->
                 </Grid.RowDefinitions>
 
@@ -167,6 +167,12 @@
                         </Style>
                     </Border.Style>
 
+                    <!-- Practice toolbar: one section per feature, always on one line. When the
+                         window is too narrow (below ~1070px with the sidebar open) it scales
+                         down rather than wrapping: a second line would push the keyboard off the
+                         bottom of the stage at the 900x420 minimum. -->
+                    <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
+                    <StackPanel Orientation="Horizontal">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="Key" Foreground="{StaticResource Brush.Text.Muted}"
                                    FontSize="11" FontWeight="SemiBold"
@@ -231,11 +237,98 @@
                                 ToolTip="Clear key highlight"
                                 Visibility="{Binding Settings.IsKeyHighlightEnabled,
                                              Converter={StaticResource BoolToVisConverter}}"/>
+                    </StackPanel>
 
-                        <!-- Recorder transport: record, play/stop, loop, speed -->
+                    <!-- Metronome. None of its buttons take focus: a focused button would claim
+                         Space, the save-chord shortcut, for itself. -->
+                    <StackPanel Orientation="Horizontal">
+                        <Rectangle Width="1" Margin="12,3" Fill="{StaticResource Brush.Separator}"/>
+
+                        <!-- The toggle carries the beat light: a hollow ring while off, a dim dot
+                             while on. BeatFlash is flashed once per click from the audio thread's
+                             beat, never from a UI timer (see MainWindow.OnMetronomeBeat), and
+                             turns amber on the downbeat. -->
+                        <ToggleButton Height="26" Focusable="False"
+                                      Style="{StaticResource Style.ToolbarToggle}"
+                                      IsChecked="{Binding IsMetronomeOn}"
+                                      ToolTip="Metronome on/off (Ctrl+M)">
+                            <StackPanel Orientation="Horizontal">
+                                <Grid Width="10" Height="10" VerticalAlignment="Center">
+                                    <Ellipse StrokeThickness="1.4">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Stroke" Value="{StaticResource Brush.Metronome.Off}"/>
+                                                <Setter Property="Fill" Value="Transparent"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsMetronomeOn}" Value="True">
+                                                        <Setter Property="Stroke" Value="{StaticResource Brush.Metronome.On}"/>
+                                                        <Setter Property="Fill" Value="{StaticResource Brush.Metronome.On}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <Ellipse x:Name="BeatFlash" Opacity="0">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="{StaticResource Brush.Metronome.Beat}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsMetronomeAccentBeat}" Value="True">
+                                                        <Setter Property="Fill" Value="{StaticResource Brush.Metronome.Accent}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                </Grid>
+                                <TextBlock Text="&#x2669;" FontFamily="Segoe UI Symbol" FontSize="14"
+                                           Margin="5,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </ToggleButton>
+
+                        <Button Content="&#x2212;" Width="22" Height="26" Padding="0" Margin="8,0,0,0"
+                                Focusable="False" Command="{Binding DecreaseMetronomeBpmCommand}"
+                                ToolTip="Slower"/>
+                        <!-- Explicit updates: the code-behind commits on Enter or focus loss, then
+                             reads the value back, so a clamped or unparseable entry is corrected
+                             in place rather than left showing what was typed. -->
+                        <TextBox x:Name="MetronomeBpmBox" Width="40" Height="26" Margin="2,0"
+                                 Padding="2,0" TextAlignment="Center" MaxLength="3"
+                                 Text="{Binding Settings.MetronomeBpm, UpdateSourceTrigger=Explicit}"
+                                 Validation.ErrorTemplate="{x:Null}"
+                                 PreviewKeyDown="MetronomeBpmBox_PreviewKeyDown"
+                                 LostKeyboardFocus="MetronomeBpmBox_LostKeyboardFocus"
+                                 PreviewMouseWheel="MetronomeBpmBox_PreviewMouseWheel"
+                                 ToolTip="Tempo in BPM, 30 to 240. Enter to apply; scroll or Up/Down to nudge."/>
+                        <Button Content="+" Width="22" Height="26" Padding="0"
+                                Focusable="False" Command="{Binding IncreaseMetronomeBpmCommand}"
+                                ToolTip="Faster"/>
+
+                        <!-- Press, not release: a tap should land when the finger does. -->
+                        <Button Content="Tap" Height="26" Padding="7,0" Margin="6,0,0,0"
+                                Focusable="False" ClickMode="Press"
+                                Command="{Binding TapMetronomeCommand}"
+                                ToolTip="Tap the beat to set the tempo"/>
+
+                        <ComboBox Width="56" Height="26" Margin="6,0,0,0"
+                                  ItemsSource="{Binding Settings.MetronomeBeatsPerBarOptions}"
+                                  SelectedItem="{Binding Settings.MetronomeBeatsPerBar}"
+                                  ToolTip="Beats per bar. Beat 1 is accented; 1 means no accent.">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding StringFormat={}{0}/4}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <!-- Recorder transport: record, play/stop, loop, speed -->
+                    <StackPanel Orientation="Horizontal">
                         <Rectangle Width="1" Margin="12,3" Fill="{StaticResource Brush.Separator}"/>
                         <views:RecorderTransport DataContext="{Binding Recorder}" VerticalAlignment="Center"/>
                     </StackPanel>
+                    </StackPanel>
+                    </Viewbox>
                 </Border>
 
                 <Viewbox Grid.Row="2" Stretch="Uniform" StretchDirection="Both"

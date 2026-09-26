@@ -3,12 +3,16 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Media.Animation;
 using PianoMidiVisualizationApp.ViewModels;
 
 namespace PianoMidiVisualizationApp;
 
 public partial class MainWindow : Window
 {
+    /// <summary>Full brightness on the click, gone well before the next one (240 BPM is 250 ms).</summary>
+    private static readonly DoubleAnimation BeatFlashFade = CreateBeatFlashFade();
+
     public MainWindow()
     {
         InitializeComponent();
@@ -25,6 +29,77 @@ public partial class MainWindow : Window
 
         // The log is hidden by default, so it can be stale by the time it is shown.
         MidiLogList.IsVisibleChanged += (_, _) => ScrollLogToEnd();
+
+        if (DataContext is MainViewModel vm)
+            vm.MetronomeBeat += OnMetronomeBeat;
+    }
+
+    private static DoubleAnimation CreateBeatFlashFade()
+    {
+        var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(180));
+        fade.Freeze();
+        return fade;
+    }
+
+    /// <summary>
+    /// Flashes the beat light. Raised per click from the audio thread's beat counter, so the
+    /// light follows the audio clock. Code rather than a XAML trigger because a binding-driven
+    /// EventTrigger also fires once when the binding first attaches, flashing at startup.
+    /// </summary>
+    private void OnMetronomeBeat(object? sender, EventArgs e) =>
+        BeatFlash.BeginAnimation(OpacityProperty, BeatFlashFade);
+
+    // ----- Metronome BPM field -----
+
+    private void MetronomeBpmBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Key.Enter:
+                CommitBpm();
+                // Hand the keyboard back, so Space and Ctrl+M work again without a click.
+                Keyboard.Focus(this);
+                break;
+            case Key.Escape:
+                MetronomeBpmBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+                Keyboard.Focus(this);
+                break;
+            case Key.Up:
+                NudgeBpm(+1);
+                break;
+            case Key.Down:
+                NudgeBpm(-1);
+                break;
+            default:
+                return;
+        }
+
+        e.Handled = true;
+    }
+
+    private void MetronomeBpmBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e) =>
+        CommitBpm();
+
+    private void MetronomeBpmBox_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        NudgeBpm(e.Delta > 0 ? +1 : -1);
+        e.Handled = true;
+    }
+
+    /// <summary>Writes the typed tempo, then reads it back: shows the clamped value, or restores the old one if the text was not a number.</summary>
+    private void CommitBpm()
+    {
+        var binding = MetronomeBpmBox.GetBindingExpression(TextBox.TextProperty);
+        binding?.UpdateSource();
+        binding?.UpdateTarget();
+    }
+
+    /// <summary>Nudges from whatever is typed, so a half-entered tempo is not lost.</summary>
+    private void NudgeBpm(int delta)
+    {
+        if (DataContext is not MainViewModel vm) return;
+        CommitBpm();
+        vm.Settings.MetronomeBpm += delta;
     }
 
     private void ScrollLogToEnd()
@@ -86,6 +161,9 @@ public partial class MainWindow : Window
                 break;
             case Key.F5 when shift && !IsTextEntryFocused():
                 vm.ToggleRecorderCommand.Execute(null);
+                break;
+            case Key.M when ctrl && !IsTextEntryFocused():
+                vm.ToggleMetronomeCommand.Execute(null);
                 break;
             default:
                 return;

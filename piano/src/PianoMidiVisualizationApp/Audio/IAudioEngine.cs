@@ -11,4 +11,10 @@ public interface IAudioEngine : IDisposable
     void NoteOff(int channel, int note);
     float Volume { get; set; }
     bool IsRunning { get; }
+
+    /// <summary>
+    /// The click mixed into the output, or null for an engine without one. The default
+    /// keeps test doubles that predate the metronome compiling unchanged.
+    /// </summary>
+    MetronomeSampleProvider? Metronome => null;
 }

@@ -111,6 +111,14 @@
                         VerticalAlignment="Center" TickFrequency="0.1"/>
             </StackPanel>
 
+            <!-- Metronome click level. The master Vol above scales it too. -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,16,0" VerticalAlignment="Center">
+                <TextBlock Text="Click:" Foreground="{StaticResource Brush.Text.Primary}" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold"/>
+                <Slider Width="80" Minimum="0" Maximum="1" Value="{Binding Settings.MetronomeVolume}"
+                        VerticalAlignment="Center" TickFrequency="0.1"
+                        ToolTip="Metronome volume, relative to the master volume"/>
+            </StackPanel>
+
             <!-- API Key -->
             <StackPanel Orientation="Horizontal" Margin="0,0,16,0" VerticalAlignment="Center">
                 <TextBlock Text="AI:" Foreground="{StaticResource Brush.Text.Primary}" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold"/>

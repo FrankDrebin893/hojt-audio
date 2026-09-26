@@ -43,6 +43,12 @@
     <SolidColorBrush x:Key="Brush.Midi.Active"    Color="#00FF00"/>
     <SolidColorBrush x:Key="Brush.Log.Text"       Color="#00DD00"/>
 
+    <!-- ================= Metronome beat light ================= -->
+    <SolidColorBrush x:Key="Brush.Metronome.Off"    Color="#777777"/>
+    <SolidColorBrush x:Key="Brush.Metronome.On"     Color="#6F93B8"/>
+    <SolidColorBrush x:Key="Brush.Metronome.Beat"   Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="Brush.Metronome.Accent" Color="#FFB547"/>
+
     <!-- ================= Readout type scale ================= -->
     <sys:Double x:Key="Size.Readout.Name">64</sys:Double>
     <sys:Double x:Key="Size.Readout.Voicing">14</sys:Double>
@@ -454,6 +460,48 @@
                 <Setter Property="Foreground" Value="{StaticResource Brush.Danger.Text}"/>
             </Trigger>
         </Style.Triggers>
+    </Style>
+
+    <!-- A button that stays down while its feature is on, e.g. the metronome. Keyed rather
+         than implicit so the ComboBox's internal ToggleButton is unaffected. -->
+    <Style x:Key="Style.ToolbarToggle" TargetType="ToggleButton">
+        <Setter Property="Background" Value="{StaticResource Brush.SurfaceRaised}"/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="7,0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}" CornerRadius="3"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Hover}"/>
+                            <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Accent}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Brush.Accent.Hover}"/>
+                            <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsChecked" Value="True"/>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Accent.Hover}"/>
+                        </MultiTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style TargetType="RadioButton">
