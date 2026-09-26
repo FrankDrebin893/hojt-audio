@@ -48,13 +48,16 @@ public partial class ChordDetector
         if (pitchClasses.Length == 1)
             return new ChordNaming(MusicNaming.PitchClass(pitchClasses[0]), pitchClasses[0], IsChord: false);
 
-        if (ShellOf(pitchClasses) is { } shell)
+        if (SeventhWithoutFifthOf(pitchClasses, bassPitchClass) is { } shell)
             return Named(shell.Name, shell.Root, bassPitchClass);
 
         try
         {
             var noteNames = pitchClasses.Select(pc => (NoteName)pc).ToArray();
-            var candidates = new Chord(noteNames).GetNames().ToList();
+            // A name whose root isn't held is a misreading, not a chord: drop it.
+            var candidates = new Chord(noteNames).GetNames()
+                .Where(name => RootOf(name) is { } root && (pitchClassMask & (1 << root)) != 0)
+                .ToList();
 
             if (candidates.Count > 0)
             {
@@ -65,7 +68,9 @@ public partial class ChordDetector
                     .OrderBy(name => ScoreName(name, bassPitchClass))
                     .First();
 
-                return Named(best, RootOf(best) ?? bassPitchClass, bassPitchClass);
+                // "Cb5" is C with a flat 5th, not C-flat. Bracket the suffix so neither a
+                // reader nor MusicNaming.Respell takes the "b" for an accidental.
+                return Named(FlatFifthRegex().Replace(best, "$1(b5)"), RootOf(best)!.Value, bassPitchClass);
             }
         }
         catch
@@ -91,32 +96,43 @@ public partial class ChordDetector
     }
 
     /// <summary>
-    /// Names a three-note shell — root, 3rd and 7th, the 5th left out — as its seventh chord.
-    /// DryWetMIDI can't: it finds nothing for G-B-F and calls C-E-B "E5/C". Only one note of
-    /// such a set can be the root, so the reading is unambiguous.
+    /// Intervals above the root (bit n = n semitones) of a 7th chord with its 5th left out,
+    /// optionally with a 9th, and the suffix to name it. Suffixes match what ScoreName picks
+    /// for the full chord, so a fifthless voicing and its complete one read the same.
     /// </summary>
-    private static (string Name, int Root)? ShellOf(int[] pitchClasses)
+    private static readonly Dictionary<int, string> FifthlessQualities = new()
     {
-        if (pitchClasses.Length != 3)
+        [Bits(0, 4, 10)] = "7",
+        [Bits(0, 4, 10, 2)] = "9",
+        [Bits(0, 4, 10, 1)] = "7b9",
+        [Bits(0, 4, 10, 3)] = "7#9",
+        [Bits(0, 4, 11)] = "maj7",
+        [Bits(0, 4, 11, 2)] = "maj7(9)",
+        [Bits(0, 3, 10)] = "m7",
+        [Bits(0, 3, 10, 2)] = "m9",
+        [Bits(0, 3, 11)] = "mM7",
+        [Bits(0, 3, 11, 2)] = "mM7(9)",
+    };
+
+    private static int Bits(params int[] intervals) => intervals.Aggregate(0, (m, i) => m | (1 << i));
+
+    /// <summary>
+    /// Names a 7th or 9th chord whose 5th is left out: a shell (G-B-F) or a shell plus 9th
+    /// (G-B-F-A). DryWetMIDI can't: it finds nothing for G-B-F, calls C-E-B "E5/C", and reads
+    /// G-B-F-A as "Fb5/G" (F-A-B with an added G). The bass is tried first as the root.
+    /// </summary>
+    private static (string Name, int Root)? SeventhWithoutFifthOf(int[] pitchClasses, int bassPitchClass)
+    {
+        if (pitchClasses.Length is < 3 or > 4)
             return null;
 
-        foreach (int root in pitchClasses)
+        foreach (int root in pitchClasses.OrderBy(pc => pc != bassPitchClass))
         {
             int intervals = 0;
             foreach (int pc in pitchClasses)
                 intervals |= 1 << (((pc - root) % 12 + 12) % 12);
 
-            // Suffixes match what ScoreName picks for the full chord, so a shell and its
-            // complete voicing read the same.
-            string? quality = intervals switch
-            {
-                (1 << 0) | (1 << 4) | (1 << 10) => "7",
-                (1 << 0) | (1 << 4) | (1 << 11) => "maj7",
-                (1 << 0) | (1 << 3) | (1 << 10) => "m7",
-                (1 << 0) | (1 << 3) | (1 << 11) => "mM7",
-                _ => null,
-            };
-            if (quality is not null)
+            if (FifthlessQualities.TryGetValue(intervals, out var quality))
                 return (MusicNaming.PitchClass(root) + quality, root);
         }
 
@@ -145,7 +161,9 @@ public partial class ChordDetector
     /// Pitch class of the leading note letter, or null if the name doesn't start with one.
     /// </summary>
     /// <remarks>
-    /// Deliberately not <c>Chord.TryParse(...).RootNoteName</c>: for a slash name that returns the
+    /// DryWetMIDI spells roots with sharps only, so a "b" straight after the letter is its
+    /// flat-5th suffix ("Cb5" = C E F#), never a flat: reading it as one gives a root that
+    /// isn't held. Deliberately not <c>Chord.TryParse(...).RootNoteName</c>: for a slash name that returns the
     /// note *after* the slash (TryParse("C/E") gives E), which is the opposite of what's wanted.
     /// </remarks>
     private static int? RootOf(string name)
@@ -160,13 +178,16 @@ public partial class ChordDetector
         if (pc < 0) return null;
 
         if (match.Groups[2].Value == "#") pc++;
-        else if (match.Groups[2].Value == "b") pc--;
 
         return ((pc % 12) + 12) % 12;
     }
 
-    [GeneratedRegex(@"^([A-G])([#b]?)")]
+    [GeneratedRegex(@"^([A-G])(#?)")]
     private static partial Regex RootNoteRegex();
+
+    /// <summary>DryWetMIDI's flat-5th suffix straight after the root, as in "Cb5" or "C#b5/D".</summary>
+    [GeneratedRegex(@"^([A-G]#?)b5")]
+    private static partial Regex FlatFifthRegex();
 
     /// <summary>Matches an "M"-as-major marker, as in "CM" or "CM7", but not "Cmaj" or "Cm".</summary>
     [GeneratedRegex(@"^[A-G][#b]?M(?![a-z])")]
