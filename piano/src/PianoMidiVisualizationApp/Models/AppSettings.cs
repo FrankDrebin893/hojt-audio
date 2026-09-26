@@ -67,6 +67,7 @@ public class AppSettings
     // Song practice: the song reopens on launch while practice is on. Speed is clamped on load.
     public string? SongPath { get; set; }
     public double SongSpeed { get; set; } = 1.0;
+    public string SongMode { get; set; } = "Wait";
 
     // Window placement. Nullable so "never saved" is distinguishable from 0.
     public double? WindowLeft { get; set; }

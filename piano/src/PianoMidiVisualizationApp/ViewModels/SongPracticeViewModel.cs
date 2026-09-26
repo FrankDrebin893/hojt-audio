@@ -1,16 +1,26 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using PianoMidiVisualizationApp.Services.SongPractice;
+using PianoMidiVisualizationApp.Views;
 
 namespace PianoMidiVisualizationApp.ViewModels;
 
 /// <summary>One entry in a part's role dropdown.</summary>
 public record PartRoleOption(PartRole Role, string Name);
+
+/// <summary>One entry in the practice-mode dropdown.</summary>
+public record PracticeModeOption(PracticeMode Mode, string Name);
+
+/// <summary>A key to flash in the falling-notes view: a judged note, and when it was played.</summary>
+/// <param name="Key">The key it landed on, folded into the drawn range.</param>
+/// <param name="Timestamp">A <see cref="Stopwatch"/> timestamp.</param>
+public readonly record struct KeyFlash(int Key, NoteVerdict Verdict, long Timestamp);
 
 /// <summary>A song part as the track list shows it, with the role you picked for it.</summary>
 public partial class SongPartViewModel : ObservableObject
@@ -35,15 +45,18 @@ public partial class SongPartViewModel : ObservableObject
 }
 
 /// <summary>
-/// Falling-notes song practice: a loaded MIDI song, its parts and their roles, and the
-/// transport that plays it — play/pause, restart, speed, and an A–B loop by bars.
+/// Falling-notes song practice: a loaded MIDI song, its parts and their roles, the transport
+/// that plays it — play/pause, restart, speed, and an A–B loop by bars — and the practice
+/// itself: wait mode, which holds the song at each of your chords until you play it, or play
+/// along, which keeps going and scores you as you go.
 /// </summary>
 /// <remarks>
 /// <para>Time comes from <see cref="Clock"/>, which the falling-notes view reads every frame.
 /// Auto-play parts sound through <see cref="SongAutoPlayer"/> on the host's app-note path, so
 /// they light the keyboard like any app-played note. The clock's barrier is placed at the
-/// point playback must stop or turn — the loop end or the song's end — so it is caught
-/// exactly, not a frame late.</para>
+/// next point playback must stop or turn — your next chord in wait mode, the loop end, or
+/// the song's end — so it is caught exactly, not a frame late, and the accompaniment is only
+/// ever handed out up to it.</para>
 ///
 /// <para>Runs on the UI thread. Per-frame work is driven by <see cref="CompositionTarget.Rendering"/>
 /// and only while playing.</para>
@@ -60,8 +73,30 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
     /// </summary>
     private static readonly TimeSpan LeadIn = TimeSpan.FromSeconds(1.5);
 
+    /// <summary>How far ahead a wait-mode chord's keys are hinted, in song time.</summary>
+    private static readonly TimeSpan WaitHintLead = TimeSpan.FromSeconds(1);
+
+    /// <summary>How far ahead of its start a play-along note's key is hinted, in song time.</summary>
+    private static readonly TimeSpan PlayAlongHintLead = TimeSpan.FromMilliseconds(150);
+
+    /// <summary>How long a judged key flashes in the falling-notes view.</summary>
+    public static readonly TimeSpan FlashDuration = TimeSpan.FromMilliseconds(450);
+
     private readonly SongAutoPlayer _autoPlayer;
+    private readonly PianoKeyboardViewModel _keyboard;
+    private readonly KeyboardLayout _layout;
     private readonly Action<string> _reportStatus;
+
+    private PracticeScorer? _scorer;
+
+    /// <summary>The "you play" notes in start order, for play-along hints.</summary>
+    private SongNote[] _yourNotes = [];
+    private TimeSpan _longestYourNote;
+
+    /// <summary>The keys this view last hinted, so hints are only touched when they change.</summary>
+    private HashSet<int> _hinted = new();
+
+    private readonly List<KeyFlash> _flashes = new();
 
     /// <summary>Auto-play notes starting before this song time have been handed to a player.</summary>
     private TimeSpan _scheduledUntil;
@@ -78,6 +113,18 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
         new(PartRole.AutoPlay, "Auto-play"),
         new(PartRole.Mute, "Mute")
     ];
+
+    public static IReadOnlyList<PracticeModeOption> ModeOptions { get; } =
+    [
+        new(PracticeMode.Wait, "Wait for me"),
+        new(PracticeMode.PlayAlong, "Play along")
+    ];
+
+    /// <summary>Recently judged keys, oldest first, for the view to flash. Pruned every frame.</summary>
+    public IReadOnlyList<KeyFlash> Flashes => _flashes;
+
+    /// <summary>The chord wait mode is holding for or heading to next; null in play-along.</summary>
+    public PracticeChord? PendingChord => _scorer?.PendingChord;
 
     /// <summary>The notes the view draws: every part that is not muted, in start order.</summary>
     public IReadOnlyList<SongNote> VisibleNotes { get; private set; } = [];
@@ -159,11 +206,33 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isTrackListOpen;
 
+    [ObservableProperty]
+    private PracticeMode _mode = PracticeMode.Wait;
+
+    /// <summary>Wait mode is holding the song at a chord until you play it.</summary>
+    [ObservableProperty]
+    private bool _isWaiting;
+
+    [ObservableProperty]
+    private int _correctCount;
+
+    [ObservableProperty]
+    private int _wrongCount;
+
+    [ObservableProperty]
+    private int _missedCount;
+
+    /// <param name="keyboard">Where the keys to play are shown, as hints.</param>
     /// <param name="noteOn">The host's app-note path, which sounds and lights a note without recording it.</param>
     /// <param name="noteOff">Its release counterpart.</param>
     /// <param name="reportStatus">Shows a message in the status bar.</param>
-    public SongPracticeViewModel(Action<int, int> noteOn, Action<int> noteOff, Action<string> reportStatus)
+    public SongPracticeViewModel(PianoKeyboardViewModel keyboard, Action<int, int> noteOn, Action<int> noteOff,
+                                 Action<string> reportStatus)
     {
+        _keyboard = keyboard;
+        _layout = keyboard.Keys.Count > 0
+            ? new KeyboardLayout(keyboard.Keys[0].NoteNumber, keyboard.Keys[^1].NoteNumber)
+            : KeyboardLayout.Default;
         _autoPlayer = new SongAutoPlayer(noteOn, noteOff);
         _reportStatus = reportStatus;
     }
@@ -312,10 +381,15 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
         _autoPlayer.SetNotes([]);
         VisibleNotes = [];
         PartRoles = [];
+        _yourNotes = [];
+        _scorer = null;
         Song = null;
         SongPath = null;
         IsTrackListOpen = false;
         IsFinished = false;
+        IsWaiting = false;
+        UpdateStats();
+        UpdateHints(TimeSpan.Zero);
         RaiseFrame();
     }
 
@@ -335,6 +409,26 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
         VisibleNotes = Song.Notes.Where(n => PartRoles[n.Part] != PartRole.Mute).ToArray();
         LongestVisibleNote = VisibleNotes.Count > 0 ? VisibleNotes.Max(n => n.Duration) : TimeSpan.Zero;
         _autoPlayer.SetNotes(Song.Notes.Where(n => PartRoles[n.Part] == PartRole.AutoPlay));
+
+        _yourNotes = Song.Notes.Where(n => PartRoles[n.Part] == PartRole.YouPlay).ToArray();
+        _longestYourNote = _yourNotes.Length > 0 ? _yourNotes.Max(n => n.Duration) : TimeSpan.Zero;
+        BuildScorer();
+    }
+
+    /// <summary>A fresh scorer for the current parts and mode, aimed at the playhead. Clears the stats.</summary>
+    private void BuildScorer()
+    {
+        var chords = ChordGrouper.Group(_yourNotes, ChordGrouper.DefaultWindow);
+        _scorer = new PracticeScorer(chords, Mode, _layout.Fold);
+        _scorer.Rewind(FirstSchedulable(Clock.Position));
+        UpdateStats();
+    }
+
+    partial void OnModeChanged(PracticeMode value)
+    {
+        if (Song == null) return;
+        BuildScorer();
+        RestartSchedulingFromHere();
     }
 
     [RelayCommand]
@@ -366,6 +460,8 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
     {
         IsFinished = false;
         SeekTo(StartPoint - LeadInSongTime);
+        _scorer?.ResetStats();
+        UpdateStats();
     }
 
     public void Play()
@@ -376,12 +472,17 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
         {
             IsFinished = false;
             Clock.Seek(StartPoint - LeadInSongTime);
+            _scorer?.ResetStats();
+            UpdateStats();
         }
 
         IsTrackListOpen = false;
         IsPlaying = true;
         Clock.Start();
         _scheduledUntil = FirstSchedulable(Clock.Position);
+
+        // Keys held down across the pause have to be played again to count.
+        _scorer?.Rewind(FirstSchedulable(Clock.Position));
         RefreshBarrier();
         StartTicking();
         RaiseFrame();
@@ -393,6 +494,7 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
         Clock.Pause();
         _autoPlayer.StopAll();
         IsPlaying = false;
+        IsWaiting = false;
         StopTicking();
         RaiseFrame();
     }
@@ -422,6 +524,7 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
     partial void OnIsActiveChanged(bool value)
     {
         if (!value) Pause();
+        UpdateHints(Clock.Position);
     }
 
     /// <summary>Jumps to a song time, carrying on playing if it was.</summary>
@@ -430,8 +533,11 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
         _autoPlayer.StopAll();
         Clock.Seek(position);
         _scheduledUntil = FirstSchedulable(position);
+        _scorer?.Rewind(FirstSchedulable(position));
+        IsWaiting = false;
         RefreshBarrier();
         UpdateCurrentBar(position);
+        UpdateHints(position);
         RaiseFrame();
     }
 
@@ -441,6 +547,7 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
         _autoPlayer.StopAll();
         _scheduledUntil = FirstSchedulable(Clock.Position);
         RefreshBarrier();
+        UpdateHints(Clock.Position);
         RaiseFrame();
     }
 
@@ -461,6 +568,8 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
         }
 
         var barrier = PlaybackEnd;
+        if (Mode == PracticeMode.Wait && _scorer?.PendingChord is { } chord && chord.Time < barrier)
+            barrier = chord.Time;
 
         // The range shrank behind what was already handed out (the loop moved): take it back.
         if (barrier < _scheduledUntil)
@@ -469,7 +578,9 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
             _scheduledUntil = FirstSchedulable(Clock.Position);
         }
 
-        Clock.SetBarrier(barrier);
+        // Only when it moves: every change re-anchors the clock.
+        if (Clock.Barrier != barrier)
+            Clock.SetBarrier(barrier);
 
         if (IsPlaying && barrier > _scheduledUntil)
         {
@@ -496,10 +607,20 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
 
     private void OnRendering(object? sender, EventArgs e) => Tick();
 
-    /// <summary>One frame: handles reaching the barrier, then tells the view to redraw.</summary>
+    /// <summary>
+    /// One frame: lets the scorer catch up (a chord coming into reach, a note's window
+    /// closing), handles reaching the barrier, then tells the view to redraw.
+    /// </summary>
     public void Tick()
     {
         if (Song == null || !IsPlaying) return;
+
+        if (_scorer != null)
+        {
+            var pending = _scorer.PendingChord;
+            _scorer.Update(Clock.Position);
+            if (_scorer.PendingChord != pending) RefreshBarrier();
+        }
 
         if (Clock.IsAtBarrier && Clock.Barrier is { } barrier)
         {
@@ -517,15 +638,115 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
             }
         }
 
-        UpdateCurrentBar(Clock.Position);
+        // Anything else the clock stops at is your next chord.
+        IsWaiting = Mode == PracticeMode.Wait && Clock.IsAtBarrier;
+
+        var position = Clock.Position;
+        UpdateCurrentBar(position);
+        UpdateHints(position);
+        PruneFlashes();
+        UpdateStats();
         RaiseFrame();
     }
 
     private void Finish()
     {
+        // Close out notes whose window was still open when the last note ended.
+        _scorer?.Update(Clock.Position + PracticeScorer.HitWindow + TimeSpan.FromTicks(1));
+        UpdateStats();
         Pause();
         IsFinished = true;
-        _reportStatus($"Finished {Song?.Title}");
+
+        _reportStatus(_yourNotes.Length == 0
+            ? $"Finished {Song?.Title}"
+            : $"Finished {Song?.Title}: {CorrectCount} correct, {WrongCount} wrong" +
+              (Mode == PracticeMode.PlayAlong ? $", {MissedCount} missed" : ""));
+    }
+
+    // ------------------------------------------------------------------ live input
+
+    /// <summary>
+    /// A key you played, on the UI thread. Judged only while the song is playing, and only when
+    /// some part is yours: playing along to pure accompaniment is not a string of wrong notes.
+    /// </summary>
+    public void OnLiveNoteOn(int note)
+    {
+        if (_scorer == null || !IsActive || !IsPlaying || _yourNotes.Length == 0) return;
+
+        var verdict = _scorer.NoteOn(note, Clock.Position);
+        _flashes.Add(new KeyFlash(_layout.Fold(note), verdict, Stopwatch.GetTimestamp()));
+
+        // In wait mode that may have completed the chord the song is held at: move on.
+        if (Mode == PracticeMode.Wait)
+        {
+            RefreshBarrier();
+            IsWaiting = Clock.IsAtBarrier && Clock.Barrier != PlaybackEnd;
+            UpdateHints(Clock.Position);
+        }
+
+        UpdateStats();
+        RaiseFrame();
+    }
+
+    /// <summary>A key you released. Always passed on, so a key let go while paused is not still "held".</summary>
+    public void OnLiveNoteOff(int note) => _scorer?.NoteOff(note);
+
+    private void UpdateStats()
+    {
+        CorrectCount = _scorer?.Correct ?? 0;
+        WrongCount = _scorer?.Wrong ?? 0;
+        MissedCount = _scorer?.Missed ?? 0;
+    }
+
+    private void PruneFlashes()
+    {
+        long now = Stopwatch.GetTimestamp();
+        _flashes.RemoveAll(f => Stopwatch.GetElapsedTime(f.Timestamp, now) > FlashDuration);
+    }
+
+    /// <summary>
+    /// Shows the keys to play on the keyboard: in wait mode, the chord being waited for (once it
+    /// is close); in play along, the notes due now. Leaves the hints alone while it has none
+    /// showing, so other features can use them while song practice is off.
+    /// </summary>
+    private void UpdateHints(TimeSpan position)
+    {
+        var keys = new HashSet<int>();
+
+        if (IsActive && Song != null && _scorer != null)
+        {
+            if (Mode == PracticeMode.Wait)
+            {
+                if (_scorer.PendingChord is { } chord && (IsWaiting || chord.Time - position <= WaitHintLead))
+                    keys.UnionWith(chord.Notes.Select(_layout.Fold));
+            }
+            else
+            {
+                int first = FirstStartingAtOrAfter(_yourNotes, position - _longestYourNote);
+                for (int i = first; i < _yourNotes.Length && _yourNotes[i].Start <= position + PlayAlongHintLead; i++)
+                {
+                    if (_yourNotes[i].End > position) keys.Add(_layout.Fold(_yourNotes[i].Note));
+                }
+            }
+        }
+
+        if (keys.SetEquals(_hinted)) return;
+
+        if (keys.Count == 0) _keyboard.ClearHints();
+        else _keyboard.SetHintedNotes(keys);
+        _hinted = keys;
+    }
+
+    private static int FirstStartingAtOrAfter(SongNote[] notes, TimeSpan time)
+    {
+        int lo = 0, hi = notes.Length;
+        while (lo < hi)
+        {
+            int mid = (lo + hi) >>> 1;
+            if (notes[mid].Start < time) lo = mid + 1;
+            else hi = mid;
+        }
+        return lo;
     }
 
     private void UpdateCurrentBar(TimeSpan position)

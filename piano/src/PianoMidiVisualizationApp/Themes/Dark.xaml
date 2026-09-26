@@ -81,6 +81,11 @@
     <SolidColorBrush x:Key="Brush.Song.Loop"        Color="#F2C978"/>
     <SolidColorBrush x:Key="Brush.Song.OutsideLoop" Color="#8C000000"/>
     <SolidColorBrush x:Key="Brush.Song.Folded"      Color="#F0F0F0"/>
+    <!-- The chord wait mode is holding for: the keyboard's hint magenta, so note and key match. -->
+    <SolidColorBrush x:Key="Brush.Song.Target"      Color="#E83E9C"/>
+    <SolidColorBrush x:Key="Brush.Song.Correct"     Color="#8BE36B"/>
+    <SolidColorBrush x:Key="Brush.Song.Wrong"       Color="#FF5252"/>
+    <SolidColorBrush x:Key="Brush.Song.Overlay"     Color="#CC1A1A1A"/>
     <SolidColorBrush x:Key="Brush.Song.Part0"       Color="#6CC24A"/>   <!-- right hand -->
     <SolidColorBrush x:Key="Brush.Song.Part1"       Color="#5B8DEF"/>   <!-- left hand -->
     <SolidColorBrush x:Key="Brush.Song.Part2"       Color="#E8A33D"/>

@@ -185,7 +185,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Recorder = new RecorderViewModel(dispatcher, PlayNoteOn, PlayNoteOff,
                                          () => ExportTempo, status => StatusText = status);
 
-        SongPractice = new SongPracticeViewModel(PlayNoteOn, PlayNoteOff, status => StatusText = status);
+        SongPractice = new SongPracticeViewModel(PianoKeyboard, PlayNoteOn, PlayNoteOff, status => StatusText = status);
         SongPractice.SongLoaded += (_, _) => IsSongPracticeVisible = true;
 
         _midiInput.NoteOn += OnMidiNoteOn;
@@ -559,6 +559,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IsCircleOfFifthsVisible = saved.ShowCircleOfFifths;
         IsGrandStaffVisible = saved.ShowGrandStaff;
         SongPractice.Speed = saved.SongSpeed;
+        SongPractice.Mode = Enum.TryParse<Services.SongPractice.PracticeMode>(saved.SongMode, out var mode)
+                            && Enum.IsDefined(mode) && !int.TryParse(saved.SongMode, out _)
+            ? mode
+            : Services.SongPractice.PracticeMode.Wait;
         // The last song reopens only if practice was on; a file since moved just leaves the
         // empty "open a song" state rather than an error.
         if (saved.ShowSongPractice && !string.IsNullOrEmpty(saved.SongPath) && System.IO.File.Exists(saved.SongPath))
@@ -582,6 +586,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         saved.ShowSongPractice = IsSongPracticeVisible;
         saved.SongPath = SongPractice.SongPath;
         saved.SongSpeed = SongPractice.Speed;
+        saved.SongMode = SongPractice.Mode.ToString();
         return saved;
     }
 
@@ -669,6 +674,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 if (IsNote(e.NoteNumber)) _liveHeld[e.NoteNumber] = true;
                 PianoKeyboard.SetKeyPressed(e.NoteNumber, e.Velocity);
                 RefreshAnalysis();
+                SongPractice.OnLiveNoteOn(e.NoteNumber);
             });
         }
     }
@@ -697,6 +703,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
             _dispatcher.BeginInvoke(() =>
             {
+                SongPractice.OnLiveNoteOff(e.NoteNumber);
                 if (IsNote(e.NoteNumber))
                 {
                     _liveHeld[e.NoteNumber] = false;

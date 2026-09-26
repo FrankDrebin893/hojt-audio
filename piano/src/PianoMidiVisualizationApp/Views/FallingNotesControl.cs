@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
@@ -198,6 +199,8 @@ public class FallingNotesControl : FrameworkElement
         if (looping)
             DrawLoopMarkers(dc, loopStart, loopEnd, position, windowEnd, Y, laneLeft, laneRight, height);
 
+        DrawFlashes(dc, session, layout, offset, scale, height);
+
         // The line the notes land on: the top edge of the keys, in spirit.
         dc.DrawRectangle(p.HitLine, null, new Rect(laneLeft, height - 2, laneRight - laneLeft, 2));
     }
@@ -273,6 +276,9 @@ public class FallingNotesControl : FrameworkElement
         var parts = session.Song!.Parts;
         var now = session.Clock.Position;
 
+        // The chord wait mode is holding for, outlined in the keyboard's hint colour.
+        var waitingFor = session.IsWaiting && shift == TimeSpan.Zero ? session.PendingChord : null;
+
         int first = FirstStartingAtOrAfter(notes, from - session.LongestVisibleNote);
         for (int i = first; i < notes.Count; i++)
         {
@@ -301,15 +307,44 @@ public class FallingNotesControl : FrameworkElement
                 ? (black ? colors.AutoDark : colors.Auto)
                 : (black ? colors.Dark : colors.Normal);
 
+            bool target = waitingFor != null && role == PartRole.YouPlay
+                          && note.Start >= waitingFor.Time
+                          && note.Start - waitingFor.Time <= ChordGrouper.DefaultWindow;
+
             if (dimmed) dc.PushOpacity(0.3);
             double radius = Math.Min(3 * scale, bounds.Width / 2);
-            dc.DrawRoundedRectangle(fill, sounding ? p.SoundingEdge : null, bounds, radius, radius);
+            dc.DrawRoundedRectangle(fill, target ? p.TargetEdge : sounding ? p.SoundingEdge : null,
+                                    bounds, radius, radius);
 
             if (key != note.Note)
                 DrawFoldMarker(dc, bounds, foldedDown: note.Note > key, radius);
             if (dimmed) dc.Pop();
 
             _drawnNotes.Add(new DrawnNote(note.Note, key, column, bounds));
+        }
+    }
+
+    /// <summary>
+    /// A glow rising from the hit line in the column of each key just judged: green for a note
+    /// the song wanted, red for a wrong one. Fades out over <see cref="SongPracticeViewModel.FlashDuration"/>.
+    /// </summary>
+    private void DrawFlashes(DrawingContext dc, SongPracticeViewModel session, KeyboardLayout layout,
+                             double offset, double scale, double height)
+    {
+        var p = _palette!;
+        long now = Stopwatch.GetTimestamp();
+        double glowHeight = Math.Min(height * 0.4, 60);
+
+        foreach (var flash in session.Flashes)
+        {
+            double age = Stopwatch.GetElapsedTime(flash.Timestamp, now) / SongPracticeViewModel.FlashDuration;
+            if (age is < 0 or >= 1 || !layout.Contains(flash.Key)) continue;
+
+            var column = KeyColumn(layout, flash.Key, offset, scale, height);
+            dc.PushOpacity(1 - age);
+            dc.DrawRectangle(flash.Verdict == NoteVerdict.Wrong ? p.WrongGlow : p.CorrectGlow, null,
+                             new Rect(column.X, height - glowHeight, column.Width, glowHeight));
+            dc.Pop();
         }
     }
 
@@ -394,6 +429,9 @@ public class FallingNotesControl : FrameworkElement
         public Pen SoundingEdge { get; }
         public Pen FoldedEdge { get; }
         public Brush FoldedMark { get; }
+        public Pen TargetEdge { get; }
+        public Brush CorrectGlow { get; }
+        public Brush WrongGlow { get; }
 
         private readonly PartColors[] _parts;
 
@@ -415,10 +453,23 @@ public class FallingNotesControl : FrameworkElement
             SoundingEdge = PenOf("Brush.Song.Sounding", 1.5);
             FoldedEdge = PenOf("Brush.Song.Folded", 1, new DashStyle([2, 1.5], 0));
             FoldedMark = Find("Brush.Song.Folded");
+            TargetEdge = PenOf("Brush.Song.Target", 2);
+            CorrectGlow = Glow(Find("Brush.Song.Correct"));
+            WrongGlow = Glow(Find("Brush.Song.Wrong"));
 
             _parts = Enumerable.Range(0, PartColorCount)
                 .Select(i => new PartColors(Find($"Brush.Song.Part{i}")))
                 .ToArray();
+        }
+
+        /// <summary>Solid at the hit line, fading to nothing above it.</summary>
+        private static Brush Glow(Brush themeBrush)
+        {
+            var color = themeBrush is SolidColorBrush solid ? solid.Color : Colors.Gray;
+            var glow = new LinearGradientBrush(Color.FromArgb(0, color.R, color.G, color.B), Color.FromArgb(220, color.R, color.G, color.B),
+                                               new Point(0, 0), new Point(0, 1));
+            glow.Freeze();
+            return glow;
         }
 
         public PartColors Part(int colorIndex) => _parts[((colorIndex % _parts.Length) + _parts.Length) % _parts.Length];

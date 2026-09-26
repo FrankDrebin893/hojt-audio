@@ -9,9 +9,13 @@ namespace PianoMidiVisualizationApp.Services.SongPractice;
 /// a frame late.
 /// </summary>
 /// <remarks>
-/// Position is computed on demand from one (song, wall) anchor pair, so there is no
+/// <para>Position is computed on demand from one (song, wall) anchor pair, so there is no
 /// accumulated per-frame drift. Every change of speed or barrier re-anchors first, so time
-/// spent held at a barrier is not banked and then released as a jump.
+/// spent held at a barrier is not banked and then released as a jump.</para>
+/// <para>A barrier is a wall, never skipped: one set behind the playhead pulls the playhead
+/// back to it. That only ever amounts to the microseconds between computing where the song
+/// must stop (say, the chord right at a loop start just sought to) and setting it here, but
+/// ignoring it instead would let the clock creep on while it claims to be waiting.</para>
 /// </remarks>
 public sealed class SongClock
 {
@@ -56,8 +60,7 @@ public sealed class SongClock
                 ? _anchorSong + ((_wallClock() - _anchorWall) * _speed)
                 : _anchorSong;
 
-            // A barrier behind the anchor is stale (the clock was sought past it), not a wall.
-            return Barrier is { } barrier && raw > barrier && barrier >= _anchorSong ? barrier : raw;
+            return Barrier is { } barrier && raw > barrier ? barrier : raw;
         }
     }
 
@@ -78,23 +81,21 @@ public sealed class SongClock
         IsRunning = false;
     }
 
+    /// <summary>Jumps to <paramref name="songTime"/> and clears the barrier, which belonged to the old place.</summary>
     public void Seek(TimeSpan songTime)
     {
         _anchorSong = songTime;
         _anchorWall = _wallClock();
+        Barrier = null;
     }
 
     public void SetBarrier(TimeSpan? barrier)
     {
         Reanchor();
         Barrier = barrier;
+        if (barrier is { } b && _anchorSong > b)
+            _anchorSong = b;
     }
-
-    /// <summary>
-    /// How long from now, in wall-clock time, until the song reaches <paramref name="songTime"/>
-    /// at the current speed, ignoring the barrier. Negative if it is already behind.
-    /// </summary>
-    public TimeSpan WallTimeUntil(TimeSpan songTime) => (songTime - Position) / _speed;
 
     private void Reanchor()
     {

@@ -206,6 +206,18 @@
                                 </StackPanel>
                             </ToggleButton>
 
+                            <ComboBox Width="108" Height="26" Margin="6,0,0,0"
+                                      ItemsSource="{x:Static vm:SongPracticeViewModel.ModeOptions}"
+                                      SelectedValuePath="Mode"
+                                      SelectedValue="{Binding Mode}"
+                                      ToolTip="Wait for me: the song stops at each of your chords until you play it.&#x0a;Play along: the song keeps going, and notes you miss are counted.">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+
                             <Button Content="✕" Margin="6,0,0,0" Style="{StaticResource Style.IconButton}"
                                     Focusable="False" VerticalAlignment="Center"
                                     Command="{Binding CloseSongCommand}" ToolTip="Close the song"/>
@@ -229,6 +241,45 @@
         <views:FallingNotesControl x:Name="Notes" Grid.Row="1"
                                    Session="{Binding}"
                                    Keyboard="{Binding KeyboardControl, ElementName=Root}"/>
+
+        <!-- Waiting indicator and score, over the top right of the lane -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Margin="0,6,24,0" IsHitTestVisible="False"
+                    Visibility="{Binding HasSong, Converter={StaticResource BoolToVisConverter}}">
+            <Border CornerRadius="9" Padding="8,1" Margin="0,0,10,0" VerticalAlignment="Center"
+                    BorderBrush="{StaticResource Brush.Song.Target}" BorderThickness="1"
+                    Background="{StaticResource Brush.Song.Overlay}"
+                    Visibility="{Binding IsWaiting, Converter={StaticResource BoolToVisConverter}}">
+                <TextBlock Text="Waiting for you" FontSize="11" Foreground="{StaticResource Brush.Song.Target}"/>
+            </Border>
+            <Border CornerRadius="9" Padding="8,1" Background="{StaticResource Brush.Song.Overlay}" VerticalAlignment="Center">
+                <TextBlock FontFamily="Consolas" FontSize="12"><Run
+                        Text="&#x2713; " Foreground="{StaticResource Brush.Song.Correct}"/><Run
+                        Text="{Binding CorrectCount, Mode=OneWay}" Foreground="{StaticResource Brush.Text.Secondary}"/><Run
+                        Text="   &#x2717; " Foreground="{StaticResource Brush.Song.Wrong}"/><Run
+                        Text="{Binding WrongCount, Mode=OneWay}" Foreground="{StaticResource Brush.Text.Secondary}"/><Run
+                        Text="   missed " Foreground="{StaticResource Brush.Text.Muted}"/><Run
+                        Text="{Binding MissedCount, Mode=OneWay}" Foreground="{StaticResource Brush.Text.Secondary}"/></TextBlock>
+            </Border>
+        </StackPanel>
+
+        <!-- End of the song: the score, and a way to go again -->
+        <Border Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="18,12"
+                CornerRadius="6" Background="{StaticResource Brush.SurfaceAlt}"
+                BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
+                Visibility="{Binding IsFinished, Converter={StaticResource BoolToVisConverter}}">
+            <StackPanel>
+                <TextBlock Text="Finished" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center"
+                           Foreground="{StaticResource Brush.Text.Primary}"/>
+                <TextBlock Margin="0,6,0,10" FontSize="12" HorizontalAlignment="Center"
+                           Foreground="{StaticResource Brush.Text.Secondary}"><Run
+                        Text="{Binding CorrectCount, Mode=OneWay}"/><Run Text=" correct · "/><Run
+                        Text="{Binding WrongCount, Mode=OneWay}"/><Run Text=" wrong · "/><Run
+                        Text="{Binding MissedCount, Mode=OneWay}"/><Run Text=" missed"/></TextBlock>
+                <Button HorizontalAlignment="Center" Padding="14,4" Focusable="False"
+                        Command="{Binding TogglePlayCommand}" Content="Play again"/>
+            </StackPanel>
+        </Border>
 
         <!-- No song yet -->
         <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center">
