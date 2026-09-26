@@ -17,6 +17,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>   <!-- title bar -->
             <RowDefinition Height="*"/>      <!-- stage: readout + keyboard, with the settings overlay -->
+            <RowDefinition Height="Auto"/>   <!-- recorder -->
             <RowDefinition Height="Auto"/>   <!-- MIDI log -->
             <RowDefinition Height="Auto"/>   <!-- AI chat -->
             <RowDefinition Height="Auto"/>   <!-- status bar -->
@@ -54,6 +55,8 @@
                                       IsCheckable="True" IsChecked="{Binding IsMidiLogVisible}"/>
                             <MenuItem Header="Status _Bar" InputGestureText="Shift+F1"
                                       IsCheckable="True" IsChecked="{Binding IsStatusBarVisible}"/>
+                            <MenuItem Header="_Recorder" InputGestureText="Shift+F5"
+                                      IsCheckable="True" IsChecked="{Binding IsRecorderVisible}"/>
                             <Separator/>
                             <MenuItem InputGestureText="F11" Command="{Binding ToggleZenModeCommand}">
                                 <MenuItem.Style>
@@ -217,6 +220,10 @@
                                 ToolTip="Clear key highlight"
                                 Visibility="{Binding Settings.IsKeyHighlightEnabled,
                                              Converter={StaticResource BoolToVisConverter}}"/>
+
+                        <!-- Recorder transport: record, play/stop, loop, speed -->
+                        <Rectangle Width="1" Margin="12,3" Fill="{StaticResource Brush.Separator}"/>
+                        <views:RecorderTransport DataContext="{Binding Recorder}" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Border>
 
@@ -293,8 +300,14 @@
             </Border>
         </Grid>
 
+        <!-- ===================== Recorder ===================== -->
+        <Border Grid.Row="2"
+                Visibility="{Binding IsRecorderVisible, Converter={StaticResource BoolToVisConverter}}">
+            <views:RecorderPanel DataContext="{Binding Recorder}"/>
+        </Border>
+
         <!-- ===================== MIDI log ===================== -->
-        <Border Grid.Row="2" Background="{StaticResource Brush.TitleBar}" Height="120" Padding="4"
+        <Border Grid.Row="3" Background="{StaticResource Brush.TitleBar}" Height="120" Padding="4"
                 Visibility="{Binding IsMidiLogVisible, Converter={StaticResource BoolToVisConverter}}">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Text="MIDI Log" Foreground="{StaticResource Brush.Text.Muted}"
@@ -318,13 +331,13 @@
         <!-- ===================== AI chat =====================
              The wrapper carries the visibility binding so it resolves against MainViewModel;
              ChatPanel keeps its own ChatViewModel DataContext. -->
-        <Border Grid.Row="3"
+        <Border Grid.Row="4"
                 Visibility="{Binding IsChatPanelVisible, Converter={StaticResource BoolToVisConverter}}">
             <views:ChatPanel DataContext="{Binding Chat}"/>
         </Border>
 
         <!-- ===================== Status bar ===================== -->
-        <Border Grid.Row="4" Background="{StaticResource Brush.Surface}" Padding="10,4"
+        <Border Grid.Row="5" Background="{StaticResource Brush.Surface}" Padding="10,4"
                 Visibility="{Binding IsStatusBarVisible, Converter={StaticResource BoolToVisConverter}}">
             <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource Brush.Text.Tertiary}" FontSize="12"/>
         </Border>

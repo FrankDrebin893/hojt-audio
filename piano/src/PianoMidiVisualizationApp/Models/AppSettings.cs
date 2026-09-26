@@ -53,6 +53,7 @@ public class AppSettings
     public bool ShowChatPanel { get; set; } = false;
     public bool ShowProgression { get; set; } = true;
     public bool ShowStatusBar { get; set; } = true;
+    public bool ShowRecorder { get; set; } = false;
 
     // Window placement. Nullable so "never saved" is distinguishable from 0.
     public double? WindowLeft { get; set; }
