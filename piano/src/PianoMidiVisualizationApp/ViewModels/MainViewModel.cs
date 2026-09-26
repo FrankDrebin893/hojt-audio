@@ -58,6 +58,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public ChatViewModel Chat { get; }
     public RecorderViewModel Recorder { get; }
     public SongPracticeViewModel SongPractice { get; }
+    public ChordStripViewModel ChordStrip { get; }
 
     [ObservableProperty]
     private string _statusText = "Ready";
@@ -139,6 +140,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private bool _isGrandStaffVisible = true;
 
     /// <summary>
+    /// The diatonic chord strip. Shown only while a key is selected and song practice is off;
+    /// this flag is the user's choice, which those conditions sit on top of.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsZenMode))]
+    private bool _isChordStripVisible = true;
+
+    /// <summary>
     /// Song practice: while on, its falling-notes view takes the readout row, and the grand
     /// staff, readout and circle of fifths that live there are hidden.
     /// </summary>
@@ -163,7 +172,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public bool IsZenMode => !IsChatPanelVisible && !IsMidiLogVisible
                           && !IsProgressionVisible && !IsStatusBarVisible
                           && !IsRecorderVisible && !IsCircleOfFifthsVisible
-                          && !IsGrandStaffVisible && !IsSongPracticeVisible;
+                          && !IsGrandStaffVisible && !IsSongPracticeVisible
+                          && !IsChordStripVisible;
 
     private const int MaxLogLines = 100;
     private const int MaxSavedChords = 8;
@@ -187,6 +197,20 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         SongPractice = new SongPracticeViewModel(PianoKeyboard, PlayNoteOn, PlayNoteOff, status => StatusText = status);
         SongPractice.SongLoaded += (_, _) => IsSongPracticeVisible = true;
+
+        // The strip follows the key, and lights whichever of its chords the readout just read.
+        ChordStrip = new ChordStripViewModel(PianoKeyboard, PlayNoteOn, PlayNoteOff);
+        Settings.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(Settings.CurrentKey))
+                ChordStrip.SetKey(Settings.CurrentKey);
+        };
+        PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(Analysis))
+                ChordStrip.UpdatePlayed(Analysis.RootPitchClass,
+                                        DiatonicChords.MaskOf(PianoKeyboard.GetPressedNotes()));
+        };
 
         _midiInput.NoteOn += OnMidiNoteOn;
         _midiInput.NoteOff += OnMidiNoteOff;
@@ -507,12 +531,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ToggleSongPractice() => IsSongPracticeVisible = !IsSongPracticeVisible;
 
+    [RelayCommand]
+    private void ToggleChordStrip() => IsChordStripVisible = !IsChordStripVisible;
+
     /// <summary>Hiding the practice view pauses the song rather than letting it play on unseen.</summary>
     partial void OnIsSongPracticeVisibleChanged(bool value) => SongPractice.IsActive = value;
 
     private readonly record struct PanelLayout(bool Chat, bool MidiLog, bool Progression, bool StatusBar,
                                                bool Recorder, bool CircleOfFifths, bool GrandStaff,
-                                               bool SongPractice);
+                                               bool SongPractice, bool ChordStrip);
 
     private PanelLayout? _preZenLayout;
 
@@ -522,7 +549,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (IsZenMode)
         {
             // Nothing was saved if the app started in zen — restore a sensible layout instead.
-            var restore = _preZenLayout ?? new PanelLayout(false, false, true, true, false, true, true, false);
+            var restore = _preZenLayout ?? new PanelLayout(false, false, true, true, false, true, true, false, true);
             IsChatPanelVisible = restore.Chat;
             IsMidiLogVisible = restore.MidiLog;
             IsProgressionVisible = restore.Progression;
@@ -531,15 +558,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
             IsCircleOfFifthsVisible = restore.CircleOfFifths;
             IsGrandStaffVisible = restore.GrandStaff;
             IsSongPracticeVisible = restore.SongPractice;
+            IsChordStripVisible = restore.ChordStrip;
         }
         else
         {
             _preZenLayout = new PanelLayout(
                 IsChatPanelVisible, IsMidiLogVisible, IsProgressionVisible, IsStatusBarVisible,
-                IsRecorderVisible, IsCircleOfFifthsVisible, IsGrandStaffVisible, IsSongPracticeVisible);
+                IsRecorderVisible, IsCircleOfFifthsVisible, IsGrandStaffVisible, IsSongPracticeVisible,
+                IsChordStripVisible);
             IsChatPanelVisible = IsMidiLogVisible = IsProgressionVisible = IsStatusBarVisible = false;
             IsRecorderVisible = IsCircleOfFifthsVisible = IsGrandStaffVisible = false;
-            IsSongPracticeVisible = false;
+            IsSongPracticeVisible = IsChordStripVisible = false;
             IsSettingsOverlayVisible = false;
         }
     }
@@ -558,6 +587,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IsRecorderVisible = saved.ShowRecorder;
         IsCircleOfFifthsVisible = saved.ShowCircleOfFifths;
         IsGrandStaffVisible = saved.ShowGrandStaff;
+        IsChordStripVisible = saved.ShowChordStrip;
+        ChordStrip.ShowSevenths = saved.ChordStripSevenths;
         SongPractice.Speed = saved.SongSpeed;
         SongPractice.Mode = Enum.TryParse<Services.SongPractice.PracticeMode>(saved.SongMode, out var mode)
                             && Enum.IsDefined(mode) && !int.TryParse(saved.SongMode, out _)
@@ -584,6 +615,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         saved.ShowCircleOfFifths = IsCircleOfFifthsVisible;
         saved.ShowGrandStaff = IsGrandStaffVisible;
         saved.ShowSongPractice = IsSongPracticeVisible;
+        saved.ShowChordStrip = IsChordStripVisible;
+        saved.ChordStripSevenths = ChordStrip.ShowSevenths;
         saved.SongPath = SongPractice.SongPath;
         saved.SongSpeed = SongPractice.Speed;
         saved.SongMode = SongPractice.Mode.ToString();
@@ -780,6 +813,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // First, while the engine can still take the note-offs the players send on the way out.
         Recorder.Dispose();
         SongPractice.Dispose();
+        ChordStrip.Dispose();
         _activityTimer?.Dispose();
         _midiInput.NoteOn -= OnMidiNoteOn;
         _midiInput.NoteOff -= OnMidiNoteOff;

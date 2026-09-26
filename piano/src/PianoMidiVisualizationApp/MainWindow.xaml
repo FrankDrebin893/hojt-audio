@@ -59,6 +59,8 @@
                                       IsCheckable="True" IsChecked="{Binding IsRecorderVisible}"/>
                             <MenuItem Header="Circle of _Fifths" InputGestureText="Shift+F6"
                                       IsCheckable="True" IsChecked="{Binding IsCircleOfFifthsVisible}"/>
+                            <MenuItem Header="_Chord Strip" InputGestureText="Shift+F7"
+                                      IsCheckable="True" IsChecked="{Binding IsChordStripVisible}"/>
                             <MenuItem Header="_Grand Staff" InputGestureText="Shift+F8"
                                       IsCheckable="True" IsChecked="{Binding IsGrandStaffVisible}"/>
                             <MenuItem Header="Song Prac_tice" InputGestureText="Shift+F9"
@@ -107,6 +109,7 @@
                          The Viewbox scales down to whatever height is left. Trimmed from 170
                          to pay for the key selector without squeezing the keyboard at 900x420. -->
                     <RowDefinition Height="*" MinHeight="140"/>   <!-- readout -->
+                    <RowDefinition Height="Auto"/>                <!-- diatonic chord strip -->
                     <RowDefinition Height="Auto"/>                <!-- practice toolbar -->
                     <RowDefinition Height="Auto"/>                <!-- keyboard -->
                 </Grid.RowDefinitions>
@@ -210,13 +213,39 @@
                                                       RelativeSource={RelativeSource AncestorType=Window},
                                                       Converter={StaticResource BoolToVisConverter}}"/>
 
+                <!-- Diatonic chord strip: the selected key's chords, one tile per degree. Its
+                     24px (22px tiles plus a 2px gap) is taken from the readout row, which is
+                     164px at 900x420 against a 140px MinHeight, so the keyboard keeps its full
+                     size at the minimum window. Hidden with no key selected, and during song
+                     practice, whose falling notes need the keyboard's hint markers to themselves. -->
+                <views:ChordStripControl Grid.Row="1" HorizontalAlignment="Center" Margin="16,0,16,2"
+                                         DataContext="{Binding ChordStrip}">
+                    <views:ChordStripControl.Style>
+                        <Style TargetType="views:ChordStripControl">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding DataContext.IsChordStripVisible,
+                                                   RelativeSource={RelativeSource AncestorType=Window}}" Value="True"/>
+                                        <Condition Binding="{Binding DataContext.IsSongPracticeVisible,
+                                                   RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
+                                        <Condition Binding="{Binding HasChords}" Value="True"/>
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </views:ChordStripControl.Style>
+                </views:ChordStripControl>
+
                 <!-- The keyboard scales to the window. Stretch must be Uniform (never distort a
                      piano) and StretchDirection Both, so it shrinks rather than clipping on a
                      narrow window. MaxHeight stops it from dwarfing the readout on a wide one. -->
                 <!-- Key selector. A practice control, so it lives on the stage rather than
                      behind the settings overlay. Both dropdowns write to Settings, which is
                      what persists them; picking a root turns the highlight on. -->
-                <Border Grid.Row="1" HorizontalAlignment="Center" Margin="0,0,0,6"
+                <Border Grid.Row="2" HorizontalAlignment="Center" Margin="0,0,0,6"
                         Background="{StaticResource Brush.Surface}" CornerRadius="6"
                         Padding="10,5">
                     <Border.Resources>
@@ -404,7 +433,7 @@
                     </Viewbox>
                 </Border>
 
-                <Viewbox Grid.Row="2" Stretch="Uniform" StretchDirection="Both"
+                <Viewbox Grid.Row="3" Stretch="Uniform" StretchDirection="Both"
                          MaxHeight="360" HorizontalAlignment="Center" VerticalAlignment="Bottom"
                          Margin="16,16,16,0" TextOptions.TextFormattingMode="Ideal">
                     <views:PianoKeyboardControl x:Name="PianoKeys" DataContext="{Binding PianoKeyboard}"/>
