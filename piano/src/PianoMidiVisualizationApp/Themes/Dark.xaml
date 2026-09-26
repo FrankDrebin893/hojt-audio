@@ -60,6 +60,13 @@
     <SolidColorBrush x:Key="Brush.Circle.Hover"      Color="#8A8A8A"/>
     <SolidColorBrush x:Key="Brush.Circle.RootMarker" Color="#50A0EB"/>
 
+    <!-- ================= Grand staff =================
+         Lines recede, the clefs and key signature sit a step forward, and the notes you are
+         holding are full white like the chord name, so the eye goes straight to them. -->
+    <SolidColorBrush x:Key="Brush.Staff.Line"   Color="#7A7A7A"/>
+    <SolidColorBrush x:Key="Brush.Staff.Symbol" Color="#AAAAAA"/>
+    <SolidColorBrush x:Key="Brush.Staff.Note"   Color="#FFFFFF"/>
+
     <!-- ================= Readout type scale ================= -->
     <sys:Double x:Key="Size.Readout.Name">64</sys:Double>
     <sys:Double x:Key="Size.Readout.Voicing">14</sys:Double>

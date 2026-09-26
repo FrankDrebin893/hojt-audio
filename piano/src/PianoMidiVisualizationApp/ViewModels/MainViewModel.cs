@@ -133,13 +133,28 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(IsZenMode))]
     private bool _isCircleOfFifthsVisible = true;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsZenMode))]
+    private bool _isGrandStaffVisible = true;
+
+    // ----- Grand staff -----
+
+    /// <summary>The held notes spelled for notation, lowest first. Refreshed with the chord readout.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<SpelledNote> _staffNotes = Array.Empty<SpelledNote>();
+
+    /// <summary>The selected key's signature for the staff; none with no key, as for C major.</summary>
+    [ObservableProperty]
+    private KeySignature _staffSignature = KeySignature.None;
+
     /// <summary>
     /// Derived rather than stored, so it can never desync: turning any panel back on
     /// manually leaves zen mode with no extra bookkeeping.
     /// </summary>
     public bool IsZenMode => !IsChatPanelVisible && !IsMidiLogVisible
                           && !IsProgressionVisible && !IsStatusBarVisible
-                          && !IsRecorderVisible && !IsCircleOfFifthsVisible;
+                          && !IsRecorderVisible && !IsCircleOfFifthsVisible
+                          && !IsGrandStaffVisible;
 
     private const int MaxLogLines = 100;
     private const int MaxSavedChords = 8;
@@ -237,8 +252,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
         });
     }
 
-    private void RefreshAnalysis() =>
-        Analysis = _analyzer.Analyze(PianoKeyboard.GetPressedNotes(), UseFlats);
+    /// <summary>
+    /// Re-reads the held notes into the chord readout and the grand staff. The staff spells
+    /// letter-correctly (E#, Cb) where the readout keeps its simpler sharp-or-flat names.
+    /// </summary>
+    private void RefreshAnalysis()
+    {
+        var pressed = PianoKeyboard.GetPressedNotes().ToList();
+        Analysis = _analyzer.Analyze(pressed, UseFlats);
+        StaffSignature = KeySignature.For(Settings.CurrentKey);
+        StaffNotes = NoteSpeller.SpellChord(pressed, Settings.CurrentKey);
+    }
 
     public void RefreshDevices()
     {
@@ -447,8 +471,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ToggleCircleOfFifths() => IsCircleOfFifthsVisible = !IsCircleOfFifthsVisible;
 
+    [RelayCommand]
+    private void ToggleGrandStaff() => IsGrandStaffVisible = !IsGrandStaffVisible;
+
     private readonly record struct PanelLayout(bool Chat, bool MidiLog, bool Progression, bool StatusBar,
-                                               bool Recorder, bool CircleOfFifths);
+                                               bool Recorder, bool CircleOfFifths, bool GrandStaff);
 
     private PanelLayout? _preZenLayout;
 
@@ -458,21 +485,22 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (IsZenMode)
         {
             // Nothing was saved if the app started in zen — restore a sensible layout instead.
-            var restore = _preZenLayout ?? new PanelLayout(false, false, true, true, false, true);
+            var restore = _preZenLayout ?? new PanelLayout(false, false, true, true, false, true, true);
             IsChatPanelVisible = restore.Chat;
             IsMidiLogVisible = restore.MidiLog;
             IsProgressionVisible = restore.Progression;
             IsStatusBarVisible = restore.StatusBar;
             IsRecorderVisible = restore.Recorder;
             IsCircleOfFifthsVisible = restore.CircleOfFifths;
+            IsGrandStaffVisible = restore.GrandStaff;
         }
         else
         {
             _preZenLayout = new PanelLayout(
                 IsChatPanelVisible, IsMidiLogVisible, IsProgressionVisible, IsStatusBarVisible,
-                IsRecorderVisible, IsCircleOfFifthsVisible);
+                IsRecorderVisible, IsCircleOfFifthsVisible, IsGrandStaffVisible);
             IsChatPanelVisible = IsMidiLogVisible = IsProgressionVisible = IsStatusBarVisible = false;
-            IsRecorderVisible = IsCircleOfFifthsVisible = false;
+            IsRecorderVisible = IsCircleOfFifthsVisible = IsGrandStaffVisible = false;
             IsSettingsOverlayVisible = false;
         }
     }
@@ -490,6 +518,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IsStatusBarVisible = saved.ShowStatusBar;
         IsRecorderVisible = saved.ShowRecorder;
         IsCircleOfFifthsVisible = saved.ShowCircleOfFifths;
+        IsGrandStaffVisible = saved.ShowGrandStaff;
         PianoKeyboard.SetKey(Settings.CurrentKey);
         UpdateAudiblePitchClasses();
         ApplyMetronomeSettings();
@@ -504,6 +533,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         saved.ShowStatusBar = IsStatusBarVisible;
         saved.ShowRecorder = IsRecorderVisible;
         saved.ShowCircleOfFifths = IsCircleOfFifthsVisible;
+        saved.ShowGrandStaff = IsGrandStaffVisible;
         return saved;
     }
 

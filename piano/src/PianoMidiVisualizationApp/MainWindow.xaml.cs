@@ -165,6 +165,9 @@ public partial class MainWindow : Window
             case Key.F6 when shift && !IsTextEntryFocused():
                 vm.ToggleCircleOfFifthsCommand.Execute(null);
                 break;
+            case Key.F8 when shift && !IsTextEntryFocused():
+                vm.ToggleGrandStaffCommand.Execute(null);
+                break;
             case Key.M when ctrl && !IsTextEntryFocused():
                 vm.ToggleMetronomeCommand.Execute(null);
                 break;

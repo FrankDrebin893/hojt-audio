@@ -59,6 +59,8 @@
                                       IsCheckable="True" IsChecked="{Binding IsRecorderVisible}"/>
                             <MenuItem Header="Circle of _Fifths" InputGestureText="Shift+F6"
                                       IsCheckable="True" IsChecked="{Binding IsCircleOfFifthsVisible}"/>
+                            <MenuItem Header="_Grand Staff" InputGestureText="Shift+F8"
+                                      IsCheckable="True" IsChecked="{Binding IsGrandStaffVisible}"/>
                             <Separator/>
                             <MenuItem InputGestureText="F11" Command="{Binding ToggleZenModeCommand}">
                                 <MenuItem.Style>
@@ -150,6 +152,19 @@
                                    Visibility="{Binding Analysis.Name,
                                                 Converter={StaticResource StringToVisibilityConverter}}"/>
                     </StackPanel>
+
+                    <!-- Grand staff: the held notes as a chord of whole notes, spelled for the
+                         selected key. It sizes itself to the room it is given (see
+                         GrandStaffControl), and hugs the left edge like the circle does the right. -->
+                    <views:GrandStaffControl Grid.Column="0" Margin="16,4,8,4"
+                                             HorizontalAlignment="Left" VerticalAlignment="Center"
+                                             Notes="{Binding StaffNotes}"
+                                             Signature="{Binding StaffSignature}"
+                                             LineBrush="{StaticResource Brush.Staff.Line}"
+                                             SymbolBrush="{StaticResource Brush.Staff.Symbol}"
+                                             NoteBrush="{StaticResource Brush.Staff.Note}"
+                                             Visibility="{Binding IsGrandStaffVisible,
+                                                          Converter={StaticResource BoolToVisConverter}}"/>
 
                     <!-- Circle of fifths. Clicking a segment writes the key through these two-way
                          bindings into Settings, which persists it and moves the key pickers. -->
