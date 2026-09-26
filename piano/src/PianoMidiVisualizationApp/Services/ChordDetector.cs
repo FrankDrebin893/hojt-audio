@@ -4,7 +4,11 @@ using Melanchall.DryWetMidi.MusicTheory;
 namespace PianoMidiVisualizationApp.Services;
 
 /// <summary>A detected chord: what to display, and the pitch class its intervals are measured from.</summary>
-public readonly record struct ChordNaming(string Name, int RootPitchClass);
+/// <param name="IsChord">
+/// False for a single note or an unrecognised note list, whose "root" is only the note
+/// itself or the bass, so inversions and voicings mean nothing.
+/// </param>
+public readonly record struct ChordNaming(string Name, int RootPitchClass, bool IsChord);
 
 /// <summary>
 /// Names the chord formed by a set of sounding MIDI notes, using DryWetMIDI's chord tables.
@@ -42,7 +46,10 @@ public partial class ChordDetector
 
         // A single pitch class (one note, or the same note in several octaves) is just that note.
         if (pitchClasses.Length == 1)
-            return new ChordNaming(MusicNaming.PitchClass(pitchClasses[0]), pitchClasses[0]);
+            return new ChordNaming(MusicNaming.PitchClass(pitchClasses[0]), pitchClasses[0], IsChord: false);
+
+        if (ShellOf(pitchClasses) is { } shell)
+            return Named(shell.Name, shell.Root, bassPitchClass);
 
         try
         {
@@ -58,15 +65,7 @@ public partial class ChordDetector
                     .OrderBy(name => ScoreName(name, bassPitchClass))
                     .First();
 
-                int rootPitchClass = RootOf(best) ?? bassPitchClass;
-
-                // Show the inversion. Skip it if the chosen name already carries a slash, since
-                // DryWetMIDI's own "X/Y" form means something different from slash-bass notation.
-                string display = best;
-                if (rootPitchClass != bassPitchClass && !best.Contains('/'))
-                    display = $"{best}/{MusicNaming.PitchClass(bassPitchClass)}";
-
-                return new ChordNaming(display, rootPitchClass);
+                return Named(best, RootOf(best) ?? bassPitchClass, bassPitchClass);
             }
         }
         catch
@@ -77,7 +76,51 @@ public partial class ChordDetector
         // No chord name available (e.g. a bare interval or a cluster): list the pitch classes,
         // and measure intervals from the bass.
         var spelled = pitchClasses.Select(MusicNaming.PitchClass);
-        return new ChordNaming(string.Join("-", spelled), bassPitchClass);
+        return new ChordNaming(string.Join("-", spelled), bassPitchClass, IsChord: false);
+    }
+
+    private static ChordNaming Named(string name, int rootPitchClass, int bassPitchClass)
+    {
+        // Show the inversion. Skip it if the chosen name already carries a slash, since
+        // DryWetMIDI's own "X/Y" form means something different from slash-bass notation.
+        string display = name;
+        if (rootPitchClass != bassPitchClass && !name.Contains('/'))
+            display = $"{name}/{MusicNaming.PitchClass(bassPitchClass)}";
+
+        return new ChordNaming(display, rootPitchClass, IsChord: true);
+    }
+
+    /// <summary>
+    /// Names a three-note shell — root, 3rd and 7th, the 5th left out — as its seventh chord.
+    /// DryWetMIDI can't: it finds nothing for G-B-F and calls C-E-B "E5/C". Only one note of
+    /// such a set can be the root, so the reading is unambiguous.
+    /// </summary>
+    private static (string Name, int Root)? ShellOf(int[] pitchClasses)
+    {
+        if (pitchClasses.Length != 3)
+            return null;
+
+        foreach (int root in pitchClasses)
+        {
+            int intervals = 0;
+            foreach (int pc in pitchClasses)
+                intervals |= 1 << (((pc - root) % 12 + 12) % 12);
+
+            // Suffixes match what ScoreName picks for the full chord, so a shell and its
+            // complete voicing read the same.
+            string? quality = intervals switch
+            {
+                (1 << 0) | (1 << 4) | (1 << 10) => "7",
+                (1 << 0) | (1 << 4) | (1 << 11) => "maj7",
+                (1 << 0) | (1 << 3) | (1 << 10) => "m7",
+                (1 << 0) | (1 << 3) | (1 << 11) => "mM7",
+                _ => null,
+            };
+            if (quality is not null)
+                return (MusicNaming.PitchClass(root) + quality, root);
+        }
+
+        return null;
     }
 
     /// <summary>

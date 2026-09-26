@@ -2,7 +2,7 @@ namespace PianoMidiVisualizationApp.Services;
 
 /// <summary>
 /// Turns the set of currently held notes into what the readout shows: chord name,
-/// the held notes, and each note's interval above the chord root.
+/// inversion and voicing, the held notes, and each note's interval above the chord root.
 /// </summary>
 public class ChordAnalyzer
 {
@@ -60,9 +60,27 @@ public class ChordAnalyzer
             intervalTokens[i] = intervalTokens[i].PadRight(width);
         }
 
+        // A note list's "root" is only its bass, so it has no inversion or voicing to report.
+        var inversion = ChordInversion.None;
+        string voicing = "";
+        if (chord.IsChord)
+        {
+            int mask = 0;
+            foreach (var n in notes)
+                mask |= 1 << MusicNaming.PitchClassOf(n);
+
+            inversion = ChordVoicing.InversionOf(rootPitchClass, mask, MusicNaming.PitchClassOf(notes[0]));
+            voicing = ChordVoicing.Describe(notes, rootPitchClass);
+        }
+
         return new ChordAnalysis(
             MusicNaming.Respell(chord.Name, useFlats),
             string.Join(" ", noteTokens).TrimEnd(),
-            string.Join(" ", intervalTokens).TrimEnd());
+            string.Join(" ", intervalTokens).TrimEnd(),
+            rootPitchClass,
+            voicing)
+        {
+            Inversion = inversion,
+        };
     }
 }

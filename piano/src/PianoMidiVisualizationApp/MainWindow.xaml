@@ -103,10 +103,19 @@
                      text without collapsing the line box and shifting the layout. -->
                 <StackPanel Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Center"
                             Margin="24,12">
+                    <!-- A fixed 70px line pays for the voicing line at 900x420. The font's own
+                         85px line leaves ~20px empty above the tallest glyph; at 70 a slash or
+                         parenthesis still clears the voicing text by the ~4px it used to clear
+                         the notes line by. -->
                     <TextBlock Text="{Binding Analysis.Name}"
                                FontSize="{StaticResource Size.Readout.Name}" FontWeight="Bold"
                                Foreground="{StaticResource Brush.Text.Primary}"
-                               MinHeight="80" TextAlignment="Center"/>
+                               LineStackingStrategy="BlockLineHeight" LineHeight="70"
+                               MinHeight="70" TextAlignment="Center"/>
+                    <TextBlock Text="{Binding Analysis.Voicing}"
+                               FontSize="{StaticResource Size.Readout.Voicing}"
+                               Foreground="{StaticResource Brush.Text.Secondary}"
+                               MinHeight="19" Margin="0,3,0,2" TextAlignment="Center"/>
                     <TextBlock Text="{Binding Analysis.Notes}" FontFamily="Consolas"
                                FontSize="{StaticResource Size.Readout.Notes}"
                                Foreground="{StaticResource Brush.Text.Tertiary}"
@@ -115,7 +124,7 @@
                                FontSize="{StaticResource Size.Readout.Intervals}"
                                Foreground="{StaticResource Brush.Text.Muted}"
                                MinHeight="22" TextAlignment="Center"/>
-                    <TextBlock Text="Space to save" FontSize="11" Margin="0,10,0,0"
+                    <TextBlock Text="Space to save" FontSize="11" Margin="0,4,0,0"
                                Foreground="{StaticResource Brush.Text.Faint}"
                                MinHeight="18" TextAlignment="Center"
                                Visibility="{Binding Analysis.Name,

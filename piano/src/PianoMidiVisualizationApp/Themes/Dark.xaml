@@ -45,6 +45,7 @@
 
     <!-- ================= Readout type scale ================= -->
     <sys:Double x:Key="Size.Readout.Name">64</sys:Double>
+    <sys:Double x:Key="Size.Readout.Voicing">14</sys:Double>
     <sys:Double x:Key="Size.Readout.Notes">18</sys:Double>
     <sys:Double x:Key="Size.Readout.Intervals">14</sys:Double>
 
