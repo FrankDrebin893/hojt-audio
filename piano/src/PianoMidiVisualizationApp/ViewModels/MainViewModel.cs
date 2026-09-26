@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -7,6 +8,7 @@ using PianoMidiVisualizationApp.Audio;
 using PianoMidiVisualizationApp.Midi;
 using PianoMidiVisualizationApp.Models;
 using PianoMidiVisualizationApp.Services;
+using PianoMidiVisualizationApp.Services.Recording;
 
 namespace PianoMidiVisualizationApp.ViewModels;
 
@@ -28,9 +30,33 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// </summary>
     private volatile int _audiblePitchClasses = AllPitchClasses;
 
+    // ----- Live input and app-generated notes share keys, voices and the readout -----
+
+    /// <summary>App-generated notes all sound on MIDI channel 1 (0-based 0).</summary>
+    private const int AppChannel = 0;
+
+    /// <summary>
+    /// Guards the audio bookkeeping below. Live notes arrive on the MIDI callback thread and app
+    /// notes on a player's timing thread, and both engines release every voice on a key with a
+    /// single NoteOff, so each side has to know whether the other still holds that key.
+    /// </summary>
+    private readonly object _soundingLock = new();
+
+    /// <summary>Live notes the engine is sounding, indexed channel * 128 + note.</summary>
+    private readonly bool[] _liveSounding = new bool[16 * 128];
+
+    /// <summary>App note-ons not yet released, per note (all on <see cref="AppChannel"/>).</summary>
+    private readonly int[] _appSounding = new int[128];
+
+    // The same split for the keyboard lights, touched only on the UI thread: a key stays lit
+    // while either source holds it, so one letting go never darkens a key the other still holds.
+    private readonly bool[] _liveHeld = new bool[128];
+    private readonly int[] _appHeld = new int[128];
+
     public PianoKeyboardViewModel PianoKeyboard { get; }
     public SettingsViewModel Settings { get; }
     public ChatViewModel Chat { get; }
+    public RecorderViewModel Recorder { get; }
 
     [ObservableProperty]
     private string _statusText = "Ready";
@@ -79,12 +105,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(IsZenMode))]
     private bool _isStatusBarVisible = true;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsZenMode))]
+    private bool _isRecorderVisible;
+
     /// <summary>
     /// Derived rather than stored, so it can never desync: turning any panel back on
     /// manually leaves zen mode with no extra bookkeeping.
     /// </summary>
     public bool IsZenMode => !IsChatPanelVisible && !IsMidiLogVisible
-                          && !IsProgressionVisible && !IsStatusBarVisible;
+                          && !IsProgressionVisible && !IsStatusBarVisible
+                          && !IsRecorderVisible;
 
     private const int MaxLogLines = 100;
     private const int MaxSavedChords = 8;
@@ -103,6 +134,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var chatService = new ChatService();
         Chat = new ChatViewModel(chatService, GetMusicContext);
 
+        Recorder = new RecorderViewModel(dispatcher, PlayNoteOn, PlayNoteOff,
+                                         () => ExportTempo, status => StatusText = status);
+
         _midiInput.NoteOn += OnMidiNoteOn;
         _midiInput.NoteOff += OnMidiNoteOff;
         _midiInput.MessageReceived += OnRawMidiMessage;
@@ -114,7 +148,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             else if (e.PropertyName == nameof(Settings.AnthropicApiKey))
                 Chat.Configure(Settings.AnthropicApiKey);
             else if (e.PropertyName is nameof(Settings.KeyTonicPitchClass)
-                                    or nameof(Settings.KeyQuality))
+                                    or nameof(Settings.KeyScale))
             {
                 PianoKeyboard.SetKey(Settings.CurrentKey);
                 UpdateAudiblePitchClasses();
@@ -135,6 +169,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Whether note names should read as flats, per the selected key signature.</summary>
     private bool UseFlats => Settings.CurrentKey?.UsesFlats ?? false;
+
+    /// <summary>The tempo written into exported takes.</summary>
+    private int ExportTempo => TakeMidiExporter.DefaultBpm;
 
     private void UpdateAudiblePitchClasses() =>
         _audiblePitchClasses = Settings.MuteOutOfKeyNotes && Settings.CurrentKey is { } key
@@ -328,7 +365,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ToggleStatusBar() => IsStatusBarVisible = !IsStatusBarVisible;
 
-    private readonly record struct PanelLayout(bool Chat, bool MidiLog, bool Progression, bool StatusBar);
+    [RelayCommand]
+    private void ToggleRecorder() => IsRecorderVisible = !IsRecorderVisible;
+
+    private readonly record struct PanelLayout(bool Chat, bool MidiLog, bool Progression, bool StatusBar,
+                                               bool Recorder);
 
     private PanelLayout? _preZenLayout;
 
@@ -338,17 +379,20 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (IsZenMode)
         {
             // Nothing was saved if the app started in zen — restore a sensible layout instead.
-            var restore = _preZenLayout ?? new PanelLayout(false, false, true, true);
+            var restore = _preZenLayout ?? new PanelLayout(false, false, true, true, false);
             IsChatPanelVisible = restore.Chat;
             IsMidiLogVisible = restore.MidiLog;
             IsProgressionVisible = restore.Progression;
             IsStatusBarVisible = restore.StatusBar;
+            IsRecorderVisible = restore.Recorder;
         }
         else
         {
             _preZenLayout = new PanelLayout(
-                IsChatPanelVisible, IsMidiLogVisible, IsProgressionVisible, IsStatusBarVisible);
+                IsChatPanelVisible, IsMidiLogVisible, IsProgressionVisible, IsStatusBarVisible,
+                IsRecorderVisible);
             IsChatPanelVisible = IsMidiLogVisible = IsProgressionVisible = IsStatusBarVisible = false;
+            IsRecorderVisible = false;
             IsSettingsOverlayVisible = false;
         }
     }
@@ -364,6 +408,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IsChatPanelVisible = saved.ShowChatPanel;
         IsProgressionVisible = saved.ShowProgression;
         IsStatusBarVisible = saved.ShowStatusBar;
+        IsRecorderVisible = saved.ShowRecorder;
         PianoKeyboard.SetKey(Settings.CurrentKey);
         UpdateAudiblePitchClasses();
     }
@@ -375,6 +420,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         saved.ShowChatPanel = IsChatPanelVisible;
         saved.ShowProgression = IsProgressionVisible;
         saved.ShowStatusBar = IsStatusBarVisible;
+        saved.ShowRecorder = IsRecorderVisible;
         return saved;
     }
 
@@ -440,34 +486,131 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private void OnMidiNoteOn(object? sender, NoteEventArgs e)
     {
+        // Timestamped first, before the audio engine or anything else can delay it.
+        long timestamp = Stopwatch.GetTimestamp();
+        Recorder.CaptureNoteOn(e.NoteNumber, e.Velocity, timestamp);
+
         // An out-of-key note is silenced, not swallowed: it still lights its key and still
         // counts toward the chord readout, so you can see what you actually played.
-        if ((_audiblePitchClasses & (1 << MusicNaming.PitchClassOf(e.NoteNumber))) != 0)
-            _audioEngine.NoteOn(e.Channel, e.NoteNumber, e.Velocity);
+        bool audible = (_audiblePitchClasses & (1 << MusicNaming.PitchClassOf(e.NoteNumber))) != 0;
 
-        _dispatcher.BeginInvoke(() =>
+        lock (_soundingLock)
         {
-            PianoKeyboard.SetKeyPressed(e.NoteNumber, e.Velocity);
-            RefreshAnalysis();
-        });
+            if (audible)
+            {
+                _audioEngine.NoteOn(e.Channel, e.NoteNumber, e.Velocity);
+                if (TryGetSlot(e.Channel, e.NoteNumber, out int slot))
+                    _liveSounding[slot] = true;
+            }
+
+            _dispatcher.BeginInvoke(() =>
+            {
+                if (IsNote(e.NoteNumber)) _liveHeld[e.NoteNumber] = true;
+                PianoKeyboard.SetKeyPressed(e.NoteNumber, e.Velocity);
+                RefreshAnalysis();
+            });
+        }
     }
 
     private void OnMidiNoteOff(object? sender, NoteEventArgs e)
     {
-        // Always released, never gated: a note-off for a note that never sounded is a no-op,
-        // whereas gating here would strand a note that was audible when the key changed
-        // under it and would then sustain forever.
-        _audioEngine.NoteOff(e.Channel, e.NoteNumber);
+        long timestamp = Stopwatch.GetTimestamp();
+        Recorder.CaptureNoteOff(e.NoteNumber, timestamp);
 
-        _dispatcher.BeginInvoke(() =>
+        lock (_soundingLock)
         {
-            PianoKeyboard.SetKeyReleased(e.NoteNumber);
-            RefreshAnalysis();
-        });
+            bool appHoldsKey = false;
+            if (TryGetSlot(e.Channel, e.NoteNumber, out int slot))
+            {
+                _liveSounding[slot] = false;
+                appHoldsKey = e.Channel == AppChannel && _appSounding[e.NoteNumber] > 0;
+            }
+
+            // Always released, never gated: a note-off for a note that never sounded is a no-op,
+            // whereas gating here would strand a note that was audible when the key changed
+            // under it and would then sustain forever. The one exception is a key an app note is
+            // also sounding: releasing it would cut that note short, and the app's own note-off
+            // releases the key once it is done with it.
+            if (!appHoldsKey)
+                _audioEngine.NoteOff(e.Channel, e.NoteNumber);
+
+            _dispatcher.BeginInvoke(() =>
+            {
+                if (IsNote(e.NoteNumber))
+                {
+                    _liveHeld[e.NoteNumber] = false;
+                    if (_appHeld[e.NoteNumber] > 0) return;   // still held by an app note
+                }
+                PianoKeyboard.SetKeyReleased(e.NoteNumber);
+                RefreshAnalysis();
+            });
+        }
+    }
+
+    /// <summary>
+    /// Sounds a note the app generated itself: playback, a clicked chord, a practice prompt.
+    /// It bypasses mute-out-of-key, lights the key and feeds the chord readout just like a live
+    /// note, but is never recorded. Pair every call with <see cref="PlayNoteOff"/>. Safe from any
+    /// thread, including a <see cref="Services.Playback.NoteSequencePlayer"/>'s timing thread.
+    /// </summary>
+    public void PlayNoteOn(int note, int velocity)
+    {
+        if (!IsNote(note)) return;
+        velocity = Math.Clamp(velocity, 1, 127);
+
+        // BeginInvoke inside the lock, so the UI sees on/off pairs in the order the audio engine
+        // did, even when two players touch the same key from different threads.
+        lock (_soundingLock)
+        {
+            _appSounding[note]++;
+            _audioEngine.NoteOn(AppChannel, note, velocity);
+
+            _dispatcher.BeginInvoke(() =>
+            {
+                _appHeld[note]++;
+                PianoKeyboard.SetKeyPressed(note, velocity);
+                RefreshAnalysis();
+            });
+        }
+    }
+
+    /// <summary>Releases a note started by <see cref="PlayNoteOn"/>. An unmatched call is ignored.</summary>
+    public void PlayNoteOff(int note)
+    {
+        if (!IsNote(note)) return;
+
+        lock (_soundingLock)
+        {
+            if (_appSounding[note] == 0) return;
+            _appSounding[note]--;
+
+            // Also held live on the same channel: the voice carries on as the live note, and the
+            // live key's note-off releases it.
+            if (_appSounding[note] == 0 && !_liveSounding[AppChannel * 128 + note])
+                _audioEngine.NoteOff(AppChannel, note);
+
+            _dispatcher.BeginInvoke(() =>
+            {
+                if (_appHeld[note] > 0) _appHeld[note]--;
+                if (_appHeld[note] > 0 || _liveHeld[note]) return;
+                PianoKeyboard.SetKeyReleased(note);
+                RefreshAnalysis();
+            });
+        }
+    }
+
+    private static bool IsNote(int note) => note is >= 0 and <= 127;
+
+    private static bool TryGetSlot(int channel, int note, out int slot)
+    {
+        slot = channel * 128 + note;
+        return channel is >= 0 and <= 15 && IsNote(note);
     }
 
     public void Dispose()
     {
+        // First, while the engine can still take the note-offs the player sends on the way out.
+        Recorder.Dispose();
         _activityTimer?.Dispose();
         _midiInput.NoteOn -= OnMidiNoteOn;
         _midiInput.NoteOff -= OnMidiNoteOff;

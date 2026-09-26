@@ -88,6 +88,24 @@ public class PianoKeyboardViewModel : ObservableObject
     /// <summary>Every sounding note, including any outside the drawn range.</summary>
     public IEnumerable<int> GetPressedNotes() => _pressedNotes;
 
+    /// <summary>
+    /// Marks exactly these MIDI notes as hinted and un-hints every other key, so each call
+    /// replaces the previous hint rather than adding to it. Notes outside the drawn range are
+    /// ignored. Call on the UI thread, like the other key setters.
+    /// </summary>
+    public void SetHintedNotes(IEnumerable<int> noteNumbers)
+    {
+        var hinted = noteNumbers.ToHashSet();
+        foreach (var key in Keys)
+            key.IsHinted = hinted.Contains(key.NoteNumber);
+    }
+
+    public void ClearHints()
+    {
+        foreach (var key in Keys)
+            key.IsHinted = false;
+    }
+
     public static bool IsBlackKey(int noteNumber)
     {
         return (noteNumber % 12) is 1 or 3 or 6 or 8 or 10;

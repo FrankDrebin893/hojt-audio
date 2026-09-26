@@ -50,6 +50,11 @@ public partial class PianoKeyboardControl : UserControl
     private static readonly LinearGradientBrush BlackKeyInKeyGradient;
     private static readonly LinearGradientBrush BlackKeyTonicGradient;
 
+    // Hints (the app suggesting a key) are an overlay, not a fill, so they can sit on top of
+    // any fill. Magenta is the one hue clear of all of them: blue pressed, green in-key, amber
+    // tonic, ivory and black.
+    private static readonly SolidColorBrush HintBrush = new(Color.FromRgb(232, 62, 156));
+
     private static readonly SolidColorBrush KeyBorder = new(Color.FromRgb(60, 60, 60));
     private static readonly SolidColorBrush WhiteKeyLabel = new(Color.FromRgb(130, 130, 125));
     private static readonly SolidColorBrush BlackKeyLabel = new(Color.FromRgb(140, 140, 140));
@@ -58,6 +63,9 @@ public partial class PianoKeyboardControl : UserControl
 
     /// <summary>Labels are tracked too, because the selected key re-spells their text.</summary>
     private readonly Dictionary<int, TextBlock> _keyLabels = new();
+
+    /// <summary>Each key's hint overlay, collapsed until the key is hinted.</summary>
+    private readonly Dictionary<int, Grid> _keyHints = new();
 
     static PianoKeyboardControl()
     {
@@ -92,6 +100,7 @@ public partial class PianoKeyboardControl : UserControl
         WhiteKeyPressedGradient.Freeze();
         WhiteKeyInKeyGradient.Freeze();
         WhiteKeyTonicGradient.Freeze();
+        HintBrush.Freeze();
     }
 
     /// <summary>
@@ -141,6 +150,7 @@ public partial class PianoKeyboardControl : UserControl
         PianoCanvas.Children.Clear();
         _keyRectangles.Clear();
         _keyLabels.Clear();
+        _keyHints.Clear();
 
         // First pass: draw white keys and their labels
         int whiteKeyIndex = 0;
@@ -155,6 +165,10 @@ public partial class PianoKeyboardControl : UserControl
                 var label = CreateWhiteKeyLabel(whiteKeyIndex, key);
                 PianoCanvas.Children.Add(label);
                 _keyLabels[key.NoteNumber] = label;
+
+                var hint = CreateKeyHint(whiteKeyIndex * WhiteKeyWidth, key);
+                PianoCanvas.Children.Add(hint);
+                _keyHints[key.NoteNumber] = hint;
 
                 whiteKeyIndex++;
             }
@@ -175,6 +189,10 @@ public partial class PianoKeyboardControl : UserControl
                 var label = CreateBlackKeyLabel(x, key);
                 PianoCanvas.Children.Add(label);
                 _keyLabels[key.NoteNumber] = label;
+
+                var hint = CreateKeyHint(x, key);
+                PianoCanvas.Children.Add(hint);
+                _keyHints[key.NoteNumber] = hint;
             }
             else
             {
@@ -182,10 +200,13 @@ public partial class PianoKeyboardControl : UserControl
             }
         }
 
-        // Paint in the current scale roles. Done after registration rather than inside the
-        // Create* helpers so a key signature chosen before this control existed still shows.
+        // Paint in the current scale roles and hints. Done after registration rather than inside
+        // the Create* helpers so a key or hint set before this control existed still shows.
         foreach (var key in vm.Keys)
+        {
             ApplyKeyFill(key);
+            ApplyKeyHint(key);
+        }
 
         // Size the canvas to the keys actually drawn. The Viewbox divides by this, so it is what
         // makes a narrower range render larger rather than leaving a gap.
@@ -301,6 +322,51 @@ public partial class PianoKeyboardControl : UserControl
         return label;
     }
 
+    /// <summary>
+    /// An inset outline plus a dot above the label: the outline marks the whole key, the dot
+    /// stays findable on a white key's lower half, where black keys never cover it.
+    /// </summary>
+    /// <remarks>
+    /// A white key's hint shares its Z-index, so the black keys drawn later still cover it;
+    /// a black key's sits above the key itself, level with its label.
+    /// </remarks>
+    private static Grid CreateKeyHint(double x, PianoKey key)
+    {
+        double width = key.IsBlack ? BlackKeyWidth : WhiteKeyWidth - 1;
+        double height = key.IsBlack ? BlackKeyHeight : WhiteKeyHeight;
+        double dot = key.IsBlack ? 7 : 8;
+
+        var hint = new Grid
+        {
+            Width = width,
+            Height = height,
+            IsHitTestVisible = false,
+            Visibility = Visibility.Collapsed
+        };
+        hint.Children.Add(new Rectangle
+        {
+            Margin = new Thickness(key.IsBlack ? 1.5 : 2),
+            Stroke = HintBrush,
+            StrokeThickness = key.IsBlack ? 1.5 : 2,
+            RadiusX = 2,
+            RadiusY = 2
+        });
+        hint.Children.Add(new Ellipse
+        {
+            Width = dot,
+            Height = dot,
+            Fill = HintBrush,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, 0, key.IsBlack ? 22 : 32)
+        });
+
+        Canvas.SetLeft(hint, x);
+        Canvas.SetTop(hint, 0);
+        Panel.SetZIndex(hint, key.IsBlack ? 2 : 0);
+        return hint;
+    }
+
     private double GetBlackKeyX(int noteNumber, PianoKeyboardViewModel vm)
     {
         // Count white keys before this black key
@@ -349,6 +415,12 @@ public partial class PianoKeyboardControl : UserControl
             };
     }
 
+    private void ApplyKeyHint(PianoKey key)
+    {
+        if (_keyHints.TryGetValue(key.NoteNumber, out var hint))
+            hint.Visibility = key.IsHinted ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     private void OnKeyPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (sender is not PianoKey key) return;
@@ -358,6 +430,10 @@ public partial class PianoKeyboardControl : UserControl
             case nameof(PianoKey.IsPressed):
             case nameof(PianoKey.ScaleRole):
                 ApplyKeyFill(key);
+                break;
+
+            case nameof(PianoKey.IsHinted):
+                ApplyKeyHint(key);
                 break;
 
             case nameof(PianoKey.NoteName):

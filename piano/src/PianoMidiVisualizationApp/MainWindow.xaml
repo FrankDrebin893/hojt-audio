@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:PianoMidiVisualizationApp.Views"
+        xmlns:vm="clr-namespace:PianoMidiVisualizationApp.ViewModels"
         Title="Piano MIDI Visualization"
         Width="1400" Height="620"
         MinWidth="900" MinHeight="420"
@@ -16,6 +17,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>   <!-- title bar -->
             <RowDefinition Height="*"/>      <!-- stage: readout + keyboard, with the settings overlay -->
+            <RowDefinition Height="Auto"/>   <!-- recorder -->
             <RowDefinition Height="Auto"/>   <!-- MIDI log -->
             <RowDefinition Height="Auto"/>   <!-- AI chat -->
             <RowDefinition Height="Auto"/>   <!-- status bar -->
@@ -53,6 +55,8 @@
                                       IsCheckable="True" IsChecked="{Binding IsMidiLogVisible}"/>
                             <MenuItem Header="Status _Bar" InputGestureText="Shift+F1"
                                       IsCheckable="True" IsChecked="{Binding IsStatusBarVisible}"/>
+                            <MenuItem Header="_Recorder" InputGestureText="Shift+F5"
+                                      IsCheckable="True" IsChecked="{Binding IsRecorderVisible}"/>
                             <Separator/>
                             <MenuItem InputGestureText="F11" Command="{Binding ToggleZenModeCommand}">
                                 <MenuItem.Style>
@@ -136,10 +140,20 @@
                      narrow window. MaxHeight stops it from dwarfing the readout on a wide one. -->
                 <!-- Key selector. A practice control, so it lives on the stage rather than
                      behind the settings overlay. Both dropdowns write to Settings, which is
-                     what persists them; picking from either one turns the highlight on. -->
+                     what persists them; picking a root turns the highlight on. -->
                 <Border Grid.Row="1" HorizontalAlignment="Center" Margin="0,0,0,6"
                         Background="{StaticResource Brush.Surface}" CornerRadius="6"
                         Padding="10,5">
+                    <Border.Resources>
+                        <!-- Grouping by ScaleOption.Group is what draws the scale list's
+                             section headers. The source is static, so no DataContext needed. -->
+                        <CollectionViewSource x:Key="ScaleOptionsView"
+                                              Source="{x:Static vm:SettingsViewModel.ScaleOptions}">
+                            <CollectionViewSource.GroupDescriptions>
+                                <PropertyGroupDescription PropertyName="Group"/>
+                            </CollectionViewSource.GroupDescriptions>
+                        </CollectionViewSource>
+                    </Border.Resources>
                     <Border.Style>
                         <Style TargetType="Border">
                             <Setter Property="Visibility" Value="Visible"/>
@@ -173,11 +187,26 @@
                             </ComboBox.ItemTemplate>
                         </ComboBox>
 
-                        <ComboBox Width="92" Height="26" Margin="6,0,0,0"
-                                  ItemsSource="{Binding Settings.KeyQualities}"
-                                  SelectedValuePath="Quality"
-                                  SelectedValue="{Binding Settings.KeyQuality}"
-                                  ToolTip="Major or natural minor">
+                        <!-- Not synchronised with the view's current item: that would select
+                             its first entry (Major) on load and write it over the saved scale. -->
+                        <ComboBox Width="136" Height="26" Margin="6,0,0,0"
+                                  ItemsSource="{Binding Source={StaticResource ScaleOptionsView}}"
+                                  IsSynchronizedWithCurrentItem="False"
+                                  SelectedValuePath="Scale"
+                                  SelectedValue="{Binding Settings.KeyScale}"
+                                  MaxDropDownHeight="480"
+                                  ToolTip="Scale the key is built on">
+                            <ComboBox.GroupStyle>
+                                <GroupStyle>
+                                    <GroupStyle.HeaderTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Name}" FontSize="10"
+                                                       FontWeight="SemiBold" Margin="8,6,8,2"
+                                                       Foreground="{StaticResource Brush.Text.Faint}"/>
+                                        </DataTemplate>
+                                    </GroupStyle.HeaderTemplate>
+                                </GroupStyle>
+                            </ComboBox.GroupStyle>
                             <ComboBox.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding Name}"/>
@@ -200,6 +229,10 @@
                                 ToolTip="Clear key highlight"
                                 Visibility="{Binding Settings.IsKeyHighlightEnabled,
                                              Converter={StaticResource BoolToVisConverter}}"/>
+
+                        <!-- Recorder transport: record, play/stop, loop, speed -->
+                        <Rectangle Width="1" Margin="12,3" Fill="{StaticResource Brush.Separator}"/>
+                        <views:RecorderTransport DataContext="{Binding Recorder}" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Border>
 
@@ -276,8 +309,14 @@
             </Border>
         </Grid>
 
+        <!-- ===================== Recorder ===================== -->
+        <Border Grid.Row="2"
+                Visibility="{Binding IsRecorderVisible, Converter={StaticResource BoolToVisConverter}}">
+            <views:RecorderPanel DataContext="{Binding Recorder}"/>
+        </Border>
+
         <!-- ===================== MIDI log ===================== -->
-        <Border Grid.Row="2" Background="{StaticResource Brush.TitleBar}" Height="120" Padding="4"
+        <Border Grid.Row="3" Background="{StaticResource Brush.TitleBar}" Height="120" Padding="4"
                 Visibility="{Binding IsMidiLogVisible, Converter={StaticResource BoolToVisConverter}}">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Text="MIDI Log" Foreground="{StaticResource Brush.Text.Muted}"
@@ -301,13 +340,13 @@
         <!-- ===================== AI chat =====================
              The wrapper carries the visibility binding so it resolves against MainViewModel;
              ChatPanel keeps its own ChatViewModel DataContext. -->
-        <Border Grid.Row="3"
+        <Border Grid.Row="4"
                 Visibility="{Binding IsChatPanelVisible, Converter={StaticResource BoolToVisConverter}}">
             <views:ChatPanel DataContext="{Binding Chat}"/>
         </Border>
 
         <!-- ===================== Status bar ===================== -->
-        <Border Grid.Row="4" Background="{StaticResource Brush.Surface}" Padding="10,4"
+        <Border Grid.Row="5" Background="{StaticResource Brush.Surface}" Padding="10,4"
                 Visibility="{Binding IsStatusBarVisible, Converter={StaticResource BoolToVisConverter}}">
             <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource Brush.Text.Tertiary}" FontSize="12"/>
         </Border>
