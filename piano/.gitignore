@@ -1,7 +1,9 @@
 bin/
 obj/
 .vs/
-.claude/
+# Local Claude Code state stays out; project skills are shared.
+.claude/*
+!.claude/skills/
 publish/
 *.user
 *.suo

@@ -40,8 +40,14 @@ Never commit SoundFonts or samples (`.sf2`/`.sfz`/`.wav`, ...): they're third-pa
 downloads with their own licenses, and the workflow fails if any are tracked. When adding
 or removing a NuGet package, update `THIRD-PARTY-NOTICES.txt`.
 
+## README
+Use the `update-readme` skill (`.claude/skills/update-readme/`) to refresh the README. Its
+screenshots in `docs/screenshots/` are rendered off-screen from the real UI by the skill's
+harness — never take desktop screenshots of the app.
+
 ## Tech Stack
 - C# / .NET 10 / WPF
 - NAudio 2.2.1 (MIDI input, ASIO/WASAPI audio output)
 - MeltySynth 2.4.1 (SoundFont synthesis)
+- Melanchall.DryWetMidi 8.0.3 (MIDI files, chord naming)
 - CommunityToolkit.Mvvm 8.4.0 (MVVM)
