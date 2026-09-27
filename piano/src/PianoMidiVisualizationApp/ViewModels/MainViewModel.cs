@@ -604,6 +604,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IsGrandStaffVisible = saved.ShowGrandStaff;
         IsChordStripVisible = saved.ShowChordStrip;
         ChordStrip.ShowSevenths = saved.ChordStripSevenths;
+        PianoKeyboard.ShowAllNoteNames = saved.ShowAllNoteNames;
         SongPractice.Speed = saved.SongSpeed;
         SongPractice.Mode = Enum.TryParse<Services.SongPractice.PracticeMode>(saved.SongMode, out var mode)
                             && Enum.IsDefined(mode) && !int.TryParse(saved.SongMode, out _)
@@ -633,6 +634,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         saved.ShowSongPractice = IsSongPracticeVisible;
         saved.ShowChordStrip = IsChordStripVisible;
         saved.ChordStripSevenths = ChordStrip.ShowSevenths;
+        saved.ShowAllNoteNames = PianoKeyboard.ShowAllNoteNames;
         saved.SongPath = SongPractice.SongPath;
         saved.SongSpeed = SongPractice.Speed;
         saved.SongMode = SongPractice.Mode.ToString();

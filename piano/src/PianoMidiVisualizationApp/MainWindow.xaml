@@ -68,6 +68,11 @@
                             <MenuItem Header="_Open MIDI Song…" InputGestureText="Ctrl+O"
                                       Command="{Binding SongPractice.OpenSongCommand}"/>
                             <Separator/>
+                            <!-- A keyboard option, not a panel, so zen mode leaves it alone. -->
+                            <MenuItem Header="All _Note Names" IsCheckable="True"
+                                      IsChecked="{Binding PianoKeyboard.ShowAllNoteNames}"
+                                      ToolTip="Label every key. Off, only the Cs and the keys you hold are labelled."/>
+                            <Separator/>
                             <MenuItem InputGestureText="F11" Command="{Binding ToggleZenModeCommand}">
                                 <MenuItem.Style>
                                     <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
@@ -177,7 +182,7 @@
                                    Foreground="{StaticResource Brush.Text.Muted}"
                                    MinHeight="18" TextAlignment="Center"/>
                         <TextBlock Text="Space to save" FontSize="11" Margin="0,4,0,0"
-                                   Foreground="{StaticResource Brush.Text.Faint}"
+                                   Foreground="{StaticResource Brush.Text.Hint}"
                                    MinHeight="18" TextAlignment="Center"
                                    Visibility="{Binding Analysis.Name,
                                                 Converter={StaticResource StringToVisibilityConverter}}"/>

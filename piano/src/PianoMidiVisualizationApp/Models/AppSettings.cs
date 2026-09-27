@@ -68,6 +68,9 @@ public class AppSettings
     // Diatonic chord strip: seventh chords rather than triads.
     public bool ChordStripSevenths { get; set; }
 
+    // Keyboard: label every key, not just the Cs and the keys being held.
+    public bool ShowAllNoteNames { get; set; }
+
     // Song practice: the song reopens on launch while practice is on. Speed is clamped on load.
     public string? SongPath { get; set; }
     public double SongSpeed { get; set; } = 1.0;
