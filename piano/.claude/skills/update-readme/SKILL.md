@@ -84,8 +84,9 @@ With no scene names it renders all of them. Output goes to `docs/screenshots/` (
 to change it), at 1.5x (`--scale N`), so the images stay sharp on HiDPI screens. It exits
 non-zero if a scene throws or logs a WPF binding error, and prints each file's size.
 
-- **Re-render only scenes whose UI changed.** Each render differs byte-wise (the MIDI log has
-  real timestamps), so re-rendering everything bloats git history for nothing.
+- Renders are deterministic, so an unchanged UI gives a byte-identical PNG and git ignores it.
+  The exception is `recorder`, whose MIDI log shows the time of day and so always changes.
+  Commit it only when its UI actually changed (`git checkout -- docs/screenshots/recorder.png`).
 - **Look at every image you render** with the Read tool. That's safe, because it's a render of
   the app, not the screen. Check that the readout says what the scene intended, nothing is
   clipped, and no panel sits empty or shows leftover state.
@@ -97,6 +98,10 @@ Harness mechanics worth knowing if it breaks:
   with `ShowInTaskbar=false`, so it never appears on the desktop.
 - The project must stay `SelfContained` with `RuntimeIdentifier=win-x64`, like the app, or the
   build fails with NETSDK1151.
+- **Stale WPF resources**: the build regenerates `obj/**/PianoMidiVisualizationApp.g.resources`
+  only when a resource *file* is newer than it. Adding a `<Resource>` item for an old file (as
+  happened with `app.png`) leaves it out, in the harness and in `dotnet publish` alike. After
+  any change to `<Resource>` items, delete that file or build with `--no-incremental`.
 
 ## 4. Edit the README
 
