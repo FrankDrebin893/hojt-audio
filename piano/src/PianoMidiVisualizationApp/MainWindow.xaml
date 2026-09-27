@@ -104,11 +104,14 @@
 
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
+                    <!-- Song practice moves the practice toolbar up here, out of the way of the
+                         falling notes: they have to land directly on the keys. Empty otherwise. -->
+                    <RowDefinition Height="Auto"/>                <!-- practice toolbar, song practice -->
                     <!-- MinHeight reserves the readout's own lines: on a wide but short window
                          the Auto keyboard row would otherwise take everything and clip it.
                          The Viewbox scales down to whatever height is left. Trimmed from 170
                          to pay for the key selector without squeezing the keyboard at 900x420. -->
-                    <RowDefinition Height="*" MinHeight="140"/>   <!-- readout -->
+                    <RowDefinition Height="*" MinHeight="140"/>   <!-- readout, or song practice -->
                     <RowDefinition Height="Auto"/>                <!-- diatonic chord strip -->
                     <RowDefinition Height="Auto"/>                <!-- practice toolbar -->
                     <RowDefinition Height="Auto"/>                <!-- keyboard -->
@@ -119,7 +122,7 @@
                      the readout leaves, so it stays centred whichever side panels are shown. Each
                      side panel should hug its outer edge: its column's width changes with the
                      chord name's length, and a panel centred in it would slide as you played. -->
-                <Grid Grid.Row="0">
+                <Grid Grid.Row="1">
                     <!-- Song practice takes this row over, hiding all three columns together. -->
                     <Grid.Style>
                         <Style TargetType="Grid">
@@ -206,8 +209,10 @@
                                                               Converter={StaticResource BoolToVisConverter}}"/>
                 </Grid>
 
-                <!-- Song practice: notes fall toward the keyboard, in its key columns. -->
-                <views:SongPracticePanel Grid.Row="0" DataContext="{Binding SongPractice}"
+                <!-- Song practice: notes fall onto the keyboard, in its key columns. Nothing sits
+                     between them: the chord strip is hidden and the practice toolbar moves to the
+                     top row, so the bottom of the lane, its hit line, is the keys' top edge. -->
+                <views:SongPracticePanel Grid.Row="1" DataContext="{Binding SongPractice}"
                                          KeyboardControl="{Binding ElementName=PianoKeys}"
                                          Visibility="{Binding DataContext.IsSongPracticeVisible,
                                                       RelativeSource={RelativeSource AncestorType=Window},
@@ -218,7 +223,7 @@
                      164px at 900x420 against a 140px MinHeight, so the keyboard keeps its full
                      size at the minimum window. Hidden with no key selected, and during song
                      practice, whose falling notes need the keyboard's hint markers to themselves. -->
-                <views:ChordStripControl Grid.Row="1" HorizontalAlignment="Center" Margin="16,0,16,2"
+                <views:ChordStripControl Grid.Row="2" HorizontalAlignment="Center" Margin="16,0,16,2"
                                          DataContext="{Binding ChordStrip}">
                     <views:ChordStripControl.Style>
                         <Style TargetType="views:ChordStripControl">
@@ -239,15 +244,10 @@
                     </views:ChordStripControl.Style>
                 </views:ChordStripControl>
 
-                <!-- The keyboard scales to the window. Stretch must be Uniform (never distort a
-                     piano) and StretchDirection Both, so it shrinks rather than clipping on a
-                     narrow window. MaxHeight stops it from dwarfing the readout on a wide one. -->
                 <!-- Key selector. A practice control, so it lives on the stage rather than
                      behind the settings overlay. Both dropdowns write to Settings, which is
                      what persists them; picking a root turns the highlight on. -->
-                <Border Grid.Row="2" HorizontalAlignment="Center" Margin="0,0,0,6"
-                        Background="{StaticResource Brush.Surface}" CornerRadius="6"
-                        Padding="10,5">
+                <Border CornerRadius="6">
                     <Border.Resources>
                         <!-- Grouping by ScaleOption.Group is what draws the scale list's
                              section headers. The source is static, so no DataContext needed. -->
@@ -258,12 +258,28 @@
                             </CollectionViewSource.GroupDescriptions>
                         </CollectionViewSource>
                     </Border.Resources>
+                    <!-- Placement is all Setters, not attributes: a local value would outrank the
+                         song practice trigger. Song practice lifts the toolbar to the top row as
+                         a flat line on the stage, so the song bar stays the one panel above the
+                         lane. Its 12px padding starts "Key" 28px in, level with the Open glyph. -->
                     <Border.Style>
                         <Style TargetType="Border">
                             <Setter Property="Visibility" Value="Visible"/>
+                            <Setter Property="Grid.Row" Value="3"/>
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                            <Setter Property="Margin" Value="0,0,0,6"/>
+                            <Setter Property="Padding" Value="10,5"/>
+                            <Setter Property="Background" Value="{StaticResource Brush.Surface}"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsZenMode}" Value="True">
                                     <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
+                                    <Setter Property="Grid.Row" Value="0"/>
+                                    <Setter Property="HorizontalAlignment" Value="Left"/>
+                                    <Setter Property="Margin" Value="16,6,16,0"/>
+                                    <Setter Property="Padding" Value="12,0"/>
+                                    <Setter Property="Background" Value="Transparent"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -424,8 +440,20 @@
                         </ComboBox>
                     </StackPanel>
 
-                    <!-- Recorder transport: record, play/stop, loop, speed -->
+                    <!-- Recorder transport: record, play/stop, loop, speed. Song practice has a
+                         transport of its own, and two side by side read as one, so there this
+                         one moves into the recorder panel and shows only while that is open.
+                         Ctrl+R records a practice run either way. -->
                     <StackPanel Orientation="Horizontal">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
                         <Rectangle Width="1" Margin="12,3" Fill="{StaticResource Brush.Separator}"/>
                         <views:RecorderTransport DataContext="{Binding Recorder}" VerticalAlignment="Center"/>
                     </StackPanel>
@@ -433,9 +461,24 @@
                     </Viewbox>
                 </Border>
 
-                <Viewbox Grid.Row="3" Stretch="Uniform" StretchDirection="Both"
+                <!-- The keyboard scales to the window. Stretch must be Uniform (never distort a
+                     piano) and StretchDirection Both, so it shrinks rather than clipping on a
+                     narrow window. MaxHeight stops it from dwarfing the readout on a wide one.
+                     The keys start at the top of the canvas, so in song practice, with no top
+                     margin, the falling notes' hit line is exactly the keys' top edge. -->
+                <Viewbox Grid.Row="4" Stretch="Uniform" StretchDirection="Both"
                          MaxHeight="360" HorizontalAlignment="Center" VerticalAlignment="Bottom"
-                         Margin="16,16,16,0" TextOptions.TextFormattingMode="Ideal">
+                         TextOptions.TextFormattingMode="Ideal">
+                    <Viewbox.Style>
+                        <Style TargetType="Viewbox">
+                            <Setter Property="Margin" Value="16,16,16,0"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
+                                    <Setter Property="Margin" Value="16,0"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Viewbox.Style>
                     <views:PianoKeyboardControl x:Name="PianoKeys" DataContext="{Binding PianoKeyboard}"/>
                 </Viewbox>
             </Grid>
@@ -472,7 +515,9 @@
         <!-- ===================== Recorder ===================== -->
         <Border Grid.Row="2"
                 Visibility="{Binding IsRecorderVisible, Converter={StaticResource BoolToVisConverter}}">
-            <views:RecorderPanel DataContext="{Binding Recorder}"/>
+            <views:RecorderPanel DataContext="{Binding Recorder}"
+                                 ShowTransport="{Binding DataContext.IsSongPracticeVisible,
+                                                 RelativeSource={RelativeSource AncestorType=Window}}"/>
         </Border>
 
         <!-- ===================== MIDI log ===================== -->

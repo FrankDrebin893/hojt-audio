@@ -70,6 +70,24 @@
             <Setter Property="Background" Value="Transparent"/>
         </Style>
 
+        <!-- A number and its − and + buttons, boxed like an input field, so the three read as
+             one control. Unboxed, a range read "1 + – – 4 +": the range dash ran into the minus
+             buttons on either side of it. -->
+        <Style x:Key="Style.SongStepper" TargetType="Border">
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="{StaticResource Brush.Input}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="3"/>
+        </Style>
+
+        <Style x:Key="Style.SongStepButton" TargetType="Button" BasedOn="{StaticResource Style.SongButton}">
+            <Setter Property="MinWidth" Value="22"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+
         <Style x:Key="Style.SongSeparator" TargetType="Rectangle">
             <Setter Property="Width" Value="1"/>
             <Setter Property="Margin" Value="10,3"/>
@@ -93,8 +111,10 @@
             <RowDefinition Height="*"/>      <!-- falling notes -->
         </Grid.RowDefinitions>
 
-        <!-- ===================== Transport ===================== -->
-        <Border Grid.Row="0" Margin="16,8,16,6" Padding="8,4" CornerRadius="6"
+        <!-- ===================== Transport =====================
+             The practice toolbar sits in a flat row above this (see MainWindow), so the top
+             margin matches the 6px the lane is given below. -->
+        <Border Grid.Row="0" Margin="16,6,16,6" Padding="8,4" CornerRadius="6"
                 Background="{StaticResource Brush.Surface}">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -161,17 +181,24 @@
 
                             <Rectangle Style="{StaticResource Style.SongSeparator}"/>
 
-                            <TextBlock Text="Speed" Style="{StaticResource Style.SongLabel}" Margin="0,0,4,0"/>
-                            <Button Content="&#x2212;" Style="{StaticResource Style.SongButton}"
-                                    Command="{Binding DecreaseSpeedCommand}" ToolTip="Slower"/>
-                            <TextBlock Text="{Binding SpeedText}" Style="{StaticResource Style.SongValue}" Width="38"
-                                       PreviewMouseWheel="Speed_PreviewMouseWheel"
-                                       ToolTip="Playback speed, 25% to 100%. Scroll to change."/>
-                            <Button Content="+" Style="{StaticResource Style.SongButton}"
-                                    Command="{Binding IncreaseSpeedCommand}" ToolTip="Faster"/>
+                            <TextBlock Text="Speed" Style="{StaticResource Style.SongLabel}" Margin="0,0,6,0"/>
+                            <Border Style="{StaticResource Style.SongStepper}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="&#x2212;" Style="{StaticResource Style.SongStepButton}"
+                                            Command="{Binding DecreaseSpeedCommand}" ToolTip="Slower"/>
+                                    <TextBlock Text="{Binding SpeedText}" Style="{StaticResource Style.SongValue}" Width="38"
+                                               PreviewMouseWheel="Speed_PreviewMouseWheel"
+                                               ToolTip="Playback speed, 25% to 100%. Scroll to change."/>
+                                    <Button Content="+" Style="{StaticResource Style.SongStepButton}"
+                                            Command="{Binding IncreaseSpeedCommand}" ToolTip="Faster"/>
+                                </StackPanel>
+                            </Border>
 
                             <Rectangle Style="{StaticResource Style.SongSeparator}"/>
 
+                            <!-- Reads as a sentence, "Loop bars 1 to 4", with each bar number in
+                                 its own stepper box: "to" rather than a dash, which looked like
+                                 one more minus button between them. -->
                             <ToggleButton Style="{StaticResource Style.SongButton}" IsChecked="{Binding IsLoopEnabled}"
                                           ToolTip="Loop a range of bars">
                                 <StackPanel Orientation="Horizontal">
@@ -179,22 +206,30 @@
                                     <TextBlock Text="Loop" Margin="6,0,2,0" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </ToggleButton>
-                            <TextBlock Text="bars" Style="{StaticResource Style.SongLabel}" Margin="8,0,4,0"/>
-                            <Button Content="&#x2212;" Style="{StaticResource Style.SongButton}" MinWidth="20"
-                                    Command="{Binding LoopStartEarlierCommand}" ToolTip="Loop from an earlier bar"/>
-                            <TextBlock Text="{Binding LoopStartBar}" Style="{StaticResource Style.SongValue}" MinWidth="24"
-                                       PreviewMouseWheel="LoopStart_PreviewMouseWheel"
-                                       ToolTip="First bar of the loop. Scroll to change."/>
-                            <Button Content="+" Style="{StaticResource Style.SongButton}" MinWidth="20"
-                                    Command="{Binding LoopStartLaterCommand}" ToolTip="Loop from a later bar"/>
-                            <TextBlock Text="–" Style="{StaticResource Style.SongLabel}" Margin="4,0"/>
-                            <Button Content="&#x2212;" Style="{StaticResource Style.SongButton}" MinWidth="20"
-                                    Command="{Binding LoopEndEarlierCommand}" ToolTip="Loop to an earlier bar"/>
-                            <TextBlock Text="{Binding LoopEndBar}" Style="{StaticResource Style.SongValue}" MinWidth="24"
-                                       PreviewMouseWheel="LoopEnd_PreviewMouseWheel"
-                                       ToolTip="Last bar of the loop. Scroll to change."/>
-                            <Button Content="+" Style="{StaticResource Style.SongButton}" MinWidth="20"
-                                    Command="{Binding LoopEndLaterCommand}" ToolTip="Loop to a later bar"/>
+                            <TextBlock Text="Bars" Style="{StaticResource Style.SongLabel}" Margin="8,0,6,0"/>
+                            <Border Style="{StaticResource Style.SongStepper}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="&#x2212;" Style="{StaticResource Style.SongStepButton}"
+                                            Command="{Binding LoopStartEarlierCommand}" ToolTip="Loop from an earlier bar"/>
+                                    <TextBlock Text="{Binding LoopStartBar}" Style="{StaticResource Style.SongValue}" MinWidth="24"
+                                               PreviewMouseWheel="LoopStart_PreviewMouseWheel"
+                                               ToolTip="First bar of the loop. Scroll to change."/>
+                                    <Button Content="+" Style="{StaticResource Style.SongStepButton}"
+                                            Command="{Binding LoopStartLaterCommand}" ToolTip="Loop from a later bar"/>
+                                </StackPanel>
+                            </Border>
+                            <TextBlock Text="to" Style="{StaticResource Style.SongLabel}" Margin="6,0"/>
+                            <Border Style="{StaticResource Style.SongStepper}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="&#x2212;" Style="{StaticResource Style.SongStepButton}"
+                                            Command="{Binding LoopEndEarlierCommand}" ToolTip="Loop to an earlier bar"/>
+                                    <TextBlock Text="{Binding LoopEndBar}" Style="{StaticResource Style.SongValue}" MinWidth="24"
+                                               PreviewMouseWheel="LoopEnd_PreviewMouseWheel"
+                                               ToolTip="Last bar of the loop. Scroll to change."/>
+                                    <Button Content="+" Style="{StaticResource Style.SongStepButton}"
+                                            Command="{Binding LoopEndLaterCommand}" ToolTip="Loop to a later bar"/>
+                                </StackPanel>
+                            </Border>
 
                             <Rectangle Style="{StaticResource Style.SongSeparator}"/>
 
