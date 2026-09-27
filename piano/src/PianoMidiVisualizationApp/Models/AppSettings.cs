@@ -71,6 +71,10 @@ public class AppSettings
     // Keyboard: label every key, not just the Cs and the keys being held.
     public bool ShowAllNoteNames { get; set; }
 
+    // "Don't show again" on the first-run setup checklist. The title bar's status chip still
+    // shows what isn't ready, so this only hides the checklist.
+    public bool HideSetupChecklist { get; set; }
+
     // Song practice: the song reopens on launch while practice is on. Speed is clamped on load.
     public string? SongPath { get; set; }
     public double SongSpeed { get; set; } = 1.0;

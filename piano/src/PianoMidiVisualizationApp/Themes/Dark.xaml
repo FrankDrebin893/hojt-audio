@@ -46,6 +46,155 @@
     <SolidColorBrush x:Key="Brush.Midi.Active"    Color="#00FF00"/>
     <SolidColorBrush x:Key="Brush.Log.Text"       Color="#00DD00"/>
 
+    <!-- ================= Setup and status =================
+         The key amber, the app's one brand hue (the tonic keys' fill), marks what needs you:
+         the title bar's status chip while the keyboard or audio isn't ready, and the next step
+         of the first-run checklist. Whatever is fine stays a quiet grey. -->
+    <SolidColorBrush x:Key="Brush.Attention"           Color="#F2C978"/>
+    <SolidColorBrush x:Key="Brush.Attention.Ink"       Color="#1E1A12"/>   <!-- text on an amber fill -->
+    <SolidColorBrush x:Key="Brush.Attention.Border"    Color="#7E6128"/>
+    <SolidColorBrush x:Key="Brush.Attention.Fill"      Color="#2E2618"/>   <!-- on the title bar -->
+    <SolidColorBrush x:Key="Brush.Attention.Wash"      Color="#43392A"/>   <!-- on the stage -->
+    <SolidColorBrush x:Key="Brush.Attention.WashHover" Color="#4F432F"/>
+    <SolidColorBrush x:Key="Brush.Stage.Hover"         Color="#3E3E3E"/>   <!-- Brush.Hover is the stage colour -->
+    <SolidColorBrush x:Key="Brush.Status.Ok"           Color="#8A8A84"/>
+    <SolidColorBrush x:Key="Brush.Status.Activity"     Color="#FFFDF2"/>   <!-- a note played -->
+
+    <!-- The title bar's status chip (DataContext: MainViewModel). Never focusable: a focused
+         button would claim Space, the save-chord shortcut. The colours are all Setters, since
+         a local value would outrank the triggers. -->
+    <Style x:Key="Style.StatusChip" TargetType="Button">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Height" Value="22"/>
+        <Setter Property="Padding" Value="8,0,10,0"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Separator}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Tertiary}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}" CornerRadius="11"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource Brush.Hover}"/>
+                <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
+            </Trigger>
+            <DataTrigger Binding="{Binding StatusNeedsAttention}" Value="True">
+                <Setter Property="Background" Value="{StaticResource Brush.Attention.Fill}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource Brush.Attention.Border}"/>
+                <Setter Property="Foreground" Value="{StaticResource Brush.Attention}"/>
+            </DataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding StatusNeedsAttention}" Value="True"/>
+                    <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource Self}}" Value="True"/>
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Background" Value="{StaticResource Brush.Attention.Wash}"/>
+            </MultiDataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- The chip's dot: grey while all is well, amber while something isn't, and a flash of
+         ivory with each note played. -->
+    <Style x:Key="Style.StatusDot" TargetType="Ellipse">
+        <Setter Property="Width" Value="7"/>
+        <Setter Property="Height" Value="7"/>
+        <Setter Property="Fill" Value="{StaticResource Brush.Status.Ok}"/>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding StatusNeedsAttention}" Value="True">
+                <Setter Property="Fill" Value="{StaticResource Brush.Attention}"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding IsKeyActivity}" Value="True">
+                <Setter Property="Fill" Value="{StaticResource Brush.Status.Activity}"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- One step of the setup checklist (DataContext: SetupStep). A row button: flat until
+         hovered, except the next step to do, which sits on an amber wash. Not focusable, for
+         Space's sake, like the chip. -->
+    <Style x:Key="Style.SetupStep" TargetType="Button">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Height" Value="26"/>
+        <Setter Property="Padding" Value="6,0,12,0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}"/>
+        <Setter Property="ToolTip" Value="{Binding ToolTip}"/>
+        <Setter Property="AutomationProperties.Name" Value="{Binding Title}"/>
+        <Setter Property="AutomationProperties.HelpText" Value="{Binding Detail}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"
+                            CornerRadius="4" SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource Brush.Stage.Hover}"/>
+                <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
+            </Trigger>
+            <DataTrigger Binding="{Binding State}" Value="Next">
+                <Setter Property="Background" Value="{StaticResource Brush.Attention.Wash}"/>
+                <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
+            </DataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding State}" Value="Next"/>
+                    <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource Self}}" Value="True"/>
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Background" Value="{StaticResource Brush.Attention.WashHover}"/>
+            </MultiDataTrigger>
+            <DataTrigger Binding="{Binding State}" Value="Done">
+                <Setter Property="Foreground" Value="{StaticResource Brush.Text.Tertiary}"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- A quiet text button under or beside the checklist: "Settings", "Don't show again". -->
+    <Style x:Key="Style.SetupLink" TargetType="Button">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Padding" Value="6,2"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Tertiary}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"
+                            CornerRadius="3" SnapsToDevicePixels="True">
+                        <ContentPresenter VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource Brush.Stage.Hover}"/>
+                <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
     <!-- ================= Metronome beat light ================= -->
     <SolidColorBrush x:Key="Brush.Metronome.Off"    Color="#777777"/>
     <SolidColorBrush x:Key="Brush.Metronome.On"     Color="#6F93B8"/>
@@ -633,6 +782,15 @@
                                           Margin="{TemplateBinding Padding}"
                                           HorizontalAlignment="Left" VerticalAlignment="Center"/>
 
+                        <!-- What an empty selection reads as, taken from Tag: the key picker's
+                             "No key". Tag rather than a new property, so any ComboBox can opt
+                             in with one attribute; without a Tag it stays blank as before. -->
+                        <TextBlock x:Name="Placeholder" Visibility="Collapsed" IsHitTestVisible="False"
+                                   Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                   Foreground="{StaticResource Brush.Text.Tertiary}"
+                                   Margin="{TemplateBinding Padding}"
+                                   HorizontalAlignment="Left" VerticalAlignment="Center"/>
+
                         <Popup x:Name="PART_Popup" AllowsTransparency="False" Focusable="False"
                                IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom"
                                PopupAnimation="None"
@@ -653,6 +811,9 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Foreground" Value="{StaticResource Brush.Text.Disabled}"/>
+                        </Trigger>
+                        <Trigger Property="SelectedItem" Value="{x:Null}">
+                            <Setter TargetName="Placeholder" Property="Visibility" Value="Visible"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
