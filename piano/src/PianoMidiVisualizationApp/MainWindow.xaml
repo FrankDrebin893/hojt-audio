@@ -353,15 +353,6 @@
                     </TextBlock>
                 </Grid>
 
-                <!-- Song practice: notes fall onto the keyboard, in its key columns. Nothing sits
-                     between them: the chord strip is hidden and the practice toolbar moves to the
-                     top row, so the bottom of the lane, its hit line, is the keys' top edge. -->
-                <views:SongPracticePanel Grid.Row="1" DataContext="{Binding SongPractice}"
-                                         KeyboardControl="{Binding ElementName=PianoKeys}"
-                                         Visibility="{Binding DataContext.IsSongPracticeVisible,
-                                                      RelativeSource={RelativeSource AncestorType=Window},
-                                                      Converter={StaticResource BoolToVisConverter}}"/>
-
                 <!-- Diatonic chord strip: the selected key's chords, one tile per degree. Its
                      24px (22px tiles plus a 2px gap) is taken from the readout row, which is
                      164px at 900x420 against a 140px MinHeight, so the keyboard keeps its full
@@ -617,6 +608,17 @@
                     </StackPanel>
                     </Viewbox>
                 </Border>
+
+                <!-- Song practice: notes fall onto the keyboard, in its key columns. Nothing sits
+                     between them: the chord strip is hidden and the practice toolbar moves to the
+                     top row, so the bottom of the lane, its hit line, is the keys' top edge.
+                     Declared after the toolbar, not beside the readout it replaces: tab order
+                     follows the tree, and the toolbar sits above the song bar. -->
+                <views:SongPracticePanel Grid.Row="1" DataContext="{Binding SongPractice}"
+                                         KeyboardControl="{Binding ElementName=PianoKeys}"
+                                         Visibility="{Binding DataContext.IsSongPracticeVisible,
+                                                      RelativeSource={RelativeSource AncestorType=Window},
+                                                      Converter={StaticResource BoolToVisConverter}}"/>
 
                 <!-- The keyboard scales to the window. Stretch must be Uniform (never distort a
                      piano) and StretchDirection Both, so it shrinks rather than clipping on a
