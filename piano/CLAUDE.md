@@ -30,6 +30,16 @@ Copy-Item "D:\Repos\PianoMidiVisualizationApp\src\PianoMidiVisualizationApp\bin\
 The copy fails while the app is running — close it first (`Get-Process
 PianoMidiVisualizationApp`), and verify afterwards that the target's timestamp moved.
 
+## Releasing
+`.github/workflows/release.yml` builds the release zip (exe + `LICENSE` +
+`THIRD-PARTY-NOTICES.txt`) on every push to main as a workflow artifact. Pushing a tag
+`vX.Y.Z` also publishes it as a public GitHub Release — only tag when the user asks.
+`.github/release-notes.md` is prepended to the generated notes.
+
+Never commit SoundFonts or samples (`.sf2`/`.sfz`/`.wav`, ...): they're third-party
+downloads with their own licenses, and the workflow fails if any are tracked. When adding
+or removing a NuGet package, update `THIRD-PARTY-NOTICES.txt`.
+
 ## Tech Stack
 - C# / .NET 10 / WPF
 - NAudio 2.2.1 (MIDI input, ASIO/WASAPI audio output)
