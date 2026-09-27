@@ -45,7 +45,7 @@ Then read the sources of truth. The README should match these, not the other way
 | Keyboard shortcuts | `MainWindow.xaml.cs` `Window_KeyDown`, plus `InputGestureText` in the View menu. |
 | Keyboard range | `PianoKeyboardViewModel` constructor defaults (currently C2–C7, 61 keys). |
 | Scales | `Services/ScaleType.cs` and `SettingsViewModel.ScaleOptions`. |
-| Setup steps | `Views/SettingsPanel.xaml` (labels such as **SF2:**, **Start Audio**). |
+| Setup steps | `Views/SettingsPanel.xaml` (labels such as **Piano sound**, **Start audio**). |
 | Download / install text | `.github/release-notes.md`. Keep the two consistent. |
 | Tech stack | `PackageReference`s in `src/PianoMidiVisualizationApp/PianoMidiVisualizationApp.csproj`. `THIRD-PARTY-NOTICES.txt` must list the same packages. |
 | AI assistant | `Services/ChatService.cs`: which provider and model it calls, and what context it sends. |
@@ -118,7 +118,7 @@ Keep this shape unless there's a reason to change it:
    **Building**, **Running**, **Tech stack**, **License**.
 
 Style: plain, concrete sentences. Name the actual UI labels in bold (**View → Settings…**,
-**Start Audio**). Image paths are relative (`docs/screenshots/recorder.png`) with real alt
+**Start audio**). Image paths are relative (`docs/screenshots/recorder.png`) with real alt
 text. Don't promise features that are only planned.
 
 ## 5. Check before committing

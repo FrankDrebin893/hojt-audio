@@ -138,19 +138,19 @@ Get the latest `win-x64.zip` from [Releases](https://github.com/FrankDrebin893/P
 
 ## Getting started
 
-![The settings bar across the top of the window, with MIDI device, Connect/Disconnect and activity light, ASIO or WASAPI, the audio driver, the SoundFont path, Start Audio and Stop, volume and click sliders, and the AI key field.](docs/screenshots/settings.png)
+![Settings across the top of the window: the keyboard with Connect/Disconnect, activity light and refresh; the ASIO or WASAPI output and its device; the piano sound file with Choose…, Start audio and Stop; the volume and click sliders; and the Gemini key field. Below them, Piano controls for mapping pads and buttons.](docs/screenshots/settings.png)
 
 1. Open **View → Settings…** (**Ctrl+,**).
-2. Select your MIDI keyboard from the **MIDI** dropdown and click **Connect**.
-3. Click **...** next to **SF2** to choose a SoundFont or SFZ file.
-4. Choose **ASIO** or **WASAPI**, and select your audio driver.
-5. Click **Start Audio**.
+2. Select your MIDI keyboard from the **Keyboard** dropdown and click **Connect**.
+3. Choose **ASIO** or **WASAPI** under **Output**, and select your audio device.
+4. Click **Choose…** next to **Piano sound** to pick a SoundFont or SFZ file.
+5. Click **Start audio**.
 6. Play. You'll hear sound and see the keys light up. Pick a **Key** in the toolbar to turn on
    the Roman numerals, chord strip and key tinting.
 
 The dot next to **Connect** turns green once the keyboard is connected and flashes when MIDI
-data arrives. **Vol** sets the master volume and **Click** the metronome. To use the AI
-assistant, paste your Gemini API key into **AI**.
+data arrives. **Volume** sets the master volume and **Click** the metronome. To use the AI
+assistant, paste your Gemini API key into **Gemini key**.
 
 ## Building
 

@@ -1,5 +1,6 @@
 using NAudio.Midi;
 using PianoMidiVisualizationApp.Models;
+using PianoMidiVisualizationApp.Services;
 
 namespace PianoMidiVisualizationApp.Midi;
 
@@ -75,7 +76,9 @@ public class MidiInputService : IMidiInputService
 
                     MessageReceived?.Invoke(this, new RawMidiMessageEventArgs
                     {
-                        Description = $"NoteOn Ch{noteEvt.Channel} Note={noteEvt.NoteNumber} ({noteEvt.NoteName}) Vel={velocity}"
+                        // MusicNaming, not NAudio's NoteName: NAudio counts octaves from 0 at MIDI
+                        // note 0, so it calls middle C "C5" where the keyboard and readout say C4.
+                        Description = $"NoteOn Ch{noteEvt.Channel} Note={noteEvt.NoteNumber} ({MusicNaming.WithOctave(noteEvt.NoteNumber)}) Vel={velocity}"
                     });
 
                     if (velocity > 0)

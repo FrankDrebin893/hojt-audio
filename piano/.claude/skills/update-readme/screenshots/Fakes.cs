@@ -25,8 +25,8 @@ internal sealed class FakeMidiInput : IMidiInputService
     public void PressKey(int note, int velocity)
     {
         Raw("NoteOn", 0x90 | note << 8 | velocity << 16);
-        // NAudio names octaves from 0 at MIDI note 0, so middle C reads "C5" in the real log.
-        Log($"NoteOn Ch1 Note={note} ({NoteNames[note % 12]}{note / 12}) Vel={velocity}");
+        // Middle C (60) is "C4", as the keyboard and the real log (MusicNaming.WithOctave) name it.
+        Log($"NoteOn Ch1 Note={note} ({NoteNames[note % 12]}{note / 12 - 1}) Vel={velocity}");
         NoteOn?.Invoke(this, new NoteEventArgs { NoteNumber = note, Velocity = velocity, Channel = 0 });
     }
 

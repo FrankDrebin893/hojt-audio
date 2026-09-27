@@ -106,11 +106,29 @@
                 </Button>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <Button Content="─" Click="MinimizeButton_Click" ToolTip="Minimise"
+                    <Button Content="&#xE921;" Click="MinimizeButton_Click" ToolTip="Minimise"
+                            AutomationProperties.Name="Minimise"
                             Style="{StaticResource Style.TitleBarButton}"/>
-                    <Button Content="□" Click="MaximizeButton_Click" FontSize="14" ToolTip="Maximise"
-                            Style="{StaticResource Style.TitleBarButton}"/>
-                    <Button Content="✕" Click="CloseButton_Click" ToolTip="Close"
+                    <!-- Maximise, or Restore once maximised, as Windows' own caption buttons do. -->
+                    <Button Click="MaximizeButton_Click">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource Style.TitleBarButton}">
+                                <Setter Property="Content" Value="&#xE922;"/>
+                                <Setter Property="ToolTip" Value="Maximise"/>
+                                <Setter Property="AutomationProperties.Name" Value="Maximise"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                 Value="Maximized">
+                                        <Setter Property="Content" Value="&#xE923;"/>
+                                        <Setter Property="ToolTip" Value="Restore"/>
+                                        <Setter Property="AutomationProperties.Name" Value="Restore"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="&#xE8BB;" Click="CloseButton_Click" ToolTip="Close"
+                            AutomationProperties.Name="Close"
                             Style="{StaticResource Style.TitleBarClose}"/>
                 </StackPanel>
             </Grid>
@@ -481,6 +499,25 @@
                             </ComboBox.ItemTemplate>
                         </ComboBox>
 
+                        <!-- Clears the key, beside the pickers it resets rather than after "Mute
+                             out-of-key", where it read as closing that. Hidden, not collapsed, with
+                             no key, so picking one doesn't shunt the rest of the toolbar sideways. -->
+                        <Button Content="&#xE711;" Margin="2,0,0,0" VerticalAlignment="Center"
+                                Command="{Binding ClearKeyCommand}"
+                                ToolTip="No key: clear the key and its highlight"
+                                AutomationProperties.Name="Clear the key">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource Style.GlyphButton}">
+                                    <Setter Property="Visibility" Value="Hidden"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Settings.IsKeyHighlightEnabled}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+
                         <!-- Disabled rather than hidden with no key selected: muting is
                              meaningless then, but hiding it would make it undiscoverable. Its
                              tooltip still shows while disabled, and says why. -->
@@ -500,14 +537,6 @@
                                 </Style>
                             </CheckBox.Style>
                         </CheckBox>
-
-                        <Button Content="✕" Width="24" Height="24" Margin="6,0,0,0"
-                                Style="{StaticResource Style.IconButton}"
-                                Command="{Binding ClearKeyCommand}"
-                                VerticalAlignment="Center"
-                                ToolTip="Clear key highlight"
-                                Visibility="{Binding Settings.IsKeyHighlightEnabled,
-                                             Converter={StaticResource BoolToVisConverter}}"/>
                     </StackPanel>
 
                     <!-- Metronome. None of its buttons take focus: a focused button would claim
@@ -673,8 +702,9 @@
                     BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,0,0,1"
                     Visibility="{Binding IsSettingsOverlayVisible, Converter={StaticResource BoolToVisConverter}}">
                 <DockPanel>
-                    <Button DockPanel.Dock="Right" Content="✕" Width="32" Height="32"
-                            Style="{StaticResource Style.IconButton}"
+                    <Button DockPanel.Dock="Right" Content="&#xE711;" Width="32" Height="32" FontSize="12"
+                            Style="{StaticResource Style.GlyphButton}"
+                            AutomationProperties.Name="Close settings"
                             Command="{Binding CloseSettingsOverlayCommand}"
                             VerticalAlignment="Top" Margin="4,4,8,0"
                             ToolTip="Close settings (Esc)"/>

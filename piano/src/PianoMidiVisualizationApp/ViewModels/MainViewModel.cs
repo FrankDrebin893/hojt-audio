@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -137,6 +138,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>The line under the readout: how to save the chord, or that it was.</summary>
     [ObservableProperty]
     private string _saveHint = "Space to save";
+
+    /// <summary>The empty progression sidebar's line: how a chord gets there, with any learned control.</summary>
+    [ObservableProperty]
+    private string _progressionEmptyHint = "Hold a chord and press Space to add it here.";
 
     /// <summary>
     /// The root of what is sounding right now, for the circle of fifths' root outline. Unlike
@@ -479,13 +484,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private void UpdateSaveHint()
     {
-        string howToSave = PianoControls.TriggerFor(PianoAction.SaveChord) is { } trigger
-            ? $"Space or {trigger.DisplayName} to save"
-            : "Space to save";
+        string saveKeys = PianoControls.TriggerFor(PianoAction.SaveChord) is { } trigger
+            ? $"Space or {trigger.DisplayName}"
+            : "Space";
 
         SaveHint = _readoutSaved ? $"Saved · {SavedChords.Count}/{MaxSavedChords}"
                  : SavedChords.Count >= MaxSavedChords ? $"Progression full · {MaxSavedChords}/{MaxSavedChords}"
-                 : howToSave;
+                 : $"{saveKeys} to save";
+        ProgressionEmptyHint = $"Hold a chord and press {saveKeys} to add it here.";
     }
 
     /// <summary>Re-reads every saved chord's numeral in the current key. At most eight chords, all cached.</summary>
@@ -851,9 +857,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         _dispatcher.BeginInvoke(() =>
         {
+            // Not the status bar: a message per note there buried every status ("Saved chord: G7",
+            // "Audio stopped") within a keypress. The MIDI log and the activity dot carry them.
             MidiActivity = true;
             LastMidiMessage = e.Description;
-            StatusText = e.Description;
             AppendLog(e.Description);
 
             // Turn off the activity light after 80ms
@@ -868,7 +875,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>UI thread. Adds a line to the MIDI log, dropping the oldest past <see cref="MaxLogLines"/>.</summary>
     private void AppendLog(string line)
     {
-        MidiLog.Add($"[{DateTime.Now:HH:mm:ss.fff}] {line}");
+        // Invariant: a format's ":" is the culture's time separator, so Danish Windows printed
+        // "22.06.13.526", the seconds indistinguishable from the milliseconds.
+        MidiLog.Add($"[{DateTime.Now.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture)}] {line}");
         while (MidiLog.Count > MaxLogLines)
             MidiLog.RemoveAt(0);
     }

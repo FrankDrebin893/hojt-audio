@@ -328,7 +328,8 @@ public partial class ProgressionToolsViewModel : ObservableObject, IDisposable
 
         if (_chords.Count == 0)
         {
-            SuggestionsHeader = "Save a chord to see what could follow";
+            // Short enough for the sidebar at its narrowest; the header's tooltip says the rest.
+            SuggestionsHeader = "Save a chord first";
             return;
         }
 

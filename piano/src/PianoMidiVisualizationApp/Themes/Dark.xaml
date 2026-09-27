@@ -2,6 +2,16 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=System.Runtime">
 
+    <!-- ================= Icons ================= -->
+    <!-- The one icon set: Segoe MDL2 Assets, which every supported Windows ships. Glyph buttons
+         use these codes rather than Unicode look-alikes (✕, ↻, □), whose weight and size
+         change with the text font around them. First in the file: a StaticResource can't see
+         a key defined below it, and a style that misses this one falls back to a text font
+         and draws empty boxes.
+         Close / remove / clear: E711. Title bar: E921 minimise, E922 maximise, E923 restore,
+         E8BB close. Refresh: E72C. -->
+    <FontFamily x:Key="Font.Icon">Segoe MDL2 Assets</FontFamily>
+
     <!-- ================= Surfaces ================= -->
     <SolidColorBrush x:Key="Brush.Window"         Color="#1E1E1E"/>
     <SolidColorBrush x:Key="Brush.TitleBar"       Color="#1A1A1A"/>
@@ -849,8 +859,8 @@
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{StaticResource Brush.Text.Tertiary}"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontFamily" Value="{StaticResource Font.Icon}"/>
+        <Setter Property="FontSize" Value="10"/>
         <Setter Property="Template" Value="{StaticResource Template.FlatButton}"/>
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
@@ -869,7 +879,7 @@
         </Style.Triggers>
     </Style>
 
-    <!-- Small transparent glyph button: the overlay's close ✕ and the remove-chord ✕. -->
+    <!-- Small transparent text button, e.g. Clear in Piano controls. Glyphs use the one below. -->
     <Style x:Key="Style.IconButton" TargetType="Button">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{StaticResource Brush.Text.Muted}"/>
@@ -878,6 +888,29 @@
         <Setter Property="Padding" Value="4,0"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template" Value="{StaticResource Template.FlatButton}"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="{StaticResource Brush.Danger.Text}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- A glyph from Font.Icon: close, clear, refresh, export. Hover brightens it; only removing
+         something (a saved chord, a take) earns the red of Style.RemoveGlyphButton. -->
+    <Style x:Key="Style.GlyphButton" TargetType="Button" BasedOn="{StaticResource Style.IconButton}">
+        <Setter Property="FontFamily" Value="{StaticResource Font.Icon}"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="MinWidth" Value="24"/>
+        <Setter Property="MinHeight" Value="24"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="Style.RemoveGlyphButton" TargetType="Button" BasedOn="{StaticResource Style.GlyphButton}">
+        <Setter Property="Content" Value="&#xE711;"/>
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
                 <Setter Property="Foreground" Value="{StaticResource Brush.Danger.Text}"/>

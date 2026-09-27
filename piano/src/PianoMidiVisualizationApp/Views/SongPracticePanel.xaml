@@ -48,7 +48,7 @@
 
         <!-- A Segoe MDL2 glyph that takes its colour from the button it sits in. -->
         <Style x:Key="Style.SongGlyph" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontFamily" Value="{StaticResource Font.Icon}"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ButtonBase}}"/>
@@ -330,7 +330,7 @@
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
 
-                            <Button Content="✕" Margin="6,0,0,0" Style="{StaticResource Style.IconButton}"
+                            <Button Content="&#xE711;" Margin="6,0,0,0" Style="{StaticResource Style.GlyphButton}"
                                     Focusable="False" VerticalAlignment="Center"
                                     Command="{Binding CloseSongCommand}" ToolTip="Close the song"/>
                         </StackPanel>
@@ -383,14 +383,21 @@
                     Visibility="{Binding IsWaiting, Converter={StaticResource BoolToVisConverter}}">
                 <TextBlock Text="Waiting for you" FontSize="11" Foreground="{StaticResource Brush.Song.Target}"/>
             </Border>
+            <!-- One form for all three counts, the words the Finished card uses. The numbers carry
+                 the colour (green correct, red wrong), so the meaning never rests on hue alone.
+                 Tabular figures keep the line from twitching as a count gains a digit. -->
             <Border CornerRadius="9" Padding="8,1" Background="{StaticResource Brush.Song.Overlay}" VerticalAlignment="Center">
-                <TextBlock FontFamily="Consolas" FontSize="12"><Run
-                        Text="&#x2713; " Foreground="{StaticResource Brush.Song.Correct}"/><Run
-                        Text="{Binding CorrectCount, Mode=OneWay}" Foreground="{StaticResource Brush.Text.Secondary}"/><Run
-                        Text="   &#x2717; " Foreground="{StaticResource Brush.Song.Wrong}"/><Run
-                        Text="{Binding WrongCount, Mode=OneWay}" Foreground="{StaticResource Brush.Text.Secondary}"/><Run
-                        Text="   missed " Foreground="{StaticResource Brush.Text.Muted}"/><Run
-                        Text="{Binding MissedCount, Mode=OneWay}" Foreground="{StaticResource Brush.Text.Secondary}"/></TextBlock>
+                <TextBlock FontSize="12" Typography.NumeralAlignment="Tabular"
+                           Foreground="{StaticResource Brush.Text.Muted}"><Run
+                        Text="{Binding CorrectCount, Mode=OneWay}" FontWeight="SemiBold"
+                        Foreground="{StaticResource Brush.Song.Correct}"/><Run
+                        Text=" correct   "/><Run
+                        Text="{Binding WrongCount, Mode=OneWay}" FontWeight="SemiBold"
+                        Foreground="{StaticResource Brush.Song.Wrong}"/><Run
+                        Text=" wrong   "/><Run
+                        Text="{Binding MissedCount, Mode=OneWay}" FontWeight="SemiBold"
+                        Foreground="{StaticResource Brush.Text.Secondary}"/><Run
+                        Text=" missed"/></TextBlock>
             </Border>
         </StackPanel>
 
@@ -442,7 +449,7 @@
                 Visibility="{Binding IsTrackListOpen, Converter={StaticResource BoolToVisConverter}}">
             <DockPanel>
                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-                    <Button DockPanel.Dock="Right" Content="✕" Style="{StaticResource Style.IconButton}"
+                    <Button DockPanel.Dock="Right" Content="&#xE711;" Style="{StaticResource Style.GlyphButton}"
                             Focusable="False" Command="{Binding CloseTrackListCommand}" ToolTip="Close"/>
                     <TextBlock Text="Who plays what" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"
                                Foreground="{StaticResource Brush.Text.Primary}"/>

@@ -94,13 +94,13 @@
                                     <TextBlock Grid.Column="1" Text="{Binding LengthText}" FontFamily="Consolas"
                                                FontSize="12" VerticalAlignment="Center" Margin="8,0,4,0"
                                                ToolTip="{Binding Summary}"/>
-                                    <Button Grid.Column="2" Content="&#xE74E;" FontFamily="Segoe MDL2 Assets" FontSize="12"
-                                            Style="{StaticResource Style.IconButton}" Focusable="False"
+                                    <Button Grid.Column="2" Content="&#xE74E;" FontSize="12"
+                                            Style="{StaticResource Style.GlyphButton}" Focusable="False"
                                             Command="{Binding DataContext.ExportTakeCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
                                             CommandParameter="{Binding}"
                                             VerticalAlignment="Center" ToolTip="Export as .mid"/>
-                                    <Button Grid.Column="3" Content="✕" Focusable="False"
-                                            Style="{StaticResource Style.IconButton}"
+                                    <Button Grid.Column="3" Focusable="False"
+                                            Style="{StaticResource Style.RemoveGlyphButton}"
                                             Command="{Binding DataContext.DeleteTakeCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
                                             CommandParameter="{Binding}"
                                             VerticalAlignment="Center" ToolTip="Delete take"/>
