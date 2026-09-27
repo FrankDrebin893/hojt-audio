@@ -50,3 +50,7 @@ The green dot next to the MIDI controls flashes when MIDI data is received. The 
 - **NAudio** — MIDI input, ASIO and WASAPI audio output
 - **MeltySynth** — pure C# SoundFont synthesizer
 - **CommunityToolkit.Mvvm** — MVVM data binding
+
+## License
+
+[MIT](LICENSE)
