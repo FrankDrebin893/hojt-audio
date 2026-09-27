@@ -68,6 +68,11 @@
                             <MenuItem Header="_Open MIDI Song…" InputGestureText="Ctrl+O"
                                       Command="{Binding SongPractice.OpenSongCommand}"/>
                             <Separator/>
+                            <!-- A keyboard option, not a panel, so zen mode leaves it alone. -->
+                            <MenuItem Header="All _Note Names" IsCheckable="True"
+                                      IsChecked="{Binding PianoKeyboard.ShowAllNoteNames}"
+                                      ToolTip="Label every key. Off, only the Cs and the keys you hold are labelled."/>
+                            <Separator/>
                             <MenuItem InputGestureText="F11" Command="{Binding ToggleZenModeCommand}">
                                 <MenuItem.Style>
                                     <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
@@ -83,6 +88,22 @@
                         </MenuItem>
                     </Menu>
                 </StackPanel>
+
+                <!-- Keyboard and audio at a glance, e.g. "Digital Piano · ASIO": amber while
+                     either isn't ready, with a dot that flickers as you play. It lives here
+                     rather than in the status bar, which can be hidden. Opens Settings. -->
+                <Button Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Margin="12,0,10,0"
+                        Style="{StaticResource Style.StatusChip}"
+                        Command="{Binding ToggleSettingsOverlayCommand}"
+                        ToolTip="{Binding StatusChipToolTip}"
+                        AutomationProperties.Name="{Binding StatusChipText}">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Style="{StaticResource Style.StatusDot}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding StatusChipText}" Margin="6,0,0,0" MaxWidth="260"
+                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                     <Button Content="─" Click="MinimizeButton_Click" ToolTip="Minimise"
@@ -180,7 +201,7 @@
                                    Foreground="{StaticResource Brush.Text.Muted}"
                                    MinHeight="18" TextAlignment="Center"/>
                         <TextBlock Text="Space to save" FontSize="11" Margin="0,4,0,0"
-                                   Foreground="{StaticResource Brush.Text.Faint}"
+                                   Foreground="{StaticResource Brush.Text.Hint}"
                                    MinHeight="18" TextAlignment="Center"
                                    Visibility="{Binding Analysis.Name,
                                                 Converter={StaticResource StringToVisibilityConverter}}"/>
@@ -207,6 +228,129 @@
                                                  RootPitchClass="{Binding Analysis.RootPitchClass}"
                                                  Visibility="{Binding IsCircleOfFifthsVisible,
                                                               Converter={StaticResource BoolToVisConverter}}"/>
+
+                    <!-- First run. Until the keyboard is connected and audio is running, the empty
+                         readout is a setup checklist; after that, a faint prompt to play. Both
+                         give way to the chord the moment a note sounds. They overlay the readout
+                         in its own cell rather than stacking with it, so the row keeps its height
+                         and nothing moves as they come and go. The checklist fits the 140px the
+                         row keeps at its MinHeight: 24 heading, 3 x 26 steps, 22 footer. -->
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                Margin="24,0">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsSetupChecklistVisible}" Value="True"/>
+                                            <Condition Binding="{Binding HasChord}" Value="False"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+
+                        <DockPanel Margin="6,0,0,4" Height="20">
+                            <Button DockPanel.Dock="Right" Content="Settings  Ctrl+,"
+                                    Style="{StaticResource Style.SetupLink}"
+                                    Command="{Binding ToggleSettingsOverlayCommand}"
+                                    ToolTip="Every MIDI and audio setting"/>
+                            <TextBlock Text="Set up your piano" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{StaticResource Brush.Text.Primary}"
+                                       VerticalAlignment="Center"/>
+                        </DockPanel>
+
+                        <!-- One row per step: a numbered marker, ticked when done; what to do;
+                             and what it acts on, or what went wrong, in amber. The title column is
+                             shared, so the details line up down the list. -->
+                        <ItemsControl ItemsSource="{Binding SetupSteps}" Focusable="False"
+                                      Grid.IsSharedSizeScope="True">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Style="{StaticResource Style.SetupStep}"
+                                            Command="{Binding DataContext.RunSetupStepCommand,
+                                                      RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto" SharedSizeGroup="SetupStepTitle"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <Grid Width="18" Height="18" VerticalAlignment="Center">
+                                                <Ellipse x:Name="Marker" StrokeThickness="1.2"
+                                                         Stroke="{StaticResource Brush.Text.Faint}"/>
+                                                <TextBlock x:Name="Number" Text="{Binding Number}"
+                                                           FontSize="11" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource Brush.Text.Tertiary}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                <Path x:Name="Tick" Visibility="Collapsed"
+                                                      Data="M 0,4.5 L 3.4,8 L 9,1"
+                                                      Stroke="{StaticResource Brush.Text.Secondary}" StrokeThickness="1.6"
+                                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Grid>
+
+                                            <TextBlock x:Name="Title" Grid.Column="1" Text="{Binding Title}"
+                                                       FontSize="13" Margin="9,0,16,0" VerticalAlignment="Center"/>
+
+                                            <TextBlock x:Name="Detail" Grid.Column="2" Text="{Binding Detail}"
+                                                       FontSize="12" MaxWidth="180" TextTrimming="CharacterEllipsis"
+                                                       Foreground="{StaticResource Brush.Text.Tertiary}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Button>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding State}" Value="Next">
+                                            <Setter TargetName="Marker" Property="Fill" Value="{StaticResource Brush.Attention}"/>
+                                            <Setter TargetName="Marker" Property="Stroke" Value="{StaticResource Brush.Attention}"/>
+                                            <Setter TargetName="Number" Property="Foreground" Value="{StaticResource Brush.Attention.Ink}"/>
+                                            <Setter TargetName="Title" Property="FontWeight" Value="SemiBold"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding State}" Value="Done">
+                                            <Setter TargetName="Number" Property="Visibility" Value="Collapsed"/>
+                                            <Setter TargetName="Tick" Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding HasProblem}" Value="True">
+                                            <Setter TargetName="Detail" Property="Foreground" Value="{StaticResource Brush.Attention}"/>
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Button Content="Don't show again" HorizontalAlignment="Left" Margin="27,4,0,0"
+                                Style="{StaticResource Style.SetupLink}"
+                                Command="{Binding DismissSetupChecklistCommand}"
+                                ToolTip="Hide this checklist. The status in the title bar still shows what isn't ready."/>
+                    </StackPanel>
+
+                    <!-- Set up, nothing held: a faint prompt where the chord name will appear. The
+                         bottom margin lifts it from the row's centre to the name line's, which
+                         sits 31px above it in the empty readout stack (70px name, then 62px of
+                         lines below, centred). -->
+                    <TextBlock Grid.Column="1" Text="Play something" FontSize="22"
+                               Foreground="{StaticResource Brush.Text.Muted}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Margin="24,0,24,62" IsHitTestVisible="False">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsPlayPromptVisible}" Value="True"/>
+                                            <Condition Binding="{Binding HasChord}" Value="False"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                 </Grid>
 
                 <!-- Song practice: notes fall onto the keyboard, in its key columns. Nothing sits
@@ -305,6 +449,7 @@
                                   ItemsSource="{Binding Settings.KeyRoots}"
                                   SelectedValuePath="PitchClass"
                                   SelectedValue="{Binding Settings.KeyTonicPitchClass}"
+                                  Tag="No key"
                                   ToolTip="Key centre">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate>
@@ -341,12 +486,24 @@
                         </ComboBox>
 
                         <!-- Disabled rather than hidden with no key selected: muting is
-                             meaningless then, but hiding it would make it undiscoverable. -->
+                             meaningless then, but hiding it would make it undiscoverable. Its
+                             tooltip still shows while disabled, and says why. -->
                         <CheckBox Content="Mute out-of-key" Margin="12,0,0,0" FontSize="11"
                                   VerticalAlignment="Center"
                                   IsChecked="{Binding Settings.MuteOutOfKeyNotes}"
                                   IsEnabled="{Binding Settings.IsKeyHighlightEnabled}"
-                                  ToolTip="Silence notes outside the key. They still light up."/>
+                                  ToolTipService.ShowOnDisabled="True">
+                            <CheckBox.Style>
+                                <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+                                    <Setter Property="ToolTip" Value="Silence notes outside the key. They still light up."/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Settings.IsKeyHighlightEnabled}" Value="False">
+                                            <Setter Property="ToolTip" Value="Pick a key first: this silences the notes outside it."/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </CheckBox.Style>
+                        </CheckBox>
 
                         <Button Content="✕" Width="24" Height="24" Margin="6,0,0,0"
                                 Style="{StaticResource Style.IconButton}"
