@@ -27,6 +27,13 @@ public partial class PianoKey : ObservableObject
     private int _velocity;
 
     /// <summary>
+    /// Let go, but still sounding under the sustain pedal. Never true while pressed; drawn as a
+    /// quieter version of the pressed fill, so a finger and the pedal read apart.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isSustained;
+
+    /// <summary>
     /// The app is suggesting this key: a chord to try, the next note of a song. Drawn as an
     /// overlay rather than a fill, so it shows alongside the pressed and scale-role colours.
     /// </summary>

@@ -78,6 +78,9 @@ public class AppSettings
     public int ProgressionBeatsPerChord { get; set; } = 0;
     public bool TransposeMovesKey { get; set; } = true;
 
+    // Controls on the MIDI keyboard learned for app actions (Settings > Piano controls).
+    public List<MidiMappingSetting> MidiMappings { get; set; } = new();
+
     // Window placement. Nullable so "never saved" is distinguishable from 0.
     public double? WindowLeft { get; set; }
     public double? WindowTop { get; set; }
@@ -120,4 +123,17 @@ public class AppSettings
             // Silently fail on save errors
         }
     }
+}
+
+/// <summary>
+/// One learned control, stored by name so the file stays readable and a renamed or removed
+/// action is simply dropped on load. Channel is 1-16 as keyboards label it; Number is the
+/// note, controller or program number as sent (0-127).
+/// </summary>
+public class MidiMappingSetting
+{
+    public string Action { get; set; } = "";
+    public string Kind { get; set; } = "";
+    public int Channel { get; set; } = 1;
+    public int Number { get; set; }
 }

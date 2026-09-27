@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
 using PianoMidiVisualizationApp.ViewModels;
 
@@ -12,6 +13,12 @@ public partial class MainWindow : Window
 {
     /// <summary>Full brightness on the click, gone well before the next one (240 BPM is 250 ms).</summary>
     private static readonly DoubleAnimation BeatFlashFade = CreateBeatFlashFade();
+
+    /// <summary>The echo: in quickly, long enough to read at a glance, then out.</summary>
+    private static readonly DoubleAnimationUsingKeyFrames EchoFade = CreateEchoFade();
+
+    /// <summary>...settling down 6px as it arrives, so it reads as news rather than as furniture.</summary>
+    private static readonly DoubleAnimation EchoSettle = CreateEchoSettle();
 
     public MainWindow()
     {
@@ -31,7 +38,10 @@ public partial class MainWindow : Window
         MidiLogList.IsVisibleChanged += (_, _) => ScrollLogToEnd();
 
         if (DataContext is MainViewModel vm)
+        {
             vm.MetronomeBeat += OnMetronomeBeat;
+            vm.EchoShown += OnEchoShown;
+        }
     }
 
     private static DoubleAnimation CreateBeatFlashFade()
@@ -39,6 +49,39 @@ public partial class MainWindow : Window
         var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(180));
         fade.Freeze();
         return fade;
+    }
+
+    private static DoubleAnimationUsingKeyFrames CreateEchoFade()
+    {
+        var easeOut = new ExponentialEase { EasingMode = EasingMode.EaseOut, Exponent = 5 };
+        var fade = new DoubleAnimationUsingKeyFrames
+        {
+            KeyFrames =
+            {
+                new EasingDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(140)), easeOut),
+                new DiscreteDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(1500))),
+                new EasingDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(1900))),
+            }
+        };
+        fade.Freeze();
+        return fade;
+    }
+
+    private static DoubleAnimation CreateEchoSettle()
+    {
+        var settle = new DoubleAnimation(-6, 0, TimeSpan.FromMilliseconds(220))
+        {
+            EasingFunction = new ExponentialEase { EasingMode = EasingMode.EaseOut, Exponent = 5 }
+        };
+        settle.Freeze();
+        return settle;
+    }
+
+    /// <summary>Shows the echo afresh, even mid-fade: a second press restarts it at full strength.</summary>
+    private void OnEchoShown(object? sender, EventArgs e)
+    {
+        PianoEcho.BeginAnimation(OpacityProperty, EchoFade);
+        PianoEcho.RenderTransform.BeginAnimation(TranslateTransform.YProperty, EchoSettle);
     }
 
     /// <summary>
@@ -133,6 +176,10 @@ public partial class MainWindow : Window
                 break;
             case Key.OemComma when ctrl:
                 vm.ToggleSettingsOverlayCommand.Execute(null);
+                break;
+            // Esc backs out one layer at a time: Learn listening first, then the overlay.
+            case Key.Escape when vm.PianoControls.IsLearning:
+                vm.PianoControls.CancelLearning();
                 break;
             // Only handled while the overlay is open, so Esc stays available to everything else.
             case Key.Escape when vm.IsSettingsOverlayVisible:

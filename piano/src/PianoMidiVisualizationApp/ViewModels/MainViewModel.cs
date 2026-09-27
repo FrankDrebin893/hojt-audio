@@ -53,6 +53,20 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly bool[] _liveHeld = new bool[128];
     private readonly int[] _appHeld = new int[128];
 
+    // ----- Sustain pedal -----
+
+    /// <summary>
+    /// CC64 per channel, as the audio engine last heard it. Guarded by <see cref="_soundingLock"/>,
+    /// so a note-off and a pedal change reach the engine and the UI in the same order.
+    /// </summary>
+    private readonly bool[] _pedalDown = new bool[16];
+
+    /// <summary>
+    /// UI thread: for each key let go under the pedal and still sounding, the pedal's channel
+    /// plus one; 0 for a key that is not ringing. Lifting that pedal releases these keys.
+    /// </summary>
+    private readonly int[] _ringingChannel = new int[128];
+
     public PianoKeyboardViewModel PianoKeyboard { get; }
     public SettingsViewModel Settings { get; }
     public ChatViewModel Chat { get; }
@@ -60,6 +74,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public SongPracticeViewModel SongPractice { get; }
     public ChordStripViewModel ChordStrip { get; }
     public ProgressionToolsViewModel ProgressionTools { get; }
+    public PianoControlsViewModel PianoControls { get; }
 
     [ObservableProperty]
     private string _statusText = "Ready";
@@ -76,6 +91,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _lastMidiMessage = "";
 
+    /// <summary>
+    /// The chord readout: what is sounding, or for a moment after, the last chord that did
+    /// (see <see cref="IsReadoutLatched"/>). It is what Space saves.
+    /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CurrentChord))]
     [NotifyPropertyChangedFor(nameof(HasChord))]
@@ -85,6 +104,54 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public string CurrentChord => Analysis.Name;
 
     public bool HasChord => !Analysis.IsEmpty;
+
+    // ----- Chord readout: live while notes sound, latched for a moment after -----
+
+    /// <summary>How long the readout keeps the last chord once nothing sounds. Style.Readout.Latch fades over the same time.</summary>
+    public static readonly TimeSpan LatchDuration = TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    /// How long a chord that has only lost notes waits before the readout shows what is left.
+    /// Two hands never leave the keys at quite the same moment; without this, letting go of a
+    /// chord would flicker through its fragments, and a fragment is what would latch.
+    /// </summary>
+    public static readonly TimeSpan ReleaseGrace = TimeSpan.FromMilliseconds(120);
+
+    private readonly DispatcherTimer _latchTimer;
+    private readonly DispatcherTimer _graceTimer;
+
+    /// <summary>The notes the readout is showing, live or latched, lowest first.</summary>
+    private IReadOnlyList<int> _readoutNotes = Array.Empty<int>();
+
+    /// <summary>Whether the readout's chord was saved already, so a second press does not save it twice.</summary>
+    private bool _readoutSaved;
+
+    /// <summary>
+    /// Nothing is sounding, and the readout is holding the last chord for
+    /// <see cref="LatchDuration"/>, dimming as it goes, so it can still be saved.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isReadoutLatched;
+
+    /// <summary>The line under the readout: how to save the chord, or that it was.</summary>
+    [ObservableProperty]
+    private string _saveHint = "Space to save";
+
+    /// <summary>
+    /// The root of what is sounding right now, for the circle of fifths' root outline. Unlike
+    /// the readout it never latches: blue on the stage means sounding now.
+    /// </summary>
+    [ObservableProperty]
+    private int? _soundingRootPitchClass;
+
+    // ----- Echo: what an action fired from the piano just did -----
+
+    /// <summary>A few words on the last action fired from the piano, shown briefly over the stage.</summary>
+    [ObservableProperty]
+    private string _echoText = "";
+
+    /// <summary>Raised on the UI thread each time an echo is shown, even one with the same words as the last.</summary>
+    public event EventHandler? EchoShown;
 
     // ----- Metronome -----
 
@@ -199,27 +266,49 @@ public partial class MainViewModel : ObservableObject, IDisposable
         SongPractice = new SongPracticeViewModel(PianoKeyboard, PlayNoteOn, PlayNoteOff, status => StatusText = status);
         SongPractice.SongLoaded += (_, _) => IsSongPracticeVisible = true;
 
-        // The strip follows the key, and lights whichever of its chords the readout just read.
+        // The strip follows the key, and lights whichever of its chords is sounding.
         ChordStrip = new ChordStripViewModel(PianoKeyboard, PlayNoteOn, PlayNoteOff);
         Settings.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(Settings.CurrentKey))
                 ChordStrip.SetKey(Settings.CurrentKey);
         };
-        PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(Analysis))
-                ChordStrip.UpdatePlayed(Analysis.RootPitchClass,
-                                        DiatonicChords.MaskOf(PianoKeyboard.GetPressedNotes()));
-        };
+
+        _latchTimer = new DispatcherTimer(LatchDuration, DispatcherPriority.Normal, (_, _) => ClearReadout(), dispatcher);
+        _latchTimer.Stop();
+        _graceTimer = new DispatcherTimer(ReleaseGrace, DispatcherPriority.Normal, (_, _) => OnReleaseGraceEnded(), dispatcher);
+        _graceTimer.Stop();
 
         ProgressionTools = new ProgressionToolsViewModel(SavedChords, MaxSavedChords, CreateSavedChord,
                                                          Settings, PianoKeyboard, dispatcher,
                                                          PlayNoteOn, PlayNoteOff, status => StatusText = status);
 
+        // Taking a chord out of the progression makes the readout's chord savable again.
+        SavedChords.CollectionChanged += (_, e) =>
+        {
+            if (e.Action != System.Collections.Specialized.NotifyCollectionChangedAction.Add)
+                _readoutSaved = false;
+            UpdateSaveHint();
+        };
+
+        PianoControls = new PianoControlsViewModel(dispatcher);
+        PianoControls.ActionFired += OnPianoActionFired;
+        PianoControls.TriggerLearned += (_, e) =>
+            AppendLog($"Learned {e.Trigger.DisplayName} for {PianoActionInfo.For(e.Action).Label}");
+        PianoControls.MappingsChanged += (_, _) => UpdateSaveHint();
+
+        // Closing Settings, by any route, stops Learn listening.
+        PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(IsSettingsOverlayVisible) && !IsSettingsOverlayVisible)
+                PianoControls.CancelLearning();
+        };
+
         _midiInput.NoteOn += OnMidiNoteOn;
         _midiInput.NoteOff += OnMidiNoteOff;
         _midiInput.MessageReceived += OnRawMidiMessage;
+        _midiInput.ControlChange += OnMidiControlChange;
+        _midiInput.ProgramChange += OnMidiProgramChange;
 
         if (_audioEngine.Metronome is { } metronome)
             metronome.BeatStarted += OnMetronomeBeat;
@@ -236,7 +325,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             {
                 PianoKeyboard.SetKey(Settings.CurrentKey);
                 UpdateAudiblePitchClasses();
-                RefreshAnalysis();   // the readout re-spells with the new key
+                RenderReadout();   // the readout re-spells with the new key, latched or not
                 RefreshSavedChordFunctions();
             }
             else if (e.PropertyName == nameof(Settings.MuteOutOfKeyNotes))
@@ -299,15 +388,98 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Re-reads the held notes into the chord readout and the grand staff. The staff spells
+    /// Call on the UI thread after any change to what is sounding. The live marks (the circle's
+    /// root outline, the chord strip) follow at once. The readout follows new notes at once,
+    /// waits out <see cref="ReleaseGrace"/> when notes only leave, and latches the last chord
+    /// once nothing sounds.
+    /// </summary>
+    private void OnSoundingChanged()
+    {
+        var sounding = SoundingNotes();
+        int? root = _analyzer.Analyze(sounding).RootPitchClass;
+        SoundingRootPitchClass = root;
+        ChordStrip.UpdatePlayed(root, DiatonicChords.MaskOf(sounding));
+
+        if (sounding.Count == 0)
+        {
+            _graceTimer.Stop();
+            if (IsReadoutLatched) return;
+
+            if (Analysis.IsEmpty)
+            {
+                ClearReadout();   // a lone note: no chord worth keeping
+                return;
+            }
+
+            IsReadoutLatched = true;
+            _latchTimer.Start();
+            return;
+        }
+
+        // Only notes leaving a chord that is still up: hold it a moment, in case the rest follow.
+        if (!IsReadoutLatched && sounding.Count < _readoutNotes.Count && !sounding.Except(_readoutNotes).Any())
+        {
+            if (!_graceTimer.IsEnabled) _graceTimer.Start();
+            return;
+        }
+
+        _graceTimer.Stop();
+        ShowReadout(sounding);
+    }
+
+    private void OnReleaseGraceEnded()
+    {
+        _graceTimer.Stop();
+        var sounding = SoundingNotes();
+        if (sounding.Count > 0)
+            ShowReadout(sounding);
+    }
+
+    private List<int> SoundingNotes() => PianoKeyboard.GetSoundingNotes().Order().ToList();
+
+    /// <summary>Shows these notes live, ending any latch.</summary>
+    private void ShowReadout(IReadOnlyList<int> notes)
+    {
+        _latchTimer.Stop();
+        IsReadoutLatched = false;
+        if (notes.SequenceEqual(_readoutNotes)) return;
+
+        _readoutNotes = notes;
+        _readoutSaved = false;
+        RenderReadout();
+    }
+
+    /// <summary>The latch ran out. Cleared before unlatching, so the text never flashes back to full strength.</summary>
+    private void ClearReadout()
+    {
+        _latchTimer.Stop();
+        _readoutNotes = Array.Empty<int>();
+        _readoutSaved = false;
+        RenderReadout();
+        IsReadoutLatched = false;
+    }
+
+    /// <summary>
+    /// Reads the readout's notes into the chord readout and the grand staff. The staff spells
     /// letter-correctly (E#, Cb) where the readout keeps its simpler sharp-or-flat names.
     /// </summary>
-    private void RefreshAnalysis()
+    private void RenderReadout()
     {
-        var pressed = PianoKeyboard.GetPressedNotes().ToList();
-        Analysis = _analyzer.Analyze(pressed, UseFlats, Settings.CurrentKey);
+        Analysis = _analyzer.Analyze(_readoutNotes, UseFlats, Settings.CurrentKey);
         StaffSignature = KeySignature.For(Settings.CurrentKey);
-        StaffNotes = NoteSpeller.SpellChord(pressed, Settings.CurrentKey);
+        StaffNotes = NoteSpeller.SpellChord(_readoutNotes, Settings.CurrentKey);
+        UpdateSaveHint();
+    }
+
+    private void UpdateSaveHint()
+    {
+        string howToSave = PianoControls.TriggerFor(PianoAction.SaveChord) is { } trigger
+            ? $"Space or {trigger.DisplayName} to save"
+            : "Space to save";
+
+        SaveHint = _readoutSaved ? $"Saved · {SavedChords.Count}/{MaxSavedChords}"
+                 : SavedChords.Count >= MaxSavedChords ? $"Progression full · {MaxSavedChords}/{MaxSavedChords}"
+                 : howToSave;
     }
 
     /// <summary>Re-reads every saved chord's numeral in the current key. At most eight chords, all cached.</summary>
@@ -359,6 +531,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         try
         {
+            ResetSustainPedals();
             _midiInput.Open(Settings.SelectedMidiDevice.Index);
             IsMidiConnected = true;
             StatusText = $"MIDI connected: {Settings.SelectedMidiDevice.Name}";
@@ -374,6 +547,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private void DisconnectMidi()
     {
         _midiInput.Close();
+        ResetSustainPedals();
         IsMidiConnected = false;
         StatusText = "MIDI disconnected";
     }
@@ -396,6 +570,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             _audioEngine.Initialize(Settings.SelectedAudioDriver, Settings.UseAsio, Settings.SoundFontPath);
+            ResetSustainPedals();   // the new engine starts with every pedal up
             _audioEngine.Volume = Settings.Volume;
             _audioEngine.Start();
             IsAudioRunning = true;
@@ -438,31 +613,46 @@ public partial class MainViewModel : ObservableObject, IDisposable
         StatusText = "Devices refreshed";
     }
 
+    /// <summary>
+    /// Saves the readout's chord: the one sounding, or the one it is still holding after the
+    /// keys came up. A miss is echoed on the stage, since the status bar may be hidden.
+    /// </summary>
     [RelayCommand]
     private void SaveCurrentChord()
     {
-        if (string.IsNullOrEmpty(CurrentChord))
+        if (!TrySaveReadoutChord(out string result))
+            ShowEcho(result);
+    }
+
+    /// <param name="result">What happened, in a few words, for the stage echo.</param>
+    private bool TrySaveReadoutChord(out string result)
+    {
+        if (Analysis.IsEmpty || _readoutNotes.Count == 0)
         {
-            StatusText = "No chord to save";
-            return;
+            StatusText = "No chord to save - play one first";
+            result = "Play a chord first";
+            return false;
+        }
+
+        if (_readoutSaved)
+        {
+            StatusText = result = $"{CurrentChord} is already saved";
+            return false;
         }
 
         if (SavedChords.Count >= MaxSavedChords)
         {
             StatusText = "Maximum 8 chords saved - remove one first";
-            return;
+            result = "Progression full · remove a chord first";
+            return false;
         }
 
-        var pressedNotes = PianoKeyboard.GetPressedNotes().OrderBy(n => n).ToList();
-        if (pressedNotes.Count == 0)
-        {
-            StatusText = "No notes held";
-            return;
-        }
-
-        var savedChord = CreateSavedChord(pressedNotes);
+        var savedChord = CreateSavedChord(_readoutNotes);
+        _readoutSaved = true;
         SavedChords.Add(savedChord);
         StatusText = $"Saved chord: {savedChord.ChordName}";
+        result = $"Saved {savedChord.ChordName} · {SavedChords.Count}/{MaxSavedChords}";
+        return true;
     }
 
     /// <summary>
@@ -508,12 +698,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void DecreaseMetronomeBpm() => Settings.MetronomeBpm--;
 
-    /// <summary>Sets the tempo from the average of the last few taps; the first tap only starts the count.</summary>
     [RelayCommand]
-    private void TapMetronome()
+    private void TapMetronome() => Tap(_tapClock.Elapsed);
+
+    /// <summary>
+    /// Sets the tempo from the average of the last few taps; the first tap only starts the
+    /// count. Returns the tempo set, after clamping, or null for a first tap.
+    /// </summary>
+    private int? Tap(TimeSpan at)
     {
-        if (_tapTempo.Tap(_tapClock.Elapsed) is { } bpm)
-            Settings.MetronomeBpm = bpm;
+        if (_tapTempo.Tap(at) is not { } bpm) return null;
+        Settings.MetronomeBpm = bpm;
+        return Settings.MetronomeBpm;
     }
 
     [RelayCommand]
@@ -615,6 +811,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
             SongPractice.LoadSong(saved.SongPath, showTrackList: false);
         IsSongPracticeVisible = saved.ShowSongPractice;
         ProgressionTools.ApplyFrom(saved);
+        PianoControls.ApplyFrom(saved);
+        UpdateSaveHint();
         PianoKeyboard.SetKey(Settings.CurrentKey);
         UpdateAudiblePitchClasses();
         ApplyMetronomeSettings();
@@ -637,6 +835,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         saved.SongSpeed = SongPractice.Speed;
         saved.SongMode = SongPractice.Mode.ToString();
         ProgressionTools.CaptureInto(saved);
+        PianoControls.CaptureInto(saved);
         return saved;
     }
 
@@ -666,6 +865,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             try
             {
                 _audioEngine.Initialize(Settings.SelectedAudioDriver, Settings.UseAsio, Settings.SoundFontPath);
+                ResetSustainPedals();
                 _audioEngine.Volume = Settings.Volume;
                 _audioEngine.Start();
                 IsAudioRunning = true;
@@ -686,10 +886,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             MidiActivity = true;
             LastMidiMessage = e.Description;
             StatusText = e.Description;
-
-            MidiLog.Add($"[{DateTime.Now:HH:mm:ss.fff}] {e.Description}");
-            while (MidiLog.Count > MaxLogLines)
-                MidiLog.RemoveAt(0);
+            AppendLog(e.Description);
 
             // Turn off the activity light after 80ms
             _activityTimer?.Dispose();
@@ -700,10 +897,23 @@ public partial class MainViewModel : ObservableObject, IDisposable
         });
     }
 
+    /// <summary>UI thread. Adds a line to the MIDI log, dropping the oldest past <see cref="MaxLogLines"/>.</summary>
+    private void AppendLog(string line)
+    {
+        MidiLog.Add($"[{DateTime.Now:HH:mm:ss.fff}] {line}");
+        while (MidiLog.Count > MaxLogLines)
+            MidiLog.RemoveAt(0);
+    }
+
     private void OnMidiNoteOn(object? sender, NoteEventArgs e)
     {
         // Timestamped first, before the audio engine or anything else can delay it.
         long timestamp = Stopwatch.GetTimestamp();
+
+        // A learned control belongs to the app, not the piano: it never sounds, lights a key,
+        // reaches the readout or gets recorded or scored.
+        if (PianoControls.Router.OnNoteOn(e.Channel, e.NoteNumber, timestamp)) return;
+
         Recorder.CaptureNoteOn(e.NoteNumber, e.Velocity, timestamp);
 
         // An out-of-key note is silenced, not swallowed: it still lights its key and still
@@ -721,9 +931,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
             _dispatcher.BeginInvoke(() =>
             {
-                if (IsNote(e.NoteNumber)) _liveHeld[e.NoteNumber] = true;
+                if (IsNote(e.NoteNumber))
+                {
+                    _liveHeld[e.NoteNumber] = true;
+                    _ringingChannel[e.NoteNumber] = 0;
+                }
                 PianoKeyboard.SetKeyPressed(e.NoteNumber, e.Velocity);
-                RefreshAnalysis();
+                OnSoundingChanged();
                 SongPractice.OnLiveNoteOn(e.NoteNumber);
             });
         }
@@ -732,15 +946,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private void OnMidiNoteOff(object? sender, NoteEventArgs e)
     {
         long timestamp = Stopwatch.GetTimestamp();
+        if (PianoControls.Router.OnNoteOff(e.Channel, e.NoteNumber)) return;
         Recorder.CaptureNoteOff(e.NoteNumber, timestamp);
 
         lock (_soundingLock)
         {
             bool appHoldsKey = false;
+            bool pedalHolds = false;
             if (TryGetSlot(e.Channel, e.NoteNumber, out int slot))
             {
                 _liveSounding[slot] = false;
                 appHoldsKey = e.Channel == AppChannel && _appSounding[e.NoteNumber] > 0;
+                pedalHolds = _pedalDown[e.Channel];
             }
 
             // Always released, never gated: a note-off for a note that never sounded is a no-op,
@@ -759,8 +976,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
                     _liveHeld[e.NoteNumber] = false;
                     if (_appHeld[e.NoteNumber] > 0) return;   // still held by an app note
                 }
-                PianoKeyboard.SetKeyReleased(e.NoteNumber);
-                RefreshAnalysis();
+                ReleaseKey(e.NoteNumber, pedalHolds ? e.Channel : -1);
             });
         }
     }
@@ -786,8 +1002,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
             _dispatcher.BeginInvoke(() =>
             {
                 _appHeld[note]++;
+                _ringingChannel[note] = 0;
                 PianoKeyboard.SetKeyPressed(note, velocity);
-                RefreshAnalysis();
+                OnSoundingChanged();
             });
         }
     }
@@ -807,14 +1024,171 @@ public partial class MainViewModel : ObservableObject, IDisposable
             if (_appSounding[note] == 0 && !_liveSounding[AppChannel * 128 + note])
                 _audioEngine.NoteOff(AppChannel, note);
 
+            // The pedal is the piano's, so it holds the app's notes as it would any other.
+            bool pedalHolds = _pedalDown[AppChannel];
             _dispatcher.BeginInvoke(() =>
             {
                 if (_appHeld[note] > 0) _appHeld[note]--;
                 if (_appHeld[note] > 0 || _liveHeld[note]) return;
-                PianoKeyboard.SetKeyReleased(note);
-                RefreshAnalysis();
+                ReleaseKey(note, pedalHolds ? AppChannel : -1);
             });
         }
+    }
+
+    /// <summary>
+    /// UI thread: nothing holds this key down any more. It rings on, dimmer, under the pedal on
+    /// <paramref name="pedalChannel"/>, or with -1 goes dark.
+    /// </summary>
+    private void ReleaseKey(int note, int pedalChannel)
+    {
+        if (pedalChannel >= 0 && IsNote(note))
+        {
+            _ringingChannel[note] = pedalChannel + 1;
+            PianoKeyboard.SetKeySustained(note);
+        }
+        else
+        {
+            if (IsNote(note)) _ringingChannel[note] = 0;
+            PianoKeyboard.SetKeyReleased(note);
+        }
+
+        OnSoundingChanged();
+    }
+
+    // ----- Sustain pedal and other controllers -----
+
+    private void OnMidiControlChange(object? sender, ControlChangeEventArgs e)
+    {
+        long timestamp = Stopwatch.GetTimestamp();
+        if (PianoControls.Router.OnControlChange(e.Channel, e.Controller, e.Value, timestamp)) return;
+
+        if (e.Controller == MidiTrigger.SustainPedal)
+            SetSustainPedal(e.Channel, e.Value >= MidiTrigger.PressedThreshold, timestamp);
+    }
+
+    /// <summary>Program changes only ever drive learned controls; the piano sound never changes.</summary>
+    private void OnMidiProgramChange(object? sender, ProgramChangeEventArgs e) =>
+        PianoControls.Router.OnProgramChange(e.Channel, e.Program, Stopwatch.GetTimestamp());
+
+    /// <summary>
+    /// The sustain pedal on one channel, from any thread. The engine sustains the sound, the
+    /// recorder the note lengths, and the keys it holds stay lit, dimmer, until it lifts.
+    /// </summary>
+    private void SetSustainPedal(int channel, bool isDown, long timestamp)
+    {
+        if (channel is < 0 or > 15) return;
+
+        lock (_soundingLock)
+        {
+            if (_pedalDown[channel] == isDown) return;
+            _pedalDown[channel] = isDown;
+
+            _audioEngine.SetSustainPedal(channel, isDown);
+            Recorder.CaptureSustainPedal(Array.IndexOf(_pedalDown, true) >= 0, timestamp);
+
+            if (!isDown)
+                _dispatcher.BeginInvoke(() => ReleaseRinging(channel));
+        }
+    }
+
+    /// <summary>UI thread: the pedal on this channel lifted, so every key it was holding goes dark.</summary>
+    private void ReleaseRinging(int channel)
+    {
+        bool released = false;
+        for (int note = 0; note < _ringingChannel.Length; note++)
+        {
+            if (_ringingChannel[note] != channel + 1) continue;
+            _ringingChannel[note] = 0;
+            PianoKeyboard.SetKeyReleased(note);
+            released = true;
+        }
+
+        if (released) OnSoundingChanged();
+    }
+
+    /// <summary>
+    /// Lifts every pedal. For when the keyboard goes away or the engine restarts, since the
+    /// pedal-up that would release its notes may never arrive.
+    /// </summary>
+    private void ResetSustainPedals()
+    {
+        long timestamp = Stopwatch.GetTimestamp();
+        for (int channel = 0; channel < _pedalDown.Length; channel++)
+            SetSustainPedal(channel, false, timestamp);
+    }
+
+    // ----- Actions fired from the piano -----
+
+    private void OnPianoActionFired(object? sender, PianoActionFiredEventArgs e)
+    {
+        AppendLog($"{e.Trigger.DisplayName} → {PianoActionInfo.For(e.Action).Label}");
+        ShowEcho(RunPianoAction(e.Action, e.Timestamp));
+    }
+
+    /// <summary>Runs an action for a learned control. Returns what happened, in a few words, for the echo.</summary>
+    private string RunPianoAction(PianoAction action, long timestamp)
+    {
+        switch (action)
+        {
+            case PianoAction.SaveChord:
+                TrySaveReadoutChord(out string saved);
+                return saved;
+
+            case PianoAction.ToggleProgressionPlayback:
+                if (SavedChords.Count == 0) return "No chords saved yet";
+                ProgressionTools.TogglePlaybackCommand.Execute(null);
+                return ProgressionTools.IsPlaying ? "Progression playing" : "Progression stopped";
+
+            case PianoAction.ToggleRecord:
+            {
+                var newest = Recorder.Takes.FirstOrDefault();
+                Recorder.ToggleRecordCommand.Execute(null);
+                if (Recorder.IsRecordArmed) return "Recording armed · starts at your first note";
+
+                var take = Recorder.Takes.FirstOrDefault();
+                return take != null && take != newest
+                    ? $"{take.Name} recorded · {take.LengthText}"
+                    : "Recording cancelled · no notes played";
+            }
+
+            case PianoAction.ToggleTakePlayback:
+                if (Recorder.Takes.Count == 0) return "No takes yet · record one first";
+                Recorder.TogglePlaybackCommand.Execute(null);
+                return Recorder.IsPlaying ? $"Playing {Recorder.SelectedTake?.Name}" : "Take stopped";
+
+            case PianoAction.ToggleMetronome:
+                ToggleMetronome();
+                return !IsMetronomeOn ? "Metronome off"
+                     : IsAudioRunning ? $"Metronome on · {Settings.MetronomeBpm} BPM"
+                     : "Metronome on · start audio to hear it";
+
+            case PianoAction.TapTempo:
+                // Timed from the press itself, not from whenever the UI thread got to it.
+                var at = _tapClock.Elapsed - Stopwatch.GetElapsedTime(timestamp);
+                return Tap(at) is { } bpm ? $"Tempo {bpm} BPM" : "Tap tempo · keep tapping";
+
+            case PianoAction.ToggleSongPlayback:
+                if (!SongPractice.HasSong) return "No song open";
+                IsSongPracticeVisible = true;
+                SongPractice.TogglePlayCommand.Execute(null);
+                return SongPractice.IsPlaying ? "Song playing" : "Song paused";
+
+            case PianoAction.RestartSong:
+                if (!SongPractice.HasSong) return "No song open";
+                IsSongPracticeVisible = true;
+                SongPractice.RestartCommand.Execute(null);
+                return "Song restarted";
+
+            default:
+                return "";
+        }
+    }
+
+    private void ShowEcho(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+        EchoText = text;
+        EchoShown?.Invoke(this, EventArgs.Empty);
     }
 
     private static bool IsNote(int note) => note is >= 0 and <= 127;
@@ -836,6 +1210,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _midiInput.NoteOn -= OnMidiNoteOn;
         _midiInput.NoteOff -= OnMidiNoteOff;
         _midiInput.MessageReceived -= OnRawMidiMessage;
+        _midiInput.ControlChange -= OnMidiControlChange;
+        _midiInput.ProgramChange -= OnMidiProgramChange;
+        _latchTimer.Stop();
+        _graceTimer.Stop();
         if (_audioEngine.Metronome is { } metronome)
             metronome.BeatStarted -= OnMetronomeBeat;
         _audioEngine.Stop();

@@ -376,6 +376,7 @@ public partial class PianoKeyboardControl : UserControl
 
         rect.Fill = key.IsPressed
             ? (key.IsBlack ? BlackKeyPressedGradient : WhiteKeyPressedGradient)
+            : key.IsSustained ? RingingFill(key.IsBlack)
             : key.ScaleRole switch
             {
                 KeyRole.Tonic => key.IsBlack ? BlackKeyTonicGradient : WhiteKeyTonicGradient,
@@ -383,6 +384,15 @@ public partial class PianoKeyboardControl : UserControl
                 _ => key.IsBlack ? BlackKeyGradient : WhiteKeyGradient
             };
     }
+
+    // A key the sustain pedal is holding: the pressed blue, quieter. Theme tokens, resolved on
+    // first use, when the control is sure to be in a tree that can see the app's resources.
+    private Brush? _whiteRingingFill;
+    private Brush? _blackRingingFill;
+
+    private Brush RingingFill(bool isBlack) => isBlack
+        ? _blackRingingFill ??= (Brush)FindResource("Brush.Key.Ringing.Black")
+        : _whiteRingingFill ??= (Brush)FindResource("Brush.Key.Ringing.White");
 
     private void ApplyKeyHint(PianoKey key)
     {
@@ -397,6 +407,7 @@ public partial class PianoKeyboardControl : UserControl
         switch (e.PropertyName)
         {
             case nameof(PianoKey.IsPressed):
+            case nameof(PianoKey.IsSustained):
             case nameof(PianoKey.ScaleRole):
                 ApplyKeyFill(key);
                 break;

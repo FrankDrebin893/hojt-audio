@@ -743,4 +743,85 @@
             </Setter.Value>
         </Setter>
     </Style>
+
+    <!-- =========================================================================
+         Playing from the piano: the sustain pedal, the chord latch, MIDI learn.
+         A key the pedal holds is the pressed blue, quieter: lit, but plainly not under a
+         finger. Learn listens in amber, the key-centre hue, because it is the app waiting on
+         the piano; a learned control firing flashes the pressed blue, because a press did it.
+         ========================================================================= -->
+    <LinearGradientBrush x:Key="Brush.Key.Ringing.White" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#D6EAFB" Offset="0"/>
+        <GradientStop Color="#AFD2F2" Offset="1"/>
+    </LinearGradientBrush>
+    <!-- The black keys' four-stop bevel (see PianoKeyboardControl), in a muted pressed blue. -->
+    <LinearGradientBrush x:Key="Brush.Key.Ringing.Black" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#4A7AAA" Offset="0"/>
+        <GradientStop Color="#30577F" Offset="0.08"/>
+        <GradientStop Color="#274768" Offset="0.5"/>
+        <GradientStop Color="#203A56" Offset="1"/>
+    </LinearGradientBrush>
+
+    <SolidColorBrush x:Key="Brush.Learn.Chip"      Color="#232323"/>
+    <SolidColorBrush x:Key="Brush.Learn.Listening" Color="#FFB547"/>
+    <SolidColorBrush x:Key="Brush.Learn.Fired"     Color="#50A0EB"/>
+    <SolidColorBrush x:Key="Brush.Learn.FiredFill" Color="#2B5278"/>
+
+    <SolidColorBrush x:Key="Brush.Echo.Background" Color="#F21C1C1C"/>
+    <SolidColorBrush x:Key="Brush.Echo.Border"     Color="#4A4A4A"/>
+    <SolidColorBrush x:Key="Brush.Echo.Text"       Color="#EDEDED"/>
+    <Color x:Key="Color.Shadow">#000000</Color>
+
+    <!-- The chord readout and grand staff while latched (DataContext: MainViewModel): full
+         strength for a beat, then dimming fast and settling, so a held-over chord reads as a
+         memory rather than as what is sounding. Out by 2 s, MainViewModel.LatchDuration, when
+         the view model clears the text; unlatching removes the fade in the same instant. -->
+    <Style x:Key="Style.Readout.Latch" TargetType="FrameworkElement">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsReadoutLatched}" Value="True">
+                <DataTrigger.EnterActions>
+                    <BeginStoryboard x:Name="ReadoutLatchFade">
+                        <Storyboard>
+                            <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="Opacity">
+                                <DiscreteDoubleKeyFrame KeyTime="0:0:0" Value="1"/>
+                                <DiscreteDoubleKeyFrame KeyTime="0:0:0.15" Value="1"/>
+                                <EasingDoubleKeyFrame KeyTime="0:0:1.6" Value="0.4">
+                                    <EasingDoubleKeyFrame.EasingFunction>
+                                        <ExponentialEase EasingMode="EaseOut" Exponent="4"/>
+                                    </EasingDoubleKeyFrame.EasingFunction>
+                                </EasingDoubleKeyFrame>
+                                <LinearDoubleKeyFrame KeyTime="0:0:2" Value="0"/>
+                            </DoubleAnimationUsingKeyFrames>
+                        </Storyboard>
+                    </BeginStoryboard>
+                </DataTrigger.EnterActions>
+                <DataTrigger.ExitActions>
+                    <RemoveStoryboard BeginStoryboardName="ReadoutLatchFade"/>
+                </DataTrigger.ExitActions>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- The echo: a few words over the top of the stage on what a control on the piano just
+         did, since the toolbar and status bar that would show it may be hidden (zen mode).
+         Out of the layout and never hit-testable, so it cannot move or cover anything you
+         click. MainWindow fades it in and out; it rests invisible. -->
+    <Style x:Key="Style.PianoEcho" TargetType="Border">
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Top"/>
+        <Setter Property="Margin" Value="0,12,0,0"/>
+        <Setter Property="Padding" Value="14,5,14,6"/>
+        <Setter Property="CornerRadius" Value="14"/>
+        <Setter Property="Background" Value="{StaticResource Brush.Echo.Background}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Echo.Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="IsHitTestVisible" Value="False"/>
+        <Setter Property="Opacity" Value="0"/>
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="{StaticResource Color.Shadow}" Direction="270"
+                                  ShadowDepth="3" BlurRadius="14" Opacity="0.45"/>
+            </Setter.Value>
+        </Setter>
+    </Style>
 </ResourceDictionary>

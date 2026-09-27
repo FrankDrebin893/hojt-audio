@@ -137,9 +137,11 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- Chord readout. Every line has a MinHeight so releasing the keys empties the
-                         text without collapsing the line box and shifting the layout. -->
+                         text without collapsing the line box and shifting the layout. After the
+                         keys come up it holds the last chord for 2 s, dimming (Style.Readout.Latch),
+                         so a chord played with both hands can still be saved. -->
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center"
-                                Margin="24,12">
+                                Margin="24,12" Style="{StaticResource Style.Readout.Latch}">
                         <!-- Line boxes are trimmed to pay for the voicing line: the stack has to fit
                              the 159px row at 900x420, and the 140px MinHeight row an open recorder,
                              log or chat squeezes it to without shaving the chord name. The name's own
@@ -176,7 +178,8 @@
                                    FontSize="{StaticResource Size.Readout.Intervals}"
                                    Foreground="{StaticResource Brush.Text.Muted}"
                                    MinHeight="18" TextAlignment="Center"/>
-                        <TextBlock Text="Space to save" FontSize="11" Margin="0,4,0,0"
+                        <!-- How to save the chord, or that it was: "Saved · 3/8". -->
+                        <TextBlock Text="{Binding SaveHint}" FontSize="11" Margin="0,4,0,0"
                                    Foreground="{StaticResource Brush.Text.Faint}"
                                    MinHeight="18" TextAlignment="Center"
                                    Visibility="{Binding Analysis.Name,
@@ -188,6 +191,7 @@
                          GrandStaffControl), and hugs the left edge like the circle does the right. -->
                     <views:GrandStaffControl Grid.Column="0" Margin="16,4,8,4"
                                              HorizontalAlignment="Left" VerticalAlignment="Center"
+                                             Style="{StaticResource Style.Readout.Latch}"
                                              Notes="{Binding StaffNotes}"
                                              Signature="{Binding StaffSignature}"
                                              LineBrush="{StaticResource Brush.Staff.Line}"
@@ -201,7 +205,7 @@
                     <views:CircleOfFifthsControl Grid.Column="2" Margin="8,4,16,4" CircleAlignment="Right"
                                                  TonicPitchClass="{Binding Settings.KeyTonicPitchClass}"
                                                  Scale="{Binding Settings.KeyScale}"
-                                                 RootPitchClass="{Binding Analysis.RootPitchClass}"
+                                                 RootPitchClass="{Binding SoundingRootPitchClass}"
                                                  Visibility="{Binding IsCircleOfFifthsVisible,
                                                               Converter={StaticResource BoolToVisConverter}}"/>
                 </Grid>
@@ -445,6 +449,16 @@
             <views:ProgressionPanel Grid.Column="1" Width="220"
                                     Visibility="{Binding IsProgressionVisible, Converter={StaticResource BoolToVisConverter}}"/>
 
+            <!-- Echo: what a control on the piano just did ("Recording armed"), faded in and out
+                 by MainWindow.OnEchoShown. Under the settings overlay, whose rows light up instead. -->
+            <Border x:Name="PianoEcho" Grid.Column="0" Style="{StaticResource Style.PianoEcho}">
+                <Border.RenderTransform>
+                    <TranslateTransform/>
+                </Border.RenderTransform>
+                <TextBlock Text="{Binding EchoText}" FontSize="13"
+                           Foreground="{StaticResource Brush.Echo.Text}"/>
+            </Border>
+
             <!-- Settings overlay: scrim first, panel second, so the panel paints on top.
                  Both span the stage; neither displaces the keyboard. -->
             <Border Grid.Column="0" Grid.ColumnSpan="2" Background="{StaticResource Brush.Scrim}"
@@ -464,6 +478,7 @@
                     <!-- No DataContext override here on purpose: SettingsPanel's code-behind seeds the
                          API key box by casting DataContext to MainViewModel. Interposing anything
                          else silently stops the saved key from appearing. -->
+                    <views:PianoControlsPanel DockPanel.Dock="Bottom" DataContext="{Binding PianoControls}"/>
                     <views:SettingsPanel/>
                 </DockPanel>
             </Border>

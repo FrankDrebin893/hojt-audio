@@ -13,6 +13,8 @@ public class MidiInputService : IMidiInputService
     public event EventHandler<NoteEventArgs>? NoteOn;
     public event EventHandler<NoteEventArgs>? NoteOff;
     public event EventHandler<RawMidiMessageEventArgs>? MessageReceived;
+    public event EventHandler<ControlChangeEventArgs>? ControlChange;
+    public event EventHandler<ProgramChangeEventArgs>? ProgramChange;
 
     public IReadOnlyList<DeviceInfo> GetAvailableDevices()
     {
@@ -120,6 +122,29 @@ public class MidiInputService : IMidiInputService
                     MessageReceived?.Invoke(this, new RawMidiMessageEventArgs
                     {
                         Description = $"CC Ch{cc.Channel} Controller={cc.Controller} Value={cc.ControllerValue}"
+                    });
+
+                    ControlChange?.Invoke(this, new ControlChangeEventArgs
+                    {
+                        Channel = cc.Channel - 1,
+                        Controller = (int)cc.Controller,
+                        Value = cc.ControllerValue
+                    });
+                    break;
+                }
+
+                case MidiCommandCode.PatchChange:
+                {
+                    var program = (PatchChangeEvent)evt;
+                    MessageReceived?.Invoke(this, new RawMidiMessageEventArgs
+                    {
+                        Description = $"Program Ch{program.Channel} Program={program.Patch}"
+                    });
+
+                    ProgramChange?.Invoke(this, new ProgramChangeEventArgs
+                    {
+                        Channel = program.Channel - 1,
+                        Program = program.Patch
                     });
                     break;
                 }
