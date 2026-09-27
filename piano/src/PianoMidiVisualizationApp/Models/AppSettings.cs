@@ -68,6 +68,13 @@ public class AppSettings
     // Diatonic chord strip: seventh chords rather than triads.
     public bool ChordStripSevenths { get; set; }
 
+    // Keyboard: label every key, not just the Cs and the keys being held.
+    public bool ShowAllNoteNames { get; set; }
+
+    // "Don't show again" on the first-run setup checklist. The title bar's status chip still
+    // shows what isn't ready, so this only hides the checklist.
+    public bool HideSetupChecklist { get; set; }
+
     // Song practice: the song reopens on launch while practice is on. Speed is clamped on load.
     public string? SongPath { get; set; }
     public double SongSpeed { get; set; } = 1.0;
@@ -77,6 +84,9 @@ public class AppSettings
     public bool ProgressionLoop { get; set; } = true;
     public int ProgressionBeatsPerChord { get; set; } = 0;
     public bool TransposeMovesKey { get; set; } = true;
+
+    // Controls on the MIDI keyboard learned for app actions (Settings > Piano controls).
+    public List<MidiMappingSetting> MidiMappings { get; set; } = new();
 
     // Window placement. Nullable so "never saved" is distinguishable from 0.
     public double? WindowLeft { get; set; }
@@ -120,4 +130,17 @@ public class AppSettings
             // Silently fail on save errors
         }
     }
+}
+
+/// <summary>
+/// One learned control, stored by name so the file stays readable and a renamed or removed
+/// action is simply dropped on load. Channel is 1-16 as keyboards label it; Number is the
+/// note, controller or program number as sent (0-127).
+/// </summary>
+public class MidiMappingSetting
+{
+    public string Action { get; set; } = "";
+    public string Kind { get; set; } = "";
+    public int Channel { get; set; } = 1;
+    public int Number { get; set; }
 }

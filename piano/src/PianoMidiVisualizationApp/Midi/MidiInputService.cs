@@ -1,5 +1,6 @@
 using NAudio.Midi;
 using PianoMidiVisualizationApp.Models;
+using PianoMidiVisualizationApp.Services;
 
 namespace PianoMidiVisualizationApp.Midi;
 
@@ -13,6 +14,8 @@ public class MidiInputService : IMidiInputService
     public event EventHandler<NoteEventArgs>? NoteOn;
     public event EventHandler<NoteEventArgs>? NoteOff;
     public event EventHandler<RawMidiMessageEventArgs>? MessageReceived;
+    public event EventHandler<ControlChangeEventArgs>? ControlChange;
+    public event EventHandler<ProgramChangeEventArgs>? ProgramChange;
 
     public IReadOnlyList<DeviceInfo> GetAvailableDevices()
     {
@@ -73,7 +76,9 @@ public class MidiInputService : IMidiInputService
 
                     MessageReceived?.Invoke(this, new RawMidiMessageEventArgs
                     {
-                        Description = $"NoteOn Ch{noteEvt.Channel} Note={noteEvt.NoteNumber} ({noteEvt.NoteName}) Vel={velocity}"
+                        // MusicNaming, not NAudio's NoteName: NAudio counts octaves from 0 at MIDI
+                        // note 0, so it calls middle C "C5" where the keyboard and readout say C4.
+                        Description = $"NoteOn Ch{noteEvt.Channel} Note={noteEvt.NoteNumber} ({MusicNaming.WithOctave(noteEvt.NoteNumber)}) Vel={velocity}"
                     });
 
                     if (velocity > 0)
@@ -120,6 +125,29 @@ public class MidiInputService : IMidiInputService
                     MessageReceived?.Invoke(this, new RawMidiMessageEventArgs
                     {
                         Description = $"CC Ch{cc.Channel} Controller={cc.Controller} Value={cc.ControllerValue}"
+                    });
+
+                    ControlChange?.Invoke(this, new ControlChangeEventArgs
+                    {
+                        Channel = cc.Channel - 1,
+                        Controller = (int)cc.Controller,
+                        Value = cc.ControllerValue
+                    });
+                    break;
+                }
+
+                case MidiCommandCode.PatchChange:
+                {
+                    var program = (PatchChangeEvent)evt;
+                    MessageReceived?.Invoke(this, new RawMidiMessageEventArgs
+                    {
+                        Description = $"Program Ch{program.Channel} Program={program.Patch}"
+                    });
+
+                    ProgramChange?.Invoke(this, new ProgramChangeEventArgs
+                    {
+                        Channel = program.Channel - 1,
+                        Program = program.Patch
                     });
                     break;
                 }

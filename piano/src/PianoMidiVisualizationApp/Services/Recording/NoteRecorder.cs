@@ -11,6 +11,10 @@ namespace PianoMidiVisualizationApp.Services.Recording;
 /// note-off: a take runs exactly from the first key struck to the last key released, which
 /// is also a natural loop length.</para>
 ///
+/// <para>The sustain pedal is baked into note lengths rather than kept as events of its own:
+/// a key let go under the pedal stays open until the pedal lifts or the key is struck again,
+/// so the take plays back, and exports, sounding the way it was played.</para>
+///
 /// <para>Timestamps are <see cref="Stopwatch.GetTimestamp"/> values taken by the caller on the
 /// MIDI callback thread, before anything is marshalled to the UI. Every member is thread-safe.</para>
 /// </summary>
@@ -21,6 +25,12 @@ public sealed class NoteRecorder
 
     /// <summary>Per key: the timestamp and velocity of the note being held, if any.</summary>
     private readonly (long Timestamp, int Velocity)?[] _open = new (long, int)?[128];
+
+    /// <summary>Per key: released under the pedal, so still open until the pedal lifts.</summary>
+    private readonly bool[] _sustained = new bool[128];
+
+    /// <summary>The pedal as it physically is, which outlives any one take.</summary>
+    private bool _pedalDown;
 
     private bool _isArmed;
     private long? _firstNoteTimestamp;
@@ -82,7 +92,29 @@ public sealed class NoteRecorder
         lock (_sync)
         {
             // A note-off for a key held down before recording began has no note-on to pair with.
-            if (_isArmed) CloseLocked(note, timestamp);
+            if (!_isArmed) return;
+
+            // Under the pedal the note rings on: it ends when the pedal lifts or the key is struck again.
+            if (_pedalDown && _open[note] != null)
+                _sustained[note] = true;
+            else
+                CloseLocked(note, timestamp);
+        }
+    }
+
+    /// <summary>The sustain pedal went down or up. Lifting it ends every note it was holding.</summary>
+    public void SustainPedal(bool isDown, long timestamp)
+    {
+        lock (_sync)
+        {
+            _pedalDown = isDown;
+            if (isDown || !_isArmed) return;
+
+            for (int note = 0; note < _sustained.Length; note++)
+            {
+                if (_sustained[note])
+                    CloseLocked(note, timestamp);
+            }
         }
     }
 
@@ -115,6 +147,7 @@ public sealed class NoteRecorder
 
     private void CloseLocked(int note, long timestamp)
     {
+        _sustained[note] = false;
         if (_open[note] is not { } open || _firstNoteTimestamp is not { } first) return;
         _open[note] = null;
 
@@ -129,5 +162,6 @@ public sealed class NoteRecorder
         _firstNoteTimestamp = null;
         _notes.Clear();
         Array.Clear(_open);
+        Array.Clear(_sustained);
     }
 }

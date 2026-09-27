@@ -1,4 +1,5 @@
 using System.IO;
+using PianoMidiVisualizationApp.Midi;
 using PianoMidiVisualizationApp.Services;
 using PianoMidiVisualizationApp.Services.SongPractice;
 
@@ -7,12 +8,13 @@ namespace ReadmeScreenshots;
 /// <param name="Name">The PNG's file name, without extension; README links use it.</param>
 /// <param name="Width">Window size in DIPs. Keep it near 1280 wide: GitHub shows README images
 /// at about 880px, so a much wider window makes the text unreadably small.</param>
-internal sealed record Scene(string Name, int Width, int Height, Action<Host> Setup);
+/// <param name="SetUp">False starts like a first launch: no piano sound chosen and audio off.</param>
+internal sealed record Scene(string Name, int Width, int Height, Action<Host> Setup, bool SetUp = true);
 
 /// <summary>
 /// Every README screenshot. Each starts from a fresh window with default settings (the
 /// first-launch panel layout: progression sidebar, circle of fifths, grand staff, chord strip
-/// and status bar on) and sets up only what it shows.
+/// and status bar on), the keyboard connected and audio on, and sets up only what it shows.
 /// </summary>
 internal static class Scenes
 {
@@ -28,6 +30,7 @@ internal static class Scenes
         new("recorder", 1280, 840, Recorder),
         new("settings", 1280, 560, Settings),
         new("zen-mode", 1280, 520, ZenMode),
+        new("first-run", 1280, 600, _ => { }, SetUp: false),
     ];
 
     /// <summary>
@@ -128,13 +131,27 @@ internal static class Scenes
         }
     }
 
-    /// <summary>The settings overlay, connected and running, with a SoundFont picked.</summary>
+    /// <summary>
+    /// The settings overlay, connected and running, with a SoundFont picked (see <see cref="Host"/>),
+    /// and two piano controls learned the way a player would: the soft pedal saves the chord, and
+    /// a drum pad on channel 10 arms the recorder.
+    /// </summary>
     private static void Settings(Host host)
     {
         var vm = host.Vm;
-        vm.Settings.SoundFontPath = @"C:\SoundFonts\Salamander Grand Piano\SalamanderGrandPiano.sfz";
-        vm.StartAudioCommand.Execute(null);
         vm.IsSettingsOverlayVisible = true;
+
+        var controls = vm.PianoControls;
+        controls.LearnCommand.Execute(controls.Rows.Single(r => r.Action == PianoAction.SaveChord));
+        host.Midi.MoveControl(67, 127);   // the soft pedal, down
+        host.Midi.MoveControl(67, 0);
+        Host.PumpUntil(() => !controls.IsLearning, TimeSpan.FromSeconds(5), "the soft pedal to be learned");
+
+        controls.LearnCommand.Execute(controls.Rows.Single(r => r.Action == PianoAction.ToggleRecord));
+        host.Midi.PressKey(36, 100, channel: 9);   // a pad sending C2 (MIDI 36) on channel 10
+        host.Midi.ReleaseKey(36, channel: 9);
+        Host.PumpUntil(() => !controls.IsLearning, TimeSpan.FromSeconds(5), "the pad to be learned");
+
         host.Press(C3, G3, E4);
     }
 

@@ -53,7 +53,7 @@ internal static class Program
             var clock = Stopwatch.StartNew();
             try
             {
-                using var host = new Host(scene.Width, scene.Height);
+                using var host = new Host(scene.Width, scene.Height, scene.SetUp);
                 scene.Setup(host);
 
                 string path = Path.Combine(outDir, scene.Name + ".png");

@@ -21,23 +21,33 @@ internal sealed class FakeMidiInput : IMidiInputService
     public event EventHandler<NoteEventArgs>? NoteOn;
     public event EventHandler<NoteEventArgs>? NoteOff;
     public event EventHandler<RawMidiMessageEventArgs>? MessageReceived;
+    public event EventHandler<ControlChangeEventArgs>? ControlChange;
 
-    public void PressKey(int note, int velocity)
+    /// <param name="channel">0-based, like <see cref="NoteEventArgs.Channel"/>: 9 is a drum pad's channel 10.</param>
+    public void PressKey(int note, int velocity, int channel = 0)
     {
-        Raw("NoteOn", 0x90 | note << 8 | velocity << 16);
-        // NAudio names octaves from 0 at MIDI note 0, so middle C reads "C5" in the real log.
-        Log($"NoteOn Ch1 Note={note} ({NoteNames[note % 12]}{note / 12}) Vel={velocity}");
-        NoteOn?.Invoke(this, new NoteEventArgs { NoteNumber = note, Velocity = velocity, Channel = 0 });
+        Raw("NoteOn", channel, 0x90 | channel | note << 8 | velocity << 16);
+        // Middle C (60) is "C4", as the keyboard and the real log (MusicNaming.WithOctave) name it.
+        Log($"NoteOn Ch{channel + 1} Note={note} ({NoteNames[note % 12]}{note / 12 - 1}) Vel={velocity}");
+        NoteOn?.Invoke(this, new NoteEventArgs { NoteNumber = note, Velocity = velocity, Channel = channel });
     }
 
-    public void ReleaseKey(int note)
+    public void ReleaseKey(int note, int channel = 0)
     {
-        Raw("NoteOff", 0x80 | note << 8 | 0x40 << 16);
-        Log($"NoteOff Ch1 Note={note}");
-        NoteOff?.Invoke(this, new NoteEventArgs { NoteNumber = note, Velocity = 0, Channel = 0 });
+        Raw("NoteOff", channel, 0x80 | channel | note << 8 | 0x40 << 16);
+        Log($"NoteOff Ch{channel + 1} Note={note}");
+        NoteOff?.Invoke(this, new NoteEventArgs { NoteNumber = note, Velocity = 0, Channel = channel });
     }
 
-    private void Raw(string command, int message) => Log($"Ch1 {command} raw=0x{message:X8}");
+    /// <summary>A pedal, button or knob: 127 is down or full, 0 up.</summary>
+    public void MoveControl(int controller, int value, int channel = 0)
+    {
+        Raw("ControlChange", channel, 0xB0 | channel | controller << 8 | value << 16);
+        Log($"CC Ch{channel + 1} Controller={controller} Value={value}");
+        ControlChange?.Invoke(this, new ControlChangeEventArgs { Channel = channel, Controller = controller, Value = value });
+    }
+
+    private void Raw(string command, int channel, int message) => Log($"Ch{channel + 1} {command} raw=0x{message:X8}");
 
     private void Log(string description) =>
         MessageReceived?.Invoke(this, new RawMidiMessageEventArgs { Description = description });

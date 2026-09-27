@@ -9,6 +9,13 @@ public interface IAudioEngine : IDisposable
     void Stop();
     void NoteOn(int channel, int note, int velocity);
     void NoteOff(int channel, int note);
+    /// <summary>
+    /// The sustain pedal (CC64) on a 0-based channel, as <see cref="INotePlayer.SetSustainPedal"/>.
+    /// A freshly initialised engine starts with every pedal up. The default ignores it, so test
+    /// doubles that predate the pedal compile unchanged.
+    /// </summary>
+    void SetSustainPedal(int channel, bool isDown) { }
+
     float Volume { get; set; }
     bool IsRunning { get; }
 

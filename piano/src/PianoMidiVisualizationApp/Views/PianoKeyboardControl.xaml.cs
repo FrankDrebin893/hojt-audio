@@ -21,43 +21,16 @@ public partial class PianoKeyboardControl : UserControl
     /// <summary>Drawing height, leaving a little headroom below the keys for their shadows.</summary>
     public const double CanvasHeight = WhiteKeyHeight + 6;
 
-    // White key gradients - ivory to light gray for 3D effect
-    private static readonly LinearGradientBrush WhiteKeyGradient = new(
-        Color.FromRgb(255, 255, 253), // Warm white at top
-        Color.FromRgb(235, 235, 230), // Slightly darker at bottom
-        new Point(0, 0), new Point(0, 1));
+    /// <summary>Where the label glyphs sit, measured from the top of the key.</summary>
+    /// <remarks>
+    /// Labels are placed by baseline rather than by top, so a held key's larger label sits on
+    /// the same line as the idle one. The white-key baseline leaves the front lip clear for the
+    /// scale mark below it.
+    /// </remarks>
+    private const double WhiteLabelBaseline = WhiteKeyHeight - 8;
+    private const double BlackLabelBaseline = BlackKeyHeight - 6;
 
-    private static readonly LinearGradientBrush WhiteKeyPressedGradient = new(
-        Color.FromRgb(140, 200, 255), // Lighter blue at top
-        Color.FromRgb(80, 160, 235),  // Darker blue at bottom
-        new Point(0, 0), new Point(0, 1));
-
-    // Key-signature highlights. Green reads as "belongs here", amber marks the tonic so the
-    // key centre is findable at a glance; both stay pale enough to leave the labels legible.
-    private static readonly LinearGradientBrush WhiteKeyInKeyGradient = new(
-        Color.FromRgb(232, 244, 228),
-        Color.FromRgb(198, 226, 192),
-        new Point(0, 0), new Point(0, 1));
-
-    private static readonly LinearGradientBrush WhiteKeyTonicGradient = new(
-        Color.FromRgb(255, 233, 184),
-        Color.FromRgb(242, 201, 120),
-        new Point(0, 0), new Point(0, 1));
-
-    // Black key gradients - creates beveled top effect
-    private static readonly LinearGradientBrush BlackKeyGradient;
-    private static readonly LinearGradientBrush BlackKeyPressedGradient;
-    private static readonly LinearGradientBrush BlackKeyInKeyGradient;
-    private static readonly LinearGradientBrush BlackKeyTonicGradient;
-
-    // Hints (the app suggesting a key) are an overlay, not a fill, so they can sit on top of
-    // any fill. Magenta is the one hue clear of all of them: blue pressed, green in-key, amber
-    // tonic, ivory and black.
-    private static readonly SolidColorBrush HintBrush = new(Color.FromRgb(232, 62, 156));
-
-    private static readonly SolidColorBrush KeyBorder = new(Color.FromRgb(60, 60, 60));
-    private static readonly SolidColorBrush WhiteKeyLabel = new(Color.FromRgb(130, 130, 125));
-    private static readonly SolidColorBrush BlackKeyLabel = new(Color.FromRgb(140, 140, 140));
+    private static readonly FontFamily LabelFont = new("Segoe UI");
 
     private readonly Dictionary<int, Rectangle> _keyRectangles = new();
 
@@ -70,63 +43,11 @@ public partial class PianoKeyboardControl : UserControl
     /// <summary>Each key's hint overlay, collapsed until the key is hinted.</summary>
     private readonly Dictionary<int, Grid> _keyHints = new();
 
-    static PianoKeyboardControl()
-    {
-        // Black key gradient with highlight at top for 3D bevel
-        BlackKeyGradient = BeveledBlackKeyBrush(
-            Color.FromRgb(70, 70, 70),   // Lighter top edge
-            Color.FromRgb(35, 35, 35),   // Quick transition
-            Color.FromRgb(25, 25, 25),   // Dark middle
-            Color.FromRgb(15, 15, 15));  // Darker bottom
+    /// <summary>Each key's scale mark: the edge that shows the key's role where its fill can't.</summary>
+    private readonly Dictionary<int, Rectangle> _keyMarks = new();
 
-        BlackKeyPressedGradient = BeveledBlackKeyBrush(
-            Color.FromRgb(80, 150, 220),
-            Color.FromRgb(40, 120, 200),
-            Color.FromRgb(25, 100, 180),
-            Color.FromRgb(20, 80, 160));
-
-        // The same bevel structure, tinted: a flat fill here would read as a dead rectangle
-        // next to the unhighlighted black keys.
-        BlackKeyInKeyGradient = BeveledBlackKeyBrush(
-            Color.FromRgb(58, 90, 56),
-            Color.FromRgb(40, 62, 39),
-            Color.FromRgb(32, 50, 31),
-            Color.FromRgb(28, 46, 27));
-
-        BlackKeyTonicGradient = BeveledBlackKeyBrush(
-            Color.FromRgb(106, 83, 38),
-            Color.FromRgb(78, 60, 26),
-            Color.FromRgb(66, 50, 22),
-            Color.FromRgb(58, 44, 18));
-
-        WhiteKeyGradient.Freeze();
-        WhiteKeyPressedGradient.Freeze();
-        WhiteKeyInKeyGradient.Freeze();
-        WhiteKeyTonicGradient.Freeze();
-        HintBrush.Freeze();
-    }
-
-    /// <summary>
-    /// The four-stop vertical bevel every black key shares: a lit top edge, a fast falloff,
-    /// then a slow darkening to the bottom.
-    /// </summary>
-    private static LinearGradientBrush BeveledBlackKeyBrush(Color top, Color shoulder, Color middle, Color bottom)
-    {
-        var brush = new LinearGradientBrush
-        {
-            StartPoint = new Point(0, 0),
-            EndPoint = new Point(0, 1),
-            GradientStops = new GradientStopCollection
-            {
-                new(top, 0.0),
-                new(shoulder, 0.08),
-                new(middle, 0.5),
-                new(bottom, 1.0)
-            }
-        };
-        brush.Freeze();
-        return brush;
-    }
+    private PianoKeyboardViewModel? _viewModel;
+    private KeyPalette _palette = null!;
 
     public PianoKeyboardControl()
     {
@@ -138,12 +59,15 @@ public partial class PianoKeyboardControl : UserControl
     {
         if (e.OldValue is PianoKeyboardViewModel oldVm)
         {
+            oldVm.PropertyChanged -= OnKeyboardPropertyChanged;
             foreach (var key in oldVm.Keys)
                 key.PropertyChanged -= OnKeyPropertyChanged;
         }
 
-        if (e.NewValue is PianoKeyboardViewModel vm)
+        _viewModel = e.NewValue as PianoKeyboardViewModel;
+        if (_viewModel is { } vm)
         {
+            vm.PropertyChanged += OnKeyboardPropertyChanged;
             BuildKeyboard(vm);
         }
     }
@@ -154,55 +78,27 @@ public partial class PianoKeyboardControl : UserControl
         _keyRectangles.Clear();
         _keyLabels.Clear();
         _keyHints.Clear();
+        _keyMarks.Clear();
 
         if (vm.Keys.Count == 0) return;
         Layout = new KeyboardLayout(vm.Keys[0].NoteNumber, vm.Keys[^1].NoteNumber);
+        _palette = new KeyPalette(this);
 
-        // First pass: draw white keys and their labels
-        foreach (var key in vm.Keys)
-        {
-            if (!key.IsBlack)
-            {
-                double x = Layout.KeyLeft(key.NoteNumber);
-                var rect = CreateWhiteKey(x, key);
-                PianoCanvas.Children.Add(rect);
-                _keyRectangles[key.NoteNumber] = rect;
+        // White keys first, with their marks, labels and hints; the black keys added after them
+        // then sit on top.
+        foreach (var key in vm.Keys.Where(k => !k.IsBlack))
+            AddKey(key, CreateWhiteKey(Layout.KeyLeft(key.NoteNumber)));
 
-                var label = CreateWhiteKeyLabel(x, key);
-                PianoCanvas.Children.Add(label);
-                _keyLabels[key.NoteNumber] = label;
+        foreach (var key in vm.Keys.Where(k => k.IsBlack))
+            AddKey(key, CreateBlackKey(Layout.KeyLeft(key.NoteNumber)));
 
-                var hint = CreateKeyHint(x, key);
-                PianoCanvas.Children.Add(hint);
-                _keyHints[key.NoteNumber] = hint;
-            }
-        }
-
-        // Second pass: draw black keys and their labels on top
-        foreach (var key in vm.Keys)
-        {
-            if (key.IsBlack)
-            {
-                double x = Layout.KeyLeft(key.NoteNumber);
-                var rect = CreateBlackKey(x, key);
-                PianoCanvas.Children.Add(rect);
-                _keyRectangles[key.NoteNumber] = rect;
-
-                var label = CreateBlackKeyLabel(x, key);
-                PianoCanvas.Children.Add(label);
-                _keyLabels[key.NoteNumber] = label;
-
-                var hint = CreateKeyHint(x, key);
-                PianoCanvas.Children.Add(hint);
-                _keyHints[key.NoteNumber] = hint;
-            }
-        }
-
-        // Paint in the current scale roles and hints. Done after registration rather than inside
-        // the Create* helpers so a key or hint set before this control existed still shows.
+        // Paint in the current state. Done after registration rather than inside the Create*
+        // helpers so a key, role or hint set before this control existed still shows.
         foreach (var key in vm.Keys)
         {
             ApplyKeyFill(key);
+            ApplyScaleMark(key);
+            ApplyKeyLabel(key);
             ApplyKeyHint(key);
         }
 
@@ -216,7 +112,32 @@ public partial class PianoKeyboardControl : UserControl
             key.PropertyChanged += OnKeyPropertyChanged;
     }
 
-    private Rectangle CreateWhiteKey(double x, PianoKey key)
+    /// <summary>
+    /// Adds a key and its overlays in drawing order: body, label, hint, scale mark. The mark
+    /// goes last so a hinted key still shows its role: it lies over the hint outline's edge
+    /// and closes it off.
+    /// </summary>
+    private void AddKey(PianoKey key, Rectangle body)
+    {
+        double x = Layout.KeyLeft(key.NoteNumber);
+        body.Tag = key.NoteNumber;
+
+        var label = CreateLabel(x, key);
+        var hint = CreateKeyHint(x, key);
+        var mark = CreateScaleMark(x, key);
+
+        PianoCanvas.Children.Add(body);
+        PianoCanvas.Children.Add(label);
+        PianoCanvas.Children.Add(hint);
+        PianoCanvas.Children.Add(mark);
+
+        _keyRectangles[key.NoteNumber] = body;
+        _keyMarks[key.NoteNumber] = mark;
+        _keyLabels[key.NoteNumber] = label;
+        _keyHints[key.NoteNumber] = hint;
+    }
+
+    private Rectangle CreateWhiteKey(double x)
     {
         // Fill is deliberately left unset here; ApplyKeyFill assigns it once the key is
         // registered, so there is exactly one place that decides a key's colour.
@@ -224,11 +145,10 @@ public partial class PianoKeyboardControl : UserControl
         {
             Width = KeyboardLayout.WhiteKeyDrawnWidth,
             Height = WhiteKeyHeight,
-            Stroke = KeyBorder,
+            Stroke = _palette.WhiteBorder,
             StrokeThickness = 0.5,
             RadiusX = 0,
             RadiusY = 4,
-            Tag = key.NoteNumber,
             Effect = new DropShadowEffect
             {
                 Color = Colors.Black,
@@ -244,17 +164,16 @@ public partial class PianoKeyboardControl : UserControl
         return rect;
     }
 
-    private Rectangle CreateBlackKey(double x, PianoKey key)
+    private Rectangle CreateBlackKey(double x)
     {
         var rect = new Rectangle
         {
             Width = BlackKeyWidth,
             Height = BlackKeyHeight,
-            Stroke = new SolidColorBrush(Color.FromRgb(20, 20, 20)),
+            Stroke = _palette.BlackBorder,
             StrokeThickness = 0.5,
             RadiusX = 2,
             RadiusY = 2,
-            Tag = key.NoteNumber,
             Effect = new DropShadowEffect
             {
                 Color = Colors.Black,
@@ -281,57 +200,62 @@ public partial class PianoKeyboardControl : UserControl
 
     private static bool IsOctaveC(PianoKey key) => key.NoteNumber % 12 == 0;
 
-    private TextBlock CreateWhiteKeyLabel(double x, PianoKey key)
-    {
-        bool isC = IsOctaveC(key);
-
-        var label = new TextBlock
-        {
-            Text = LabelTextFor(key),
-            FontSize = isC ? 10 : 9,
-            FontWeight = FontWeights.Medium,
-            FontFamily = new FontFamily("Segoe UI"),
-            Foreground = WhiteKeyLabel,
-            TextAlignment = TextAlignment.Center,
-            Width = KeyboardLayout.WhiteKeyDrawnWidth
-        };
-        Canvas.SetLeft(label, x);
-        Canvas.SetTop(label, WhiteKeyHeight - (isC ? 18 : 16));
-        Panel.SetZIndex(label, 0);
-        return label;
-    }
-
-    private TextBlock CreateBlackKeyLabel(double x, PianoKey key)
+    /// <summary>Text, size, weight, colour and visibility are all set by <see cref="ApplyKeyLabel"/>.</summary>
+    private static TextBlock CreateLabel(double x, PianoKey key)
     {
         var label = new TextBlock
         {
-            Text = LabelTextFor(key),
-            FontSize = 8,
-            FontWeight = FontWeights.Medium,
-            FontFamily = new FontFamily("Segoe UI"),
-            Foreground = BlackKeyLabel,
+            FontFamily = LabelFont,
             TextAlignment = TextAlignment.Center,
-            Width = BlackKeyWidth
+            Width = KeyboardLayout.KeyWidth(key.NoteNumber),
+            IsHitTestVisible = false
         };
         Canvas.SetLeft(label, x);
-        Canvas.SetTop(label, BlackKeyHeight - 14);
-        Panel.SetZIndex(label, 2);
+        Panel.SetZIndex(label, key.IsBlack ? 2 : 0);
         return label;
     }
 
     /// <summary>
+    /// A bar along one edge of the key: the top of a black key, the front lip of a white one.
+    /// Collapsed until <see cref="ApplyScaleMark"/> decides the key needs it.
+    /// </summary>
+    /// <remarks>
+    /// Inset exactly as far as the hint outline (see <see cref="CreateKeyHint"/>), so on a
+    /// hinted key the bar replaces that edge of the outline cleanly.
+    /// </remarks>
+    private static Rectangle CreateScaleMark(double x, PianoKey key)
+    {
+        double inset = HintInset(key);
+        var mark = new Rectangle
+        {
+            Width = KeyboardLayout.KeyWidth(key.NoteNumber) - (2 * inset),
+            RadiusX = 1,
+            RadiusY = 1,
+            IsHitTestVisible = false,
+            Visibility = Visibility.Collapsed
+        };
+        Canvas.SetLeft(mark, x + inset);
+        Panel.SetZIndex(mark, key.IsBlack ? 2 : 0);
+        return mark;
+    }
+
+    /// <summary>
     /// An inset outline plus a dot above the label: the outline marks the whole key, the dot
-    /// stays findable on a white key's lower half, where black keys never cover it.
+    /// stays findable on a white key's lower half, where black keys never cover it. Both carry
+    /// a deep keyline, so they still separate from a light fill as bright as the magenta.
     /// </summary>
     /// <remarks>
     /// A white key's hint shares its Z-index, so the black keys drawn later still cover it;
     /// a black key's sits above the key itself, level with its label.
     /// </remarks>
-    private static Grid CreateKeyHint(double x, PianoKey key)
+    private Grid CreateKeyHint(double x, PianoKey key)
     {
-        double width = key.IsBlack ? BlackKeyWidth : KeyboardLayout.WhiteKeyDrawnWidth;
+        double width = KeyboardLayout.KeyWidth(key.NoteNumber);
         double height = key.IsBlack ? BlackKeyHeight : WhiteKeyHeight;
         double dot = key.IsBlack ? 7 : 8;
+        double inset = HintInset(key);
+        double stroke = key.IsBlack ? 1.5 : 2;
+        double keyline = key.IsBlack ? 0.75 : 1;
 
         var hint = new Grid
         {
@@ -342,17 +266,27 @@ public partial class PianoKeyboardControl : UserControl
         };
         hint.Children.Add(new Rectangle
         {
-            Margin = new Thickness(key.IsBlack ? 1.5 : 2),
-            Stroke = HintBrush,
-            StrokeThickness = key.IsBlack ? 1.5 : 2,
+            Margin = new Thickness(inset),
+            Stroke = _palette.Hint,
+            StrokeThickness = stroke,
             RadiusX = 2,
             RadiusY = 2
+        });
+        hint.Children.Add(new Rectangle
+        {
+            Margin = new Thickness(inset + stroke),
+            Stroke = _palette.HintKeyline,
+            StrokeThickness = keyline,
+            RadiusX = 1,
+            RadiusY = 1
         });
         hint.Children.Add(new Ellipse
         {
             Width = dot,
             Height = dot,
-            Fill = HintBrush,
+            Fill = _palette.Hint,
+            Stroke = _palette.HintKeyline,
+            StrokeThickness = keyline,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Bottom,
             Margin = new Thickness(0, 0, 0, key.IsBlack ? 22 : 32)
@@ -364,24 +298,89 @@ public partial class PianoKeyboardControl : UserControl
         return hint;
     }
 
+    /// <summary>How far the hint outline, and the scale mark that can lie over it, sit inside the key.</summary>
+    private static double HintInset(PianoKey key) => key.IsBlack ? 1.5 : 2;
+
     /// <summary>
     /// Resolves a key's fill from all of its states at once. Every fill change goes through
     /// here: deciding "pressed or not" in isolation is exactly what would make releasing a
     /// key wipe out its key-signature highlight.
     /// </summary>
+    /// <remarks>
+    /// Only white keys take the in-key wash. An in-key black key keeps its plain body and
+    /// shows its role with the edge mark instead (see <see cref="ApplyScaleMark"/>).
+    /// </remarks>
     private void ApplyKeyFill(PianoKey key)
     {
         if (!_keyRectangles.TryGetValue(key.NoteNumber, out var rect))
             return;
 
+        var p = _palette;
         rect.Fill = key.IsPressed
-            ? (key.IsBlack ? BlackKeyPressedGradient : WhiteKeyPressedGradient)
+            ? (key.IsBlack ? p.BlackHeld : p.WhiteHeld)
+            : key.IsSustained ? (key.IsBlack ? p.BlackRinging : p.WhiteRinging)
             : key.ScaleRole switch
             {
-                KeyRole.Tonic => key.IsBlack ? BlackKeyTonicGradient : WhiteKeyTonicGradient,
-                KeyRole.InKey => key.IsBlack ? BlackKeyInKeyGradient : WhiteKeyInKeyGradient,
-                _ => key.IsBlack ? BlackKeyGradient : WhiteKeyGradient
+                KeyRole.Tonic => key.IsBlack ? p.BlackTonic : p.WhiteTonic,
+                KeyRole.InKey => key.IsBlack ? p.Black : p.WhiteInKey,
+                _ => key.IsBlack ? p.Black : p.White
             };
+    }
+
+    /// <summary>
+    /// Shows the key's scale role as an edge mark wherever the fill can't: always on a black
+    /// key (in-key black keys have no wash), and on a held or pedal-held white key, whose wash
+    /// the blue has replaced. So a held tonic still reads as the tonic.
+    /// </summary>
+    private void ApplyScaleMark(PianoKey key)
+    {
+        if (!_keyMarks.TryGetValue(key.NoteNumber, out var mark))
+            return;
+
+        bool show = key.ScaleRole != KeyRole.None && (key.IsBlack || key.IsPressed || key.IsSustained);
+        mark.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        if (!show) return;
+
+        bool tonic = key.ScaleRole == KeyRole.Tonic;
+        mark.Fill = tonic ? _palette.TonicMark : _palette.InKeyMark;
+        mark.Height = tonic ? 4 : 2.5;
+        double inset = HintInset(key);
+        Canvas.SetTop(mark, key.IsBlack ? inset : WhiteKeyHeight - inset - mark.Height);
+    }
+
+    /// <summary>
+    /// Three label roles. A sounding key's name is what you're reading, so it gets the
+    /// high-contrast pair for its blue fill; one under a finger also gets a heavier weight and a
+    /// step up in size, while one the pedal holds stays quieter. Idle, the Cs are landmarks (with
+    /// the octave), and the other keys are labelled only with "All note names".
+    /// </summary>
+    private void ApplyKeyLabel(PianoKey key)
+    {
+        if (!_keyLabels.TryGetValue(key.NoteNumber, out var label))
+            return;
+
+        bool held = key.IsPressed;
+        bool sounding = held || key.IsSustained;
+        bool show = sounding || IsOctaveC(key) || _viewModel?.ShowAllNoteNames == true;
+        label.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        if (!show) return;
+
+        var p = _palette;
+        label.Text = LabelTextFor(key);
+        label.FontWeight = held ? FontWeights.SemiBold : FontWeights.Medium;
+        if (key.IsBlack)
+        {
+            label.Foreground = sounding ? p.BlackLabelHeld : p.BlackLabel;
+            label.FontSize = held ? 9 : 8;
+        }
+        else
+        {
+            label.Foreground = sounding ? p.LabelHeld : p.Label;
+            label.FontSize = held ? 11 : IsOctaveC(key) ? 10 : 9;
+        }
+
+        double baseline = key.IsBlack ? BlackLabelBaseline : WhiteLabelBaseline;
+        Canvas.SetTop(label, baseline - (LabelFont.Baseline * label.FontSize));
     }
 
     private void ApplyKeyHint(PianoKey key)
@@ -397,8 +396,15 @@ public partial class PianoKeyboardControl : UserControl
         switch (e.PropertyName)
         {
             case nameof(PianoKey.IsPressed):
+            case nameof(PianoKey.IsSustained):
+                ApplyKeyFill(key);
+                ApplyScaleMark(key);
+                ApplyKeyLabel(key);
+                break;
+
             case nameof(PianoKey.ScaleRole):
                 ApplyKeyFill(key);
+                ApplyScaleMark(key);
                 break;
 
             case nameof(PianoKey.IsHinted):
@@ -406,9 +412,70 @@ public partial class PianoKeyboardControl : UserControl
                 break;
 
             case nameof(PianoKey.NoteName):
-                if (_keyLabels.TryGetValue(key.NoteNumber, out var label))
-                    label.Text = LabelTextFor(key);
+                ApplyKeyLabel(key);
                 break;
+        }
+    }
+
+    private void OnKeyboardPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(PianoKeyboardViewModel.ShowAllNoteNames) && _viewModel is { } vm)
+        {
+            foreach (var key in vm.Keys)
+                ApplyKeyLabel(key);
+        }
+    }
+
+    /// <summary>
+    /// The keyboard's brushes, resolved once per build from the theme (Themes/Dark.xaml), where
+    /// each one is named for what it means.
+    /// </summary>
+    private sealed class KeyPalette
+    {
+        public Brush White { get; }
+        public Brush WhiteHeld { get; }
+        public Brush WhiteRinging { get; }
+        public Brush WhiteInKey { get; }
+        public Brush WhiteTonic { get; }
+        public Brush WhiteBorder { get; }
+        public Brush Black { get; }
+        public Brush BlackHeld { get; }
+        public Brush BlackRinging { get; }
+        public Brush BlackTonic { get; }
+        public Brush BlackBorder { get; }
+        public Brush InKeyMark { get; }
+        public Brush TonicMark { get; }
+        public Brush Hint { get; }
+        public Brush HintKeyline { get; }
+        public Brush Label { get; }
+        public Brush LabelHeld { get; }
+        public Brush BlackLabel { get; }
+        public Brush BlackLabelHeld { get; }
+
+        public KeyPalette(FrameworkElement owner)
+        {
+            // Magenta for a missing key is loud on purpose: a mistyped name shows at once.
+            Brush Find(string key) => owner.TryFindResource(key) as Brush ?? Brushes.Magenta;
+
+            White = Find("Brush.Key.White");
+            WhiteHeld = Find("Brush.Key.White.Held");
+            WhiteRinging = Find("Brush.Key.White.Ringing");
+            WhiteInKey = Find("Brush.Key.White.InKey");
+            WhiteTonic = Find("Brush.Key.White.Tonic");
+            WhiteBorder = Find("Brush.Key.White.Border");
+            Black = Find("Brush.Key.Black");
+            BlackHeld = Find("Brush.Key.Black.Held");
+            BlackRinging = Find("Brush.Key.Black.Ringing");
+            BlackTonic = Find("Brush.Key.Black.Tonic");
+            BlackBorder = Find("Brush.Key.Black.Border");
+            InKeyMark = Find("Brush.Key.InKey.Mark");
+            TonicMark = Find("Brush.Key.Tonic.Mark");
+            Hint = Find("Brush.Key.Hint");
+            HintKeyline = Find("Brush.Key.Hint.Keyline");
+            Label = Find("Brush.Key.Label");
+            LabelHeld = Find("Brush.Key.Label.Held");
+            BlackLabel = Find("Brush.Key.Black.Label");
+            BlackLabelHeld = Find("Brush.Key.Black.Label.Held");
         }
     }
 }

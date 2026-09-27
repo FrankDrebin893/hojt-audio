@@ -4,7 +4,8 @@ A Windows desktop app for practising piano with a MIDI keyboard. It plays your k
 any SoundFont (`.sf2`) or SFZ piano with low-latency audio. As you play, it shows the keys you're
 holding, the chord's name and Roman numeral, the notes on a grand staff and where the chord sits
 on the circle of fifths. You can also practise MIDI songs with falling notes, record takes, and
-build and play back chord progressions.
+build and play back chord progressions, and teach the pedals and pads on your keyboard to run
+the app so your hands can stay on the keys.
 
 ![The main window in C major. A G7 chord over B is held; the readout names it G7/B, V65, first inversion, drop 2 voicing. The grand staff, circle of fifths and chord strip follow it, and the sidebar holds a saved C–Am–F–G7 progression with next-chord suggestions.](docs/screenshots/main-window.png)
 
@@ -16,8 +17,11 @@ suggests where the saved progression could go next.*
 
 ### Hear and see what you play
 
-- **Any MIDI keyboard**: USB or through a MIDI interface. Held keys light up on a 61-key
-  keyboard (C2–C7) that scales with the window.
+- **Any MIDI keyboard**: USB or through a MIDI interface. Held keys light up blue on a 61-key
+  keyboard (C2–C7) that scales with the window, each labelled with its note spelled for the key
+  (Bb in F, not A#). The other keys label only the Cs; **View → All Note Names** labels every key.
+- **Sustain pedal**: holds the sound in both SoundFont and SFZ pianos. A key the pedal is holding
+  stays lit in a paler blue and still counts toward the chord name.
 - **SoundFont and SFZ pianos**: `.sf2` files play through the MeltySynth synthesizer. `.sfz`
   instruments such as [Salamander Grand Piano](https://sfzinstruments.github.io/pianos/salamander)
   play through a built-in sample player with velocity layers.
@@ -30,9 +34,10 @@ suggests where the saved progression could go next.*
   it are the inversion, the voicing (close, open, shell or drop 2), each note, and its interval
   above the root.
 - **Keys and scales**: pick a key centre and one of 12 scales: major, natural, harmonic and
-  melodic minor, the five other modes, major and minor pentatonic, and blues. In-key notes
-  are tinted on the keyboard, the tonic stands out, and note names switch between sharps and
-  flats to suit the key.
+  melodic minor, the five other modes, major and minor pentatonic, and blues. The keyboard shows
+  the key in amber: a wash on in-key keys, the tonic in full, and a small mark on in-key black
+  keys and on in-key keys you hold, so it doesn't rest on colour alone. Note names switch between sharps
+  and flats to suit the key.
 - **Mute out-of-key**: out-of-key notes go silent but still light up and still count toward the
   chord name, so you can hear the scale and see your mistakes.
 - **Roman numerals**: the held chord's function in the key, with figured-bass inversions (V65,
@@ -46,8 +51,10 @@ suggests where the saved progression could go next.*
 
 ### Build chord progressions
 
-- Press **Space** to save the chord you're holding to the **Chord Progression** sidebar, up to
-  eight chords, each with its numeral and notes.
+- Press **Space** to save the chord to the **Chord Progression** sidebar, up to eight chords,
+  each with its numeral and notes. You don't have to keep holding it: after you let go, the
+  readout keeps the chord for two seconds, fading, and Space still saves it. That way a
+  two-handed chord can be saved too.
 - **Play it back** at the metronome's tempo, looped if you like, giving each chord one bar or
   one to eight beats (**Ctrl+P**).
 - **Transpose** the whole progression by semitones. Tick **Move key** and the key moves with
@@ -56,12 +63,26 @@ suggests where the saved progression could go next.*
   vi, ii to V, and so on), each voiced to lead smoothly from it. Hover a suggestion to see it on
   the keyboard, and click it to add it.
 
+### Play from the piano
+
+![Settings, with Piano controls below the keyboard and sound settings. The soft pedal is learned for Save chord and a pad sending C2 on channel 10 for Record; the other actions are not set.](docs/screenshots/settings.png)
+
+- **Piano controls**, in **View → Settings…**: teach a key, pad, button or pedal on your
+  keyboard to save the chord, play the progression, record, play the latest take, turn the
+  metronome on or off, tap the tempo, or play and restart a song. Click **Learn** next to the
+  action, then press the control.
+- A key you map stops playing its note. **Clear** gives it back. Mappings are saved with your
+  other settings.
+- Each time a control fires, a short note over the stage says what it did, e.g. "Recording
+  armed · starts at your first note".
+
 ### Practise songs with falling notes
 
-![Song practice with Ode to Joy in "Wait for me" mode. Right-hand notes fall in green and left-hand chords in blue toward the keyboard. The song is paused on the next note, C4, which is outlined on the keyboard, with a score of 24 correct and 1 wrong.](docs/screenshots/song-practice.png)
+![Song practice with Ode to Joy in "Wait for me" mode. Right-hand notes fall in teal and left-hand chords in violet, straight onto the keyboard. The song is paused on the next note, C4, which is outlined on the keyboard, with a score of 24 correct, 1 wrong and 0 missed.](docs/screenshots/song-practice.png)
 
-- **Open any MIDI file** (**Ctrl+O**), and its notes fall toward the keys they belong to. A
-  two-handed piano track is split into right and left hand at middle C, each in its own colour.
+- **Open any MIDI file** (**Ctrl+O**), and its notes fall straight onto the keys they belong
+  to. A two-handed piano track is split into right and left hand at middle C, each in its own
+  colour.
 - **Tracks**: decide who plays each part: **You play**, **Auto-play** (the app plays it as
   accompaniment) or **Mute**.
 - **Wait for me**: the song stops at each of your chords until you play it, with the keys to
@@ -75,7 +96,8 @@ suggests where the saved progression could go next.*
 ![The recorder panel with two takes. Take 2 plays back in an A–B loop, and its notes are drawn on a timeline with the loop region shaded. The keyboard and readout show the A minor chord being played back, and the MIDI log below lists raw note messages.](docs/screenshots/recorder.png)
 
 - Press **Ctrl+R** to arm the recorder. Recording starts at your first note, so there's no
-  silence to trim. The last ten takes are kept.
+  silence to trim. The last ten takes are kept. A note held by the sustain pedal is recorded for
+  as long as it sounds.
 - **Play back** at 50%, 75% or 100% speed (**Ctrl+Shift+R**), looping the whole take or just
   an **A–B** region. Drag across the timeline to set the region, or click it to jump there.
 - **Export** any take as a `.mid` file.
@@ -93,6 +115,9 @@ suggests where the saved progression could go next.*
 - Every panel can be shown or hidden from the **View** menu or its shortcut. **Zen mode**
   (**F11**) hides everything but the chord readout and the keyboard, and F11 again brings your
   layout back.
+- **Status at a glance**: the title bar shows your keyboard and audio output, e.g. "Digital
+  Piano · ASIO". It turns amber when either isn't ready, its tooltip says why, and clicking it
+  opens Settings.
 - **MIDI log**: a scrolling list of every raw MIDI message, handy when a keyboard misbehaves.
 - **AI Music Assistant** (optional): a chat panel for music theory and practice questions. It
   knows the chord you're holding, the selected key and your saved progression. It uses Google
@@ -107,7 +132,7 @@ suggests where the saved progression could go next.*
 | Shortcut | Action |
 |---|---|
 | **Space** | Save the held chord to the progression |
-| **Ctrl+,** | Settings (**Esc** closes them) |
+| **Ctrl+,** | Settings (**Esc** closes them, or cancels **Learn**) |
 | **F11** | Zen mode |
 | **Ctrl+M** | Metronome on/off |
 | **Ctrl+R** | Record / stop recording |
@@ -138,19 +163,25 @@ Get the latest `win-x64.zip` from [Releases](https://github.com/FrankDrebin893/P
 
 ## Getting started
 
-![The settings bar across the top of the window, with MIDI device, Connect/Disconnect and activity light, ASIO or WASAPI, the audio driver, the SoundFont path, Start Audio and Stop, volume and click sliders, and the AI key field.](docs/screenshots/settings.png)
+![The first launch. The readout shows a setup checklist: Keyboard connected (Digital Piano, ticked), Choose a piano sound (the next step, highlighted) and Start audio. The title bar reads "Digital Piano · No sound" in amber.](docs/screenshots/first-run.png)
 
-1. Open **View → Settings…** (**Ctrl+,**).
-2. Select your MIDI keyboard from the **MIDI** dropdown and click **Connect**.
-3. Click **...** next to **SF2** to choose a SoundFont or SFZ file.
-4. Choose **ASIO** or **WASAPI**, and select your audio driver.
-5. Click **Start Audio**.
-6. Play. You'll hear sound and see the keys light up. Pick a **Key** in the toolbar to turn on
-   the Roman numerals, chord strip and key tinting.
+The first time you start the app, the empty readout is a setup checklist: **Connect your
+keyboard**, **Choose a piano sound** and **Start audio**. Click a step to do it. Choosing a
+sound starts audio as well. If a step fails, it says why in amber.
+
+Everything is also in **View → Settings…** (**Ctrl+,**):
+
+1. Select your MIDI keyboard from the **Keyboard** dropdown and click **Connect**.
+2. Choose **ASIO** or **WASAPI** under **Output**, and select your audio device.
+3. Click **Choose…** next to **Piano sound** to pick a SoundFont or SFZ file.
+4. Click **Start audio**.
+
+Then play. You'll hear sound and see the keys light up. Pick a **Key** in the toolbar to turn on
+the Roman numerals, chord strip and key tinting.
 
 The dot next to **Connect** turns green once the keyboard is connected and flashes when MIDI
-data arrives. **Vol** sets the master volume and **Click** the metronome. To use the AI
-assistant, paste your Gemini API key into **AI**.
+data arrives. **Volume** sets the master volume and **Click** the metronome. To use the AI
+assistant, paste your Gemini API key into **Gemini key**.
 
 ## Building
 

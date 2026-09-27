@@ -34,6 +34,15 @@ public class SoundFontSampleProvider : INotePlayer
         }
     }
 
+    /// <summary>MeltySynth implements the hold pedal itself; it only needs the controller message.</summary>
+    public void SetSustainPedal(int channel, bool isDown)
+    {
+        lock (_synthLock)
+        {
+            _synthesizer.ProcessMidiMessage(channel, 0xB0, 64, isDown ? 127 : 0);
+        }
+    }
+
     public int Read(float[] buffer, int offset, int count)
     {
         lock (_synthLock)

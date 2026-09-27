@@ -18,8 +18,23 @@ public class PianoKeyboardViewModel : ObservableObject
     /// </summary>
     private readonly HashSet<int> _pressedNotes = new();
 
+    /// <summary>Let go but still sounding under the sustain pedal. Never overlaps <see cref="_pressedNotes"/>.</summary>
+    private readonly HashSet<int> _sustainedNotes = new();
+
     /// <summary>The selected key signature, or null when highlighting is off.</summary>
     private MusicKey? _activeKey;
+
+    private bool _showAllNoteNames;
+
+    /// <summary>
+    /// Label every key. Off (the default), idle keys label only the Cs, so the label on a held
+    /// key is the one that stands out; held keys are labelled either way.
+    /// </summary>
+    public bool ShowAllNoteNames
+    {
+        get => _showAllNoteNames;
+        set => SetProperty(ref _showAllNoteNames, value);
+    }
 
     /// <summary>C2-C7 — the 61 keys on the user's controller.</summary>
     public PianoKeyboardViewModel(int lowestNote = 36, int highestNote = 96)
@@ -66,10 +81,12 @@ public class PianoKeyboardViewModel : ObservableObject
     public void SetKeyPressed(int noteNumber, int velocity)
     {
         _pressedNotes.Add(noteNumber);
+        _sustainedNotes.Remove(noteNumber);
 
         if (_keyLookup.TryGetValue(noteNumber, out var key))
         {
             key.IsPressed = true;
+            key.IsSustained = false;
             key.Velocity = velocity;
         }
     }
@@ -77,16 +94,35 @@ public class PianoKeyboardViewModel : ObservableObject
     public void SetKeyReleased(int noteNumber)
     {
         _pressedNotes.Remove(noteNumber);
+        _sustainedNotes.Remove(noteNumber);
 
         if (_keyLookup.TryGetValue(noteNumber, out var key))
         {
             key.IsPressed = false;
+            key.IsSustained = false;
             key.Velocity = 0;
         }
     }
 
-    /// <summary>Every sounding note, including any outside the drawn range.</summary>
+    /// <summary>The key was let go, but the sustain pedal keeps it sounding.</summary>
+    public void SetKeySustained(int noteNumber)
+    {
+        _pressedNotes.Remove(noteNumber);
+        _sustainedNotes.Add(noteNumber);
+
+        if (_keyLookup.TryGetValue(noteNumber, out var key))
+        {
+            // Sustained first, so the fill goes straight from pressed to ringing.
+            key.IsSustained = true;
+            key.IsPressed = false;
+        }
+    }
+
+    /// <summary>Every note held down, including any outside the drawn range.</summary>
     public IEnumerable<int> GetPressedNotes() => _pressedNotes;
+
+    /// <summary>Every note sounding: held down, or let go under the sustain pedal.</summary>
+    public IEnumerable<int> GetSoundingNotes() => _pressedNotes.Concat(_sustainedNotes);
 
     /// <summary>
     /// Marks exactly these MIDI notes as hinted and un-hints every other key, so each call

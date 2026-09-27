@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using PianoMidiVisualizationApp.Audio;
 using PianoMidiVisualizationApp.Models;
@@ -34,7 +35,11 @@ public partial class SettingsViewModel : ObservableObject
     private bool _useAsio = true;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SoundFontFileName))]
     private string _soundFontPath = "";
+
+    /// <summary>What Settings shows for the sound: its file name, the folder being noise at that width.</summary>
+    public string SoundFontFileName => string.IsNullOrEmpty(SoundFontPath) ? "" : Path.GetFileName(SoundFontPath);
 
     [ObservableProperty]
     private float _volume = 0.8f;

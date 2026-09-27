@@ -8,6 +8,19 @@ namespace PianoMidiVisualizationApp.Views;
 
 public partial class RecorderPanel : UserControl
 {
+    public static readonly DependencyProperty ShowTransportProperty = DependencyProperty.Register(
+        nameof(ShowTransport), typeof(bool), typeof(RecorderPanel));
+
+    /// <summary>
+    /// Shows the record/play/loop transport in the panel's own header. Set during song practice,
+    /// where it moves here from the practice toolbar so it can't be mistaken for the song's.
+    /// </summary>
+    public bool ShowTransport
+    {
+        get => (bool)GetValue(ShowTransportProperty);
+        set => SetValue(ShowTransportProperty, value);
+    }
+
     public RecorderPanel()
     {
         InitializeComponent();

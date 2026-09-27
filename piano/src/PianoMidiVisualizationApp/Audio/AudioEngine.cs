@@ -112,6 +112,11 @@ public class AudioEngine : IAudioEngine
         _sampleProvider?.NoteOff(channel, note);
     }
 
+    public void SetSustainPedal(int channel, bool isDown)
+    {
+        _sampleProvider?.SetSustainPedal(channel, isDown);
+    }
+
     private MMDevice? GetWasapiDevice(string friendlyName)
     {
         using var enumerator = new MMDeviceEnumerator();

@@ -130,6 +130,10 @@ public partial class RecorderViewModel : ObservableObject, IDisposable
     public void CaptureNoteOff(int note, long timestamp) =>
         _recorder.NoteOff(note, timestamp);
 
+    /// <summary>Whether any sustain pedal is down; a note let go under it is recorded until it lifts.</summary>
+    public void CaptureSustainPedal(bool isDown, long timestamp) =>
+        _recorder.SustainPedal(isDown, timestamp);
+
     // ----- Recording -----
 
     [RelayCommand]
