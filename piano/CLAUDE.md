@@ -33,8 +33,10 @@ PianoMidiVisualizationApp`), and verify afterwards that the target's timestamp m
 ## Releasing
 `.github/workflows/release.yml` builds the release zip (exe + `LICENSE` +
 `THIRD-PARTY-NOTICES.txt`) on every push to main as a workflow artifact. Pushing a tag
-`vX.Y.Z` also publishes it as a public GitHub Release — only tag when the user asks.
-`.github/release-notes.md` is prepended to the generated notes.
+`vX.Y.Z` also publishes it as a public GitHub Release — only tag when the user asks, and
+do it with the `release` skill (`/release [patch|minor|major]`,
+`.claude/skills/release/`). Artifacts need a GitHub sign-in, so only a release can be
+shared. `.github/release-notes.md` is prepended to the generated notes.
 
 Never commit SoundFonts or samples (`.sf2`/`.sfz`/`.wav`, ...): they're third-party
 downloads with their own licenses, and the workflow fails if any are tracked. When adding
