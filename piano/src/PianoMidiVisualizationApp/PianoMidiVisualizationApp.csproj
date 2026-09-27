@@ -20,4 +20,10 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
   </ItemGroup>
 
+  <!-- The title bar's <Image Source="app.png"/> resolves against the assembly's resources;
+       without this the image fails to load silently and the title bar shows no icon. -->
+  <ItemGroup>
+    <Resource Include="app.png" />
+  </ItemGroup>
+
 </Project>
