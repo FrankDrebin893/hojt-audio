@@ -772,13 +772,15 @@
     <SolidColorBrush x:Key="Brush.Echo.Text"       Color="#EDEDED"/>
     <Color x:Key="Color.Shadow">#000000</Color>
 
-    <!-- The chord readout and grand staff while latched (DataContext: MainViewModel): full
-         strength for a beat, then dimming fast and settling, so a held-over chord reads as a
-         memory rather than as what is sounding. Out by 2 s, MainViewModel.LatchDuration, when
-         the view model clears the text; unlatching removes the fade in the same instant. -->
+    <!-- The chord readout's lines and the grand staff while latched: full strength for a beat,
+         then dimming fast and settling, so a held-over chord reads as a memory rather than as
+         what is sounding. Out by 2 s, MainViewModel.LatchDuration, when the view model clears
+         the text; unlatching removes the fade in the same instant. Bound through the window,
+         since the readout's voicing line has the analysis as its own DataContext. -->
     <Style x:Key="Style.Readout.Latch" TargetType="FrameworkElement">
         <Style.Triggers>
-            <DataTrigger Binding="{Binding IsReadoutLatched}" Value="True">
+            <DataTrigger Binding="{Binding DataContext.IsReadoutLatched,
+                                   RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
                 <DataTrigger.EnterActions>
                     <BeginStoryboard x:Name="ReadoutLatchFade">
                         <Storyboard>

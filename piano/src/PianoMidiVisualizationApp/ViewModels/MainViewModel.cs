@@ -111,11 +111,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public static readonly TimeSpan LatchDuration = TimeSpan.FromSeconds(2);
 
     /// <summary>
-    /// How long a chord that has only lost notes waits before the readout shows what is left.
-    /// Two hands never leave the keys at quite the same moment; without this, letting go of a
-    /// chord would flicker through its fragments, and a fragment is what would latch.
+    /// How long a chord that has only lost notes waits before the readout shows what is left,
+    /// counted from the latest note to leave. Two hands never leave the keys at quite the same
+    /// moment; without this, letting go of a chord would flicker through its fragments, and a
+    /// fragment is what would latch.
     /// </summary>
-    public static readonly TimeSpan ReleaseGrace = TimeSpan.FromMilliseconds(120);
+    public static readonly TimeSpan ReleaseGrace = TimeSpan.FromMilliseconds(150);
 
     private readonly DispatcherTimer _latchTimer;
     private readonly DispatcherTimer _graceTimer;
@@ -416,10 +417,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        // Only notes leaving a chord that is still up: hold it a moment, in case the rest follow.
+        // Only notes leaving a chord that is still up: hold it a moment, in case the rest
+        // follow. Each further note leaving starts the wait again, so a slow two-handed
+        // release still latches the whole chord.
         if (!IsReadoutLatched && sounding.Count < _readoutNotes.Count && !sounding.Except(_readoutNotes).Any())
         {
-            if (!_graceTimer.IsEnabled) _graceTimer.Start();
+            _graceTimer.Stop();
+            _graceTimer.Start();
             return;
         }
 

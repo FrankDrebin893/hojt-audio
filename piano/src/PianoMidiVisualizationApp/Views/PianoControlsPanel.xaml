@@ -129,8 +129,10 @@
                 </TextBlock.Style>
             </TextBlock>
 
-            <!-- Two columns, filled row by row: the actions are ordered in related pairs. -->
-            <ItemsControl ItemsSource="{Binding Rows}" Focusable="False">
+            <!-- Two columns, filled row by row: the actions are ordered in related pairs. Capped
+                 in width, so a wide window doesn't stretch the chips into long empty bars. -->
+            <ItemsControl ItemsSource="{Binding Rows}" Focusable="False"
+                          MaxWidth="920" HorizontalAlignment="Left">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <UniformGrid Columns="2"/>
