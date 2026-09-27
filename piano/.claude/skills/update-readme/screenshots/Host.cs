@@ -22,7 +22,11 @@ internal sealed class Host : IDisposable
     public MainViewModel Vm { get; }
     public MainWindow Window { get; }
 
-    public Host(int width, int height)
+    /// <param name="setUp">
+    /// False leaves the piano sound unchosen and audio off, as on a first launch, so the readout
+    /// shows the setup checklist and the title bar's chip is amber.
+    /// </param>
+    public Host(int width, int height, bool setUp = true)
     {
         Vm = new MainViewModel(Midi, new FakeAudioEngine(), Dispatcher.CurrentDispatcher);
         Vm.RefreshDevices();
@@ -35,8 +39,11 @@ internal sealed class Host : IDisposable
         // Set up as a player would be: a piano sound chosen and audio on, so the title bar's
         // status chip reads "Digital Piano · ASIO" and the empty readout isn't the first-run
         // setup checklist. The file never exists; the fake engine doesn't open it.
-        Vm.Settings.SoundFontPath = @"C:\SoundFonts\Salamander Grand Piano\SalamanderGrandPiano.sfz";
-        Vm.StartAudioCommand.Execute(null);
+        if (setUp)
+        {
+            Vm.Settings.SoundFontPath = @"C:\SoundFonts\Salamander Grand Piano\SalamanderGrandPiano.sfz";
+            Vm.StartAudioCommand.Execute(null);
+        }
 
         Window = new MainWindow
         {

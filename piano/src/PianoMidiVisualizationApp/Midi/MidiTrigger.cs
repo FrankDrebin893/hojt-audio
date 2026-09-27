@@ -41,7 +41,8 @@ public readonly record struct MidiTrigger(MidiTriggerKind Kind, int Channel, int
     /// </summary>
     public string? SideEffect => Kind switch
     {
-        MidiTriggerKind.Note => $"{MusicNaming.WithOctave(Number)} won't sound while it's mapped.",
+        // DisplayName, channel and all: a pad's C2 on channel 10 takes nothing from the keyboard's C2.
+        MidiTriggerKind.Note => $"{DisplayName} won't sound while it's mapped.",
         MidiTriggerKind.ControlChange when Number == SustainPedal => "The pedal won't sustain while it's mapped.",
         _ => null
     };

@@ -70,7 +70,10 @@ off-screen, and sets up only what it shows:
 - A new headline feature earns a scene. A small one can usually be staged inside the
   `main-window` hero shot instead.
 
-Current scenes: `main-window` (hero), `song-practice`, `recorder`, `settings`, `zen-mode`.
+Current scenes: `main-window` (hero), `song-practice`, `recorder`, `settings` (with two
+learned piano controls), `zen-mode`, `first-run` (the setup checklist; `SetUp: false` skips
+the sound and audio the other scenes start with). `FakeMidiInput` can also play pads on other
+channels and move controllers (`MoveControl`), e.g. to learn a pedal.
 
 ## 3. Render
 
