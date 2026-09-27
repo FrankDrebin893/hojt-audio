@@ -24,6 +24,18 @@ public class PianoKeyboardViewModel : ObservableObject
     /// <summary>The selected key signature, or null when highlighting is off.</summary>
     private MusicKey? _activeKey;
 
+    private bool _showAllNoteNames;
+
+    /// <summary>
+    /// Label every key. Off (the default), idle keys label only the Cs, so the label on a held
+    /// key is the one that stands out; held keys are labelled either way.
+    /// </summary>
+    public bool ShowAllNoteNames
+    {
+        get => _showAllNoteNames;
+        set => SetProperty(ref _showAllNoteNames, value);
+    }
+
     /// <summary>C2-C7 — the 61 keys on the user's controller.</summary>
     public PianoKeyboardViewModel(int lowestNote = 36, int highestNote = 96)
     {

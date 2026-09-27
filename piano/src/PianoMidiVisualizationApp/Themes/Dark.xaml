@@ -23,6 +23,9 @@
     <SolidColorBrush x:Key="Brush.Text.Muted"     Color="#888888"/>
     <SolidColorBrush x:Key="Brush.Text.Faint"     Color="#666666"/>
     <SolidColorBrush x:Key="Brush.Text.Disabled"  Color="#5A5A5A"/>
+    <!-- An instruction on the stage ("Space to save"). It stays secondary by its small size and
+         place under the readout, not by dropping below 4.5:1 on Brush.Stage as Faint does. -->
+    <SolidColorBrush x:Key="Brush.Text.Hint"      Color="#9E9E9E"/>
 
     <!-- ================= Lines & states ================= -->
     <SolidColorBrush x:Key="Brush.Border"         Color="#444444"/>
@@ -42,6 +45,155 @@
     <SolidColorBrush x:Key="Brush.Midi.Connected" Color="#337733"/>
     <SolidColorBrush x:Key="Brush.Midi.Active"    Color="#00FF00"/>
     <SolidColorBrush x:Key="Brush.Log.Text"       Color="#00DD00"/>
+
+    <!-- ================= Setup and status =================
+         The key amber, the app's one brand hue (the tonic keys' fill), marks what needs you:
+         the title bar's status chip while the keyboard or audio isn't ready, and the next step
+         of the first-run checklist. Whatever is fine stays a quiet grey. -->
+    <SolidColorBrush x:Key="Brush.Attention"           Color="#F2C978"/>
+    <SolidColorBrush x:Key="Brush.Attention.Ink"       Color="#1E1A12"/>   <!-- text on an amber fill -->
+    <SolidColorBrush x:Key="Brush.Attention.Border"    Color="#7E6128"/>
+    <SolidColorBrush x:Key="Brush.Attention.Fill"      Color="#2E2618"/>   <!-- on the title bar -->
+    <SolidColorBrush x:Key="Brush.Attention.Wash"      Color="#43392A"/>   <!-- on the stage -->
+    <SolidColorBrush x:Key="Brush.Attention.WashHover" Color="#4F432F"/>
+    <SolidColorBrush x:Key="Brush.Stage.Hover"         Color="#3E3E3E"/>   <!-- Brush.Hover is the stage colour -->
+    <SolidColorBrush x:Key="Brush.Status.Ok"           Color="#8A8A84"/>
+    <SolidColorBrush x:Key="Brush.Status.Activity"     Color="#FFFDF2"/>   <!-- a note played -->
+
+    <!-- The title bar's status chip (DataContext: MainViewModel). Never focusable: a focused
+         button would claim Space, the save-chord shortcut. The colours are all Setters, since
+         a local value would outrank the triggers. -->
+    <Style x:Key="Style.StatusChip" TargetType="Button">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Height" Value="22"/>
+        <Setter Property="Padding" Value="8,0,10,0"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Separator}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Tertiary}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}" CornerRadius="11"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource Brush.Hover}"/>
+                <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
+            </Trigger>
+            <DataTrigger Binding="{Binding StatusNeedsAttention}" Value="True">
+                <Setter Property="Background" Value="{StaticResource Brush.Attention.Fill}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource Brush.Attention.Border}"/>
+                <Setter Property="Foreground" Value="{StaticResource Brush.Attention}"/>
+            </DataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding StatusNeedsAttention}" Value="True"/>
+                    <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource Self}}" Value="True"/>
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Background" Value="{StaticResource Brush.Attention.Wash}"/>
+            </MultiDataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- The chip's dot: grey while all is well, amber while something isn't, and a flash of
+         ivory with each note played. -->
+    <Style x:Key="Style.StatusDot" TargetType="Ellipse">
+        <Setter Property="Width" Value="7"/>
+        <Setter Property="Height" Value="7"/>
+        <Setter Property="Fill" Value="{StaticResource Brush.Status.Ok}"/>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding StatusNeedsAttention}" Value="True">
+                <Setter Property="Fill" Value="{StaticResource Brush.Attention}"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding IsKeyActivity}" Value="True">
+                <Setter Property="Fill" Value="{StaticResource Brush.Status.Activity}"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- One step of the setup checklist (DataContext: SetupStep). A row button: flat until
+         hovered, except the next step to do, which sits on an amber wash. Not focusable, for
+         Space's sake, like the chip. -->
+    <Style x:Key="Style.SetupStep" TargetType="Button">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Height" Value="26"/>
+        <Setter Property="Padding" Value="6,0,12,0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}"/>
+        <Setter Property="ToolTip" Value="{Binding ToolTip}"/>
+        <Setter Property="AutomationProperties.Name" Value="{Binding Title}"/>
+        <Setter Property="AutomationProperties.HelpText" Value="{Binding Detail}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"
+                            CornerRadius="4" SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource Brush.Stage.Hover}"/>
+                <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
+            </Trigger>
+            <DataTrigger Binding="{Binding State}" Value="Next">
+                <Setter Property="Background" Value="{StaticResource Brush.Attention.Wash}"/>
+                <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
+            </DataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding State}" Value="Next"/>
+                    <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource Self}}" Value="True"/>
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Background" Value="{StaticResource Brush.Attention.WashHover}"/>
+            </MultiDataTrigger>
+            <DataTrigger Binding="{Binding State}" Value="Done">
+                <Setter Property="Foreground" Value="{StaticResource Brush.Text.Tertiary}"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- A quiet text button under or beside the checklist: "Settings", "Don't show again". -->
+    <Style x:Key="Style.SetupLink" TargetType="Button">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Padding" Value="6,2"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Tertiary}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"
+                            CornerRadius="3" SnapsToDevicePixels="True">
+                        <ContentPresenter VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource Brush.Stage.Hover}"/>
+                <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
 
     <!-- ================= Metronome beat light ================= -->
     <SolidColorBrush x:Key="Brush.Metronome.Off"    Color="#777777"/>
@@ -67,10 +219,95 @@
     <SolidColorBrush x:Key="Brush.Staff.Symbol" Color="#AAAAAA"/>
     <SolidColorBrush x:Key="Brush.Staff.Note"   Color="#FFFFFF"/>
 
+    <!-- ================= Keyboard =================
+         One meaning per colour, shared with the rest of the stage:
+           blue    = a key you are holding (also the circle's root marker, the lit chord tile)
+           amber   = the selected key: full on the tonic, a wash on the other white keys in it,
+                     and an edge mark wherever a fill can't show it (black keys, held keys)
+           magenta = the app asking for a key (a chord to try, the song's next notes)
+         Ivory and black are idle keys. Every label brush is paired with the fill it sits on;
+         the held pair clears 4.5:1 against its fill. -->
+
+    <!-- The app asking for a key. The falling notes' wait-mode target is the same colour, so a
+         note and the key it wants match. -->
+    <Color x:Key="Color.Target">#E83E9C</Color>
+
+    <LinearGradientBrush x:Key="Brush.Key.White" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#FFFFFD" Offset="0"/>
+        <GradientStop Color="#EBEBE6" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.White.Held" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#8CC8FF" Offset="0"/>
+        <GradientStop Color="#50A0EB" Offset="1"/>
+    </LinearGradientBrush>
+    <!-- A key the sustain pedal holds after you let go: the held blue, quieter. Lit, since it is
+         sounding, but plainly not under a finger. -->
+    <LinearGradientBrush x:Key="Brush.Key.White.Ringing" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#D6EAFB" Offset="0"/>
+        <GradientStop Color="#AFD2F2" Offset="1"/>
+    </LinearGradientBrush>
+    <!-- In the key but not its tonic: warm enough to separate from ivory, well short of the tonic. -->
+    <LinearGradientBrush x:Key="Brush.Key.White.InKey" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#FFF5DD" Offset="0"/>
+        <GradientStop Color="#F2DCA6" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.White.Tonic" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#FCDC96" Offset="0"/>
+        <GradientStop Color="#ECB450" Offset="1"/>
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="Brush.Key.White.Border" Color="#3C3C3C"/>
+
+    <!-- Black keys share one bevel: a lit top edge, a fast falloff, then a slow darkening. -->
+    <LinearGradientBrush x:Key="Brush.Key.Black" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#464646" Offset="0"/>
+        <GradientStop Color="#232323" Offset="0.08"/>
+        <GradientStop Color="#191919" Offset="0.5"/>
+        <GradientStop Color="#0F0F0F" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.Held" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#5096DC" Offset="0"/>
+        <GradientStop Color="#2878C8" Offset="0.08"/>
+        <GradientStop Color="#1964B4" Offset="0.5"/>
+        <GradientStop Color="#1450A0" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.Ringing" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#4A7AAA" Offset="0"/>
+        <GradientStop Color="#30577F" Offset="0.08"/>
+        <GradientStop Color="#274768" Offset="0.5"/>
+        <GradientStop Color="#203A56" Offset="1"/>
+    </LinearGradientBrush>
+    <!-- The tonic keeps a body colour on black keys too; the other in-key black keys get only
+         the edge mark, so a scale doesn't turn half the black keys into coloured slabs. -->
+    <LinearGradientBrush x:Key="Brush.Key.Black.Tonic" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#6A5326" Offset="0"/>
+        <GradientStop Color="#4E3C1A" Offset="0.08"/>
+        <GradientStop Color="#423216" Offset="0.5"/>
+        <GradientStop Color="#3A2C12" Offset="1"/>
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="Brush.Key.Black.Border" Color="#141414"/>
+
+    <!-- Edge marks: the top edge of an in-key black key, and the front lip of a held white key
+         whose wash the held fill has replaced. The tonic's mark is stronger and thicker. -->
+    <SolidColorBrush x:Key="Brush.Key.InKey.Mark" Color="#E6C58A"/>
+    <SolidColorBrush x:Key="Brush.Key.Tonic.Mark" Color="#F5AD3C"/>
+
+    <!-- Hint outline and dot, with a deep keyline inside so the outline still separates from
+         a light fill (ivory, amber, held blue) whose brightness is close to the magenta's. -->
+    <SolidColorBrush x:Key="Brush.Key.Hint"         Color="{StaticResource Color.Target}"/>
+    <SolidColorBrush x:Key="Brush.Key.Hint.Keyline" Color="#3D0A24"/>
+
+    <!-- Labels. Idle keys show only the Cs (every key with "All note names"); a held key's
+         label switches to the held pair, spelled for the selected key. -->
+    <SolidColorBrush x:Key="Brush.Key.Label"            Color="#5C5852"/>
+    <SolidColorBrush x:Key="Brush.Key.Label.Held"       Color="#0A1F3D"/>
+    <SolidColorBrush x:Key="Brush.Key.Black.Label"      Color="#9A9A9A"/>
+    <SolidColorBrush x:Key="Brush.Key.Black.Label.Held" Color="#F2F8FF"/>
+
     <!-- ================= Song practice (falling notes) =================
-         Parts follow the practice-app convention of green for the right hand and blue for the
-         left; the rest are distinct and stay clear of the keyboard's magenta hint and its blue
-         pressed fill. Auto-play notes use the same hues, drawn translucent by the view. -->
+         Your two hands take hues used nowhere else: teal right, violet left, so a note landing
+         never reads as your own held (blue) key, as correct (green), or as the key (amber).
+         Other parts are accompaniment: quiet neutrals of different warmth and lightness, so
+         colour always means your hands. Auto-play notes are drawn translucent by the view. -->
     <SolidColorBrush x:Key="Brush.Song.Lane"        Color="#1A1A1A"/>
     <SolidColorBrush x:Key="Brush.Song.OctaveLine"  Color="#333333"/>
     <SolidColorBrush x:Key="Brush.Song.GroupLine"   Color="#242424"/>
@@ -82,16 +319,17 @@
     <SolidColorBrush x:Key="Brush.Song.OutsideLoop" Color="#8C000000"/>
     <SolidColorBrush x:Key="Brush.Song.Folded"      Color="#F0F0F0"/>
     <!-- The chord wait mode is holding for: the keyboard's hint magenta, so note and key match. -->
-    <SolidColorBrush x:Key="Brush.Song.Target"      Color="#E83E9C"/>
+    <SolidColorBrush x:Key="Brush.Song.Target"      Color="{StaticResource Color.Target}"/>
+    <!-- Green is "you hit it" and nothing else; red is its opposite. -->
     <SolidColorBrush x:Key="Brush.Song.Correct"     Color="#8BE36B"/>
     <SolidColorBrush x:Key="Brush.Song.Wrong"       Color="#FF5252"/>
     <SolidColorBrush x:Key="Brush.Song.Overlay"     Color="#CC1A1A1A"/>
-    <SolidColorBrush x:Key="Brush.Song.Part0"       Color="#6CC24A"/>   <!-- right hand -->
-    <SolidColorBrush x:Key="Brush.Song.Part1"       Color="#5B8DEF"/>   <!-- left hand -->
-    <SolidColorBrush x:Key="Brush.Song.Part2"       Color="#E8A33D"/>
-    <SolidColorBrush x:Key="Brush.Song.Part3"       Color="#3FC1B0"/>
-    <SolidColorBrush x:Key="Brush.Song.Part4"       Color="#B39DDB"/>
-    <SolidColorBrush x:Key="Brush.Song.Part5"       Color="#E07A7A"/>
+    <SolidColorBrush x:Key="Brush.Song.Part0"       Color="#3FC1B0"/>   <!-- right hand: teal -->
+    <SolidColorBrush x:Key="Brush.Song.Part1"       Color="#B39DDB"/>   <!-- left hand: violet -->
+    <SolidColorBrush x:Key="Brush.Song.Part2"       Color="#C8BCA9"/>   <!-- accompaniment: stone -->
+    <SolidColorBrush x:Key="Brush.Song.Part3"       Color="#9FA2A5"/>   <!-- accompaniment: pewter -->
+    <SolidColorBrush x:Key="Brush.Song.Part4"       Color="#95796D"/>   <!-- accompaniment: clay -->
+    <SolidColorBrush x:Key="Brush.Song.Part5"       Color="#68686F"/>   <!-- accompaniment: graphite -->
 
     <!-- ================= Roman numerals =================
          A diatonic numeral reads near-white like the chord name above it. The other kinds
@@ -556,6 +794,15 @@
                                           Margin="{TemplateBinding Padding}"
                                           HorizontalAlignment="Left" VerticalAlignment="Center"/>
 
+                        <!-- What an empty selection reads as, taken from Tag: the key picker's
+                             "No key". Tag rather than a new property, so any ComboBox can opt
+                             in with one attribute; without a Tag it stays blank as before. -->
+                        <TextBlock x:Name="Placeholder" Visibility="Collapsed" IsHitTestVisible="False"
+                                   Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                   Foreground="{StaticResource Brush.Text.Tertiary}"
+                                   Margin="{TemplateBinding Padding}"
+                                   HorizontalAlignment="Left" VerticalAlignment="Center"/>
+
                         <Popup x:Name="PART_Popup" AllowsTransparency="False" Focusable="False"
                                IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom"
                                PopupAnimation="None"
@@ -576,6 +823,9 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Foreground" Value="{StaticResource Brush.Text.Disabled}"/>
+                        </Trigger>
+                        <Trigger Property="SelectedItem" Value="{x:Null}">
+                            <Setter TargetName="Placeholder" Property="Visibility" Value="Visible"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -745,23 +995,11 @@
     </Style>
 
     <!-- =========================================================================
-         Playing from the piano: the sustain pedal, the chord latch, MIDI learn.
-         A key the pedal holds is the pressed blue, quieter: lit, but plainly not under a
-         finger. Learn listens in amber, the key-centre hue, because it is the app waiting on
-         the piano; a learned control firing flashes the pressed blue, because a press did it.
+         Playing from the piano: the chord latch, the echo, MIDI learn. The keys the sustain
+         pedal holds live with the other key fills, as Brush.Key.*.Ringing. Learn listens in
+         amber, the key-centre hue, because it is the app waiting on the piano; a learned
+         control firing flashes the held blue, because a press did it.
          ========================================================================= -->
-    <LinearGradientBrush x:Key="Brush.Key.Ringing.White" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#D6EAFB" Offset="0"/>
-        <GradientStop Color="#AFD2F2" Offset="1"/>
-    </LinearGradientBrush>
-    <!-- The black keys' four-stop bevel (see PianoKeyboardControl), in a muted pressed blue. -->
-    <LinearGradientBrush x:Key="Brush.Key.Ringing.Black" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#4A7AAA" Offset="0"/>
-        <GradientStop Color="#30577F" Offset="0.08"/>
-        <GradientStop Color="#274768" Offset="0.5"/>
-        <GradientStop Color="#203A56" Offset="1"/>
-    </LinearGradientBrush>
-
     <SolidColorBrush x:Key="Brush.Learn.Chip"      Color="#232323"/>
     <SolidColorBrush x:Key="Brush.Learn.Listening" Color="#FFB547"/>
     <SolidColorBrush x:Key="Brush.Learn.Fired"     Color="#50A0EB"/>

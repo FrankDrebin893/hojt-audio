@@ -201,7 +201,8 @@ public class FallingNotesControl : FrameworkElement
 
         DrawFlashes(dc, session, layout, offset, scale, height);
 
-        // The line the notes land on: the top edge of the keys, in spirit.
+        // The line the notes land on. The window puts nothing between this control and the
+        // keyboard during song practice, so it lies right on the keys' top edge.
         dc.DrawRectangle(p.HitLine, null, new Rect(laneLeft, height - 2, laneRight - laneLeft, 2));
     }
 

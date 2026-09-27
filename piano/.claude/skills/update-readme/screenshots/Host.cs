@@ -32,6 +32,12 @@ internal sealed class Host : IDisposable
         Vm.ApplySettings(new AppSettings());
         Vm.AutoConnect();
 
+        // Set up as a player would be: a piano sound chosen and audio on, so the title bar's
+        // status chip reads "Digital Piano · ASIO" and the empty readout isn't the first-run
+        // setup checklist. The file never exists; the fake engine doesn't open it.
+        Vm.Settings.SoundFontPath = @"C:\SoundFonts\Salamander Grand Piano\SalamanderGrandPiano.sfz";
+        Vm.StartAudioCommand.Execute(null);
+
         Window = new MainWindow
         {
             DataContext = Vm,

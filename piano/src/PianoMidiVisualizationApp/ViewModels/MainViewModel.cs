@@ -336,6 +336,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
                                     or nameof(Settings.MetronomeVolume))
                 ApplyMetronomeSettings();
         };
+
+        InitializeSetupStatus();
     }
 
     private MusicContext GetMusicContext()
@@ -533,18 +535,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        try
-        {
-            ResetSustainPedals();
-            _midiInput.Open(Settings.SelectedMidiDevice.Index);
-            IsMidiConnected = true;
-            StatusText = $"MIDI connected: {Settings.SelectedMidiDevice.Name}";
-        }
-        catch (Exception ex)
-        {
-            IsMidiConnected = false;
-            StatusText = $"MIDI error: {ex.Message}";
-        }
+        TryConnectMidi(Settings.SelectedMidiDevice, "MIDI connected");
     }
 
     [RelayCommand]
@@ -561,30 +552,19 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         if (string.IsNullOrEmpty(Settings.SoundFontPath))
         {
-            StatusText = "Please select a SoundFont file first";
+            StatusText = "Choose a piano sound (.sf2 or .sfz) first";
             return;
         }
 
+        MatchAudioModeToDriver();
         if (string.IsNullOrEmpty(Settings.SelectedAudioDriver))
         {
-            StatusText = "No audio driver selected";
+            SetAudioProblem("No audio output found", "No audio output found. Connect speakers or headphones.");
+            StatusText = "No audio output found";
             return;
         }
 
-        try
-        {
-            _audioEngine.Initialize(Settings.SelectedAudioDriver, Settings.UseAsio, Settings.SoundFontPath);
-            ResetSustainPedals();   // the new engine starts with every pedal up
-            _audioEngine.Volume = Settings.Volume;
-            _audioEngine.Start();
-            IsAudioRunning = true;
-            StatusText = $"Audio started: {Settings.SelectedAudioDriver} ({(Settings.UseAsio ? "ASIO" : "WASAPI")})";
-        }
-        catch (Exception ex)
-        {
-            IsAudioRunning = false;
-            StatusText = $"Audio error: {ex.Message}";
-        }
+        TryStartAudio("Audio started");
     }
 
     [RelayCommand]
@@ -803,7 +783,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IsCircleOfFifthsVisible = saved.ShowCircleOfFifths;
         IsGrandStaffVisible = saved.ShowGrandStaff;
         IsChordStripVisible = saved.ShowChordStrip;
+        IsSetupChecklistDismissed = saved.HideSetupChecklist;
         ChordStrip.ShowSevenths = saved.ChordStripSevenths;
+        PianoKeyboard.ShowAllNoteNames = saved.ShowAllNoteNames;
         SongPractice.Speed = saved.SongSpeed;
         SongPractice.Mode = Enum.TryParse<Services.SongPractice.PracticeMode>(saved.SongMode, out var mode)
                             && Enum.IsDefined(mode) && !int.TryParse(saved.SongMode, out _)
@@ -834,7 +816,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         saved.ShowGrandStaff = IsGrandStaffVisible;
         saved.ShowSongPractice = IsSongPracticeVisible;
         saved.ShowChordStrip = IsChordStripVisible;
+        saved.HideSetupChecklist = IsSetupChecklistDismissed;
         saved.ChordStripSevenths = ChordStrip.ShowSevenths;
+        saved.ShowAllNoteNames = PianoKeyboard.ShowAllNoteNames;
         saved.SongPath = SongPractice.SongPath;
         saved.SongSpeed = SongPractice.Speed;
         saved.SongMode = SongPractice.Mode.ToString();
@@ -847,40 +831,20 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         // Auto-connect MIDI if a device is selected
         if (Settings.SelectedMidiDevice != null && !IsMidiConnected)
-        {
-            try
-            {
-                _midiInput.Open(Settings.SelectedMidiDevice.Index);
-                IsMidiConnected = true;
-                StatusText = $"MIDI auto-connected: {Settings.SelectedMidiDevice.Name}";
-            }
-            catch (Exception ex)
-            {
-                StatusText = $"MIDI auto-connect failed: {ex.Message}";
-            }
-        }
+            TryConnectMidi(Settings.SelectedMidiDevice, "MIDI auto-connected");
+
+        // Before anything reads the mode: the setup checklist names it too.
+        MatchAudioModeToDriver();
 
         // Auto-start audio if we have a SoundFont and audio driver
         if (!string.IsNullOrEmpty(Settings.SoundFontPath)
             && System.IO.File.Exists(Settings.SoundFontPath)
             && !string.IsNullOrEmpty(Settings.SelectedAudioDriver)
             && !IsAudioRunning)
-        {
-            try
-            {
-                _audioEngine.Initialize(Settings.SelectedAudioDriver, Settings.UseAsio, Settings.SoundFontPath);
-                ResetSustainPedals();
-                _audioEngine.Volume = Settings.Volume;
-                _audioEngine.Start();
-                IsAudioRunning = true;
-                StatusText = $"Audio auto-started: {Settings.SelectedAudioDriver} ({(Settings.UseAsio ? "ASIO" : "WASAPI")})";
-            }
-            catch (Exception ex)
-            {
-                IsAudioRunning = false;
-                StatusText = $"Audio auto-start failed: {ex.Message}";
-            }
-        }
+            TryStartAudio("Audio auto-started");
+
+        // Only now can the setup checklist tell "not set up" from "not reconnected yet".
+        HasAttemptedAutoConnect = true;
     }
 
     private void OnRawMidiMessage(object? sender, RawMidiMessageEventArgs e)
@@ -1211,6 +1175,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         ChordStrip.Dispose();
         ProgressionTools.Dispose();
         _activityTimer?.Dispose();
+        DisposeSetupStatus();
         _midiInput.NoteOn -= OnMidiNoteOn;
         _midiInput.NoteOff -= OnMidiNoteOff;
         _midiInput.MessageReceived -= OnRawMidiMessage;
