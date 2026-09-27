@@ -12,7 +12,7 @@ internal sealed record Scene(string Name, int Width, int Height, Action<Host> Se
 /// <summary>
 /// Every README screenshot. Each starts from a fresh window with default settings (the
 /// first-launch panel layout: progression sidebar, circle of fifths, grand staff, chord strip
-/// and status bar on) and sets up only what it shows.
+/// and status bar on), the keyboard connected and audio on, and sets up only what it shows.
 /// </summary>
 internal static class Scenes
 {
@@ -128,12 +128,10 @@ internal static class Scenes
         }
     }
 
-    /// <summary>The settings overlay, connected and running, with a SoundFont picked.</summary>
+    /// <summary>The settings overlay, connected and running, with a SoundFont picked (see <see cref="Host"/>).</summary>
     private static void Settings(Host host)
     {
         var vm = host.Vm;
-        vm.Settings.SoundFontPath = @"C:\SoundFonts\Salamander Grand Piano\SalamanderGrandPiano.sfz";
-        vm.StartAudioCommand.Execute(null);
         vm.IsSettingsOverlayVisible = true;
         host.Press(C3, G3, E4);
     }
