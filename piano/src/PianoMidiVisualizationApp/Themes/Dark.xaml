@@ -848,7 +848,8 @@
     </Style>
 
     <!-- Scrollbars: a lacquer thumb in a clear track, not the stock light chrome (the MIDI log,
-         chat and take list all scroll). Both orientations; the track still pages on click. -->
+         chat and take list all scroll). Both orientations; the track still pages on click, and
+         shows as a faint strip under the pointer so the scroll area can be found. -->
     <Style x:Key="Style.ScrollThumb" TargetType="Thumb">
         <Setter Property="Template">
             <Setter.Value>
@@ -880,6 +881,13 @@
     </Style>
 
     <Style TargetType="ScrollBar">
+        <Style.Resources>
+            <!-- Track keeps the thumb at least half a scroll button long, and there are no
+                 buttons here, so these set that floor: a 24px thumb even on a long log, instead
+                 of a stray dot. -->
+            <sys:Double x:Key="{x:Static SystemParameters.VerticalScrollBarButtonHeightKey}">48</sys:Double>
+            <sys:Double x:Key="{x:Static SystemParameters.HorizontalScrollBarButtonWidthKey}">48</sys:Double>
+        </Style.Resources>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Width" Value="8"/>
         <Setter Property="MinWidth" Value="8"/>
@@ -903,6 +911,9 @@
             </Setter.Value>
         </Setter>
         <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource Brush.SurfaceRaised}"/>
+            </Trigger>
             <Trigger Property="Orientation" Value="Horizontal">
                 <Setter Property="Width" Value="Auto"/>
                 <Setter Property="MinWidth" Value="0"/>
