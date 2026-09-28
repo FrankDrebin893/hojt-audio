@@ -328,21 +328,29 @@ public partial class PianoKeyboardControl : UserControl
     }
 
     /// <summary>
-    /// Shows the key's scale role as an edge mark wherever the fill can't: always on a black
-    /// key (in-key black keys have no wash), and on a held or pedal-held white key, whose wash
-    /// the blue has replaced. So a held tonic still reads as the tonic.
+    /// Shows the key's scale role as an edge mark on every key in the key, so the scale never
+    /// rests on colour alone: the top edge of a black key (in-key black keys have no wash), the
+    /// front lip of a white one. A held or pedal-held white key keeps it too, so a held tonic
+    /// still reads as the tonic once the blue has replaced its wash.
     /// </summary>
+    /// <remarks>
+    /// The light marks sit on ebony and on the held blue; an unheld white key, whose wash is
+    /// itself light amber, takes the dark pair instead.
+    /// </remarks>
     private void ApplyScaleMark(PianoKey key)
     {
         if (!_keyMarks.TryGetValue(key.NoteNumber, out var mark))
             return;
 
-        bool show = key.ScaleRole != KeyRole.None && (key.IsBlack || key.IsPressed || key.IsSustained);
+        bool show = key.ScaleRole != KeyRole.None;
         mark.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         if (!show) return;
 
         bool tonic = key.ScaleRole == KeyRole.Tonic;
-        mark.Fill = tonic ? _palette.TonicMark : _palette.InKeyMark;
+        bool onIvory = !key.IsBlack && !key.IsPressed && !key.IsSustained;
+        mark.Fill = onIvory
+            ? (tonic ? _palette.TonicMarkIvory : _palette.InKeyMarkIvory)
+            : (tonic ? _palette.TonicMark : _palette.InKeyMark);
         mark.Height = tonic ? 4 : 2.5;
         double inset = HintInset(key);
         Canvas.SetTop(mark, key.IsBlack ? inset : WhiteKeyHeight - inset - mark.Height);
@@ -445,6 +453,8 @@ public partial class PianoKeyboardControl : UserControl
         public Brush BlackBorder { get; }
         public Brush InKeyMark { get; }
         public Brush TonicMark { get; }
+        public Brush InKeyMarkIvory { get; }
+        public Brush TonicMarkIvory { get; }
         public Brush Hint { get; }
         public Brush HintKeyline { get; }
         public Brush Label { get; }
@@ -473,6 +483,8 @@ public partial class PianoKeyboardControl : UserControl
             BlackBorder = Find("Brush.Key.Black.Border");
             InKeyMark = Find("Brush.Key.InKey.Mark");
             TonicMark = Find("Brush.Key.Tonic.Mark");
+            InKeyMarkIvory = Find("Brush.Key.InKey.Mark.Ivory");
+            TonicMarkIvory = Find("Brush.Key.Tonic.Mark.Ivory");
             Hint = Find("Brush.Key.Hint");
             HintKeyline = Find("Brush.Key.Hint.Keyline");
             Label = Find("Brush.Key.Label");

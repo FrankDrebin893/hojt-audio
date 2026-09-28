@@ -42,6 +42,9 @@
                 <DataTrigger Binding="{Binding IsLearning}" Value="True">
                     <Setter Property="Foreground" Value="{StaticResource Brush.Learn.Listening}"/>
                 </DataTrigger>
+                <DataTrigger Binding="{Binding IsFiring}" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource Brush.Learn.Fired}"/>
+                </DataTrigger>
             </Style.Triggers>
         </Style>
 

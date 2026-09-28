@@ -47,7 +47,8 @@
 
     <!-- Amber, the one brand hue. Only for the key centre and for whatever is waiting on you;
          never decoration, and never just "this control is on" (that is ivory). -->
-    <Color x:Key="Color.Amber">#F0C06A</Color>            <!-- text, glyphs, the loop, the attention dot -->
+    <Color x:Key="Color.Amber">#F0C06A</Color>            <!-- text and glyphs, the attention dot -->
+    <Color x:Key="Color.Amber.Pale">#E9C47E</Color>       <!-- the in-key mark on an ebony or held key -->
     <Color x:Key="Color.Amber.Strong">#EDA73C</Color>     <!-- marks: the tonic's edge, learn listening -->
     <Color x:Key="Color.Amber.Deep">#6E4F1C</Color>       <!-- the selected key's wedge, under ivory text -->
     <Color x:Key="Color.Amber.Border">#8A6A30</Color>
@@ -63,7 +64,6 @@
            teal     your right hand in a song; violet your left
            green    you hit it; red you missed it, and (by convention) recording -->
     <Color x:Key="Color.Blue">#50A0EB</Color>
-    <Color x:Key="Color.Blue.Fill">#1E3E63</Color>
     <Color x:Key="Color.Target">#E83E9C</Color>
     <Color x:Key="Color.Correct">#8BE36B</Color>
     <Color x:Key="Color.Wrong">#FF5252</Color>
@@ -115,6 +115,8 @@
     <!-- A progression chord while it plays back: the strongest lacquer, edged in ivory. -->
     <SolidColorBrush x:Key="Brush.Sounding.Border" Color="{StaticResource Color.Ivory.Secondary}"/>
     <SolidColorBrush x:Key="Brush.Focus"          Color="{StaticResource Color.Ivory.Secondary}"/>
+    <!-- A scrollbar thumb: a mark, so Faint's ink, which clears 3:1 on every lacquer step. -->
+    <SolidColorBrush x:Key="Brush.ScrollThumb"    Color="{StaticResource Color.Ivory.Faint}"/>
     <SolidColorBrush x:Key="Brush.Danger"         Color="#C42B1C"/>   <!-- Windows' own close-button red -->
     <SolidColorBrush x:Key="Brush.Danger.Text"    Color="#F0736A"/>
     <SolidColorBrush x:Key="Brush.Warning"        Color="{StaticResource Color.Amber.Strong}"/>
@@ -384,10 +386,14 @@
     </LinearGradientBrush>
     <SolidColorBrush x:Key="Brush.Key.Black.Border" Color="#050404"/>
 
-    <!-- Edge marks: the top edge of an in-key black key, and the front lip of a held white key
-         whose wash the held fill has replaced. The tonic's mark is stronger and thicker. -->
-    <SolidColorBrush x:Key="Brush.Key.InKey.Mark" Color="#E9C47E"/>
-    <SolidColorBrush x:Key="Brush.Key.Tonic.Mark" Color="{StaticResource Color.Amber.Strong}"/>
+    <!-- Edge marks, so a key's role never rests on colour alone: the top edge of an in-key
+         black key, and the front lip of every in-key white key. On ebony or a held key the mark
+         is light; on an unheld white key it is a dark amber lip against the wash. The tonic's
+         mark is stronger and thicker. -->
+    <SolidColorBrush x:Key="Brush.Key.InKey.Mark"       Color="{StaticResource Color.Amber.Pale}"/>
+    <SolidColorBrush x:Key="Brush.Key.Tonic.Mark"       Color="{StaticResource Color.Amber.Strong}"/>
+    <SolidColorBrush x:Key="Brush.Key.InKey.Mark.Ivory" Color="{StaticResource Color.Amber.Border}"/>
+    <SolidColorBrush x:Key="Brush.Key.Tonic.Mark.Ivory" Color="{StaticResource Color.Amber.Deep}"/>
 
     <!-- Hint outline and dot, with a deep keyline inside so the outline still separates from
          a light fill (ivory, amber, held blue) whose brightness is close to the magenta's. -->
@@ -415,7 +421,8 @@
     <SolidColorBrush x:Key="Brush.Song.BarNumber"   Color="{StaticResource Color.Ivory.Muted}"/>
     <SolidColorBrush x:Key="Brush.Song.HitLine"     Color="{StaticResource Color.Ivory.Tertiary}"/>
     <SolidColorBrush x:Key="Brush.Song.Sounding"    Color="{StaticResource Color.Ivory.Key}"/>
-    <SolidColorBrush x:Key="Brush.Song.Loop"        Color="{StaticResource Color.Amber}"/>
+    <!-- A loop is a range you set: ivory, since it is neither the key nor waiting on you. -->
+    <SolidColorBrush x:Key="Brush.Song.Loop"        Color="{StaticResource Color.Ivory.Secondary}"/>
     <SolidColorBrush x:Key="Brush.Song.OutsideLoop" Color="#8C000000"/>
     <SolidColorBrush x:Key="Brush.Song.Folded"      Color="{StaticResource Color.Ivory.Primary}"/>
     <!-- The chord wait mode is holding for: the keyboard's hint magenta, so note and key match. -->
@@ -427,12 +434,13 @@
 
     <!-- ================= Recorder =================
          A take is a small roll too, in the same deep well: your notes in the held-key blue,
-         since you played them, the A-B loop in amber like the song's, and an ivory playhead.
+         since you played them, the A-B loop as a faint ivory range like the song's, and a
+         brighter, thicker ivory playhead.
          Record is red by convention: dull while idle, bright while armed or recording. -->
     <SolidColorBrush x:Key="Brush.Timeline.Background" Color="{StaticResource Color.Lacquer.Deep}"/>
     <SolidColorBrush x:Key="Brush.Timeline.Note"       Color="{StaticResource Color.Blue}"/>
-    <SolidColorBrush x:Key="Brush.Timeline.Region"     Color="#2EF0C06A"/>   <!-- Color.Amber at 18% -->
-    <SolidColorBrush x:Key="Brush.Timeline.RegionEdge" Color="{StaticResource Color.Amber}"/>
+    <SolidColorBrush x:Key="Brush.Timeline.Region"     Color="{StaticResource Color.Ivory.Primary}" Opacity="0.1"/>
+    <SolidColorBrush x:Key="Brush.Timeline.RegionEdge" Color="{StaticResource Color.Ivory.Tertiary}"/>
     <SolidColorBrush x:Key="Brush.Timeline.Playhead"   Color="{StaticResource Color.Ivory.Key}"/>
     <SolidColorBrush x:Key="Brush.Timeline.SecondLine" Color="{StaticResource Color.Lacquer.Raised}"/>
     <SolidColorBrush x:Key="Brush.Timeline.Hint"       Color="{StaticResource Color.Ivory.Muted}"/>
@@ -511,14 +519,15 @@
     </Style>
 
     <!-- ================= Diatonic chord strip =================
-         Borderless lacquer tiles at rest. The one matching what's held takes the held-key
-         blue, and a hovered tile's outline is the keyboard's hint magenta, tying it to the
-         markers it draws on the keys. -->
+         Borderless lacquer tiles at rest. The one matching what's held gains an edge in the
+         held-key blue (the only edged tile, so it reads without the hue too), and a hovered
+         tile's outline is the keyboard's hint magenta, tying it to the markers it draws on the
+         keys. -->
     <SolidColorBrush x:Key="Brush.ChordTile"              Color="{StaticResource Color.Lacquer.Raised}"/>
     <SolidColorBrush x:Key="Brush.ChordTile.Border"       Color="{StaticResource Color.Lacquer.Raised}"/>
     <SolidColorBrush x:Key="Brush.ChordTile.Hover"        Color="{StaticResource Color.Lacquer.Hover}"/>
     <SolidColorBrush x:Key="Brush.ChordTile.Hint"         Color="{StaticResource Color.Target}"/>
-    <SolidColorBrush x:Key="Brush.ChordTile.Played"       Color="{StaticResource Color.Blue.Fill}"/>
+    <SolidColorBrush x:Key="Brush.ChordTile.Played"       Color="{StaticResource Color.Lacquer.Raised}"/>
     <SolidColorBrush x:Key="Brush.ChordTile.PlayedBorder" Color="{StaticResource Color.Blue}"/>
 
     <!-- A chord tile (DataContext: ChordTileViewModel). One line, 22px tall: the strip has
@@ -836,6 +845,90 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!-- Scrollbars: a lacquer thumb in a clear track, not the stock light chrome (the MIDI log,
+         chat and take list all scroll). Both orientations; the track still pages on click. -->
+    <Style x:Key="Style.ScrollThumb" TargetType="Thumb">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border x:Name="Bd" Background="{StaticResource Brush.ScrollThumb}" CornerRadius="3"/>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Text.Muted}"/>
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Text.Tertiary}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="Style.ScrollPage" TargetType="RepeatButton">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Background="Transparent"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="ScrollBar">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Width" Value="8"/>
+        <Setter Property="MinWidth" Value="8"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Border Background="{TemplateBinding Background}" Padding="1">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource Style.ScrollPage}" Command="ScrollBar.PageUpCommand"/>
+                            </Track.DecreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource Style.ScrollThumb}"/>
+                            </Track.Thumb>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource Style.ScrollPage}" Command="ScrollBar.PageDownCommand"/>
+                            </Track.IncreaseRepeatButton>
+                        </Track>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Width" Value="Auto"/>
+                <Setter Property="MinWidth" Value="0"/>
+                <Setter Property="Height" Value="8"/>
+                <Setter Property="MinHeight" Value="8"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollBar">
+                            <Border Background="{TemplateBinding Background}" Padding="1">
+                                <Track x:Name="PART_Track" IsDirectionReversed="False">
+                                    <Track.DecreaseRepeatButton>
+                                        <RepeatButton Style="{StaticResource Style.ScrollPage}" Command="ScrollBar.PageLeftCommand"/>
+                                    </Track.DecreaseRepeatButton>
+                                    <Track.Thumb>
+                                        <Thumb Style="{StaticResource Style.ScrollThumb}"/>
+                                    </Track.Thumb>
+                                    <Track.IncreaseRepeatButton>
+                                        <RepeatButton Style="{StaticResource Style.ScrollPage}" Command="ScrollBar.PageRightCommand"/>
+                                    </Track.IncreaseRepeatButton>
+                                </Track>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <Style TargetType="TextBox">
@@ -1176,7 +1269,7 @@
     <SolidColorBrush x:Key="Brush.Learn.Chip"      Color="{StaticResource Color.Lacquer.Raised}"/>
     <SolidColorBrush x:Key="Brush.Learn.Listening" Color="{StaticResource Color.Amber.Strong}"/>
     <SolidColorBrush x:Key="Brush.Learn.Fired"     Color="{StaticResource Color.Blue}"/>
-    <SolidColorBrush x:Key="Brush.Learn.FiredFill" Color="{StaticResource Color.Blue.Fill}"/>
+    <SolidColorBrush x:Key="Brush.Learn.FiredFill" Color="{StaticResource Color.Lacquer.Raised}"/>
 
     <SolidColorBrush x:Key="Brush.Echo.Background" Color="#F2282520"/>   <!-- Color.Lacquer.Raised at 95% -->
     <SolidColorBrush x:Key="Brush.Echo.Border"     Color="{StaticResource Color.Lacquer.Line}"/>
