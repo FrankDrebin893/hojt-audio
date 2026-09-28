@@ -76,7 +76,7 @@
                                                 <Setter Property="HorizontalAlignment" Value="Left"/>
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding IsUser}" Value="True">
-                                                        <Setter Property="Background" Value="{StaticResource Brush.Accent}"/>
+                                                        <Setter Property="Background" Value="{StaticResource Brush.Selected}"/>
                                                         <Setter Property="HorizontalAlignment" Value="Right"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
@@ -130,11 +130,9 @@
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0">
                                 <!-- Send button (shown when not loading) -->
                                 <Button Content="Send" Padding="16,6"
-                                        Command="{Binding SendCommand}"
-                                        Background="{StaticResource Brush.Accent}" Foreground="{StaticResource Brush.Text.Primary}"
-                                        BorderThickness="0" FontWeight="SemiBold">
+                                        Command="{Binding SendCommand}">
                                     <Button.Style>
-                                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                        <Style TargetType="Button" BasedOn="{StaticResource Style.PrimaryButton}">
                                             <Setter Property="Visibility" Value="Visible"/>
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding IsLoading}" Value="True">
@@ -148,7 +146,6 @@
                                 <!-- Cancel button (shown when loading) -->
                                 <Button Content="Cancel" Padding="16,6"
                                         Command="{Binding CancelCommand}"
-                                        Background="{StaticResource Brush.Danger.Muted}" Foreground="{StaticResource Brush.Text.Primary}" BorderThickness="0"
                                         Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisConverter}}"/>
                             </StackPanel>
                         </Grid>

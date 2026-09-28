@@ -68,7 +68,7 @@
                                                     <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Hover}"/>
                                                 </Trigger>
                                                 <Trigger Property="IsSelected" Value="True">
-                                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Accent}"/>
+                                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Selected}"/>
                                                     <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
@@ -88,8 +88,19 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="12">
                                         <Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold"/>
-                                        <Run Text="{Binding CreatedText, Mode=OneWay}" FontSize="10"
-                                             Foreground="{StaticResource Brush.Text.Muted}"/>
+                                        <!-- Lifted on the selected row, whose fill is too light for Muted. -->
+                                        <Run Text="{Binding CreatedText, Mode=OneWay}" FontSize="10">
+                                            <Run.Style>
+                                                <Style TargetType="Run">
+                                                    <Setter Property="Foreground" Value="{StaticResource Brush.Text.Muted}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                                            <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Run.Style>
+                                        </Run>
                                     </TextBlock>
                                     <TextBlock Grid.Column="1" Text="{Binding LengthText}" FontFamily="Consolas"
                                                FontSize="12" VerticalAlignment="Center" Margin="8,0,4,0"

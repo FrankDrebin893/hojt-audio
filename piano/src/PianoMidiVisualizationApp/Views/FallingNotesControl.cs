@@ -313,7 +313,8 @@ public class FallingNotesControl : FrameworkElement
                           && note.Start - waitingFor.Time <= ChordGrouper.DefaultWindow;
 
             if (dimmed) dc.PushOpacity(0.3);
-            double radius = Math.Min(3 * scale, bounds.Width / 2);
+            // Slots cut in a piano roll: square shoulders, only the corners eased.
+            double radius = Math.Min(1 * scale, bounds.Width / 2);
             dc.DrawRoundedRectangle(fill, target ? p.TargetEdge : sounding ? p.SoundingEdge : null,
                                     bounds, radius, radius);
 

@@ -27,17 +27,14 @@
                                 <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
                             </Trigger>
                             <Trigger Property="ToggleButton.IsChecked" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Accent}"/>
-                                <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.On}"/>
+                                <Setter Property="Foreground" Value="{StaticResource Brush.On.Ink}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <SolidColorBrush x:Key="Brush.Record.Idle" Color="#A04A4A"/>
-        <SolidColorBrush x:Key="Brush.Record.Active" Color="#FF4040"/>
     </UserControl.Resources>
 
     <StackPanel Orientation="Horizontal">

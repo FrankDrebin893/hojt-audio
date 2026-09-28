@@ -151,7 +151,7 @@ public partial class PianoKeyboardControl : UserControl
             RadiusY = 4,
             Effect = new DropShadowEffect
             {
-                Color = Colors.Black,
+                Color = _palette.Shadow,
                 Direction = 270,
                 ShadowDepth = 1,
                 Opacity = 0.15,
@@ -176,7 +176,7 @@ public partial class PianoKeyboardControl : UserControl
             RadiusY = 2,
             Effect = new DropShadowEffect
             {
-                Color = Colors.Black,
+                Color = _palette.Shadow,
                 Direction = 315,
                 ShadowDepth = 3,
                 Opacity = 0.5,
@@ -451,11 +451,14 @@ public partial class PianoKeyboardControl : UserControl
         public Brush LabelHeld { get; }
         public Brush BlackLabel { get; }
         public Brush BlackLabelHeld { get; }
+        public Color Shadow { get; }
 
         public KeyPalette(FrameworkElement owner)
         {
             // Magenta for a missing key is loud on purpose: a mistyped name shows at once.
             Brush Find(string key) => owner.TryFindResource(key) as Brush ?? Brushes.Magenta;
+
+            Shadow = owner.TryFindResource("Color.Shadow") as Color? ?? Colors.Magenta;
 
             White = Find("Brush.Key.White");
             WhiteHeld = Find("Brush.Key.White.Held");

@@ -136,6 +136,7 @@
                         Command="{Binding BrowseSoundFontCommand}"
                         ToolTip="Pick a SoundFont (.sf2) or SFZ (.sfz) piano"/>
                 <Button Content="Start audio" Margin="12,0,4,0" Padding="10,3"
+                        Style="{StaticResource Style.PrimaryButton}"
                         Command="{Binding StartAudioCommand}"
                         IsEnabled="{Binding IsAudioRunning, Converter={StaticResource InverseBoolConverter}}"/>
                 <Button Content="Stop" Padding="10,3"

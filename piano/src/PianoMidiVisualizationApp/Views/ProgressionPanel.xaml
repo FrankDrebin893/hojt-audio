@@ -27,8 +27,8 @@
                                 <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
                             </Trigger>
                             <Trigger Property="ToggleButton.IsChecked" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Accent}"/>
-                                <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.On}"/>
+                                <Setter Property="Foreground" Value="{StaticResource Brush.On.Ink}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Foreground" Value="{StaticResource Brush.Text.Disabled}"/>
@@ -45,7 +45,7 @@
             <Setter Property="Focusable" Value="False"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Background" Value="{StaticResource Brush.SurfaceRaised}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource Brush.Separator}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Brush.SurfaceRaised}"/>
             <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}"/>
             <Setter Property="Padding" Value="7,4"/>
             <Setter Property="Template">
@@ -63,7 +63,7 @@
                                 <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Brush.Text.Faint}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Accent}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Selected}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -257,9 +257,11 @@
                                             <Setter Property="Background" Value="{StaticResource Brush.SurfaceRaised}"/>
                                             <Setter Property="BorderBrush" Value="{StaticResource Brush.SurfaceRaised}"/>
                                             <Style.Triggers>
+                                                <!-- Playing back: the strongest lacquer, edged in ivory. Not
+                                                     blue, which means you are playing. -->
                                                 <DataTrigger Binding="{Binding IsSounding}" Value="True">
-                                                    <Setter Property="Background" Value="{StaticResource Brush.Accent}"/>
-                                                    <Setter Property="BorderBrush" Value="{StaticResource Brush.Accent.Hover}"/>
+                                                    <Setter Property="Background" Value="{StaticResource Brush.Selected}"/>
+                                                    <Setter Property="BorderBrush" Value="{StaticResource Brush.Sounding.Border}"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>

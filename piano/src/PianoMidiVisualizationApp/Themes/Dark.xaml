@@ -12,63 +12,149 @@
          E8BB close. Refresh: E72C. -->
     <FontFamily x:Key="Font.Icon">Segoe MDL2 Assets</FontFamily>
 
+    <!-- ================= Palette =================
+         Piano character: the window is the piano's case. A fixed ladder of warm lacquer greys
+         recedes, one ivory ramp carries the text and the keytops, and one amber marks the key
+         you're in. Every brush in this file is built from these colours; nothing else in the
+         app picks one. Colours first, for the same reason as Font.Icon above.
+
+         Lacquer, darkest first. Nothing sits between the steps. The chrome is a step darker than
+         the stage, so the only lift in the window is where the readout and the keys are.
+           Deep    wells the eye reads into: the song lane, the take timeline, the MIDI log
+           Chrome  the house: title bar, sidebar, panels, the toolbar strip, the status bar
+           Stage   the lit stage the readout and the keys sit on
+           Raised  controls and tiles at rest
+           Hover   a control under the pointer; dividers
+           Line    borders, and the strongest fill: a selected or sounding row -->
+    <Color x:Key="Color.Lacquer.Deep">#0B0A09</Color>
+    <Color x:Key="Color.Lacquer.Chrome">#100F0E</Color>
+    <Color x:Key="Color.Lacquer.Stage">#1C1A17</Color>
+    <Color x:Key="Color.Lacquer.Raised">#282520</Color>
+    <Color x:Key="Color.Lacquer.Hover">#34302B</Color>
+    <Color x:Key="Color.Lacquer.Line">#3D3934</Color>
+
+    <!-- Ivory, brightest first: the keytops, then the text ramp. Muted and brighter clear 4.5:1
+         on every lacquer step up to Raised. Faint is below that, so it draws marks (staff lines,
+         the metronome's dot) and never words. -->
+    <Color x:Key="Color.Ivory.Key">#FBF8F0</Color>
+    <Color x:Key="Color.Ivory.Primary">#F5F0E6</Color>
+    <Color x:Key="Color.Ivory.Pressed">#E6DFD2</Color>    <!-- a control that is switched on -->
+    <Color x:Key="Color.Ivory.Secondary">#D2CBBF</Color>
+    <Color x:Key="Color.Ivory.Tertiary">#ADA699</Color>
+    <Color x:Key="Color.Ivory.Muted">#979084</Color>
+    <Color x:Key="Color.Ivory.Faint">#7A736A</Color>
+    <Color x:Key="Color.Ivory.Disabled">#58534C</Color>
+
+    <!-- Amber, the one brand hue. Only for the key centre and for whatever is waiting on you;
+         never decoration, and never just "this control is on" (that is ivory). -->
+    <Color x:Key="Color.Amber">#F0C06A</Color>            <!-- text, glyphs, the loop, the attention dot -->
+    <Color x:Key="Color.Amber.Strong">#EDA73C</Color>     <!-- marks: the tonic's edge, learn listening -->
+    <Color x:Key="Color.Amber.Deep">#6E4F1C</Color>       <!-- the selected key's wedge, under ivory text -->
+    <Color x:Key="Color.Amber.Border">#8A6A30</Color>
+    <Color x:Key="Color.Amber.WashHover">#463820</Color>
+    <Color x:Key="Color.Amber.Wash">#3A2E1B</Color>       <!-- a wash on the stage -->
+    <Color x:Key="Color.Amber.Fill">#2A2215</Color>       <!-- a wash on the chrome; the circle's related keys -->
+    <Color x:Key="Color.Amber.Ink">#1C1609</Color>        <!-- text on an amber fill -->
+
+    <!-- Every other hue has one job, the same in every widget:
+           blue     you are playing: a held key, the circle's root marker, the lit chord tile,
+                    your recorded notes
+           magenta  the app asking for a key: a chord to try, the song's next notes
+           teal     your right hand in a song; violet your left
+           green    you hit it; red you missed it, and (by convention) recording -->
+    <Color x:Key="Color.Blue">#50A0EB</Color>
+    <Color x:Key="Color.Blue.Fill">#1E3E63</Color>
+    <Color x:Key="Color.Target">#E83E9C</Color>
+    <Color x:Key="Color.Correct">#8BE36B</Color>
+    <Color x:Key="Color.Wrong">#FF5252</Color>
+    <Color x:Key="Color.Record">#F04A3E</Color>
+    <Color x:Key="Color.Record.Idle">#9C4A42</Color>
+    <Color x:Key="Color.Shadow">#000000</Color>
+
     <!-- ================= Surfaces ================= -->
-    <SolidColorBrush x:Key="Brush.Window"         Color="#1E1E1E"/>
-    <SolidColorBrush x:Key="Brush.TitleBar"       Color="#1A1A1A"/>
-    <SolidColorBrush x:Key="Brush.Surface"        Color="#252525"/>
-    <SolidColorBrush x:Key="Brush.SurfaceAlt"     Color="#2D2D2D"/>
-    <SolidColorBrush x:Key="Brush.SurfaceRaised"  Color="#303030"/>
-    <SolidColorBrush x:Key="Brush.Stage"          Color="#333333"/>
-    <SolidColorBrush x:Key="Brush.Console"        Color="#111111"/>
-    <SolidColorBrush x:Key="Brush.InputArea"      Color="#202020"/>
-    <SolidColorBrush x:Key="Brush.Input"          Color="#2A2A2A"/>
+    <SolidColorBrush x:Key="Brush.Window"         Color="{StaticResource Color.Lacquer.Chrome}"/>
+    <SolidColorBrush x:Key="Brush.TitleBar"       Color="{StaticResource Color.Lacquer.Chrome}"/>
+    <!-- Panels: the sidebar, recorder, song bar, status bar and the toolbar strip on the stage. -->
+    <SolidColorBrush x:Key="Brush.Surface"        Color="{StaticResource Color.Lacquer.Chrome}"/>
+    <!-- Something laid over the stage: the settings drawer, a card over the song lane. The
+         scrim or the deep lane beneath is what sets it apart. -->
+    <SolidColorBrush x:Key="Brush.SurfaceAlt"     Color="{StaticResource Color.Lacquer.Stage}"/>
+    <SolidColorBrush x:Key="Brush.SurfaceRaised"  Color="{StaticResource Color.Lacquer.Raised}"/>
+    <SolidColorBrush x:Key="Brush.Stage"          Color="{StaticResource Color.Lacquer.Stage}"/>
+    <SolidColorBrush x:Key="Brush.Console"        Color="{StaticResource Color.Lacquer.Deep}"/>
+    <SolidColorBrush x:Key="Brush.InputArea"      Color="{StaticResource Color.Lacquer.Stage}"/>
+    <SolidColorBrush x:Key="Brush.Input"          Color="{StaticResource Color.Lacquer.Raised}"/>
     <SolidColorBrush x:Key="Brush.Scrim"          Color="#B3000000"/>
-    <SolidColorBrush x:Key="Brush.Popup.Background" Color="#252525"/>
-    <SolidColorBrush x:Key="Brush.Popup.Border"     Color="#3F3F3F"/>
+    <SolidColorBrush x:Key="Brush.Popup.Background" Color="{StaticResource Color.Lacquer.Raised}"/>
+    <SolidColorBrush x:Key="Brush.Popup.Border"     Color="{StaticResource Color.Lacquer.Line}"/>
 
     <!-- ================= Text ================= -->
-    <SolidColorBrush x:Key="Brush.Text.Primary"   Color="#FFFFFF"/>
-    <SolidColorBrush x:Key="Brush.Text.Secondary" Color="#CCCCCC"/>
-    <SolidColorBrush x:Key="Brush.Text.Tertiary"  Color="#AAAAAA"/>
-    <SolidColorBrush x:Key="Brush.Text.Muted"     Color="#888888"/>
-    <SolidColorBrush x:Key="Brush.Text.Faint"     Color="#666666"/>
-    <SolidColorBrush x:Key="Brush.Text.Disabled"  Color="#5A5A5A"/>
+    <SolidColorBrush x:Key="Brush.Text.Primary"   Color="{StaticResource Color.Ivory.Primary}"/>
+    <SolidColorBrush x:Key="Brush.Text.Secondary" Color="{StaticResource Color.Ivory.Secondary}"/>
+    <SolidColorBrush x:Key="Brush.Text.Tertiary"  Color="{StaticResource Color.Ivory.Tertiary}"/>
+    <SolidColorBrush x:Key="Brush.Text.Muted"     Color="{StaticResource Color.Ivory.Muted}"/>
+    <!-- Text that could go if space ran out ("4/8 chords", shortcut hints). Words still clear
+         4.5:1 at arm's length, so it shares Muted's ink; the name keeps the intent. -->
+    <SolidColorBrush x:Key="Brush.Text.Faint"     Color="{StaticResource Color.Ivory.Muted}"/>
+    <SolidColorBrush x:Key="Brush.Text.Disabled"  Color="{StaticResource Color.Ivory.Disabled}"/>
     <!-- An instruction on the stage ("Space to save"). It stays secondary by its small size and
          place under the readout, not by dropping below 4.5:1 on Brush.Stage as Faint does. -->
-    <SolidColorBrush x:Key="Brush.Text.Hint"      Color="#9E9E9E"/>
+    <SolidColorBrush x:Key="Brush.Text.Hint"      Color="{StaticResource Color.Ivory.Muted}"/>
 
-    <!-- ================= Lines & states ================= -->
-    <SolidColorBrush x:Key="Brush.Border"         Color="#444444"/>
-    <SolidColorBrush x:Key="Brush.Separator"      Color="#3A3A3A"/>
-    <SolidColorBrush x:Key="Brush.Hover"          Color="#333333"/>
-    <SolidColorBrush x:Key="Brush.Accent"         Color="#2B5278"/>
-    <SolidColorBrush x:Key="Brush.Accent.Hover"   Color="#35659A"/>
-    <SolidColorBrush x:Key="Brush.Danger"         Color="#C42B1C"/>
-    <SolidColorBrush x:Key="Brush.Danger.Muted"   Color="#664444"/>
-    <SolidColorBrush x:Key="Brush.Danger.Text"    Color="#FF6666"/>
-    <SolidColorBrush x:Key="Brush.Warning"        Color="#AA6600"/>
-    <SolidColorBrush x:Key="Brush.Error.Background" Color="#442222"/>
-    <SolidColorBrush x:Key="Brush.Error.Text"       Color="#FF8888"/>
+    <!-- ================= Lines & states =================
+         Ink, not boxes: buttons carry no border at rest, only inputs do. -->
+    <SolidColorBrush x:Key="Brush.Border"         Color="{StaticResource Color.Lacquer.Line}"/>
+    <SolidColorBrush x:Key="Brush.Separator"      Color="{StaticResource Color.Lacquer.Hover}"/>
+    <SolidColorBrush x:Key="Brush.Hover"          Color="{StaticResource Color.Lacquer.Hover}"/>
+    <SolidColorBrush x:Key="Brush.Selected"       Color="{StaticResource Color.Lacquer.Line}"/>
+    <!-- On means ivory: a switched-on toggle (metronome, loop, 7ths) or a primary action is an
+         ivory keytop with lacquer ink, rather than borrowing the held-key blue. -->
+    <SolidColorBrush x:Key="Brush.On"             Color="{StaticResource Color.Ivory.Pressed}"/>
+    <SolidColorBrush x:Key="Brush.On.Hover"       Color="{StaticResource Color.Ivory.Primary}"/>
+    <SolidColorBrush x:Key="Brush.On.Ink"         Color="{StaticResource Color.Lacquer.Chrome}"/>
+    <!-- A progression chord while it plays back: the strongest lacquer, edged in ivory. -->
+    <SolidColorBrush x:Key="Brush.Sounding.Border" Color="{StaticResource Color.Ivory.Secondary}"/>
+    <SolidColorBrush x:Key="Brush.Focus"          Color="{StaticResource Color.Ivory.Secondary}"/>
+    <SolidColorBrush x:Key="Brush.Danger"         Color="#C42B1C"/>   <!-- Windows' own close-button red -->
+    <SolidColorBrush x:Key="Brush.Danger.Text"    Color="#F0736A"/>
+    <SolidColorBrush x:Key="Brush.Warning"        Color="{StaticResource Color.Amber.Strong}"/>
+    <SolidColorBrush x:Key="Brush.Error.Background" Color="#3A1C19"/>
+    <SolidColorBrush x:Key="Brush.Error.Text"       Color="#FF9A8F"/>
 
-    <!-- ================= MIDI / log ================= -->
-    <SolidColorBrush x:Key="Brush.Midi.Idle"      Color="#555555"/>
-    <SolidColorBrush x:Key="Brush.Midi.Connected" Color="#337733"/>
-    <SolidColorBrush x:Key="Brush.Midi.Active"    Color="#00FF00"/>
-    <SolidColorBrush x:Key="Brush.Log.Text"       Color="#00DD00"/>
+    <!-- The keyboard-focus ring, in place of WPF's dotted black one, which vanishes on lacquer. -->
+    <Style x:Key="{x:Static SystemParameters.FocusVisualStyleKey}">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Rectangle Margin="-2" RadiusX="4" RadiusY="4" SnapsToDevicePixels="True"
+                               Stroke="{StaticResource Brush.Focus}" StrokeThickness="1.5"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ================= MIDI / log =================
+         The settings dot speaks like the title bar's chip: quiet when connected, an ivory
+         flicker as notes arrive. The log is data, so it reads as quiet ivory, not terminal green
+         (green means a note you hit). -->
+    <SolidColorBrush x:Key="Brush.Midi.Idle"      Color="{StaticResource Color.Ivory.Disabled}"/>
+    <SolidColorBrush x:Key="Brush.Midi.Connected" Color="{StaticResource Color.Ivory.Muted}"/>
+    <SolidColorBrush x:Key="Brush.Midi.Active"    Color="{StaticResource Color.Ivory.Key}"/>
+    <SolidColorBrush x:Key="Brush.Log.Text"       Color="{StaticResource Color.Ivory.Tertiary}"/>
 
     <!-- ================= Setup and status =================
-         The key amber, the app's one brand hue (the tonic keys' fill), marks what needs you:
-         the title bar's status chip while the keyboard or audio isn't ready, and the next step
-         of the first-run checklist. Whatever is fine stays a quiet grey. -->
-    <SolidColorBrush x:Key="Brush.Attention"           Color="#F2C978"/>
-    <SolidColorBrush x:Key="Brush.Attention.Ink"       Color="#1E1A12"/>   <!-- text on an amber fill -->
-    <SolidColorBrush x:Key="Brush.Attention.Border"    Color="#7E6128"/>
-    <SolidColorBrush x:Key="Brush.Attention.Fill"      Color="#2E2618"/>   <!-- on the title bar -->
-    <SolidColorBrush x:Key="Brush.Attention.Wash"      Color="#43392A"/>   <!-- on the stage -->
-    <SolidColorBrush x:Key="Brush.Attention.WashHover" Color="#4F432F"/>
-    <SolidColorBrush x:Key="Brush.Stage.Hover"         Color="#3E3E3E"/>   <!-- Brush.Hover is the stage colour -->
-    <SolidColorBrush x:Key="Brush.Status.Ok"           Color="#8A8A84"/>
-    <SolidColorBrush x:Key="Brush.Status.Activity"     Color="#FFFDF2"/>   <!-- a note played -->
+         Amber marks what needs you: the title bar's status chip while the keyboard or audio
+         isn't ready, and the next step of the first-run checklist. Whatever is fine stays a
+         quiet grey. -->
+    <SolidColorBrush x:Key="Brush.Attention"           Color="{StaticResource Color.Amber}"/>
+    <SolidColorBrush x:Key="Brush.Attention.Ink"       Color="{StaticResource Color.Amber.Ink}"/>
+    <SolidColorBrush x:Key="Brush.Attention.Border"    Color="{StaticResource Color.Amber.Border}"/>
+    <SolidColorBrush x:Key="Brush.Attention.Fill"      Color="{StaticResource Color.Amber.Fill}"/>   <!-- on the title bar -->
+    <SolidColorBrush x:Key="Brush.Attention.Wash"      Color="{StaticResource Color.Amber.Wash}"/>   <!-- on the stage -->
+    <SolidColorBrush x:Key="Brush.Attention.WashHover" Color="{StaticResource Color.Amber.WashHover}"/>
+    <SolidColorBrush x:Key="Brush.Stage.Hover"         Color="{StaticResource Color.Lacquer.Hover}"/>
+    <SolidColorBrush x:Key="Brush.Status.Ok"           Color="{StaticResource Color.Ivory.Muted}"/>
+    <SolidColorBrush x:Key="Brush.Status.Activity"     Color="{StaticResource Color.Ivory.Key}"/>   <!-- a note played -->
 
     <!-- The title bar's status chip (DataContext: MainViewModel). Never focusable: a focused
          button would claim Space, the save-chord shortcut. The colours are all Setters, since
@@ -205,46 +291,46 @@
         </Style.Triggers>
     </Style>
 
-    <!-- ================= Metronome beat light ================= -->
-    <SolidColorBrush x:Key="Brush.Metronome.Off"    Color="#777777"/>
-    <SolidColorBrush x:Key="Brush.Metronome.On"     Color="#6F93B8"/>
-    <SolidColorBrush x:Key="Brush.Metronome.Beat"   Color="#FFFFFF"/>
-    <SolidColorBrush x:Key="Brush.Metronome.Accent" Color="#FFB547"/>
+    <!-- ================= Metronome beat light =================
+         The light sits inside the metronome toggle, which is ivory while it is on, so the lit
+         states are dark ink on ivory: a grey dot on, a black flash per beat, deep amber on the
+         downbeat. Off, it is a hollow ring on lacquer. -->
+    <SolidColorBrush x:Key="Brush.Metronome.Off"    Color="{StaticResource Color.Ivory.Muted}"/>
+    <SolidColorBrush x:Key="Brush.Metronome.On"     Color="{StaticResource Color.Ivory.Faint}"/>
+    <SolidColorBrush x:Key="Brush.Metronome.Beat"   Color="{StaticResource Color.Lacquer.Chrome}"/>
+    <SolidColorBrush x:Key="Brush.Metronome.Accent" Color="{StaticResource Color.Amber.Deep}"/>
 
     <!-- ================= Circle of fifths =================
-         The selected key is amber, echoing the keyboard's tonic fill; its neighbours and
-         relative take a faint wash of the same. The chord-root outline is the pressed-key
-         blue, since it follows what is being played. -->
-    <SolidColorBrush x:Key="Brush.Circle.Major"      Color="#2A2A2A"/>
-    <SolidColorBrush x:Key="Brush.Circle.Minor"      Color="#232323"/>
-    <SolidColorBrush x:Key="Brush.Circle.Related"    Color="#3F3727"/>
-    <SolidColorBrush x:Key="Brush.Circle.Selected"   Color="#7E6128"/>
-    <SolidColorBrush x:Key="Brush.Circle.Hover"      Color="#8A8A8A"/>
-    <SolidColorBrush x:Key="Brush.Circle.RootMarker" Color="#50A0EB"/>
+         Inlaid in the stage: the segments are a step darker than it, like ebony set into the
+         case. The selected key is amber, echoing the keyboard's tonic fill; its neighbours and
+         relative take a faint wash of the same. The chord-root outline is the held-key blue,
+         since it follows what is being played. -->
+    <SolidColorBrush x:Key="Brush.Circle.Major"      Color="{StaticResource Color.Lacquer.Chrome}"/>
+    <SolidColorBrush x:Key="Brush.Circle.Minor"      Color="{StaticResource Color.Lacquer.Deep}"/>
+    <SolidColorBrush x:Key="Brush.Circle.Related"    Color="{StaticResource Color.Amber.Fill}"/>
+    <SolidColorBrush x:Key="Brush.Circle.Selected"   Color="{StaticResource Color.Amber.Deep}"/>
+    <SolidColorBrush x:Key="Brush.Circle.Hover"      Color="{StaticResource Color.Ivory.Muted}"/>
+    <SolidColorBrush x:Key="Brush.Circle.RootMarker" Color="{StaticResource Color.Blue}"/>
 
     <!-- ================= Grand staff =================
          Lines recede, the clefs and key signature sit a step forward, and the notes you are
-         holding are full white like the chord name, so the eye goes straight to them. -->
-    <SolidColorBrush x:Key="Brush.Staff.Line"   Color="#7A7A7A"/>
-    <SolidColorBrush x:Key="Brush.Staff.Symbol" Color="#AAAAAA"/>
-    <SolidColorBrush x:Key="Brush.Staff.Note"   Color="#FFFFFF"/>
+         holding are full ivory like the chord name, so the eye goes straight to them. -->
+    <SolidColorBrush x:Key="Brush.Staff.Line"   Color="{StaticResource Color.Ivory.Faint}"/>
+    <SolidColorBrush x:Key="Brush.Staff.Symbol" Color="{StaticResource Color.Ivory.Tertiary}"/>
+    <SolidColorBrush x:Key="Brush.Staff.Note"   Color="{StaticResource Color.Ivory.Primary}"/>
 
     <!-- ================= Keyboard =================
-         One meaning per colour, shared with the rest of the stage:
-           blue    = a key you are holding (also the circle's root marker, the lit chord tile)
+         Ivory keytops and ebony sharps, with the meanings from the palette's colour table:
+           blue    = a key you are holding; a paler blue while the pedal holds it
            amber   = the selected key: full on the tonic, a wash on the other white keys in it,
                      and an edge mark wherever a fill can't show it (black keys, held keys)
            magenta = the app asking for a key (a chord to try, the song's next notes)
-         Ivory and black are idle keys. Every label brush is paired with the fill it sits on;
-         the held pair clears 4.5:1 against its fill. -->
-
-    <!-- The app asking for a key. The falling notes' wait-mode target is the same colour, so a
-         note and the key it wants match. -->
-    <Color x:Key="Color.Target">#E83E9C</Color>
+         Every label brush is paired with the fill it sits on: idle labels clear 4.5:1 on ivory,
+         the in-key wash and the tonic's darkest edge; the held pair clears 4.5:1 on its fill. -->
 
     <LinearGradientBrush x:Key="Brush.Key.White" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#FFFFFD" Offset="0"/>
-        <GradientStop Color="#EBEBE6" Offset="1"/>
+        <GradientStop Color="{StaticResource Color.Ivory.Key}" Offset="0"/>
+        <GradientStop Color="#EAE5DA" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.White.Held" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#8CC8FF" Offset="0"/>
@@ -256,23 +342,25 @@
         <GradientStop Color="#D6EAFB" Offset="0"/>
         <GradientStop Color="#AFD2F2" Offset="1"/>
     </LinearGradientBrush>
-    <!-- In the key but not its tonic: warm enough to separate from ivory, well short of the tonic. -->
+    <!-- In the key but not its tonic: a warm wash that separates from the ivory without
+         yellowing the keyboard (in C major every white key is in the key), well short of the
+         tonic. -->
     <LinearGradientBrush x:Key="Brush.Key.White.InKey" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#FFF5DD" Offset="0"/>
-        <GradientStop Color="#F2DCA6" Offset="1"/>
+        <GradientStop Color="#FDF1D6" Offset="0"/>
+        <GradientStop Color="#F1DAA3" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.White.Tonic" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#FCDC96" Offset="0"/>
-        <GradientStop Color="#ECB450" Offset="1"/>
+        <GradientStop Color="#F7C96C" Offset="0"/>
+        <GradientStop Color="#E4A847" Offset="1"/>
     </LinearGradientBrush>
-    <SolidColorBrush x:Key="Brush.Key.White.Border" Color="#3C3C3C"/>
+    <SolidColorBrush x:Key="Brush.Key.White.Border" Color="#2A2622"/>
 
-    <!-- Black keys share one bevel: a lit top edge, a fast falloff, then a slow darkening. -->
+    <!-- Ebony sharps share one bevel: a lit lacquer edge, a fast falloff, then a slow darkening. -->
     <LinearGradientBrush x:Key="Brush.Key.Black" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#464646" Offset="0"/>
-        <GradientStop Color="#232323" Offset="0.08"/>
-        <GradientStop Color="#191919" Offset="0.5"/>
-        <GradientStop Color="#0F0F0F" Offset="1"/>
+        <GradientStop Color="#4A4540" Offset="0"/>
+        <GradientStop Color="#25221F" Offset="0.08"/>
+        <GradientStop Color="#181614" Offset="0.5"/>
+        <GradientStop Color="{StaticResource Color.Lacquer.Deep}" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.Black.Held" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#5096DC" Offset="0"/>
@@ -289,17 +377,17 @@
     <!-- The tonic keeps a body colour on black keys too; the other in-key black keys get only
          the edge mark, so a scale doesn't turn half the black keys into coloured slabs. -->
     <LinearGradientBrush x:Key="Brush.Key.Black.Tonic" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#6A5326" Offset="0"/>
-        <GradientStop Color="#4E3C1A" Offset="0.08"/>
-        <GradientStop Color="#423216" Offset="0.5"/>
+        <GradientStop Color="#725829" Offset="0"/>
+        <GradientStop Color="#54401C" Offset="0.08"/>
+        <GradientStop Color="#453418" Offset="0.5"/>
         <GradientStop Color="#3A2C12" Offset="1"/>
     </LinearGradientBrush>
-    <SolidColorBrush x:Key="Brush.Key.Black.Border" Color="#141414"/>
+    <SolidColorBrush x:Key="Brush.Key.Black.Border" Color="#050404"/>
 
     <!-- Edge marks: the top edge of an in-key black key, and the front lip of a held white key
          whose wash the held fill has replaced. The tonic's mark is stronger and thicker. -->
-    <SolidColorBrush x:Key="Brush.Key.InKey.Mark" Color="#E6C58A"/>
-    <SolidColorBrush x:Key="Brush.Key.Tonic.Mark" Color="#F5AD3C"/>
+    <SolidColorBrush x:Key="Brush.Key.InKey.Mark" Color="#E9C47E"/>
+    <SolidColorBrush x:Key="Brush.Key.Tonic.Mark" Color="{StaticResource Color.Amber.Strong}"/>
 
     <!-- Hint outline and dot, with a deep keyline inside so the outline still separates from
          a light fill (ivory, amber, held blue) whose brightness is close to the magenta's. -->
@@ -308,32 +396,48 @@
 
     <!-- Labels. Idle keys show only the Cs (every key with "All note names"); a held key's
          label switches to the held pair, spelled for the selected key. -->
-    <SolidColorBrush x:Key="Brush.Key.Label"            Color="#5C5852"/>
+    <SolidColorBrush x:Key="Brush.Key.Label"            Color="#47423B"/>
     <SolidColorBrush x:Key="Brush.Key.Label.Held"       Color="#0A1F3D"/>
-    <SolidColorBrush x:Key="Brush.Key.Black.Label"      Color="#9A9A9A"/>
+    <SolidColorBrush x:Key="Brush.Key.Black.Label"      Color="#9A948A"/>
     <SolidColorBrush x:Key="Brush.Key.Black.Label.Held" Color="#F2F8FF"/>
 
     <!-- ================= Song practice (falling notes) =================
+         The lane is a piano roll: notes are flat slots cut in a deep lacquer well, bar numbers
+         sit in its margin, and the keys' top edge is the tracker bar every note is read against.
          Your two hands take hues used nowhere else: teal right, violet left, so a note landing
          never reads as your own held (blue) key, as correct (green), or as the key (amber).
          Other parts are accompaniment: quiet neutrals of different warmth and lightness, so
          colour always means your hands. Auto-play notes are drawn translucent by the view. -->
-    <SolidColorBrush x:Key="Brush.Song.Lane"        Color="#1A1A1A"/>
-    <SolidColorBrush x:Key="Brush.Song.OctaveLine"  Color="#333333"/>
-    <SolidColorBrush x:Key="Brush.Song.GroupLine"   Color="#242424"/>
-    <SolidColorBrush x:Key="Brush.Song.BarLine"     Color="#303030"/>
-    <SolidColorBrush x:Key="Brush.Song.BarNumber"   Color="#5E5E5E"/>
-    <SolidColorBrush x:Key="Brush.Song.HitLine"     Color="#9A9A9A"/>
-    <SolidColorBrush x:Key="Brush.Song.Sounding"    Color="#FFFFFF"/>
-    <SolidColorBrush x:Key="Brush.Song.Loop"        Color="#F2C978"/>
+    <SolidColorBrush x:Key="Brush.Song.Lane"        Color="{StaticResource Color.Lacquer.Deep}"/>
+    <SolidColorBrush x:Key="Brush.Song.OctaveLine"  Color="{StaticResource Color.Lacquer.Raised}"/>
+    <SolidColorBrush x:Key="Brush.Song.GroupLine"   Color="{StaticResource Color.Lacquer.Stage}"/>
+    <SolidColorBrush x:Key="Brush.Song.BarLine"     Color="{StaticResource Color.Lacquer.Hover}"/>
+    <SolidColorBrush x:Key="Brush.Song.BarNumber"   Color="{StaticResource Color.Ivory.Muted}"/>
+    <SolidColorBrush x:Key="Brush.Song.HitLine"     Color="{StaticResource Color.Ivory.Tertiary}"/>
+    <SolidColorBrush x:Key="Brush.Song.Sounding"    Color="{StaticResource Color.Ivory.Key}"/>
+    <SolidColorBrush x:Key="Brush.Song.Loop"        Color="{StaticResource Color.Amber}"/>
     <SolidColorBrush x:Key="Brush.Song.OutsideLoop" Color="#8C000000"/>
-    <SolidColorBrush x:Key="Brush.Song.Folded"      Color="#F0F0F0"/>
+    <SolidColorBrush x:Key="Brush.Song.Folded"      Color="{StaticResource Color.Ivory.Primary}"/>
     <!-- The chord wait mode is holding for: the keyboard's hint magenta, so note and key match. -->
     <SolidColorBrush x:Key="Brush.Song.Target"      Color="{StaticResource Color.Target}"/>
     <!-- Green is "you hit it" and nothing else; red is its opposite. -->
-    <SolidColorBrush x:Key="Brush.Song.Correct"     Color="#8BE36B"/>
-    <SolidColorBrush x:Key="Brush.Song.Wrong"       Color="#FF5252"/>
-    <SolidColorBrush x:Key="Brush.Song.Overlay"     Color="#CC1A1A1A"/>
+    <SolidColorBrush x:Key="Brush.Song.Correct"     Color="{StaticResource Color.Correct}"/>
+    <SolidColorBrush x:Key="Brush.Song.Wrong"       Color="{StaticResource Color.Wrong}"/>
+    <SolidColorBrush x:Key="Brush.Song.Overlay"     Color="#CC100F0E"/>
+
+    <!-- ================= Recorder =================
+         A take is a small roll too, in the same deep well: your notes in the held-key blue,
+         since you played them, the A-B loop in amber like the song's, and an ivory playhead.
+         Record is red by convention: dull while idle, bright while armed or recording. -->
+    <SolidColorBrush x:Key="Brush.Timeline.Background" Color="{StaticResource Color.Lacquer.Deep}"/>
+    <SolidColorBrush x:Key="Brush.Timeline.Note"       Color="{StaticResource Color.Blue}"/>
+    <SolidColorBrush x:Key="Brush.Timeline.Region"     Color="#2EF0C06A"/>   <!-- Color.Amber at 18% -->
+    <SolidColorBrush x:Key="Brush.Timeline.RegionEdge" Color="{StaticResource Color.Amber}"/>
+    <SolidColorBrush x:Key="Brush.Timeline.Playhead"   Color="{StaticResource Color.Ivory.Key}"/>
+    <SolidColorBrush x:Key="Brush.Timeline.SecondLine" Color="{StaticResource Color.Lacquer.Raised}"/>
+    <SolidColorBrush x:Key="Brush.Timeline.Hint"       Color="{StaticResource Color.Ivory.Muted}"/>
+    <SolidColorBrush x:Key="Brush.Record.Idle"         Color="{StaticResource Color.Record.Idle}"/>
+    <SolidColorBrush x:Key="Brush.Record.Active"       Color="{StaticResource Color.Record}"/>
     <SolidColorBrush x:Key="Brush.Song.Part0"       Color="#3FC1B0"/>   <!-- right hand: teal -->
     <SolidColorBrush x:Key="Brush.Song.Part1"       Color="#B39DDB"/>   <!-- left hand: violet -->
     <SolidColorBrush x:Key="Brush.Song.Part2"       Color="#C8BCA9"/>   <!-- accompaniment: stone -->
@@ -345,7 +449,7 @@
          A diatonic numeral reads near-white like the chord name above it. The other kinds
          take a desaturated tint, kept clear of the circle's key amber and chord-root blue,
          and name themselves in a small muted tag, so colour is never the only cue. -->
-    <SolidColorBrush x:Key="Brush.Function.Diatonic"  Color="#EDEDED"/>
+    <SolidColorBrush x:Key="Brush.Function.Diatonic"  Color="{StaticResource Color.Ivory.Primary}"/>
     <SolidColorBrush x:Key="Brush.Function.Secondary" Color="#7FCFB0"/>
     <SolidColorBrush x:Key="Brush.Function.Borrowed"  Color="#B4A2EE"/>
     <SolidColorBrush x:Key="Brush.Function.Chromatic" Color="#E39B9B"/>
@@ -407,15 +511,15 @@
     </Style>
 
     <!-- ================= Diatonic chord strip =================
-         Tiles sit dark like the toolbar. The one matching what's held takes the pressed-key
+         Borderless lacquer tiles at rest. The one matching what's held takes the held-key
          blue, and a hovered tile's outline is the keyboard's hint magenta, tying it to the
          markers it draws on the keys. -->
-    <SolidColorBrush x:Key="Brush.ChordTile"              Color="#282828"/>
-    <SolidColorBrush x:Key="Brush.ChordTile.Border"       Color="#3A3A3A"/>
-    <SolidColorBrush x:Key="Brush.ChordTile.Hover"        Color="#3A3A3A"/>
-    <SolidColorBrush x:Key="Brush.ChordTile.Hint"         Color="#E83E9C"/>
-    <SolidColorBrush x:Key="Brush.ChordTile.Played"       Color="#2B5278"/>
-    <SolidColorBrush x:Key="Brush.ChordTile.PlayedBorder" Color="#50A0EB"/>
+    <SolidColorBrush x:Key="Brush.ChordTile"              Color="{StaticResource Color.Lacquer.Raised}"/>
+    <SolidColorBrush x:Key="Brush.ChordTile.Border"       Color="{StaticResource Color.Lacquer.Raised}"/>
+    <SolidColorBrush x:Key="Brush.ChordTile.Hover"        Color="{StaticResource Color.Lacquer.Hover}"/>
+    <SolidColorBrush x:Key="Brush.ChordTile.Hint"         Color="{StaticResource Color.Target}"/>
+    <SolidColorBrush x:Key="Brush.ChordTile.Played"       Color="{StaticResource Color.Blue.Fill}"/>
+    <SolidColorBrush x:Key="Brush.ChordTile.PlayedBorder" Color="{StaticResource Color.Blue}"/>
 
     <!-- A chord tile (DataContext: ChordTileViewModel). One line, 22px tall: the strip has
          only 24px to spend at the 900x420 minimum before the readout drops below its MinHeight.
@@ -662,10 +766,12 @@
          Note: a local <Button.Style> without BasedOn replaces these outright.
          ========================================================================= -->
 
+    <!-- Ink, not boxes: a lacquer key with no border at rest. The border stays 1px and
+         transparent so a style that does draw one keeps the same size. -->
     <Style TargetType="Button">
         <Setter Property="Background" Value="{StaticResource Brush.SurfaceRaised}"/>
         <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="10,3"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -685,7 +791,41 @@
                             <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Stage}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Surface}"/>
+                            <Setter Property="Foreground" Value="{StaticResource Brush.Text.Disabled}"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The one primary action in a view ("Start audio", "Send", "Play again"): an ivory key,
+         like a control that is switched on. -->
+    <Style x:Key="Style.PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="{StaticResource Brush.On}"/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.On.Ink}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}" CornerRadius="3"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.On.Hover}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Text.Secondary}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Surface}"/>
@@ -918,12 +1058,13 @@
         </Style.Triggers>
     </Style>
 
-    <!-- A button that stays down while its feature is on, e.g. the metronome. Keyed rather
-         than implicit so the ComboBox's internal ToggleButton is unaffected. -->
+    <!-- A button that stays down while its feature is on, e.g. the metronome: a lacquer key
+         at rest, an ivory one while on. Keyed rather than implicit so the ComboBox's internal
+         ToggleButton is unaffected. -->
     <Style x:Key="Style.ToolbarToggle" TargetType="ToggleButton">
         <Setter Property="Background" Value="{StaticResource Brush.SurfaceRaised}"/>
         <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="7,0"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -943,16 +1084,15 @@
                             <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Accent}"/>
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Brush.Accent.Hover}"/>
-                            <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.On}"/>
+                            <Setter Property="Foreground" Value="{StaticResource Brush.On.Ink}"/>
                         </Trigger>
                         <MultiTrigger>
                             <MultiTrigger.Conditions>
                                 <Condition Property="IsChecked" Value="True"/>
                                 <Condition Property="IsMouseOver" Value="True"/>
                             </MultiTrigger.Conditions>
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Accent.Hover}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.On.Hover}"/>
                         </MultiTrigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -1033,15 +1173,14 @@
          amber, the key-centre hue, because it is the app waiting on the piano; a learned
          control firing flashes the held blue, because a press did it.
          ========================================================================= -->
-    <SolidColorBrush x:Key="Brush.Learn.Chip"      Color="#232323"/>
-    <SolidColorBrush x:Key="Brush.Learn.Listening" Color="#FFB547"/>
-    <SolidColorBrush x:Key="Brush.Learn.Fired"     Color="#50A0EB"/>
-    <SolidColorBrush x:Key="Brush.Learn.FiredFill" Color="#2B5278"/>
+    <SolidColorBrush x:Key="Brush.Learn.Chip"      Color="{StaticResource Color.Lacquer.Raised}"/>
+    <SolidColorBrush x:Key="Brush.Learn.Listening" Color="{StaticResource Color.Amber.Strong}"/>
+    <SolidColorBrush x:Key="Brush.Learn.Fired"     Color="{StaticResource Color.Blue}"/>
+    <SolidColorBrush x:Key="Brush.Learn.FiredFill" Color="{StaticResource Color.Blue.Fill}"/>
 
-    <SolidColorBrush x:Key="Brush.Echo.Background" Color="#F21C1C1C"/>
-    <SolidColorBrush x:Key="Brush.Echo.Border"     Color="#4A4A4A"/>
-    <SolidColorBrush x:Key="Brush.Echo.Text"       Color="#EDEDED"/>
-    <Color x:Key="Color.Shadow">#000000</Color>
+    <SolidColorBrush x:Key="Brush.Echo.Background" Color="#F2282520"/>   <!-- Color.Lacquer.Raised at 95% -->
+    <SolidColorBrush x:Key="Brush.Echo.Border"     Color="{StaticResource Color.Lacquer.Line}"/>
+    <SolidColorBrush x:Key="Brush.Echo.Text"       Color="{StaticResource Color.Ivory.Primary}"/>
 
     <!-- The chord readout's lines and the grand staff while latched: full strength for a beat,
          then dimming fast and settling, so a held-over chord reads as a memory rather than as

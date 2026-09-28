@@ -36,7 +36,7 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <Image Source="app.png" Width="18" Height="18" Margin="10,0,8,0"
                            RenderOptions.BitmapScalingMode="HighQuality"/>
-                    <TextBlock Text="Piano MIDI Visualization" Foreground="{StaticResource Brush.Text.Secondary}"
+                    <TextBlock Text="Piano MIDI Visualization" Foreground="{StaticResource Brush.Text.Tertiary}"
                                FontSize="12" VerticalAlignment="Center" Margin="0,0,16,0"/>
 
                     <Menu VerticalAlignment="Center">
