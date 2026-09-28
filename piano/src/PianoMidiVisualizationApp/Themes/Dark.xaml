@@ -15,8 +15,10 @@
     <!-- ================= Palette =================
          Piano character: the window is the piano's case. A fixed ladder of warm lacquer greys
          recedes, one ivory ramp carries the text and the keytops, and one amber marks the key
-         you're in. Every brush in this file is built from these colours; nothing else in the
-         app picks one. Colours first, for the same reason as Font.Icon above.
+         you're in. Surfaces, text, states and the brand hues are built from these colours; the
+         key gradients, song-part hues and numeral tints set their own stops in their sections
+         below. Nothing outside this file picks a colour. Colours first, for the same reason as
+         Font.Icon above.
 
          Lacquer, darkest first. Nothing sits between the steps. The chrome is a step darker than
          the stage, so the only lift in the window is where the readout and the keys are.
@@ -115,7 +117,8 @@
     <!-- A progression chord while it plays back: the strongest lacquer, edged in ivory. -->
     <SolidColorBrush x:Key="Brush.Sounding.Border" Color="{StaticResource Color.Ivory.Secondary}"/>
     <SolidColorBrush x:Key="Brush.Focus"          Color="{StaticResource Color.Ivory.Secondary}"/>
-    <!-- A scrollbar thumb: a mark, so Faint's ink, which clears 3:1 on every lacquer step. -->
+    <!-- A scrollbar thumb: a mark, so Faint's ink. It clears 3:1 where thumbs sit: the deep
+         wells (4.2:1), chrome and raised panels. -->
     <SolidColorBrush x:Key="Brush.ScrollThumb"    Color="{StaticResource Color.Ivory.Faint}"/>
     <SolidColorBrush x:Key="Brush.Danger"         Color="#C42B1C"/>   <!-- Windows' own close-button red -->
     <SolidColorBrush x:Key="Brush.Danger.Text"    Color="#F0736A"/>
@@ -336,7 +339,7 @@
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.White.Held" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#8CC8FF" Offset="0"/>
-        <GradientStop Color="#50A0EB" Offset="1"/>
+        <GradientStop Color="{StaticResource Color.Blue}" Offset="1"/>
     </LinearGradientBrush>
     <!-- A key the sustain pedal holds after you let go: the held blue, quieter. Lit, since it is
          sounding, but plainly not under a finger. -->
@@ -570,7 +573,7 @@
                 <Setter Property="BorderBrush" Value="{StaticResource Brush.ChordTile.PlayedBorder}"/>
                 <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
             </DataTrigger>
-            <!-- Played and hovered: keep the blue fill, but still show the hint outline. -->
+            <!-- Played and hovered: the hint outline takes over the blue edge. -->
             <MultiDataTrigger>
                 <MultiDataTrigger.Conditions>
                     <Condition Binding="{Binding IsPlayed}" Value="True"/>
