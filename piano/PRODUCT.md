@@ -52,19 +52,27 @@ piano rolls show which notes to play. This app tells you what they are.
 ## Capabilities and Constraints
 
 - **Hear:** SoundFont playback through MeltySynth, and SFZ through a built-in sample player with
-  velocity layers. There is a master volume and a metronome click volume.
+  velocity layers. The CC64 sustain pedal holds the sound in both. There is a master volume and
+  a metronome click volume.
 - **See:** a 61-key keyboard (C2–C7) that scales with the window. There are 12 scales,
   in-key tinting with the tonic set apart, and note names that switch to sharps or flats to
-  suit the key. "Mute out-of-key" silences wrong notes but still shows them.
+  suit the key. "Mute out-of-key" silences wrong notes but still shows them. A key the pedal
+  holds stays lit and still counts toward the chord name.
 - **Understand:** the chord readout, grand staff, circle of fifths (click to change key) and
   diatonic chord strip (click to play).
-- **Progressions:** Space saves the held chord, up to 8. They play back at the metronome's
-  tempo, optionally looped, and can be transposed (Move key keeps the numerals). Next-chord
-  suggestions are voice-led from the last chord.
+- **Progressions:** Space saves the held chord, up to 8. After the keys are released the
+  readout latches the chord for two seconds, fading, and Space still saves it, so a two-handed
+  voicing can be saved. They play back at the metronome's tempo, optionally looped, and can be
+  transposed (Move key keeps the numerals). Next-chord suggestions are voice-led from the last
+  chord.
+- **Play from the piano:** in Settings → Piano controls, any key, pad, button or pedal can be
+  learned for eight actions: save chord, play progression, record, play the latest take,
+  metronome on/off, tap tempo, play/pause the song and restart the song. A mapped key stops
+  sounding its note until cleared. A short note over the stage confirms each action.
 - **Songs:** open a `.mid` and practise with falling notes. Choose tracks and hands, set the
   speed, loop a bar range, use "Wait for me" and get scored.
-- **Recorder:** the last 10 takes are kept. Play back at 50–100%, loop an A–B region, and
-  export a take as `.mid`.
+- **Recorder:** the last 10 takes are kept. A note held by the pedal is recorded for as long
+  as it sounds. Play back at 50–100%, loop an A–B region, and export a take as `.mid`.
 - **Metronome:** 30–240 BPM, Tap tempo, beats per bar with an accented downbeat, and a beat
   light driven by the audio clock.
 - **Also:** a MIDI log, and an optional AI Music Assistant. The assistant uses Google Gemini
@@ -77,10 +85,6 @@ piano rolls show which notes to play. This app tells you what they are.
   screenshots of this app.
 - **Licensing:** SoundFonts and samples are never committed. Adding or removing a NuGet
   package means updating `THIRD-PARTY-NOTICES.txt`.
-- **Chosen but not yet built everywhere (2026-09-27):** hands-free control from the piano.
-  That means latching the last chord so Space can save a two-handed voicing, CC64 sustain for
-  both the sound and the readout, and MIDI learn so spare pads can save, record, toggle the
-  metronome and restart a song.
 
 ## Brand Commitments
 
@@ -102,8 +106,8 @@ recedes so the chord readout and the keys lead. DESIGN.md holds the system.
 
 ## Product Principles
 
-1. **The hands stay on the keys.** Anything needed mid-phrase must read from arm's length, and
-   over time it should be reachable from the piano itself rather than the mouse.
+1. **The hands stay on the keys.** Anything needed mid-phrase must read from arm's length and
+   be reachable from the piano itself (a learned key, pad or pedal), not only the mouse.
 2. **The readout and the keys lead.** Everything else supports them and gives way when screen
    space is short.
 3. **Speak like a musician.** Use exact theory terms (V65, drop 2, 1st inversion), spell notes
