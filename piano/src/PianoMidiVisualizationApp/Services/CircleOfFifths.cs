@@ -91,21 +91,6 @@ public static class CircleOfFifths
         return ring == CircleRing.Minor ? label.ToLowerInvariant() : label;
     }
 
-    /// <summary>The compact count drawn on a segment: "0", "3♯", "2♭", or "6♯/6♭".</summary>
-    public static string SignatureLabelAt(int segment)
-    {
-        int s = Mod12(segment);
-        if (s == EnharmonicSegment) return "6♯/6♭";
-
-        int sharps = SharpsAt(s);
-        return sharps switch
-        {
-            0 => "0",
-            > 0 => $"{sharps}♯",
-            _ => $"{-sharps}♭"
-        };
-    }
-
     /// <summary>"no sharps or flats", "1 sharp", "3 flats".</summary>
     public static string DescribeSignature(int sharps) => sharps switch
     {
@@ -127,18 +112,33 @@ public static class CircleOfFifths
 
     /// <summary>
     /// Hover text for a segment: each key it names, with its signature. The bottom segment
-    /// gets a line per spelling, since F# major and Gb major are different signatures.
+    /// gets a line per spelling, since F# major and Gb major are different signatures. The
+    /// circle draws only key names, so this is where a signature is read.
     /// </summary>
-    public static string TooltipAt(CircleRing ring, int segment)
+    /// <param name="selected">
+    /// The selected key. Any scale but major and natural minor lights the segment whose
+    /// signature it borrows, which may name another tonic (C for D Dorian), so that segment
+    /// adds a line saying whose signature it is: "D Dorian uses this signature".
+    /// </param>
+    public static string TooltipAt(CircleRing ring, int segment, MusicKey? selected = null)
     {
         int s = Mod12(segment);
         string quality = ring == CircleRing.Major ? "major" : "minor";
 
-        if (s != EnharmonicSegment)
-            return $"{Typeset(TonicNameAt(ring, s))} {quality}\n{SpellSignature(SharpsAt(s))}";
+        string text = s != EnharmonicSegment
+            ? $"{Typeset(TonicNameAt(ring, s))} {quality}\n{SpellSignature(SharpsAt(s))}"
+            : $"{Typeset(TonicNameAt(ring, s))} {quality}: {SpellSignature(6)}\n"
+            + $"{Typeset(TonicNameAt(ring, s, flatsAtBottom: true))} {quality}: {SpellSignature(-6)}";
 
-        return $"{Typeset(TonicNameAt(ring, s))} {quality}: {SpellSignature(6)}\n"
-             + $"{Typeset(TonicNameAt(ring, s, flatsAtBottom: true))} {quality}: {SpellSignature(-6)}";
+        if (selected is { } key && key.Scale is not (ScaleType.Major or ScaleType.NaturalMinor)
+            && RoleOf(key, ring, s) == CircleSegmentRole.Selected)
+        {
+            // DisplayName leads with the tonic ("Eb Dorian"); only that token is a note name.
+            var parts = key.DisplayName.Split(' ', 2);
+            text += $"\n{Typeset(parts[0])} {parts[1]} uses this signature";
+        }
+
+        return text;
     }
 
     /// <summary>The segment whose signature a key uses — C for D Dorian and for A minor.</summary>
@@ -176,32 +176,6 @@ public static class CircleOfFifths
 
         bool isNeighbour = s == Mod12(home + 1) || s == Mod12(home - 1);
         return isNeighbour && ring == homeRing ? CircleSegmentRole.Related : CircleSegmentRole.None;
-    }
-
-    /// <summary>
-    /// The line under the circle. Major and minor keys add their signature; any other scale
-    /// names the major signature it borrows, e.g. "D Dorian · C major signature".
-    /// </summary>
-    public static string CaptionFor(MusicKey? key)
-    {
-        if (key is not { } k) return "Click a key to select it";
-
-        // DisplayName leads with the tonic ("Eb Major"); only that token is a note name.
-        var parts = k.DisplayName.Split(' ', 2);
-        string name = $"{Typeset(parts[0])} {parts[1]}";
-
-        if (k.Scale is ScaleType.Major or ScaleType.NaturalMinor)
-            return $"{name} · {DescribeSignature(SignedCountFor(k))}";
-
-        string signatureTonic = Typeset(MusicNaming.PitchClassName(k.SignatureMajorTonic, k.UsesFlats));
-        return $"{name} · {signatureTonic} major signature";
-    }
-
-    /// <summary>The key's own signature count, reading the enharmonic segment as flats when the key does.</summary>
-    private static int SignedCountFor(MusicKey key)
-    {
-        int sharps = SharpsAt(SignatureSegment(key));
-        return sharps == 6 && key.UsesFlats ? -6 : sharps;
     }
 
     /// <summary>"F#" → "F♯", "Bb" → "B♭": a single ASCII note name with a real accidental glyph.</summary>

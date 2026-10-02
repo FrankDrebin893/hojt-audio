@@ -170,7 +170,7 @@ The song lane and the take timeline are piano rolls: notes are flat slots cut in
 - Amber is the only brand hue: key centre and "waiting on you", never decoration.
 - A published one-job-per-hue colour table (blue = you playing, magenta = the app asking).
 - Ink, not boxes: borderless controls, outlined inputs, one edged tile at a time.
-- Roles never rest on colour alone: edge marks, lips, outlines and word tags back every hue.
+- Roles never rest on colour alone: edge marks, lips and outlines back every hue.
 
 ## Colors
 
@@ -306,7 +306,10 @@ Borderless 22px lacquer tiles (Lacquer Raised, 4px radius, 52px minimum width, 2
 Both are rolls in a Lacquer Deep well. Song notes are flat slots in teal (right hand) and violet (left hand), accompaniment in warm neutrals, auto-play notes translucent; bar lines Lacquer Hover, octave lines Lacquer Raised, bar numbers Ivory Muted in the margin, the hit line Ivory Tertiary at the keyboard's top edge. Recorded notes are held blue; the playhead is Keytop Ivory at 1.5px. A-B loops are ivory ranges (Ivory Secondary edges in the song lane; a 10% Ivory Primary region with Ivory Tertiary edges on the timeline), with the outside dimmed.
 
 ### Circle of Fifths (signature)
-Inlaid in the stage: major segments Lacquer Chrome, minor Lacquer Deep, like ebony set into the case. The selected key is a Deep Amber wedge under ivory text (its count clears 4.7:1); related keys take Amber Fill; hover is Ivory Muted; the chord-root marker is a held-blue outline.
+Inlaid in the stage: major segments Lacquer Chrome, minor Lacquer Deep, like ebony set into the case. The selected key is a Deep Amber wedge under ivory text; related keys take Amber Fill; hover is Ivory Muted; the chord-root marker is a held-blue outline. A segment carries its key's name and nothing else, and the circle has no caption: the staff shows the selected key's signature, the toolbar names the key, and each segment's tooltip spells its signature out (a mode's lit segment adds whose signature it is, "D Dorian uses this signature"). It keeps 12px clear above and below.
+
+### Chord Readout (signature)
+Four lines, centred on the stage: the chord name (Display); the Roman numeral leading the inversion and voicing; then the held notes as columns, each note in Consolas with its interval above the root centred under it. Numerals are Ivory Primary whatever their kind; a chord from outside the key says so in a small Muted word after the numeral ("secondary", "borrowed", "chromatic") and in the numeral's tooltip. A fifth line speaks only when there is something to say: "Space to save" while the progression is still empty, "Saved · 3/8" after a save, "Progression full" at eight. Its height is always reserved, so nothing moves when it appears.
 
 ### Setup Checklist
 Row buttons 26px tall, 4px radius, flat until hovered (Lacquer Hover). The next step to do sits on an Amber Wash (Amber Wash Hover on hover) with Ivory Primary text; done steps drop to Ivory Tertiary. Never focusable.
@@ -320,7 +323,8 @@ A toolbar toggle with a drawn glyph and a beat light inside it. Off, the light i
 - **Do** build every brush from a `Color.*` token in `Dark.xaml` and resolve it by key in code-behind renderers; nothing else in the app picks a colour.
 - **Do** keep chrome one lacquer step darker than the stage (`lacquer-chrome` under `lacquer-stage`).
 - **Do** mark "on" and the single primary action with an ivory keytop and lacquer ink.
-- **Do** give every colour-coded role a second cue: an edge mark, a lip, an outline, or a word tag (the Roman-numeral tags "secondary", "borrowed", "chromatic").
+- **Do** give every colour-coded role a second cue: an edge mark, a lip or an outline.
+- **Do** say a chord's kind in words (the Roman-numeral tags "secondary", "borrowed", "chromatic"), not with a tint: the numeral stays ivory.
 - **Do** keep words at Ivory Muted or brighter; use Ivory Faint only for marks.
 - **Do** put Consolas on data that changes (pitches, intervals, clocks, the log) and Segoe UI on everything else.
 - **Do** make stage controls that sit beside the save shortcut non-focusable (chord tiles, the status chip, setup steps, metronome buttons) so Space stays "save chord".

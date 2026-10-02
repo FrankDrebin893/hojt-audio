@@ -28,7 +28,7 @@
                                 MouseEnter="Tile_MouseEnter" MouseLeave="Tile_MouseLeave">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="{Binding Numeral}" FontWeight="SemiBold"
-                                           Foreground="{StaticResource Brush.Function.Diatonic}"/>
+                                           Foreground="{StaticResource Brush.Text.Primary}"/>
                                 <TextBlock Text="{Binding Name}" Margin="6,0,0,0"/>
                             </StackPanel>
                         </Button>

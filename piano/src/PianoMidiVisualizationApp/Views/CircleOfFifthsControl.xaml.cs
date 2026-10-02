@@ -12,7 +12,9 @@ namespace PianoMidiVisualizationApp.Views;
 /// <summary>
 /// An interactive circle of fifths: the twelve major keys on the outer ring, their relative
 /// minors inside. Highlights the selected key with its neighbours and relative, outlines the
-/// current chord's root, and selects a key when a segment is clicked.
+/// current chord's root, and selects a key when a segment is clicked. A segment carries its
+/// key's name and nothing else: the staff shows the selected key's signature, and every
+/// segment's tooltip spells its own out.
 /// </summary>
 /// <remarks>
 /// Drawn in code at the largest size that fits rather than scaled by a Viewbox. A Viewbox
@@ -59,7 +61,6 @@ public partial class CircleOfFifthsControl : UserControl
     /// <summary>
     /// Where the circle sits across the width it is given. Aligning it to an edge keeps it
     /// still while a neighbouring column changes width, e.g. with the chord name's length.
-    /// A caption wider than the circle grows away from that edge.
     /// </summary>
     public static readonly DependencyProperty CircleAlignmentProperty = DependencyProperty.Register(
         nameof(CircleAlignment), typeof(HorizontalAlignment), typeof(CircleOfFifthsControl),
@@ -103,9 +104,6 @@ public partial class CircleOfFifthsControl : UserControl
         /// </summary>
         public required TextBlock[] Names { get; init; }
 
-        /// <summary>The key-signature count; major ring only, as the wedge's two keys share it.</summary>
-        public TextBlock? Count { get; init; }
-
         public CircleSegmentRole Role { get; set; }
     }
 
@@ -124,12 +122,7 @@ public partial class CircleOfFifthsControl : UserControl
         UpdateKey();
     }
 
-    private void ApplyAlignment(HorizontalAlignment alignment)
-    {
-        Stack.HorizontalAlignment = alignment;
-        CircleCanvas.HorizontalAlignment = alignment;
-        CaptionText.HorizontalAlignment = alignment;
-    }
+    private void ApplyAlignment(HorizontalAlignment alignment) => CircleCanvas.HorizontalAlignment = alignment;
 
     private MusicKey? CurrentKey =>
         TonicPitchClass is { } pitchClass ? new MusicKey(pitchClass, Scale) : null;
@@ -147,13 +140,11 @@ public partial class CircleOfFifthsControl : UserControl
                 string label = CircleOfFifths.LabelAt(ring, index);
                 var segment = new Segment(ring, index)
                 {
-                    Names = (ring == CircleRing.Minor ? label.Split('/') : new[] { label }).Select(MakeLabel).ToArray(),
-                    Count = ring == CircleRing.Major ? MakeLabel(CircleOfFifths.SignatureLabelAt(index)) : null
+                    Names = (ring == CircleRing.Minor ? label.Split('/') : new[] { label }).Select(MakeLabel).ToArray()
                 };
 
                 var shape = segment.Shape;
                 shape.Cursor = Cursors.Hand;
-                shape.ToolTip = CircleOfFifths.TooltipAt(ring, index);
                 AutomationProperties.SetName(shape, AutomationNameFor(ring, index));
                 shape.MouseEnter += (_, _) => ApplyStyle(segment);
                 shape.MouseLeave += (_, _) => ApplyStyle(segment);
@@ -164,8 +155,8 @@ public partial class CircleOfFifthsControl : UserControl
                 };
 
                 CircleCanvas.Children.Add(shape);
-                foreach (var block in TextOf(segment))
-                    CircleCanvas.Children.Add(block);
+                foreach (var name in segment.Names)
+                    CircleCanvas.Children.Add(name);
 
                 _segments.Add(segment);
             }
@@ -176,9 +167,6 @@ public partial class CircleOfFifthsControl : UserControl
         Panel.SetZIndex(_rootMarker, 2);
         CircleCanvas.Children.Add(_rootMarker);
     }
-
-    private static IEnumerable<TextBlock> TextOf(Segment segment) =>
-        segment.Count is { } count ? segment.Names.Append(count) : segment.Names;
 
     private static TextBlock MakeLabel(string text)
     {
@@ -221,12 +209,9 @@ public partial class CircleOfFifthsControl : UserControl
         foreach (var segment in _segments)
         {
             segment.Role = CircleOfFifths.RoleOf(key, segment.Ring, segment.Index);
+            segment.Shape.ToolTip = CircleOfFifths.TooltipAt(segment.Ring, segment.Index, key);
             ApplyStyle(segment);
         }
-
-        CaptionText.Text = CircleOfFifths.CaptionFor(key);
-        CaptionText.SetResourceReference(TextBlock.ForegroundProperty,
-            key is null ? "Brush.Text.Faint" : "Brush.Text.Tertiary");
     }
 
     /// <summary>
@@ -256,9 +241,6 @@ public partial class CircleOfFifthsControl : UserControl
                 isSelected ? "Brush.Text.Primary" : isMajor ? "Brush.Text.Secondary" : "Brush.Text.Tertiary");
             name.FontWeight = isSelected ? FontWeights.Bold : isMajor ? FontWeights.SemiBold : FontWeights.Normal;
         }
-
-        segment.Count?.SetResourceReference(TextBlock.ForegroundProperty,
-            isSelected ? "Brush.Text.Secondary" : "Brush.Text.Muted");
     }
 
     private void UpdateRootMarker()
@@ -279,24 +261,13 @@ public partial class CircleOfFifthsControl : UserControl
 
     private void Host_SizeChanged(object sender, SizeChangedEventArgs e) => Relayout();
 
-    /// <summary>
-    /// Fits the circle and its one-line caption into the host. The caption's height does not
-    /// depend on its text, so the circle's size depends only on the space, never on the key.
-    /// </summary>
+    /// <summary>Fits the circle into the host: its size depends only on the space, never on the key.</summary>
     private void Relayout()
     {
         double width = Host.ActualWidth, height = Host.ActualHeight;
         if (width <= 0 || height <= 0) return;
 
-        CaptionText.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        double captionHeight = CaptionText.DesiredSize.Height;   // includes its margin
-
-        double diameter = Math.Floor(Math.Max(0, Math.Min(Math.Min(width, height - captionHeight), MaxDiameter)));
-
-        // At least as wide as the circle so a short caption centres under it; a long one may
-        // run wider, but never past the space the control was given.
-        CaptionText.MinWidth = diameter;
-        CaptionText.MaxWidth = width;
+        double diameter = Math.Floor(Math.Min(Math.Min(width, height), MaxDiameter));
 
         if (Math.Abs(diameter - _diameter) >= 1)
             Layout(diameter);
@@ -318,10 +289,9 @@ public partial class CircleOfFifthsControl : UserControl
 
         // Proportional type with a floor: below it the labels would stop being readable, above
         // the ceiling they would crowd the segment edges.
-        double labelSize = Math.Clamp(outer * 0.16, 10, 17);
-        double countSize = Math.Clamp(outer * 0.11, 8, 12);
-        double minorSize = Math.Clamp(outer * 0.15, 9.5, 15);
-        double gap = Math.Max(1, countSize * 0.2);
+        double labelSize = Math.Clamp(outer * 0.18, 11, 20);
+        double minorSize = Math.Clamp(outer * 0.155, 10, 16);
+        double gap = Math.Max(1, minorSize * 0.15);   // between the bottom segment's two spellings
 
         foreach (var segment in _segments)
         {
@@ -335,12 +305,9 @@ public partial class CircleOfFifthsControl : UserControl
             foreach (var name in segment.Names)
                 name.FontSize = isMajor ? labelSize : minorSize;
 
-            if (segment.Count is { } count)
-                count.FontSize = countSize;
-
-            var blocks = StackOrder(segment).ToList();
+            var blocks = segment.Names.ToList();
             double radius = segment.Index == CircleOfFifths.EnharmonicSegment
-                ? FitBottomStack(segment, blocks, middle, rim, gap)
+                ? FitBottomStack(blocks, middle, rim, gap)
                 : middle;
 
             PlaceStack(centre, radius, segment.Index, outer, gap, blocks);
@@ -351,11 +318,12 @@ public partial class CircleOfFifthsControl : UserControl
 
     /// <summary>
     /// The bottom segment carries the only two-spelling names, "F♯/G♭" and "d♯" over "e♭", each
-    /// about as wide as the segment where it sits. The segment widens outward, so the stack is
-    /// pushed out against the rim, and a name still too wide is set smaller, sized for its bold
+    /// about as wide as the segment where it sits. The segment widens outward, so the stacked
+    /// pair is pushed out against the rim; the single outer name stays on the ring's middle, in
+    /// line with its neighbours. A name still too wide is set smaller, sized for its bold
     /// form. Returns the radius to centre the stack on.
     /// </summary>
-    private double FitBottomStack(Segment segment, List<TextBlock> blocks, double middle, double rim, double gap)
+    private double FitBottomStack(List<TextBlock> blocks, double middle, double rim, double gap)
     {
         double radius = middle;
         double halfAngle = HalfSegmentDegrees * Math.PI / 180;
@@ -365,7 +333,7 @@ public partial class CircleOfFifthsControl : UserControl
         {
             var spans = blocks.Select(InkSpan).ToList();
             double total = spans.Sum(s => s.Height) + gap * (spans.Count - 1);
-            radius = Math.Max(middle, rim - SegmentGap - 2 - total / 2);
+            radius = blocks.Count > 1 ? Math.Max(middle, rim - SegmentGap - 2 - total / 2) : middle;
 
             // At the bottom of the circle, down the screen is outward from the centre.
             double edge = radius - total / 2;
@@ -374,26 +342,11 @@ public partial class CircleOfFifthsControl : UserControl
                 double blockRadius = edge + spans[i].Height / 2;
                 edge += spans[i].Height + gap;
 
-                if (segment.Names.Contains(blocks[i]))
-                    blocks[i].FontSize = FitBold(blocks[i], 2 * blockRadius * Math.Sin(halfAngle) - SegmentGap);
+                blocks[i].FontSize = FitBold(blocks[i], 2 * blockRadius * Math.Sin(halfAngle) - SegmentGap);
             }
         }
 
         return radius;
-    }
-
-    /// <summary>
-    /// The segment's text blocks top to bottom. The name always sits nearer the rim than the
-    /// count — above it on the top half of the circle, below it on the bottom half — as it
-    /// would on a printed circle, and there it gets the wider part of the segment.
-    /// </summary>
-    private static IEnumerable<TextBlock> StackOrder(Segment segment)
-    {
-        if (segment.Count is not { } count) return segment.Names;
-
-        double degrees = segment.Index * HalfSegmentDegrees * 2;
-        bool bottomHalf = Math.Cos(degrees * Math.PI / 180) < -1e-9;
-        return bottomHalf ? segment.Names.Prepend(count) : segment.Names.Append(count);
     }
 
     /// <summary>

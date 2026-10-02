@@ -135,7 +135,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isReadoutLatched;
 
-    /// <summary>The line under the readout: how to save the chord, or that it was.</summary>
+    /// <summary>
+    /// The line under the readout: that the chord was saved, or that the progression is full.
+    /// How to save shows only while the progression is empty; after the first save the line
+    /// stays blank until there is something to report.
+    /// </summary>
     [ObservableProperty]
     private string _saveHint = "Space to save";
 
@@ -490,7 +494,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         SaveHint = _readoutSaved ? $"Saved · {SavedChords.Count}/{MaxSavedChords}"
                  : SavedChords.Count >= MaxSavedChords ? $"Progression full · {MaxSavedChords}/{MaxSavedChords}"
-                 : $"{saveKeys} to save";
+                 : SavedChords.Count == 0 ? $"{saveKeys} to save"
+                 : "";
         ProgressionEmptyHint = $"Hold a chord and press {saveKeys} to add it here.";
     }
 

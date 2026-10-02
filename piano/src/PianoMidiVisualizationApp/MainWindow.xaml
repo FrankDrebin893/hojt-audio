@@ -213,15 +213,35 @@
                                        FontSize="11" Style="{StaticResource Style.Function.Tag}"/><Run
                                        Style="{StaticResource Style.Function.VoicingSeparator}"/><Run
                                        Text="{Binding Voicing, Mode=OneWay}"/></TextBlock>
-                        <TextBlock Text="{Binding Analysis.Notes}" FontFamily="Consolas" Style="{StaticResource Style.Readout.Latch}"
-                                   FontSize="{StaticResource Size.Readout.Notes}"
-                                   Foreground="{StaticResource Brush.Text.Tertiary}"
-                                   MinHeight="22" TextAlignment="Center"/>
-                        <TextBlock Text="{Binding Analysis.Intervals}" FontFamily="Consolas" Style="{StaticResource Style.Readout.Latch}"
-                                   FontSize="{StaticResource Size.Readout.Intervals}"
-                                   Foreground="{StaticResource Brush.Text.Muted}"
-                                   MinHeight="18" TextAlignment="Center"/>
-                        <!-- How to save the chord, or that it was: "Saved · 3/8". -->
+                        <!-- The notes, each with its interval above the root centred under it. One
+                             column per note rather than two padded lines: the lines are set at
+                             different sizes, so padding alone let the intervals drift off their
+                             notes. The MinHeight is the two line boxes, 22 and 18. -->
+                        <ItemsControl ItemsSource="{Binding Analysis.Columns}" Focusable="False"
+                                      Style="{StaticResource Style.Readout.Latch}"
+                                      MinHeight="40" HorizontalAlignment="Center">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="6,0">
+                                        <TextBlock Text="{Binding Note}" FontFamily="Consolas"
+                                                   FontSize="{StaticResource Size.Readout.Notes}"
+                                                   Foreground="{StaticResource Brush.Text.Tertiary}"
+                                                   MinHeight="22" TextAlignment="Center"/>
+                                        <TextBlock Text="{Binding Interval}" FontFamily="Consolas"
+                                                   FontSize="{StaticResource Size.Readout.Intervals}"
+                                                   Foreground="{StaticResource Brush.Text.Muted}"
+                                                   MinHeight="18" TextAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <!-- That the chord was saved ("Saved · 3/8"), or can't be ("Progression
+                             full"). How to save it shows only until the first chord is saved. -->
                         <TextBlock Text="{Binding SaveHint}" FontSize="11" Margin="0,4,0,0"
                                    Foreground="{StaticResource Brush.Text.Hint}"
                                    MinHeight="18" TextAlignment="Center"
@@ -244,8 +264,10 @@
                                                           Converter={StaticResource BoolToVisConverter}}"/>
 
                     <!-- Circle of fifths. Clicking a segment writes the key through these two-way
-                         bindings into Settings, which persists it and moves the key pickers. -->
-                    <views:CircleOfFifthsControl Grid.Column="2" Margin="8,4,16,4" CircleAlignment="Right"
+                         bindings into Settings, which persists it and moves the key pickers. The
+                         12px above and below keep it clear of the title bar and the chord strip;
+                         it is the room its caption used to take. -->
+                    <views:CircleOfFifthsControl Grid.Column="2" Margin="8,12,16,12" CircleAlignment="Right"
                                                  TonicPitchClass="{Binding Settings.KeyTonicPitchClass}"
                                                  Scale="{Binding Settings.KeyScale}"
                                                  RootPitchClass="{Binding SoundingRootPitchClass}"

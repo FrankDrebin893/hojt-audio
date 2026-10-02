@@ -457,29 +457,23 @@
     <SolidColorBrush x:Key="Brush.Song.Part5"       Color="#68686F"/>   <!-- accompaniment: graphite -->
 
     <!-- ================= Roman numerals =================
-         A diatonic numeral reads near-white like the chord name above it. The other kinds
-         take a desaturated tint, kept clear of the circle's key amber and chord-root blue,
-         and name themselves in a small muted tag, so colour is never the only cue. -->
-    <SolidColorBrush x:Key="Brush.Function.Diatonic"  Color="{StaticResource Color.Ivory.Primary}"/>
-    <SolidColorBrush x:Key="Brush.Function.Secondary" Color="#7FCFB0"/>
-    <SolidColorBrush x:Key="Brush.Function.Borrowed"  Color="#B4A2EE"/>
-    <SolidColorBrush x:Key="Brush.Function.Chromatic" Color="#E39B9B"/>
+         Every numeral is ivory like the chord name above it, whatever its kind: a hue here
+         would borrow one that already means your hands, a hit or a miss. A chord from
+         outside the key names its kind in a small muted tag on the readout, and in the
+         numeral's tooltip everywhere. -->
 
     <!-- For a Run whose DataContext has Function and FunctionKind: ChordAnalysis, SavedChord. -->
     <Style x:Key="Style.Function.Numeral" TargetType="Run">
-        <Setter Property="Foreground" Value="{StaticResource Brush.Function.Diatonic}"/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
         <Setter Property="ToolTip" Value="Roman numeral in the selected key"/>
         <Style.Triggers>
             <DataTrigger Binding="{Binding FunctionKind}" Value="SecondaryDominant">
-                <Setter Property="Foreground" Value="{StaticResource Brush.Function.Secondary}"/>
                 <Setter Property="ToolTip" Value="Secondary dominant: the V or vii° of the chord after the slash"/>
             </DataTrigger>
             <DataTrigger Binding="{Binding FunctionKind}" Value="Borrowed">
-                <Setter Property="Foreground" Value="{StaticResource Brush.Function.Borrowed}"/>
                 <Setter Property="ToolTip" Value="Borrowed from the parallel major or minor"/>
             </DataTrigger>
             <DataTrigger Binding="{Binding FunctionKind}" Value="Chromatic">
-                <Setter Property="Foreground" Value="{StaticResource Brush.Function.Chromatic}"/>
                 <Setter Property="ToolTip" Value="Chromatic: outside the key and its parallel major and minor"/>
             </DataTrigger>
         </Style.Triggers>

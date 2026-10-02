@@ -3,7 +3,8 @@ namespace PianoMidiVisualizationApp.Services;
 /// <summary>
 /// What the readout shows for the currently held notes. <see cref="Notes"/> and
 /// <see cref="Intervals"/> are index-aligned token-for-token and column-padded, so
-/// rendering them in a monospace face lines each interval up under its note.
+/// rendering them in one monospace size lines each interval up under its note. The readout
+/// sets the two at different sizes, and so reads them as <see cref="Columns"/> instead.
 /// </summary>
 /// <param name="RootPitchClass">
 /// The pitch class (C = 0) that <see cref="Intervals"/> are measured from. Set for every
@@ -39,4 +40,24 @@ public readonly record struct ChordAnalysis(
     public RomanNumeralKind FunctionKind { get; init; }
 
     public bool IsEmpty => string.IsNullOrEmpty(Name);
+
+    /// <summary>
+    /// <see cref="Notes"/> and <see cref="Intervals"/> paired token for token, for a readout
+    /// that sets each interval under its own note whatever the two lines' type sizes.
+    /// </summary>
+    public IReadOnlyList<NoteColumn> Columns
+    {
+        get
+        {
+            var notes = Notes.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var intervals = Intervals.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var columns = new NoteColumn[notes.Length];
+            for (int i = 0; i < notes.Length; i++)
+                columns[i] = new NoteColumn(notes[i], i < intervals.Length ? intervals[i] : "");
+            return columns;
+        }
+    }
 }
+
+/// <summary>One held note with the interval it forms above the root, e.g. "B2" over "3".</summary>
+public readonly record struct NoteColumn(string Note, string Interval);
