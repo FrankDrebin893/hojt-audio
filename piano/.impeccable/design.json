@@ -1,9 +1,9 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-28T05:39:15Z",
+  "generatedAt": "2026-10-02T15:29:52Z",
   "title": "Design System: Piano MIDI Visualization",
   "provenance": {
-    "source": "src/PianoMidiVisualizationApp/Themes/Dark.xaml and the code-behind renderers; commits 5338eec, efe044d, 6f28a91",
+    "source": "src/PianoMidiVisualizationApp/Themes/Dark.xaml and the code-behind renderers; commits 5338eec, efe044d, 6f28a91, c12c0ee",
     "directionContract": ".impeccable/surfaces/src-pianomidivisualizationapp-mainwindow-xaml.md",
     "seedKey": "a1a0326c",
     "platform": "WPF / .NET 10; CSS in components is a preview translation only"
@@ -521,7 +521,7 @@
       },
       "headline": {
         "displayName": "Readout Numeral",
-        "purpose": "Roman numeral on the voicing line (Size.Readout.Function), sized to share its 19px line box."
+        "purpose": "Roman numeral on the voicing line (Size.Readout.Function), sized to share its 19px line box. Ivory Primary whatever the chord's kind."
       },
       "title": {
         "displayName": "Panel Title",
@@ -541,7 +541,7 @@
       },
       "data": {
         "displayName": "Data",
-        "purpose": "Pitches on the readout (Size.Readout.Notes); intervals run 14px (Size.Readout.Intervals)."
+        "purpose": "Pitches on the readout (Size.Readout.Notes), one column per note; each note's interval sits centred under it at 14px (Size.Readout.Intervals)."
       },
       "data-small": {
         "displayName": "Data Small",
@@ -630,6 +630,14 @@
       "css": ".ds-chip { font-family: 'Segoe UI', system-ui, sans-serif; display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px 0 8px; font-size: 12px; color: #ADA699; border: 1px solid #34302B; border-radius: 11px; background: #100F0E; box-sizing: border-box; } .ds-chip i { width: 7px; height: 7px; border-radius: 50%; background: #979084; } .ds-chip:hover { background: #34302B; color: #F5F0E6; } .ds-chip-attn { background: #2A2215; border-color: #8A6A30; color: #F0C06A; } .ds-chip-attn i { background: #F0C06A; } .ds-chip-attn:hover { background: #3A2E1B; color: #F0C06A; }"
     },
     {
+      "name": "Chord Readout",
+      "kind": "custom",
+      "refersTo": "ivory-primary",
+      "description": "The centre of the stage: chord name, an ivory numeral leading the voicing, each interval under its note, and a last line that speaks only when there is something to say.",
+      "html": "<div class=\"ds-readout\"><div class=\"ds-ro-name\">G7/B</div><div class=\"ds-ro-voicing\"><b>V65</b><i> · </i>1st inversion · drop 2</div><div class=\"ds-ro-cols\"><span><b>B2</b>3</span><span><b>F3</b>b7</span><span><b>G3</b>R</span><span><b>D4</b>5</span></div><div class=\"ds-ro-save\">Saved · 3/8</div></div>",
+      "css": ".ds-readout { font-family: 'Segoe UI', system-ui, sans-serif; background: #1C1A17; padding: 12px 24px; text-align: center; width: max-content; } .ds-ro-name { font-size: 64px; font-weight: 700; line-height: 70px; color: #F5F0E6; } .ds-ro-voicing { margin-top: 3px; font-size: 14px; line-height: 19px; color: #D2CBBF; } .ds-ro-voicing b { font-size: 18px; font-weight: 600; color: #F5F0E6; } .ds-ro-voicing i { font-style: normal; color: #979084; } .ds-ro-cols { display: flex; justify-content: center; } .ds-ro-cols span { display: flex; flex-direction: column; margin: 0 6px; font-family: Consolas, monospace; font-size: 14px; line-height: 18px; color: #979084; } .ds-ro-cols b { font-weight: 400; font-size: 18px; line-height: 22px; color: #ADA699; } .ds-ro-save { margin-top: 4px; font-size: 11px; line-height: 18px; color: #979084; }"
+    },
+    {
       "name": "Chord Tile",
       "kind": "custom",
       "refersTo": "chord-tile-played",
@@ -671,7 +679,7 @@
       "Amber is the only brand hue: key centre and \"waiting on you\", never decoration.",
       "A published one-job-per-hue colour table (blue = you playing, magenta = the app asking).",
       "Ink, not boxes: borderless controls, outlined inputs, one edged tile at a time.",
-      "Roles never rest on colour alone: edge marks, lips, outlines and word tags back every hue."
+      "Roles never rest on colour alone: edge marks, lips and outlines back every hue."
     ],
     "rules": [
       {
@@ -724,7 +732,8 @@
       "**Do** build every brush from a `Color.*` token in `Dark.xaml` and resolve it by key in code-behind renderers; nothing else in the app picks a colour.",
       "**Do** keep chrome one lacquer step darker than the stage (`lacquer-chrome` under `lacquer-stage`).",
       "**Do** mark \"on\" and the single primary action with an ivory keytop and lacquer ink.",
-      "**Do** give every colour-coded role a second cue: an edge mark, a lip, an outline, or a word tag (the Roman-numeral tags \"secondary\", \"borrowed\", \"chromatic\").",
+      "**Do** give every colour-coded role a second cue: an edge mark, a lip or an outline.",
+      "**Do** say a chord's kind in words (the Roman-numeral tags \"secondary\", \"borrowed\", \"chromatic\"), not with a tint: the numeral stays ivory.",
       "**Do** keep words at Ivory Muted or brighter; use Ivory Faint only for marks.",
       "**Do** put Consolas on data that changes (pitches, intervals, clocks, the log) and Segoe UI on everything else.",
       "**Do** make stage controls that sit beside the save shortcut non-focusable (chord tiles, the status chip, setup steps, metronome buttons) so Space stays \"save chord\".",
