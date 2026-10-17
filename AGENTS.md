@@ -116,7 +116,11 @@ Output location: `target/bundled/<BundleName>.vst3`
 
 ## Install
 
-Copy VST3 to system folder (requires admin):
+On Windows run `scripts/install.ps1` (all six, or name some: `scripts/install.ps1 amp drums`). It builds from
+this checkout with the build folder pinned to it (in a git worktree the bundler otherwise copies the stale DLLs of
+another checkout), installs, and checks every installed file against the build. Close the DAW first. By hand:
+
+Copy VST3 to system folder:
 ```
 xcopy /E /I /Y "target\bundled\HojtPitchShifter.vst3" "C:\Program Files\Common Files\VST3\HojtPitchShifter.vst3"
 xcopy /E /I /Y "target\bundled\HojtDrumSynth.vst3" "C:\Program Files\Common Files\VST3\HojtDrumSynth.vst3"
