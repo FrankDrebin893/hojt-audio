@@ -991,7 +991,7 @@ impl AmpChain {
             }
         }
 
-        // The effects do not limit themselves, so the safety clip comes last
+        // The effects round off their own output under full scale; the safety clip comes last
         let mut output_peak = 0.0f32;
         for index in 0..len {
             let level = self.out_level.next();

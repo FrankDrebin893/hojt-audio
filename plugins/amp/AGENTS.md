@@ -33,8 +33,8 @@ gain), Glød (warm edge of breakup, between Klar and Brøl). They share the six 
 - `src/presets.rs` - Factory presets as plain data, and `preset_report`
 - `src/dial_memory.rs` - Each amp's six dial positions, kept by the editor and saved with the
   project (`amp-dials`)
-- `src/lamps.rs` - Gate-open and clip lamps: what the chain tells the editor, and how long the
-  editor shows it
+- `src/lamps.rs` - Gate-open and clip lamps and the input and output level meters: what the
+  chain tells the editor, and how long the editor shows it
 - `src/tuner.rs` - Tuner: pitch detector on the mono input, `TunerReading` (one atomic shared
   with the editor), `Note`
 - `src/editor.rs` - egui GUI: oxblood head (1590 x 694 window) with the preset stepper or the tuner
@@ -54,7 +54,8 @@ Signal flow:
    it, then the Mic and Resonance dials, DC blocker
 4. Two channels from here: the pedals behind the cabinet in their order. Delay and reverb add
    wet to an untouched dry signal, smooth their own settings, ring out when switched off and
-   cost nothing once idle
+   cost nothing once idle. What each gives out is rounded off under full scale (`soft_limit`,
+   left alone below 0.7)
 5. Output level, safety clip
 
 How it behaves:
@@ -107,6 +108,13 @@ How it behaves:
 - An amp that is switched to starts at the dials' target, at the silent sample of the switch
 - The Gate pedal's `OPEN` lamp is lit while the gate is on and lets the guitar through; `CLIP`
   beside Output is lit for 150 ms after the output went over the safety clip's knee
+- Two level meters on the head (`level_meter`): `INPUT` left of the dials shows the input before
+  the input gain, `OUTPUT` by the clip lamp the output in front of the safety clip. They take a
+  peak at once and fall 60 dB a second; the window is redrawn for them only while they move,
+  30 times a second at most
+- The delay's tail is cut at -72 dBFS, and repeats under -60 dBFS fade faster, so a 1000 ms
+  delay at full feedback goes idle in about 37 s. Neither effect at its maximum pushes the
+  output into the safety clip
 - While the drive pedal is on, the second stage of Brøl and of Torden clips at twice the rate
   (`StageModel.finer_when_driven`) and Klar's power stage turns itself down under a heavy load
   (`PowerModel.driven_sag`), so no setting of the pedal aliases above -70 dB. With the pedal
@@ -223,7 +231,7 @@ cargo test -p amp --release user_cab_report -- --ignored --nocapture
 # Long cabinets: direct FIR against the tail, per length and rate; error, evenness, swaps.
 cargo test -p amp --release convolver_report -- --ignored --nocapture
 
-# The three built-in cabinets as 48 kHz WAV files in target/renders/cabinets.
+# The four built-in cabinets as 48 kHz WAV files in target/renders/cabinets.
 cargo test -p amp --release export_cabinets -- --ignored --nocapture
 
 # A DI guitar through each amp and setting, as WAV files in target/renders (amp_*.wav).
@@ -270,6 +278,9 @@ The style guide of the root `AGENTS.md` applies; these are the rules for a windo
   direction at the jacks only
 - **An order is never a parameter.** Keep it in a `#[persist]` field, as ids, like a preset
   or a file choice
+- **Level meters:** a signal level (the amp's input and output) is a `level_meter`, a column
+  of lamps on label tape with a `silk_label` caption under it, in a wing of the head beside
+  the dials. Same atomics and repaint rule as the signal lamps
 - **Signal lamps:** a light that follows the sound and not a switch (gate open, output clipping)
   is a `signal_lamp`, with a `silk_label` of size 13 centred 18 px under it, placed beside the
   control it belongs to. An LED above or beside a switch only ever says that the switch is on.

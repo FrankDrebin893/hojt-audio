@@ -5,6 +5,12 @@ GitHub release.
 
 ## Unreleased
 
+### Every plugin
+
+- A new look: the enclosures, knobs, screws, footswitches, lights and label tape are lit,
+  with powder-coat flake, bevels and brushed metal, and each pedal has a screen-printed scene
+  of its own on its face, around the controls. Every mini pedal of the Guitar Amp has one too
+
 ### Bass Synth, Shimmer Pad, Glass Bells
 
 Three new instruments, each a pedal of its own:

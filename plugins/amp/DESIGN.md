@@ -107,8 +107,8 @@ The reasons behind choices that the code alone does not explain. What it does is
 
 - The head is 320 px tall with 50 px small footswitches and the LED beside the switch (a full
   footswitch with an LED above does not fit under the band); the band on a head tilts -1.5
-  degrees, pedals -4. The amp switches stand 40 px left so the Tuner switch does not read as a
-  fourth amp
+  degrees, pedals -4. The amp is picked with a stepper under the dials, not a switch per amp:
+  three switches left no room for a fourth amp, and the Tuner switch beside them read as one
 - The gate's `OPEN` lamp is its own small lamp: a half-lit pedal LED was built and rejected
   because at 30 % the lens is about the colour of the paint
 - Rigs use `rig_led` (black socket, darker unlit lens): a plain unlit `led` disappears on dark paint
