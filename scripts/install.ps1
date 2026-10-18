@@ -3,9 +3,11 @@
 #   plugins: pitch_shifter drums amp bass pad bells   (none given = all six)
 #
 # It pins the build folder to this checkout's own target\ (xtask bundles this checkout's own
-# sources, even in a git worktree inside another checkout), then checks every installed file against the
-# build byte for byte and says which commit it came from. Close the DAW first: a host holds
-# the files it has loaded open, and Windows refuses to overwrite them.
+# sources, even in a git worktree inside another checkout), refuses a bundle that does not
+# carry its plugin's artwork (`cargo xtask check-art`: then it was built from other sources),
+# then checks every installed file against the build byte for byte and says which commit it
+# came from. Close the DAW first: a host holds the files it has loaded open, and Windows
+# refuses to overwrite them.
 param([string[]]$Plugins = @('pitch_shifter', 'drums', 'amp', 'bass', 'pad', 'bells'))
 
 $ErrorActionPreference = 'Stop'
@@ -38,6 +40,8 @@ foreach ($plugin in $Plugins) {
 
     $built = Join-Path $env:CARGO_TARGET_DIR "bundled\$name.vst3"
     if (-not (Test-Path $built)) { throw "$built was not made: the bundler wrote somewhere else" }
+    cargo xtask check-art $plugin
+    if ($LASTEXITCODE -ne 0) { throw "$name was built without its artwork: nothing was installed" }
     Copy-Item -Recurse -Force $built $dest
 
     $file = "Contents\x86_64-win\$name.vst3"

@@ -531,6 +531,12 @@ pub fn create(
 mod tests {
     use super::*;
 
+    // The picture on the face is compiled in: a build without it is a build of other sources
+    #[test]
+    fn test_the_pedal_is_drawn_with_its_art() {
+        assert!(STYLE.art == Some(ui::artwork::AMP), "the pedal has lost its art");
+    }
+
     #[test]
     fn test_mic_stepper_goes_round_the_list_both_ways() {
         let mut mic = MicType::ALL[0];

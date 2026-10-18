@@ -67,6 +67,9 @@ cargo xtask bundle bass --release
 cargo xtask bundle pad --release
 cargo xtask bundle bells --release
 
+# Every bundle carries its plugin's artwork: a bundle without it was built from other sources
+cargo xtask check-art
+
 # Tests
 cargo test --workspace
 

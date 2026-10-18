@@ -164,3 +164,14 @@ pub fn create(
         },
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The picture on the face is compiled in: a build without it is a build of other sources
+    #[test]
+    fn test_the_pedal_is_drawn_with_its_art() {
+        assert!(STYLE.art == Some(ui::artwork::PAD), "the pedal has lost its art");
+    }
+}
