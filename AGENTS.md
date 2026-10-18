@@ -338,6 +338,11 @@ Lints that clash with DSP code are allowed in the root `Cargo.toml`, each with i
 - Optimize for low latency over audio quality
 - Never allocate or resize buffers on the audio thread (all buffers are fixed-size)
 - Keep DSP code separate from plugin boilerplate
+- The workspace names `egui-baseview` as a dependency it never uses, at the revision nih-plug
+  pins, only to turn its `windows_keyboard_workaround` on: without it a plugin's editor, which
+  is a child window of the host's, never takes the keyboard focus on Windows and hears no
+  letters. Features are added together, so nih_plug_egui's own copy gets it. See "Asking for
+  the keyboard" in `plugins/amp/AGENTS.md`
 - nih-plug is pinned to one revision in the root `Cargo.toml` (`[workspace.dependencies]`); bump it there for all plugins at once.
   The pin is our fork `FrankDrebin893/nih-plug`: upstream plus one commit (`Vst3Plugin::VST3_INFINITE_TAIL`,
   branch `hojt-vst3-infinite-tail`). To move to a newer upstream, rebase that commit onto it and pin the result

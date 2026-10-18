@@ -362,6 +362,14 @@ The style guide of the root `AGENTS.md` applies; these are the rules for a windo
   to drop it). Nothing else in the suite is typed, and egui's text widget is never drawn.
   Nothing ever waits for the keyboard: a second click on the row keeps the name as it stands,
   and an empty name is one the player did not give, so the mouse alone is enough
+- **Asking for the keyboard.** An editor is a child window of the host's, and on Windows
+  nothing gives it the keyboard focus by itself: a window that never asks hears no letters at
+  all. The row that takes a name asks egui for the keyboard (`ask_for_keyboard`:
+  `request_focus` and a `widget_info` that says it is a field with text), which is what
+  egui-baseview's `windows_keyboard_workaround` watches for before it takes the focus for the
+  window; the workspace turns that feature on (see the root `Cargo.toml`). Nothing else in the
+  suite asks, so a knob or a footswitch never takes the keyboard from the host. The window
+  keeps it until the player clicks the host again, which is the price of typing there
 - **Steppers under the band** (the amp and the microphone): the `silk_label` caption above
   the tape on the line of the switches' LEDs, the tape on the line of their captions, and
   the buttons clear of the next caption or LED

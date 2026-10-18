@@ -8,6 +8,9 @@ license.workspace = true
 [dependencies]
 nih_plug = { workspace = true }
 nih_plug_egui = { workspace = true }
+# Named only to turn its `windows_keyboard_workaround` on for every editor (see the root
+# Cargo.toml). Nothing here uses it: egui comes through nih_plug_egui
+egui-baseview = { workspace = true }
 png = "0.17"
 
 [lints]
