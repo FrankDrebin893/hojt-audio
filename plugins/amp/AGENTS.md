@@ -32,6 +32,8 @@ gain), Glød (warm edge of breakup, between Klar and Brøl). They share the six 
   `pair.rs` (two samples' divisions and square roots as one SSE2 pair), `fft.rs` (radix-2 real
   FFT), `partitioned.rs` (`Tail`: the late part of a long impulse response in FFT partitions)
 - `src/presets.rs` - Factory presets as plain data, and `preset_report`
+- `src/user_presets.rs` - The player's own preset bank: one text file per preset in
+  `Documents/Hojt Audio/Presets` (or `HOJT_PRESETS_DIR`), read, written and stepped through
 - `src/dial_memory.rs` - Each amp's six dial positions, kept by the editor and saved with the
   project (`amp-dials`)
 - `src/lamps.rs` - Gate-open and clip lamps and the input and output level meters: what the
@@ -144,6 +146,17 @@ How it behaves:
 - A preset holds everything except Bypass, Input and Output, so every preset must fit at
   Output 0 dB (a test checks peak and level of each). It holds the pedal order too. New
   presets go at the end: a project remembers its preset by its number
+- The player's own presets (`user_presets.rs`) are `.preset` text files in
+  `Documents/Hojt Audio/Presets` (or the folder in `HOJT_PRESETS_DIR`), one `id = value` line
+  per parameter by its frozen id, then `order` and `cabinet`. They hold what a factory preset
+  holds and the microphone and cabinet too. A file is read forgivingly: unknown lines are
+  skipped and what it does not name gets its default. The Preset stepper goes on from the last
+  factory preset into them in name order. Save writes over the player's preset loaded last,
+  or after a factory preset makes `<name> 2.preset` (the next free number). The file name of
+  the one loaded last is persisted as `user-preset` (empty after a factory preset); renaming,
+  copying and deleting is done in the folder, which a double-click on the Preset caption opens.
+  A test holds every parameter to being in a preset or left alone with Bypass, Input, Output
+  and the Tuner
 - The pedal order (`order.rs`): Gate always first, amp and cabinet one block in the middle.
   Drive only in front of the amp; Delay and Reverb only behind the cabinet; Comp, Chorus,
   Phaser, Flanger and Tremolo on either side. Default: Comp, Drive, Phaser, amp, Chorus,
@@ -310,6 +323,10 @@ The style guide of the root `AGENTS.md` applies; these are the rules for a windo
 - **Steppers under the band** (the amp and the microphone): the `silk_label` caption above
   the tape on the line of the switches' LEDs, the tape on the line of their captions, and
   the buttons clear of the next caption or LED
+- **Save (a preset):** a `chrome_button` (a stepper's push button with a dot in its cap) right
+  of the preset stepper, its `silk_label` caption on the stepper's caption line. It writes the
+  sound and the stepper's tape says `SAVED` (or `NOT SAVED`) for 1.5 s. No text entry: a new
+  preset is named after the one it started from, and renamed in the folder
 - **A preset choice is never a parameter.** The editor sets the real parameters through the
   `ParamSetter` and keeps only the index in a `#[persist]` field
 - **Pick a file (cabinets):** files are never picked in a dialog. They live in one folder and are

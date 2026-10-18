@@ -82,10 +82,16 @@ pub struct Recording {
 /// Where the cabinets are: `FOLDER_ENV` if set, else `Hojt Audio/Cabinets` in Documents.
 /// Looks nothing up on the disk and creates nothing
 pub fn cabinets_dir() -> Option<PathBuf> {
-    match std::env::var_os(FOLDER_ENV) {
+    folder_in_documents(FOLDER_ENV, &FOLDER)
+}
+
+/// The folder `env` names if it is set, else `parts` below the user's Documents folder.
+/// Looks nothing up on the disk and creates nothing
+pub fn folder_in_documents(env: &str, parts: &[&str]) -> Option<PathBuf> {
+    match std::env::var_os(env) {
         Some(folder) if !folder.is_empty() => Some(PathBuf::from(folder)),
         _ => documents_dir()
-            .map(|documents| FOLDER.iter().fold(documents, |path, part| path.join(part))),
+            .map(|documents| parts.iter().fold(documents, |path, part| path.join(part))),
     }
 }
 
@@ -167,6 +173,12 @@ pub fn is_file_name(name: &str) -> bool {
 
 /// The WAV files in a folder, by name. Nothing when there is no such folder
 pub fn list(dir: &Path) -> Vec<String> {
+    list_with_extension(dir, EXTENSION)
+}
+
+/// The files in a folder with the given extension, by name. Nothing when there is no such
+/// folder
+pub fn list_with_extension(dir: &Path, wanted: &str) -> Vec<String> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return Vec::new();
     };
@@ -177,7 +189,7 @@ pub fn list(dir: &Path) -> Vec<String> {
         .filter(|name| {
             Path::new(name)
                 .extension()
-                .is_some_and(|extension| extension.eq_ignore_ascii_case(EXTENSION))
+                .is_some_and(|extension| extension.eq_ignore_ascii_case(wanted))
         })
         .collect();
     files.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()).then_with(|| a.cmp(b)));
@@ -216,9 +228,14 @@ pub fn speaker_of(chosen: &str) -> Option<usize> {
 /// A file's name as the display shows it: without `.wav`, in capitals, in letters the
 /// display's font has, and no longer than `max_chars`
 pub fn display_name(file: &str, max_chars: usize) -> String {
+    display_name_without(file, EXTENSION, max_chars)
+}
+
+/// A file's name as a display shows it, without the extension `dropped`: see `display_name`
+pub fn display_name_without(file: &str, dropped: &str, max_chars: usize) -> String {
     let path = Path::new(file);
     let has_extension =
-        path.extension().is_some_and(|extension| extension.eq_ignore_ascii_case(EXTENSION));
+        path.extension().is_some_and(|extension| extension.eq_ignore_ascii_case(dropped));
     let stem = if has_extension {
         path.file_stem().and_then(|stem| stem.to_str()).unwrap_or(file)
     } else {

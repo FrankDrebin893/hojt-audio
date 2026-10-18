@@ -18,6 +18,12 @@ GitHub release.
   - `1X15 DEEP`: one 15", deep and round with a soft top
 
   A cabinet you pick stays when you change amps, and the Mic and Resonance dials work on it
+- Your own preset bank: the Save button beside the Preset display keeps the sound as it
+  stands, with the pedal order, the microphone and the cabinet. After a factory preset it
+  makes a new preset named after it (`GRUS 2`); after one of your own it saves over it. Your
+  presets come after the factory ones on the Preset display. They are files in
+  `Documents/Hojt Audio/Presets`, which a double-click on the Preset caption opens: rename,
+  copy, delete or share them there
 
 ## 0.2.1
 

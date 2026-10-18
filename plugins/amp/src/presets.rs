@@ -20,7 +20,7 @@ pub const EDITED_MARK: char = '*';
 
 // A knob counts as moved when it is this far from the preset's value, as a share of its
 // travel. Well under the smallest step a knob shows, and under one pixel of a fine drag
-const MATCH_TOLERANCE: f32 = 0.0004;
+pub(crate) const MATCH_TOLERANCE: f32 = 0.0004;
 
 const ON: bool = true;
 const OFF: bool = false;
@@ -396,12 +396,6 @@ pub fn index_or_first(stored: u32) -> usize {
     }
 }
 
-/// The preset before or after `index`, going round at both ends
-pub fn neighbour(index: usize, forward: bool) -> usize {
-    let count = PRESETS.len();
-    (index + if forward { 1 } else { count - 1 }) % count
-}
-
 impl Preset {
     /// Every continuous parameter the preset holds, with the value it gets
     fn knobs<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a FloatParam, f32); 28] {
@@ -510,7 +504,7 @@ impl Preset {
     }
 }
 
-fn set<P: Param>(setter: &ParamSetter, param: &P, value: P::Plain) {
+pub(crate) fn set<P: Param>(setter: &ParamSetter, param: &P, value: P::Plain) {
     setter.begin_set_parameter(param);
     setter.set_parameter(param, value);
     setter.end_set_parameter(param);
@@ -765,7 +759,9 @@ mod tests {
 
     #[test]
     fn test_stepping_goes_round_and_survives_a_stale_index() {
-        let last = PRESETS.len() - 1;
+        // With none of the player's own presets, the round is the factory ones
+        let (last, none) = (PRESETS.len() - 1, crate::user_presets::Bank::default());
+        let neighbour = |place, forward| crate::user_presets::neighbour(place, &none, forward);
         assert_eq!(neighbour(0, true), 1);
         assert_eq!(neighbour(last, true), 0);
         assert_eq!(neighbour(0, false), last);
