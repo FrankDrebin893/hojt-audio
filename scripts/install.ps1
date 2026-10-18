@@ -32,15 +32,17 @@ $commit = (git rev-parse --short HEAD).Trim()
 $dirty = if (git status --porcelain) { ' (with uncommitted changes)' } else { '' }
 Write-Host "Building $($Plugins -join ', ') from $commit$dirty into $env:CARGO_TARGET_DIR"
 
+# Cargo writes its progress to stderr. Windows PowerShell turns that into errors, which stop
+# the script when its output is redirected, so cargo runs under cmd with stderr merged
 foreach ($plugin in $Plugins) {
     $name = $bundleNames[$plugin]
     if (-not $name) { throw "Unknown plugin '$plugin'" }
-    cargo xtask bundle $plugin --release
+    cmd /c "cargo xtask bundle $plugin --release 2>&1"
     if ($LASTEXITCODE -ne 0) { throw "Build of $plugin failed" }
 
     $built = Join-Path $env:CARGO_TARGET_DIR "bundled\$name.vst3"
     if (-not (Test-Path $built)) { throw "$built was not made: the bundler wrote somewhere else" }
-    cargo xtask check-art $plugin
+    cmd /c "cargo xtask check-art $plugin 2>&1"
     if ($LASTEXITCODE -ne 0) { throw "$name was built without its artwork: nothing was installed" }
     Copy-Item -Recurse -Force $built $dest
 
