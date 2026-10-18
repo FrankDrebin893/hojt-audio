@@ -16,9 +16,12 @@ A suite of VST3/CLAP plugins built with Rust and the nih-plug framework. The bra
   first: the reference for those ports, not built or shipped. Its `README.md` says where a port differs
 - `crates/suite_common/assets/art/` - Bespoke artwork: one RGBA PNG per pedal, printed on its top face under the controls
   (`ui/artwork.rs`, `PedalStyle.art`). Made by `scripts/make-art.py` (a two-ink screen print: halftone, misregistration,
-  paper dropout) or replaced by a painted or generated PNG at the same path. Keep the middle clear for the controls
+  paper dropout) or replaced by a painted or generated PNG at the same path. Keep the middle clear for the controls.
+  The pictures are compiled into each plugin. Each editor has a test that its pedal is drawn with its own picture,
+  and `cargo xtask check-art` fails on a bundle that does not carry its pictures (see Install): a plugin without
+  its art was built from other sources than this checkout's
 - `crates/suite_common/assets/fonts/` - Embedded fonts (SIL OFL) with their licence files
-- `xtask/` - nih-plug bundler
+- `xtask/` - The bundler (nih-plug's, run from this workspace's own root) and `check-art`
 - `bundler.toml` - Bundle name per plugin package
 - `site/` - The public page (plain HTML and CSS, no build step), published by GitHub Pages
 - `site-sources/` - What is played in a sound example of the page when it is our own playing
@@ -99,6 +102,9 @@ cargo xtask bundle bass --release
 cargo xtask bundle pad --release
 cargo xtask bundle bells --release
 
+# Every bundle in target/bundled carries its plugin's artwork (or name some: check-art amp drums)
+cargo xtask check-art
+
 # Quick compile check
 cargo check --workspace
 
@@ -119,10 +125,14 @@ Output location: `target/bundled/<BundleName>.vst3`
 ## Install
 
 On Windows run `scripts/install.ps1` (all six, or name some: `scripts/install.ps1 amp drums`). It builds from
-this checkout with the build folder pinned to it, installs, and checks every installed file against the build. Close
-the DAW first. `xtask/src/main.rs` bundles the workspace it belongs to: nih-plug's own bundler takes the outermost
-folder with a `Cargo.toml`, which for a worktree under `.claude/worktrees` is the main checkout, so it built and
-installed that checkout's sources instead. By hand:
+this checkout with the build folder pinned to it, refuses a bundle that `cargo xtask check-art` does not pass,
+installs, and checks every installed file against the build. Close the DAW first.
+
+Plugins in a DAW once lost their artwork this way: nih-plug's own bundler takes the outermost folder with a
+`Cargo.toml` for the workspace, which for a worktree under `.claude/worktrees` is the main checkout, so worktrees
+built and installed the main checkout's old sources. `xtask/src/main.rs` now bundles the workspace it belongs to,
+and `check-art` stops a build like that before it is installed or released. Install with the script, or run
+`cargo xtask check-art` before copying by hand:
 
 Copy VST3 to system folder:
 ```
@@ -281,8 +291,10 @@ out; the HØJT name and logo are kept out of it (`NOTICE.md`).
    screenshot in `site/img/` if the plugin's look changed
 4. Run `/page release <version>` so the page describes exactly that version: new plugins,
    controls tables, sound examples
-5. Commit, then tag `v<version>` and push the tag. `release.yml` tests, builds for Windows,
-   macOS (Intel and Apple Silicon in one binary, signed ad hoc) and Linux, and publishes the zips
+5. Commit on a branch `release/<version>` and merge it through a pull request (`main` is
+   protected). Then tag the merge commit `v<version>` and push the tag. `release.yml` tests,
+   builds for Windows, macOS (Intel and Apple Silicon in one binary, signed ad hoc) and Linux,
+   refuses a bundle without its artwork (`cargo xtask check-art`), and publishes the zips
 
 - The zips are named `<BundleName>-<windows|macos|linux>.zip`, without a version: the page
   links to `releases/latest/download/<name>`, so these names never change
