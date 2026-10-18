@@ -119,8 +119,10 @@ Output location: `target/bundled/<BundleName>.vst3`
 ## Install
 
 On Windows run `scripts/install.ps1` (all six, or name some: `scripts/install.ps1 amp drums`). It builds from
-this checkout with the build folder pinned to it (in a git worktree the bundler otherwise copies the stale DLLs of
-another checkout), installs, and checks every installed file against the build. Close the DAW first. By hand:
+this checkout with the build folder pinned to it, installs, and checks every installed file against the build. Close
+the DAW first. `xtask/src/main.rs` bundles the workspace it belongs to: nih-plug's own bundler takes the outermost
+folder with a `Cargo.toml`, which for a worktree under `.claude/worktrees` is the main checkout, so it built and
+installed that checkout's sources instead. By hand:
 
 Copy VST3 to system folder:
 ```
