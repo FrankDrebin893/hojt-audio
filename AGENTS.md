@@ -28,6 +28,7 @@ A suite of VST3/CLAP plugins built with Rust and the nih-plug framework. The bra
   (DI recordings, MIDI drum parts); not published. See its `README.md`
 - `scripts/install.ps1` - Builds the VST3 bundles from this checkout and installs them on Windows (see Install)
 - `scripts/make-art.py` - Makes the pedals' artwork in `crates/suite_common/assets/art/`
+- `scripts/screenshots.ps1` - Takes the page's screenshots (`site/img/`) of the standalone windows, on Windows
 - `scripts/package.sh` - Packs the bundles into the zips of a release
 - `scripts/site-audio.sh` - Makes the page's sound examples from the render tests
 - `scripts/sound-reports.sh` - The sound reports without their timings, for comparing two builds
@@ -287,8 +288,8 @@ out; the HØJT name and logo are kept out of it (`NOTICE.md`).
    `Cargo.lock` follows
 2. Add a `## <version>` section to `CHANGELOG.md`: it becomes the text of the release
 3. For every plugin whose sound changed in that section, run `scripts/site-audio.sh <plugin>`
-   (`drums`, `amp`, `pitch_shifter`, `bass`, `pad`, `bells`) and listen to what changed in `site/audio/`. Redo a
-   screenshot in `site/img/` if the plugin's look changed
+   (`drums`, `amp`, `pitch_shifter`, `bass`, `pad`, `bells`) and listen to what changed in `site/audio/`. If a plugin's
+   look changed, or it is new, run `scripts/screenshots.ps1 <plugin>` and look at what it took
 4. Run `/page release <version>` so the page describes exactly that version: new plugins,
    controls tables, sound examples
 5. Commit on a branch `release/<version>` and merge it through a pull request (`main` is
@@ -304,14 +305,17 @@ out; the HØJT name and logo are kept out of it (`NOTICE.md`).
 - The page uses the plugins' colours (`ui/theme.rs`) and fonts (copies in `site/fonts/`). Body
   text never sits on the paint: cream on orange or teal is too weak at that size
 - The page is published from `main` and the downloads are the latest release, so
-  `site/audio/` and `site/img/` only change in the commit of a release: a branch that changes
-  a sound leaves them alone, or the page plays what nobody can download yet
+  `site/audio/` and `site/img/` only change in the commit of a release, or to catch up with the
+  release that is out: a branch that changes a sound or a look leaves them alone, or the page
+  shows what nobody can download yet
 - Sound examples in `site/audio/` are MP3s (`ffmpeg -codec:a libmp3lame -q:a 4`) of files from
   the `render_*` tests, never made by hand. The table in `scripts/site-audio.sh` says which
   render each one is. An example that has not changed comes out the same to the byte
 - An example can be our own playing through the plugin: the recording or MIDI file goes in
   `site-sources/` and its name in that table. The sound is still made by the script
-- Screenshots in `site/img/` are the standalone windows at their own size, taken by hand
+- Screenshots in `site/img/` are the standalone windows at their own size, taken by
+  `scripts/screenshots.ps1` (it builds each one, opens it and captures its inside), never drawn
+  or generated. It needs a display at 100 % scaling and stops otherwise
 
 ## Testing
 

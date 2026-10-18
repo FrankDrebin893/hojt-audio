@@ -8,9 +8,10 @@ macOS and Linux. HØJT is Danish for loud, and for high.
 
 [![The Guitar Amp](site/img/guitar-amp.png)](https://hojte.net/hojt-audio/#guitar-amp)
 
-| | |
-|---|---|
-| [![The Drum Synth](site/img/drum-synth.png)](https://hojte.net/hojt-audio/#drum-synth) | [![The Pitch Shifter](site/img/pitch-shifter.png)](https://hojte.net/hojt-audio/#pitch-shifter) |
+| | | |
+|---|---|---|
+| [![The Drum Synth](site/img/drum-synth.png)](https://hojte.net/hojt-audio/#drum-synth) | [![The Pitch Shifter](site/img/pitch-shifter.png)](https://hojte.net/hojt-audio/#pitch-shifter) | [![The Bass Synth](site/img/bass-synth.png)](https://hojte.net/hojt-audio/#bass-synth) |
+| [![The Shimmer Pad](site/img/shimmer-pad.png)](https://hojte.net/hojt-audio/#shimmer-pad) | [![The Glass Bells](site/img/glass-bells.png)](https://hojte.net/hojt-audio/#glass-bells) | |
 
 ## The plugins
 

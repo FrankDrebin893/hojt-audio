@@ -12,7 +12,7 @@ decide this skill:
   not a plugin, a control, a kit or a sound. It goes on the page in the commit of the release
   that ships it (`/page release`). Until then `CHANGELOG.md` under `Unreleased` carries it
 - `site/audio/` and `site/img/` change only in the commit of a release. Sounds come from
-  `scripts/site-audio.sh`, screenshots are taken by hand: never make either up
+  `scripts/site-audio.sh`, screenshots from `scripts/screenshots.ps1`: never make either up
 - The house voice: what is heard and seen, short plain sentences, no internals, no real makers'
   names or trademarks. Body text never sits on the paint
 
@@ -57,9 +57,10 @@ gates. The page must describe exactly that version.
    - **Points and counts** (kits, voices, pedals, presets, latency) match the code
    - **Listen** lists exactly the examples `scripts/site-audio.sh` makes for that plugin, with
      their files in `site/audio/`. A plugin with none yet has no Listen heading
-2. **Screenshots.** A new plugin, or one whose look changed, needs a screenshot in `site/img/`
-   (the standalone window at its own size, taken by hand). If it is missing, leave the figure
-   out and list it for Rasmus; never draw or generate one.
+2. **Screenshots.** A new plugin, or one whose look changed, needs a screenshot in `site/img/`:
+   run `scripts/screenshots.ps1 <plugin>` (Windows, display at 100 % scaling) and look at every
+   picture it took. Every plugin section has its figure. Where the script cannot run, leave the
+   figure out and say so; never draw or generate one.
 3. Go to the checks.
 
 ## Checks
@@ -71,5 +72,5 @@ gates. The page must describe exactly that version.
 3. `scripts/page-check.sh mark`, last, so the end-of-session hook knows the page was looked at
    for the changes as they are now. A later edit asks for `/page` again.
 4. Say in one or two lines what changed on the page, what waits in the changelog for the
-   release, and any screenshot Rasmus has to take. Commit page edits with the session's work;
+   release, and any screenshot that could not be taken. Commit page edits with the session's work;
    on `main` itself, ask first.

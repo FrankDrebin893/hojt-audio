@@ -18,7 +18,8 @@ protected, so a release goes in through a pull request like any other change.
    seen, no internals), grouped by plugin. Add what is missing; ask Rasmus if unsure.
 4. **Sound examples.** For each plugin whose sound changed, `scripts/site-audio.sh <plugin>`,
    then list which files in `site/audio/` changed for Rasmus to listen to. List the plugins
-   whose look changed: their screenshot in `site/img/` is taken by hand.
+   whose look changed, and new ones: `scripts/screenshots.ps1 <plugin>` retakes their screenshot in
+   `site/img/`; look at each.
    Then `/page release $ARGUMENTS`: the page describes exactly this version.
 5. **Gates.** `cargo test --workspace`, `cargo test -p amp --release`, `cargo fmt --all --check`,
    `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo xtask bundle -p pitch_shifter
