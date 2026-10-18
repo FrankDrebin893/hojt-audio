@@ -29,6 +29,9 @@
   --paint-orange: #de561e;
   --paint-teal: #1d8282;
   --paint-oxblood: #7c1c20;
+  --paint-cobalt: #1e409c;
+  --paint-plum: #602c78;
+  --paint-pine: #1c683c;
   --led-on: #ff3b24;
 
   --display: "Bebas Neue", "Arial Narrow", Impact, sans-serif;
@@ -179,7 +182,7 @@ a:hover {
   outline-offset: 2px;
 }
 
-/* The paint only ever carries large print: ink on the cream band, or cream on oxblood */
+/* The paint only ever carries large print: ink on the cream band, or cream on the dark paints */
 .orange {
   --paint: var(--paint-orange);
   --on-paint: #000;
@@ -190,6 +193,18 @@ a:hover {
 }
 .oxblood {
   --paint: var(--paint-oxblood);
+  --on-paint: var(--silk);
+}
+.cobalt {
+  --paint: var(--paint-cobalt);
+  --on-paint: var(--silk);
+}
+.plum {
+  --paint: var(--paint-plum);
+  --on-paint: var(--silk);
+}
+.pine {
+  --paint: var(--paint-pine);
   --on-paint: var(--silk);
 }
 .jump a {

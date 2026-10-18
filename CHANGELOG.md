@@ -3,7 +3,7 @@
 Each release has a `## <version>` section here. The release workflow uses it as the text of the
 GitHub release.
 
-## Unreleased
+## 0.2.0
 
 ### Every plugin
 
