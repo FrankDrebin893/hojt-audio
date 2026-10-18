@@ -689,13 +689,13 @@ fn bank_rows(banks: &[String], listed: &str, naming: Option<&str>) -> Vec<Row> {
         .map(|bank| Row {
             text: user_presets::bank_name(bank, DROP_BANK_CHARS),
             lit: bank == listed,
-            dim: false,
+            ..Row::default()
         })
         .collect();
     rows.push(match naming {
-        // The name as it is typed, with the caret after it
-        Some(name) => Row { text: format!("{name}_"), lit: true, dim: false },
-        None => Row { text: NEW_BANK_ROW.to_owned(), lit: false, dim: false },
+        // The name as it is typed, with the caret after it. That row takes the keyboard
+        Some(name) => Row { text: format!("{name}_"), lit: true, dim: false, typing: true },
+        None => Row { text: NEW_BANK_ROW.to_owned(), ..Row::default() },
     });
     rows
 }
@@ -711,7 +711,7 @@ fn preset_rows(files: Option<&[String]>, loaded: Loaded) -> Vec<Row> {
             .map(|(at, preset)| Row {
                 text: preset.name.to_owned(),
                 lit: loaded == Loaded::Factory(at),
-                dim: false,
+                ..Row::default()
             })
             .collect(),
         Some(files) => files
@@ -719,12 +719,12 @@ fn preset_rows(files: Option<&[String]>, loaded: Loaded) -> Vec<Row> {
             .map(|file| Row {
                 text: user_presets::display_name(file, DROP_PRESET_CHARS),
                 lit: loaded == Loaded::File(file),
-                dim: false,
+                ..Row::default()
             })
             .collect(),
     };
     if rows.is_empty() {
-        rows.push(Row { text: "No presets".to_owned(), lit: false, dim: true });
+        rows.push(Row { text: "No presets".to_owned(), dim: true, ..Row::default() });
     }
     rows
 }
