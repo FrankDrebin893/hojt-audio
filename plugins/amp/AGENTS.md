@@ -12,11 +12,12 @@ gain), Glød (warm edge of breakup, between Klar and Brøl). They share the six 
 - `src/lib.rs` - Plugin entry point, parameters. Reads them once per block into `AmpSettings`
 - `src/chain.rs` - `AmpChain`: the whole chain, dial smoothing, bypass crossfade, amp switching
 - `src/gate.rs`, `src/drive.rs` - Noise gate; overdrive pedal
-- `src/amp/` - `model.rs` (`Amp` and one `AmpModel` of constants per amp), `preamp.rs`,
+- `src/amp/` - `model.rs` (`Amp` and one `AmpModel` of constants per amp; `SPEAKERS`, the
+  built-in cabinets, the amps' own among them), `preamp.rs`,
   `tonestack.rs`, `poweramp.rs`
 - `src/cab.rs` - Cabinet: impulse response designed in code at 48 kHz and resampled for other
   rates, direct FIR; a player's response of 641 taps or more keeps its first two blocks as a
-  direct FIR and runs the rest through the `Tail`; Mic and Resonance filters behind it (on the amp's cabinet frequencies, or on `NEUTRAL_CAB` while a file is picked)
+  direct FIR and runs the rest through the `Tail`; Mic and Resonance filters behind it (on the frequencies of the built-in cabinet that plays, or on `NEUTRAL_CAB` while a file is picked)
 - `src/user_cab.rs` - The player's own cabinets: folder, WAV reading, resampler, trim, cut, level
 - `src/cab_stage.rs` - `CabStage` (lock-free hand-off of a cabinet to the audio thread) and
   `CabLoader` (reads the chosen file on a background task)
@@ -81,13 +82,21 @@ How it behaves:
   of the detector, which pull a string within 2 Hz of them by a few cents; without hum they
   are off and the readings are unchanged. A loaded
   project never opens with the tuner on
-- Besides its own cabinet an amp can play through a WAV impulse response from
+- Besides its own cabinet an amp can play through any of the seven built-in cabinets
+  (`SPEAKERS` in `amp/model.rs`: `1X10 SMALL`, `1X12 OPEN`, `2X12 OPEN`, `4X10 CRISP`,
+  `4X12 MID`, `4X12 TIGHT`, `1X15 DEEP`; the four amps' own are among them), picked on the
+  Cab pedal after `OWN`. A built-in cabinet is stored as `speaker:<id>` in the cabinet choice;
+  the ids are frozen (a test holds them), the order may change. One this build does not have
+  plays the amp's own and is shown with `?`. Picking the cabinet that already plays changes
+  nothing, to the bit. The chain designs them all when the sample rate is set
+- Besides a built-in cabinet an amp can play through a WAV impulse response from
   `Documents/Hojt Audio/Cabinets` (or the folder in `HOJT_CABINETS_DIR`), picked on the Cab pedal.
   Mono or the left channel of stereo, 8/16/24/32-bit integer or 32/64-bit float, any rate; resampled,
   trimmed so the sound arrives within 0.2 ms, cut to 40 ms, levelled like the built-in ones.
   Latency stays the same
-- The cabinet choice is a persisted file name, not a parameter and not part of a preset. It
-  stays when another amp is picked. A missing or unusable file plays the amp's own cabinet
+- The cabinet choice is a persisted file name or built-in id, not a parameter and not part of
+  a preset. It stays when another amp is picked. A missing or unusable file plays the amp's own
+  cabinet
 - Files are read on a background task (`initialize` only asks for one, which the first block hands to the host's background thread), never on the audio thread; the taps
   reach it through `CabStage` without allocating, freeing or waiting
 - The folder is created the first time the stepper is used, not by loading the plugin
@@ -231,7 +240,8 @@ cargo test -p amp --release user_cab_report -- --ignored --nocapture
 # Long cabinets: direct FIR against the tail, per length and rate; error, evenness, swaps.
 cargo test -p amp --release convolver_report -- --ignored --nocapture
 
-# The four built-in cabinets as 48 kHz WAV files in target/renders/cabinets.
+# The seven built-in cabinets as 48 kHz WAV files in target/renders/cabinets (cab_report
+# prints their levels per frequency).
 cargo test -p amp --release export_cabinets -- --ignored --nocapture
 
 # A DI guitar through each amp and setting, as WAV files in target/renders (amp_*.wav).
@@ -297,12 +307,13 @@ The style guide of the root `AGENTS.md` applies; these are the rules for a windo
 - **A preset choice is never a parameter.** The editor sets the real parameters through the
   `ParamSetter` and keeps only the index in a `#[persist]` field
 - **Pick a file (cabinets):** files are never picked in a dialog. They live in one folder and are
-  stepped through in name order with a `stepper` under a `silk_label` caption, the built-in choice
-  first (`OWN`). On a mini pedal the stepper takes the place of the third knob of a trio: two
+  stepped through in name order with a `stepper` under a `silk_label` caption, after the built-in
+  choices: the amp's own (`OWN`), then the built-in cabinets. On a mini pedal the stepper takes the place of the third knob of a trio: two
   radius-17 knobs with the LED between them, caption at y+174, tape 100 px wide at y+198. The
   tape shows at most 10 characters: no extension, capitals, long names as the first 5 and last 4
   with `~` between. `!` in front of the name of a file that cannot be used, `?` in front of the name of one
-  that is not there. Stepping in a folder with no files says `NO FILES` for 1.5 s. Hovering the
+  that is not there. Stepping on to `OWN` past where the files would be, with none in the folder,
+  says `NO FILES` for 1.5 s. Hovering the
   `Speaker` caption names the folder; a double-click on it opens the folder
 - **A file choice is never a parameter.** Keep the file name (not the path) in a `#[persist]` field
 - **Tuner:** a `small_footswitch` with `rig_led` and a `silk_label` on the head, beside the On

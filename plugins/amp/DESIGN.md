@@ -60,6 +60,10 @@ The reasons behind choices that the code alone does not explain. What it does is
   response within 0.4 dB from 60 Hz to 8 kHz. It is not applied to the player's own cabinets
 - Mic is a shelf pair and Resonance a bell after the IR, skipped at 5.0 so the default is
   bit-identical
+- More cabinets than amps: seven built in (`SPEAKERS`), the amps' own among them, picked
+  on the same Speaker display as files, between `OWN` and the files. Not a parameter, like
+  the file: one display, one stored choice. Each is a `CabModel` like the amps' own, so it
+  is designed, levelled and resampled alike and the dials work on its own frequencies
 - No file dialog (the style guide forbids pop-ups): files in one folder, stepped through. The
   folder is found through the Windows known-folder call by a hand-written FFI declaration (it
   follows OneDrive), no crate. The choice is a persisted file name, not a parameter, not in

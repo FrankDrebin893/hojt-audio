@@ -836,14 +836,19 @@ impl CabVoicing {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::amp::model::Amp;
+    use crate::amp::model::{Amp, SPEAKERS};
     use crate::test_util::{rms, sine, to_db, Noise};
 
     // How close a cabinet is to itself at another sample rate, in dB, from 60 Hz to 10 kHz
     const SAME_DB: f32 = 0.1;
 
-    fn design(amp: Amp, sample_rate: f32) -> CabIr {
-        design_ir(&amp.model().cab, sample_rate)
+    /// Every built-in cabinet, the amps' own among them, with its id
+    fn every_cab() -> impl Iterator<Item = (&'static str, &'static CabModel)> {
+        SPEAKERS.iter().map(|speaker| (speaker.id, &speaker.cab))
+    }
+
+    fn design(cab: &CabModel, sample_rate: f32) -> CabIr {
+        design_ir(cab, sample_rate)
     }
 
     /// What a cabinet answers to an impulse, filter and all
@@ -860,9 +865,9 @@ pub mod tests {
     /// Largest difference in dB, from 60 Hz to 8 kHz, between a cabinet at a sample rate
     /// and the one long impulse response it was tuned as, which is at `DESIGN_RATE`, both
     /// levelled alike. And the frequency it is at
-    fn off_the_long_response(amp: Amp, sample_rate: f32, probes: usize) -> (f32, f32) {
-        let ir = design(amp, sample_rate);
-        let long = long_response(&amp.model().cab, DESIGN_RATE);
+    fn off_the_long_response(cab: &CabModel, sample_rate: f32, probes: usize) -> (f32, f32) {
+        let ir = design(cab, sample_rate);
+        let long = long_response(cab, DESIGN_RATE);
         let ratio = (LEVEL_BAND_HZ[1] / LEVEL_BAND_HZ[0]).powf(1.0 / (LEVEL_PROBES - 1) as f32);
         let long_level: f32 = (0..LEVEL_PROBES)
             .map(|probe| {
@@ -912,10 +917,10 @@ pub mod tests {
     fn cab_report() {
         crate::test_util::pin_thread();
         println!("Time of the convolution per sample, filter included, and per tap");
-        for amp in Amp::ALL {
-            print!("{:<8}", amp.model().name);
+        for (name, cab) in every_cab() {
+            print!("{:<8}", name);
             for sample_rate in [48000.0, 192000.0] {
-                let ir = design(amp, sample_rate);
+                let ir = design(cab, sample_rate);
                 let time = convolution_ns(&ir);
                 print!(
                     "{:>8} taps{:>7.1} ns{:>7.3} ns/tap",
@@ -938,14 +943,32 @@ pub mod tests {
         }
         println!();
 
+        println!("Level of each cabinet at 48 kHz in dB, levelled from 100 Hz to 4 kHz");
+        const PROFILE_HZ: [f32; 11] =
+            [30.0, 60.0, 80.0, 120.0, 250.0, 500.0, 1000.0, 2000.0, 3000.0, 5000.0, 10000.0];
+        print!("{:<12}", "");
+        for freq_hz in PROFILE_HZ {
+            print!("{:>7}", freq_hz);
+        }
+        println!();
+        for (name, cab) in every_cab() {
+            let ir = design(cab, 48000.0);
+            print!("{:<12}", name);
+            for freq_hz in PROFILE_HZ {
+                print!("{:>7.1}", to_db(ir.magnitude(freq_hz, 48000.0)));
+            }
+            println!();
+        }
+        println!();
+
         println!("Largest difference from the 20 ms impulse response, 60 Hz to 8 kHz, in dB");
-        for amp in Amp::ALL {
+        for (name, cab) in every_cab() {
             for sample_rate in [44100.0, 48000.0, 88200.0, 96000.0, 192000.0] {
-                let (off, freq_hz) = off_the_long_response(amp, sample_rate, 600);
-                let ir = design(amp, sample_rate);
+                let (off, freq_hz) = off_the_long_response(cab, sample_rate, 600);
+                let ir = design(cab, sample_rate);
                 println!(
                     "{:<8}{:>8} Hz{:>6} taps (of {}){:>7.2} dB at {:>5.0} Hz",
-                    amp.model().name,
+                    name,
                     sample_rate,
                     ir.taps.len(),
                     ir_len(sample_rate),
@@ -1176,13 +1199,13 @@ pub mod tests {
 
     #[test]
     fn test_cabinet_stays_within_half_a_db_of_the_long_impulse_response() {
-        for amp in Amp::ALL {
+        for (name, cab) in every_cab() {
             for sample_rate in [44100.0, 48000.0, 96000.0, 192000.0] {
-                let (off, freq_hz) = off_the_long_response(amp, sample_rate, 150);
+                let (off, freq_hz) = off_the_long_response(cab, sample_rate, 150);
                 assert!(
                     off.abs() < 0.5,
-                    "{:?} at {} Hz: {:.2} dB at {:.0} Hz",
-                    amp,
+                    "{} at {} Hz: {:.2} dB at {:.0} Hz",
+                    name,
                     sample_rate,
                     off,
                     freq_hz
@@ -1193,13 +1216,13 @@ pub mod tests {
 
     #[test]
     fn test_impulse_response_is_at_most_half_the_longest() {
-        for amp in Amp::ALL {
+        for (name, cab) in every_cab() {
             for sample_rate in [48000.0, 192000.0] {
-                let ir = design(amp, sample_rate);
+                let ir = design(cab, sample_rate);
                 assert!(
                     ir.taps.len() * 2 <= ir_len(sample_rate),
-                    "{:?}: {} taps",
-                    amp,
+                    "{}: {} taps",
+                    name,
                     ir.taps.len()
                 );
                 assert!(ir.lows != BiquadCoeffs::IDENTITY);
@@ -1211,16 +1234,16 @@ pub mod tests {
     fn test_cabinet_plays_what_its_design_says() {
         // The filter behind the convolution included
         let sample_rate = 48000.0;
-        for amp in Amp::ALL {
-            let ir = design(amp, sample_rate);
+        for (name, cab) in every_cab() {
+            let ir = design(cab, sample_rate);
             let response = impulse_response(&ir, sample_rate, 9600);
             for freq in [60.0, 80.0, 100.0, 150.0, 1000.0, 3000.0] {
                 let played = to_db(ir_magnitude(&response, freq, sample_rate));
                 let designed = to_db(ir.magnitude(freq, sample_rate));
                 assert!(
                     (played - designed).abs() < 0.05,
-                    "{:?} at {} Hz: {:.2} dB, {:.2} dB",
-                    amp,
+                    "{} at {} Hz: {:.2} dB, {:.2} dB",
+                    name,
                     freq,
                     played,
                     designed
@@ -1231,9 +1254,9 @@ pub mod tests {
 
     #[test]
     fn test_ir_is_finite_and_levelled() {
-        for amp in Amp::ALL {
+        for (name, cab) in every_cab() {
             for sample_rate in [44100.0, 48000.0, 96000.0, 192000.0] {
-                let ir = design(amp, sample_rate);
+                let ir = design(cab, sample_rate);
                 assert!(ir.taps.len() <= ir_len(sample_rate));
                 assert!(ir.taps.iter().all(|s| s.is_finite()));
                 assert_eq!(*ir.taps.last().unwrap(), 0.0);
@@ -1245,8 +1268,8 @@ pub mod tests {
                     / 100.0;
                 assert!(
                     to_db(power.sqrt()).abs() < 0.5,
-                    "{:?} at {}: {:.2} dB",
-                    amp,
+                    "{} at {}: {:.2} dB",
+                    name,
                     sample_rate,
                     to_db(power.sqrt())
                 );
@@ -1266,12 +1289,12 @@ pub mod tests {
 
     #[test]
     fn test_ir_energy_is_at_the_start() {
-        for amp in Amp::ALL {
+        for (name, cab) in every_cab() {
             let sample_rate = 48000.0;
-            let ir = impulse_response(&design(amp, sample_rate), sample_rate, 4800);
+            let ir = impulse_response(&design(cab, sample_rate), sample_rate, 4800);
             let energy = |samples: &[f32]| samples.iter().map(|s| s * s).sum::<f32>();
             let early = energy(&ir[..(0.005 * sample_rate) as usize]) / energy(&ir);
-            assert!(early > 0.9, "{:?}: {:.2} of the energy in the first 5 ms", amp, early);
+            assert!(early > 0.9, "{}: {:.2} of the energy in the first 5 ms", name, early);
         }
     }
 
@@ -1281,8 +1304,8 @@ pub mod tests {
         (0..3)
             .map(|_| {
                 let start = std::time::Instant::now();
-                for amp in Amp::ALL {
-                    std::hint::black_box(design_at(&amp.model().cab, sample_rate));
+                for (_, cab) in every_cab() {
+                    std::hint::black_box(design_at(cab, sample_rate));
                 }
                 start.elapsed().as_secs_f64() * 1e3
             })
@@ -1292,12 +1315,12 @@ pub mod tests {
     /// Largest difference in dB between a cabinet at a sample rate and the same cabinet
     /// at `DESIGN_RATE`, over `probes` frequencies from 60 Hz to `top_hz`, and where it is
     pub fn off_the_design_rate(
-        amp: Amp,
+        cab: &CabModel,
         sample_rate: f32,
         top_hz: f32,
         probes: usize,
     ) -> (f32, f32) {
-        let (ir, reference) = (design(amp, sample_rate), design(amp, DESIGN_RATE));
+        let (ir, reference) = (design(cab, sample_rate), design(cab, DESIGN_RATE));
         let mut worst = (0.0f32, 0.0);
         for probe in 0..probes {
             let freq_hz = 60.0 * (top_hz / 60.0).powf(probe as f32 / (probes - 1) as f32);
@@ -1314,13 +1337,13 @@ pub mod tests {
     #[test]
     fn test_ir_sounds_the_same_at_every_sample_rate() {
         // Far down the roll-off as well, where filters made for each rate were 3 dB apart
-        for amp in Amp::ALL {
+        for (name, cab) in every_cab() {
             for sample_rate in [44100.0, 88200.0, 96000.0, 192000.0] {
-                let (off, freq_hz) = off_the_design_rate(amp, sample_rate, 10_000.0, 120);
+                let (off, freq_hz) = off_the_design_rate(cab, sample_rate, 10_000.0, 120);
                 assert!(
                     off.abs() < SAME_DB,
-                    "{:?} at {} Hz: {:.3} dB at {:.0} Hz",
-                    amp,
+                    "{} at {} Hz: {:.3} dB at {:.0} Hz",
+                    name,
                     sample_rate,
                     off,
                     freq_hz
@@ -1331,11 +1354,10 @@ pub mod tests {
 
     #[test]
     fn test_ir_at_the_design_rate_is_the_design_itself() {
-        for amp in Amp::ALL {
-            let model = &amp.model().cab;
-            assert_eq!(design(amp, DESIGN_RATE), design_reference(model).0);
+        for (_, cab) in every_cab() {
+            assert_eq!(design(cab, DESIGN_RATE), design_reference(cab).0);
             // And a design asked for again is the one that was kept
-            assert_eq!(design(amp, 44100.0), design_at(model, 44100.0));
+            assert_eq!(design(cab, 44100.0), design_at(cab, 44100.0));
         }
     }
 
@@ -1347,23 +1369,23 @@ pub mod tests {
             let top = ir.taps.iter().fold(0.0f32, |top, tap| top.max(tap.abs()));
             ir.taps.iter().position(|tap| tap.abs() >= 0.5 * top).unwrap() as f32 / sample_rate
         };
-        for amp in Amp::ALL {
-            let reference = arrival_s(&design(amp, DESIGN_RATE), DESIGN_RATE);
+        for (name, cab) in every_cab() {
+            let reference = arrival_s(&design(cab, DESIGN_RATE), DESIGN_RATE);
             for sample_rate in [44100.0, 96000.0, 192000.0] {
-                let ir = design(amp, sample_rate);
+                let ir = design(cab, sample_rate);
                 let late = arrival_s(&ir, sample_rate) - reference;
                 assert!(
                     late.abs() <= 1.0 / sample_rate.min(DESIGN_RATE),
-                    "{:?} at {}: {} s",
-                    amp,
+                    "{} at {}: {} s",
+                    name,
                     sample_rate,
                     late
                 );
-                let expected = (amp.model().cab.ir_ms * 0.001 * sample_rate).round() as usize;
+                let expected = (cab.ir_ms * 0.001 * sample_rate).round() as usize;
                 assert!(
                     ir.taps.len().abs_diff(expected) <= 1,
-                    "{:?} at {}: {} taps",
-                    amp,
+                    "{} at {}: {} taps",
+                    name,
                     sample_rate,
                     ir.taps.len()
                 );
@@ -1373,20 +1395,20 @@ pub mod tests {
 
     #[test]
     fn test_ir_has_the_shape_of_a_guitar_speaker() {
-        for amp in Amp::ALL {
-            let ir = design(amp, 48000.0);
+        for (name, cab) in every_cab() {
+            let ir = design(cab, 48000.0);
             let level = |freq: f32| to_db(ir.magnitude(freq, 48000.0));
             let mids = level(1000.0);
-            assert!(level(30.0) < mids - 15.0, "{:?} keeps sub bass", amp);
-            assert!(level(10000.0) < mids - 20.0, "{:?} keeps fizz", amp);
-            assert!(level(amp.model().cab.resonance_hz) > mids - 8.0, "{:?} has no low end", amp);
+            assert!(level(30.0) < mids - 15.0, "{} keeps sub bass", name);
+            assert!(level(10000.0) < mids - 20.0, "{} keeps fizz", name);
+            assert!(level(cab.resonance_hz) > mids - 8.0, "{} has no low end", name);
         }
     }
 
     #[test]
     fn test_convolution_plays_back_the_impulse_response() {
         let sample_rate = 48000.0;
-        let ir = design(Amp::ALL[0], sample_rate).taps;
+        let ir = design(&SPEAKERS[0].cab, sample_rate).taps;
         let mut cabinet = Cabinet::new();
         cabinet.set_sample_rate(sample_rate);
         cabinet.set_ir(&CabIr::plain(&ir));
@@ -1403,7 +1425,7 @@ pub mod tests {
     #[test]
     fn test_convolution_matches_the_plain_sum() {
         let sample_rate = 44100.0;
-        let ir = design(Amp::ALL[0], sample_rate).taps;
+        let ir = design(&SPEAKERS[0].cab, sample_rate).taps;
         let mut cabinet = Cabinet::new();
         cabinet.set_sample_rate(sample_rate);
         cabinet.set_ir(&CabIr::plain(&ir));
@@ -1427,7 +1449,7 @@ pub mod tests {
     #[test]
     fn test_swap_crossfades_without_a_click() {
         let sample_rate = 48000.0;
-        let ir = design(Amp::ALL[0], sample_rate);
+        let ir = design(&SPEAKERS[0].cab, sample_rate);
         let quieter = CabIr { taps: ir.taps.iter().map(|s| s * 0.25).collect(), lows: ir.lows };
         let mut cabinet = Cabinet::new();
         cabinet.set_sample_rate(sample_rate);
@@ -1520,7 +1542,7 @@ pub mod tests {
     #[test]
     fn test_swap_to_and_from_a_long_response_waits_for_its_tail_and_does_not_click() {
         let sample_rate = 48000.0;
-        let short = design(Amp::Klar, sample_rate);
+        let short = design(&Amp::Klar.model().cab, sample_rate);
         let long = long_response_taps(40.0, sample_rate, 3);
         let other = long_response_taps(30.0, sample_rate, 5);
         let spectra_of = |taps: &[f32]| {
@@ -1740,44 +1762,42 @@ pub mod tests {
 
     #[test]
     fn test_mic_dial_moves_the_top_and_a_little_of_the_low_end() {
-        for amp in Amp::ALL {
-            let cab = &amp.model().cab;
+        for (name, cab) in every_cab() {
             let change =
                 |mic: f32, freq: f32| CabVoicing::response_db(cab, mic, 0.5, freq, 48000.0);
             assert!(
                 change(0.0, 4000.0) < -4.0,
-                "{:?} dark at 4 kHz: {:.1} dB",
-                amp,
+                "{} dark at 4 kHz: {:.1} dB",
+                name,
                 change(0.0, 4000.0)
             );
             assert!(
                 change(1.0, 5000.0) > 4.0,
-                "{:?} bright at 5 kHz: {:.1} dB",
-                amp,
+                "{} bright at 5 kHz: {:.1} dB",
+                name,
                 change(1.0, 5000.0)
             );
             assert!(
                 (0.3..2.5).contains(&change(0.0, 200.0)),
-                "{:?} dark at 200 Hz: {:.1} dB",
-                amp,
+                "{} dark at 200 Hz: {:.1} dB",
+                name,
                 change(0.0, 200.0)
             );
             assert!(
                 (-2.5..-0.3).contains(&change(1.0, 100.0)),
-                "{:?} bright at 100 Hz: {:.1} dB",
-                amp,
+                "{} bright at 100 Hz: {:.1} dB",
+                name,
                 change(1.0, 100.0)
             );
             // Steady across the dial
             let steps: Vec<f32> = (0..=10).map(|step| change(step as f32 * 0.1, 4000.0)).collect();
-            assert!(steps.windows(2).all(|pair| pair[1] > pair[0]), "{:?}: {:?}", amp, steps);
+            assert!(steps.windows(2).all(|pair| pair[1] > pair[0]), "{}: {:?}", name, steps);
         }
     }
 
     #[test]
     fn test_resonance_dial_moves_the_thump_only() {
-        for amp in Amp::ALL {
-            let cab = &amp.model().cab;
+        for (_, cab) in every_cab() {
             let change = |resonance: f32, freq: f32| {
                 CabVoicing::response_db(cab, 0.5, resonance, freq, 48000.0)
             };

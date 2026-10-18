@@ -36,6 +36,22 @@ impl Amp {
     pub fn index(self) -> usize {
         self as usize
     }
+
+    /// Where the amp's own cabinet is in `SPEAKERS`
+    pub fn own_speaker(self) -> usize {
+        let id = match self {
+            Amp::Klar => "1x12-open",
+            Amp::Brol => "4x12-mid",
+            Amp::Torden => "4x12-tight",
+            Amp::Glod => "2x12-open",
+        };
+        speaker_index(id).expect("Every amp's cabinet is a speaker")
+    }
+}
+
+/// Where the speaker with this id is in `SPEAKERS`
+pub fn speaker_index(id: &str) -> Option<usize> {
+    SPEAKERS.iter().position(|speaker| speaker.id == id)
 }
 
 /// One gain stage of the preamp
@@ -160,6 +176,143 @@ pub static NEUTRAL_CAB: CabModel = CabModel {
     ir_ms: 5.0,
 };
 
+/// A cabinet that can be picked on the Cab pedal, whichever amp plays through it
+pub struct Speaker {
+    /// Frozen: what a project stores as its choice
+    pub id: &'static str,
+    /// What the display shows: at most ten letters
+    pub name: &'static str,
+    pub cab: CabModel,
+}
+
+/// The built-in cabinets, in the order the Speaker display steps through them. The four
+/// amps' own are among them (`Amp::own_speaker`). New ones may go anywhere: a project
+/// stores the id, not the place
+pub static SPEAKERS: [Speaker; 7] = [
+    Speaker { id: "1x10-small", name: "1X10 SMALL", cab: SMALL_CAB },
+    Speaker { id: "1x12-open", name: "1X12 OPEN", cab: KLAR_CAB },
+    Speaker { id: "2x12-open", name: "2X12 OPEN", cab: GLOD_CAB },
+    Speaker { id: "4x10-crisp", name: "4X10 CRISP", cab: CRISP_CAB },
+    Speaker { id: "4x12-mid", name: "4X12 MID", cab: BROL_CAB },
+    Speaker { id: "4x12-tight", name: "4X12 TIGHT", cab: TORDEN_CAB },
+    Speaker { id: "1x15-deep", name: "1X15 DEEP", cab: DEEP_CAB },
+];
+
+/// Klar's own: one 12" speaker in an open back. Light low end, a clear top
+const KLAR_CAB: CabModel = CabModel {
+    resonance_hz: 78.0,
+    resonance_q: 1.2,
+    body: [130.0, 0.8, 1.5],
+    dip: [400.0, 0.9, -2.5],
+    bite: [3200.0, 0.6, 5.0],
+    rolloff_hz: 6600.0,
+    air_ratio: 1.5,
+    breakup_hz: [1200.0, 7000.0],
+    breakup_count: 24,
+    breakup_db: 1.8,
+    breakup_seed: 30,
+    ir_ms: 5.0,
+};
+
+/// Glød's own: two 12" speakers in an open back. Fuller than one, still open
+const GLOD_CAB: CabModel = CabModel {
+    resonance_hz: 88.0,
+    resonance_q: 1.2,
+    body: [180.0, 0.8, 2.0],
+    dip: [420.0, 0.9, -3.0],
+    bite: [3100.0, 0.8, 5.5],
+    rolloff_hz: 5800.0,
+    air_ratio: 1.6,
+    breakup_hz: [1100.0, 6500.0],
+    breakup_count: 26,
+    breakup_db: 2.6,
+    breakup_seed: 70,
+    ir_ms: 8.0,
+};
+
+/// Brøl's own: four 12" speakers in a closed box. Mids forward, a strong bite
+const BROL_CAB: CabModel = CabModel {
+    resonance_hz: 95.0,
+    resonance_q: 1.3,
+    body: [240.0, 0.8, 2.0],
+    dip: [450.0, 1.0, -4.0],
+    bite: [3000.0, 1.0, 7.0],
+    rolloff_hz: 5200.0,
+    air_ratio: 1.7,
+    breakup_hz: [1000.0, 6000.0],
+    breakup_count: 28,
+    breakup_db: 3.5,
+    breakup_seed: 50,
+    ir_ms: 10.0,
+};
+
+/// Torden's own: four 12" speakers in a closed box, tight and heavy in the lows, a
+/// steep top for a lot of gain
+const TORDEN_CAB: CabModel = CabModel {
+    resonance_hz: 125.0,
+    resonance_q: 1.15,
+    body: [220.0, 0.7, 4.0],
+    dip: [550.0, 1.2, -4.0],
+    bite: [2800.0, 0.9, 6.5],
+    rolloff_hz: 4700.0,
+    air_ratio: 1.2,
+    breakup_hz: [1000.0, 5500.0],
+    breakup_count: 26,
+    breakup_db: 3.0,
+    breakup_seed: 100,
+    ir_ms: 6.0,
+};
+
+/// One 10" speaker in a small open box: little low end, a boxy honk in the mids. Small
+/// and old-fashioned, for blues and a cutting lead
+const SMALL_CAB: CabModel = CabModel {
+    resonance_hz: 135.0,
+    resonance_q: 0.9,
+    body: [600.0, 0.8, 3.0],
+    dip: [1300.0, 1.2, -2.0],
+    bite: [2400.0, 0.9, 4.0],
+    rolloff_hz: 5000.0,
+    air_ratio: 1.4,
+    breakup_hz: [1400.0, 6500.0],
+    breakup_count: 22,
+    breakup_db: 2.4,
+    breakup_seed: 110,
+    ir_ms: 5.0,
+};
+
+/// Four 10" speakers: a quick, tight low end, scooped lower mids and a top that reaches
+/// higher than any 12". Sparkle for clean playing
+const CRISP_CAB: CabModel = CabModel {
+    resonance_hz: 90.0,
+    resonance_q: 1.0,
+    body: [170.0, 0.9, 1.0],
+    dip: [650.0, 0.9, -3.5],
+    bite: [3600.0, 0.8, 5.0],
+    rolloff_hz: 6700.0,
+    air_ratio: 1.2,
+    breakup_hz: [1500.0, 8000.0],
+    breakup_count: 26,
+    breakup_db: 2.0,
+    breakup_seed: 130,
+    ir_ms: 5.0,
+};
+
+/// One 15" speaker: deep and round, a soft top. Warm clean and jazz
+const DEEP_CAB: CabModel = CabModel {
+    resonance_hz: 78.0,
+    resonance_q: 0.9,
+    body: [140.0, 0.8, 2.5],
+    dip: [1500.0, 1.0, -2.5],
+    bite: [2300.0, 0.9, 3.0],
+    rolloff_hz: 3800.0,
+    air_ratio: 1.8,
+    breakup_hz: [900.0, 4500.0],
+    breakup_count: 22,
+    breakup_db: 2.2,
+    breakup_seed: 150,
+    ir_ms: 8.0,
+};
+
 /// Everything that makes one amp differ from another
 pub struct AmpModel {
     // Only the report prints it until the editor names the amps
@@ -279,20 +432,7 @@ static KLAR: AmpModel = AmpModel {
         presence_hz: 5000.0,
         presence_db: 8.0,
     },
-    cab: CabModel {
-        resonance_hz: 78.0,
-        resonance_q: 1.2,
-        body: [130.0, 0.8, 1.5],
-        dip: [400.0, 0.9, -2.5],
-        bite: [3200.0, 0.6, 5.0],
-        rolloff_hz: 6600.0,
-        air_ratio: 1.5,
-        breakup_hz: [1200.0, 7000.0],
-        breakup_count: 24,
-        breakup_db: 1.8,
-        breakup_seed: 30,
-        ir_ms: 5.0,
-    },
+    cab: KLAR_CAB,
 };
 
 /// Crunch: a mid-forward stack. Little low end goes into the clipping, so chords stay
@@ -373,20 +513,7 @@ static BROL: AmpModel = AmpModel {
         presence_hz: 4000.0,
         presence_db: 8.0,
     },
-    cab: CabModel {
-        resonance_hz: 95.0,
-        resonance_q: 1.3,
-        body: [240.0, 0.8, 2.0],
-        dip: [450.0, 1.0, -4.0],
-        bite: [3000.0, 1.0, 7.0],
-        rolloff_hz: 5200.0,
-        air_ratio: 1.7,
-        breakup_hz: [1000.0, 6000.0],
-        breakup_count: 28,
-        breakup_db: 3.5,
-        breakup_seed: 50,
-        ir_ms: 10.0,
-    },
+    cab: BROL_CAB,
 };
 
 /// Edge of breakup: warm and chiming, between Klar's headroom and Brøl's crunch. Two stages
@@ -457,20 +584,7 @@ static GLOD: AmpModel = AmpModel {
         presence_hz: 4500.0,
         presence_db: 8.0,
     },
-    cab: CabModel {
-        resonance_hz: 88.0,
-        resonance_q: 1.2,
-        body: [180.0, 0.8, 2.0],
-        dip: [420.0, 0.9, -3.0],
-        bite: [3100.0, 0.8, 5.5],
-        rolloff_hz: 5800.0,
-        air_ratio: 1.6,
-        breakup_hz: [1100.0, 6500.0],
-        breakup_count: 26,
-        breakup_db: 2.6,
-        breakup_seed: 70,
-        ir_ms: 8.0,
-    },
+    cab: GLOD_CAB,
 };
 
 /// High gain: tight and modern. The low end is cut before the clipping and put back after
@@ -560,20 +674,7 @@ static TORDEN: AmpModel = AmpModel {
         presence_hz: 3800.0,
         presence_db: 10.0,
     },
-    cab: CabModel {
-        resonance_hz: 125.0,
-        resonance_q: 1.15,
-        body: [220.0, 0.7, 4.0],
-        dip: [550.0, 1.2, -4.0],
-        bite: [2800.0, 0.9, 6.5],
-        rolloff_hz: 4700.0,
-        air_ratio: 1.2,
-        breakup_hz: [1000.0, 5500.0],
-        breakup_count: 26,
-        breakup_db: 3.0,
-        breakup_seed: 100,
-        ir_ms: 6.0,
-    },
+    cab: TORDEN_CAB,
 };
 
 #[cfg(test)]
@@ -598,6 +699,43 @@ mod tests {
             }
             assert!(model.power.sag >= 0.0 && model.power.sag < 0.5);
             assert!(model.cab.breakup_hz[0] < model.cab.breakup_hz[1]);
+        }
+    }
+
+    #[test]
+    fn test_speakers_are_usable_and_hold_every_amps_own() {
+        for (index, speaker) in SPEAKERS.iter().enumerate() {
+            assert_eq!(speaker_index(speaker.id), Some(index), "{}: ids must differ", speaker.id);
+            assert!(!speaker.id.ends_with(".wav") && !speaker.id.is_empty());
+            assert!(speaker.name.chars().count() <= 10, "{}", speaker.name);
+            assert!(speaker.name.chars().all(|letter| !letter.is_lowercase()));
+            let cab = &speaker.cab;
+            assert!(cab.air_ratio >= 1.0 && cab.breakup_hz[0] < cab.breakup_hz[1]);
+            assert!(cab.body[0] < cab.dip[0] && cab.dip[0] < cab.bite[0], "{}", speaker.id);
+            assert!(cab.bite[0] < cab.rolloff_hz && cab.ir_ms <= 20.0);
+            for other in &SPEAKERS[..index] {
+                assert!(other.name != speaker.name && other.cab != speaker.cab);
+            }
+        }
+        for amp in Amp::ALL {
+            assert!(SPEAKERS[amp.own_speaker()].cab == amp.model().cab, "{:?}", amp);
+        }
+    }
+
+    #[test]
+    fn test_speaker_ids_are_frozen() {
+        // A project stores these: one may be added, none renamed or taken away
+        let ids: Vec<&str> = SPEAKERS.iter().map(|speaker| speaker.id).collect();
+        for id in [
+            "1x10-small",
+            "1x12-open",
+            "2x12-open",
+            "4x10-crisp",
+            "4x12-mid",
+            "4x12-tight",
+            "1x15-deep",
+        ] {
+            assert!(ids.contains(&id), "{id}");
         }
     }
 }

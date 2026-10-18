@@ -11,6 +11,7 @@
 //! `CabLoader` is everything around that which is not for the audio thread: which file
 //! is chosen, reading it, and what the display says about it.
 
+use crate::amp::model::SPEAKERS;
 use crate::cab::{tail_spectra, MAX_TAIL_SPECTRA_LEN, MAX_USER_IR_LEN};
 use crate::user_cab::{self, LoadError};
 use std::cell::UnsafeCell;
@@ -26,8 +27,9 @@ const TAKING: u8 = 3;
 
 struct Held {
     taps: Box<[f32]>,
-    // No taps stands for the amp's own cabinet
+    // No taps stands for a built-in cabinet: `speaker`, or with none the amp's own
     len: usize,
+    speaker: Option<usize>,
     // What the cabinet needs of a long response besides the taps: `cab::tail_spectra`
     spectra: Box<[f32]>,
     spectra_len: usize,
@@ -55,6 +57,7 @@ impl CabStage {
             held: UnsafeCell::new(Held {
                 taps: vec![0.0; MAX_USER_IR_LEN].into_boxed_slice(),
                 len: 0,
+                speaker: None,
                 spectra: vec![0.0; MAX_TAIL_SPECTRA_LEN].into_boxed_slice(),
                 spectra_len: 0,
                 sample_rate: 0.0,
@@ -67,6 +70,16 @@ impl CabStage {
     /// all for the amp's own cabinet. Replaces what was left before and not taken yet.
     /// Not for the audio thread: it may wait a moment for it
     pub fn offer(&self, taps: &[f32], sample_rate: f32) {
+        self.put(taps, None, sample_rate);
+    }
+
+    /// Leaves one of the built-in cabinets to be taken, by its place in `SPEAKERS`. The
+    /// chain designs those itself, for `sample_rate`. As `offer` otherwise
+    pub fn offer_speaker(&self, speaker: usize, sample_rate: f32) {
+        self.put(&[], Some(speaker), sample_rate);
+    }
+
+    fn put(&self, taps: &[f32], speaker: Option<usize>, sample_rate: f32) {
         let _loader = self.loaders.lock().unwrap_or_else(PoisonError::into_inner);
         let claim = |from: u8| {
             self.state.compare_exchange(from, WRITING, Ordering::AcqRel, Ordering::Acquire).is_ok()
@@ -79,6 +92,7 @@ impl CabStage {
         let held = unsafe { &mut *self.held.get() };
         held.len = taps.len().min(held.taps.len());
         held.taps[..held.len].copy_from_slice(&taps[..held.len]);
+        held.speaker = speaker;
         // Worked out here, so the audio thread only has to copy it
         held.spectra_len = tail_spectra(&taps[..held.len], sample_rate, &mut held.spectra);
         held.sample_rate = sample_rate;
@@ -90,17 +104,23 @@ impl CabStage {
         self.state.load(Ordering::Acquire) == READY
     }
 
-    /// Gives the cabinet that waits, if one does, to `receive`: its taps (none for the
-    /// amp's own cabinet), what `cab::tail_spectra` made of them, and the sample rate
-    /// both are for. For the audio thread: it does not wait, allocate or free
-    pub fn take(&self, receive: impl FnOnce(&[f32], &[f32], f32)) -> bool {
+    /// Gives the cabinet that waits, if one does, to `receive`: its taps (none for a
+    /// built-in cabinet), what `cab::tail_spectra` made of them, which built-in cabinet
+    /// it is (none for the amp's own or a file), and the sample rate it is for. For the
+    /// audio thread: it does not wait, allocate or free
+    pub fn take(&self, receive: impl FnOnce(&[f32], &[f32], Option<usize>, f32)) -> bool {
         if self.state.compare_exchange(READY, TAKING, Ordering::AcqRel, Ordering::Acquire).is_err()
         {
             return false;
         }
         // SAFETY: the state is `TAKING` and this thread made it so
         let held = unsafe { &*self.held.get() };
-        receive(&held.taps[..held.len], &held.spectra[..held.spectra_len], held.sample_rate);
+        receive(
+            &held.taps[..held.len],
+            &held.spectra[..held.spectra_len],
+            held.speaker,
+            held.sample_rate,
+        );
         self.state.store(EMPTY, Ordering::Release);
         true
     }
@@ -194,6 +214,11 @@ impl CabLoader {
                 user_cab::OWN_NAME.to_owned()
             };
         }
+        if let Some(speaker) = user_cab::speaker_of(chosen) {
+            return SPEAKERS[speaker].name.chars().take(max_chars).collect();
+        }
+        // A built-in cabinet of another build is shown by its id
+        let chosen = chosen.split_once(':').map_or(chosen, |(_, id)| id);
         match self.status() {
             CabStatus::Fine => user_cab::display_name(chosen, max_chars),
             CabStatus::Bad => {
@@ -213,9 +238,10 @@ impl CabLoader {
         }
     }
 
-    /// Reads the chosen file from the cabinets folder and leaves it on the stage; the
-    /// amp's own cabinet if nothing is chosen or the file cannot be used. Looks for the
-    /// folder and reads the disk only when a file is chosen. Not for the audio thread
+    /// Reads the chosen file from the cabinets folder and leaves it on the stage; a built-in
+    /// cabinet when one is chosen; the amp's own if nothing is chosen, or the file or the
+    /// built-in cabinet (from another build) cannot be found or used. Looks for the folder
+    /// and reads the disk only when a file is chosen. Not for the audio thread
     pub fn load(&self, choice: &Mutex<String>) {
         self.load_with(choice, user_cab::cabinets_dir);
     }
@@ -231,8 +257,15 @@ impl CabLoader {
         let chosen = choice.lock().unwrap_or_else(PoisonError::into_inner).clone();
         let sample_rate = f32::from_bits(self.sample_rate.load(Ordering::Acquire));
 
+        if let Some(speaker) = user_cab::speaker_of(&chosen) {
+            self.stage.offer_speaker(speaker, sample_rate);
+            self.status.store(CabStatus::Fine as u8, Ordering::Relaxed);
+            return;
+        }
         let loaded = if chosen.is_empty() {
             Ok(Vec::new())
+        } else if user_cab::is_speaker_choice(&chosen) {
+            Err(LoadError::Missing)
         } else {
             match dir() {
                 // A name from a saved project is not followed out of the folder
@@ -260,7 +293,7 @@ mod tests {
 
     fn taken(stage: &CabStage) -> Option<(Vec<f32>, f32)> {
         let mut received = None;
-        stage.take(|taps, _, sample_rate| received = Some((taps.to_vec(), sample_rate)));
+        stage.take(|taps, _, _, sample_rate| received = Some((taps.to_vec(), sample_rate)));
         received
     }
 
@@ -310,7 +343,7 @@ mod tests {
         let mut last = 0.0;
         let mut takes = 0;
         while last < OFFERS as f32 {
-            stage.take(|taps, _, sample_rate| {
+            stage.take(|taps, _, _, sample_rate| {
                 assert_eq!(taps.len() as f32, sample_rate);
                 assert!(taps.iter().all(|&tap| tap == taps[0]), "Taps of two offers");
                 assert!(taps[0] > last, "Offer {} after {}", taps[0], last);
@@ -405,5 +438,43 @@ mod tests {
         let (resampled, sample_rate) = choose("good.wav");
         assert_eq!(sample_rate, 96000.0);
         assert!(resampled.len() > taps.len() * 3 / 2);
+    }
+
+    #[test]
+    fn test_loader_leaves_a_built_in_cabinet_by_its_place() {
+        let stage = Arc::new(CabStage::new());
+        let loader = CabLoader::new(stage.clone(), 96000.0);
+        let choice = Mutex::new(String::new());
+        let take_speaker = || {
+            let mut received = None;
+            stage.take(|taps, _, speaker, sample_rate| {
+                received = Some((taps.len(), speaker, sample_rate));
+            });
+            received.expect("Nothing was left on the stage")
+        };
+        for speaker in 0..SPEAKERS.len() {
+            *choice.lock().unwrap() = user_cab::speaker_choice(speaker);
+            loader.chosen();
+            // No folder is looked for: it is not a file
+            loader.load_from(&choice, None);
+            assert_eq!(take_speaker(), (0, Some(speaker), 96000.0));
+            assert_eq!(loader.status(), CabStatus::Fine);
+            let chosen = choice.lock().unwrap().clone();
+            assert_eq!(loader.display_name(&chosen, 10), SPEAKERS[speaker].name);
+        }
+
+        // A file after it is no built-in cabinet, and the amp's own is none either
+        stage.offer(&[0.5], 96000.0);
+        assert_eq!(take_speaker(), (1, None, 96000.0));
+        *choice.lock().unwrap() = String::new();
+        loader.load_from(&choice, None);
+        assert_eq!(take_speaker(), (0, None, 96000.0));
+
+        // One that this build does not have: the amp's own, and the display says it is gone
+        *choice.lock().unwrap() = "speaker:8x10-huge".to_owned();
+        loader.load_from(&choice, None);
+        assert_eq!(take_speaker(), (0, None, 96000.0));
+        assert_eq!(loader.status(), CabStatus::Missing);
+        assert_eq!(loader.display_name("speaker:8x10-huge", 10), "?8X10-HUGE");
     }
 }
