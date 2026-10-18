@@ -1030,11 +1030,14 @@ pub mod tests {
     fn export_cabinets() {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/renders/cabinets");
         std::fs::create_dir_all(&dir).unwrap();
-        for speaker in &SPEAKERS {
-            let path = dir.join(format!("{}.wav", speaker.id));
+        let amps_own =
+            Amp::ALL.iter().map(|amp| (format!("{} cabinet", amp.model().name), &amp.model().cab));
+        let speakers = SPEAKERS.iter().map(|speaker| (speaker.id.to_owned(), &speaker.cab));
+        for (name, cab) in amps_own.chain(speakers) {
+            let path = dir.join(format!("{name}.wav"));
             write_ir_wav(
                 &path,
-                &cab_response(&speaker.cab, 48000.0, EXPORT_S, EXPORT_LEVEL),
+                &cab_response(cab, 48000.0, EXPORT_S, EXPORT_LEVEL),
                 1,
                 24,
                 false,

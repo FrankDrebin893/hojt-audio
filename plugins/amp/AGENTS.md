@@ -13,7 +13,7 @@ gain), Glød (warm edge of breakup, between Klar and Brøl). They share the six 
 - `src/chain.rs` - `AmpChain`: the whole chain, dial smoothing, bypass crossfade, amp switching
 - `src/gate.rs`, `src/drive.rs` - Noise gate; overdrive pedal
 - `src/amp/` - `model.rs` (`Amp` and one `AmpModel` of constants per amp; `SPEAKERS`, the
-  built-in cabinets, the amps' own among them), `preamp.rs`,
+  built-in cabinets), `preamp.rs`,
   `tonestack.rs`, `poweramp.rs`
 - `src/cab.rs` - Cabinet: impulse response designed in code at 48 kHz and resampled for other
   rates, direct FIR; a player's response of 641 taps or more keeps its first two blocks as a
@@ -84,7 +84,7 @@ How it behaves:
   project never opens with the tuner on
 - Besides its own cabinet an amp can play through any of the seven built-in cabinets
   (`SPEAKERS` in `amp/model.rs`: `1X10 SMALL`, `1X12 OPEN`, `2X12 OPEN`, `4X10 CRISP`,
-  `4X12 MID`, `4X12 TIGHT`, `1X15 DEEP`; the four amps' own are among them), picked on the
+  `4X12 MID`, `4X12 TIGHT`, `1X15 DEEP`; designs of their own, not the amps'), picked on the
   Cab pedal after `OWN`. A built-in cabinet is stored as `speaker:<id>` in the cabinet choice;
   the ids are frozen (a test holds them), the order may change. One this build does not have
   plays the amp's own and is shown with `?`. Picking the cabinet that already plays changes
@@ -240,8 +240,14 @@ cargo test -p amp --release user_cab_report -- --ignored --nocapture
 # Long cabinets: direct FIR against the tail, per length and rate; error, evenness, swaps.
 cargo test -p amp --release convolver_report -- --ignored --nocapture
 
-# The seven built-in cabinets as 48 kHz WAV files in target/renders/cabinets (cab_report
-# prints their levels per frequency).
+# How far apart the seven built-in cabinets are: octave bands of a guitar through Klar and
+# Torden and each one, and the difference of every pair. render_speakers writes the same
+# as WAV files in target/renders (amp_cab_*.wav), to hear them side by side.
+cargo test -p amp --release speaker_report -- --ignored --nocapture
+cargo test -p amp --release render_speakers -- --ignored
+
+# The amps' own and the seven built-in cabinets as 48 kHz WAV files in
+# target/renders/cabinets (cab_report prints their levels per frequency).
 cargo test -p amp --release export_cabinets -- --ignored --nocapture
 
 # A DI guitar through each amp and setting, as WAV files in target/renders (amp_*.wav).
