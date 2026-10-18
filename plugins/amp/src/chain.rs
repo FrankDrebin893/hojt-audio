@@ -73,6 +73,16 @@ enum Playing {
     File,
 }
 
+/// Where the cabinet that plays is in the chain's designed cabinets: the amp's own, then
+/// the built-in ones. None for a file
+fn cab_ir_index(playing: Playing, amp: Amp) -> Option<usize> {
+    match playing {
+        Playing::Own => Some(amp.index()),
+        Playing::Speaker(speaker) => Some(Amp::ALL.len() + speaker),
+        Playing::File => None,
+    }
+}
+
 /// What the knobs say, read once per block. The chain smooths the values itself
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AmpSettings {
@@ -279,7 +289,8 @@ pub struct AmpChain {
     tone: ToneStack,
     power: PowerAmp,
     cabinet: Cabinet,
-    // Every built-in cabinet (`SPEAKERS`), designed when the sample rate is set
+    // Every cabinet designed here, when the sample rate is set: the amps' own in the order
+    // of `Amp::ALL`, then the built-in ones of `SPEAKERS` (`cab_ir_index`)
     cab_irs: Vec<CabIr>,
     // Where a cabinet the player chose is left for the chain to take, and which cabinet
     // plays: one the player chose stays whatever amp is picked
@@ -430,12 +441,16 @@ impl AmpChain {
         self.delay.set_sample_rate(sample_rate);
         self.reverb.set_sample_rate(sample_rate);
 
-        self.cab_irs =
-            SPEAKERS.iter().map(|speaker| design_ir(&speaker.cab, sample_rate)).collect();
+        self.cab_irs = Amp::ALL
+            .iter()
+            .map(|amp| &amp.model().cab)
+            .chain(SPEAKERS.iter().map(|speaker| &speaker.cab))
+            .map(|cab| design_ir(cab, sample_rate))
+            .collect();
         self.cabinet.set_sample_rate(sample_rate);
         // A cabinet the player chose was made for the rate before: it has to be left on
         // the stage again for this one. Until then the amp plays through its own
-        self.cabinet.set_ir(&self.cab_irs[self.amp.own_speaker()]);
+        self.cabinet.set_ir(&self.cab_irs[self.amp.index()]);
         self.playing = Playing::Own;
 
         self.configure_amp();
@@ -517,12 +532,12 @@ impl AmpChain {
         let own = self.playing == Playing::Own;
         if unheard {
             if own {
-                self.cabinet.set_ir(&self.cab_irs[self.amp.own_speaker()]);
+                self.cabinet.set_ir(&self.cab_irs[self.amp.index()]);
             }
             self.amp_fade = self.amp_fade_len;
         } else if own {
             debug_assert!(!self.cabinet.is_swapping());
-            self.cabinet.swap_ir(&self.cab_irs[self.amp.own_speaker()]);
+            self.cabinet.swap_ir(&self.cab_irs[self.amp.index()]);
             self.cabinet_busy = self.cabinet.swap_len();
         }
         self.configure_amp();
@@ -553,18 +568,13 @@ impl AmpChain {
             }
             let chosen = match speaker {
                 _ if !taps.is_empty() => Playing::File,
-                Some(speaker) if speaker < cab_irs.len() => Playing::Speaker(speaker),
+                Some(speaker) if speaker < SPEAKERS.len() => Playing::Speaker(speaker),
                 _ => Playing::Own,
             };
-            // Which built-in cabinet plays, and which is chosen
-            let built_in_of = |playing: Playing| match playing {
-                Playing::Own => Some(amp.own_speaker()),
-                Playing::Speaker(speaker) => Some(speaker),
-                Playing::File => None,
-            };
-            let was_built_in = built_in_of(*playing);
+            // Which cabinet designed here plays, and which is chosen
+            let was_built_in = cab_ir_index(*playing, *amp);
             *playing = chosen;
-            let Some(speaker) = built_in_of(chosen) else {
+            let Some(index) = cab_ir_index(chosen, *amp) else {
                 if unheard {
                     cabinet.set_taps(taps, spectra);
                 } else {
@@ -573,14 +583,14 @@ impl AmpChain {
                 }
                 return;
             };
-            // A built-in cabinet is not swapped for itself
-            if was_built_in == Some(speaker) {
+            // A cabinet is not swapped for itself
+            if was_built_in == Some(index) {
                 return;
             }
             if unheard {
-                cabinet.set_ir(&cab_irs[speaker]);
+                cabinet.set_ir(&cab_irs[index]);
             } else {
-                cabinet.swap_ir(&cab_irs[speaker]);
+                cabinet.swap_ir(&cab_irs[index]);
                 *cabinet_busy = cabinet.swap_len();
             }
         });
@@ -2587,7 +2597,7 @@ mod tests {
                 chain.process(&with_amp(Amp::ALL[(index / 40) % Amp::ALL.len()], 0.5), piece, None);
             }
             assert_eq!(layout(&chain), before);
-            assert_eq!(chain.cab_irs.len(), SPEAKERS.len());
+            assert_eq!(chain.cab_irs.len(), Amp::ALL.len() + SPEAKERS.len());
         }
     }
 
@@ -4139,27 +4149,26 @@ mod tests {
     }
 
     #[test]
-    fn test_an_amps_own_cabinet_picked_as_a_speaker_changes_nothing() {
-        // Bit for bit, picked before the first block or while playing
+    fn test_picking_the_speaker_that_plays_changes_nothing() {
+        // Bit for bit: picked once before the first block, and again while it plays
         let input = power_chords(SAMPLE_RATE, 0.5);
-        for amp in Amp::ALL {
-            let settings = with_effects(everything_on(amp, 0.6));
-            let reference = run(&settings, &input, SAMPLE_RATE);
+        for speaker in 0..SPEAKERS.len() {
+            let settings = with_effects(everything_on(Amp::Brol, 0.6));
             let mut chain = new_chain(SAMPLE_RATE);
-            chain.cab_stage().offer_speaker(amp.own_speaker(), SAMPLE_RATE);
-            assert!(run_blocks(&mut chain, &settings, &input, BLOCK) == reference, "{:?}", amp);
-            assert_eq!(chain.playing, Playing::Speaker(amp.own_speaker()));
+            chain.cab_stage().offer_speaker(speaker, SAMPLE_RATE);
+            let reference = run_blocks(&mut chain, &settings, &input, BLOCK);
+            assert_eq!(chain.playing, Playing::Speaker(speaker));
 
             let mut chain = new_chain(SAMPLE_RATE);
+            chain.cab_stage().offer_speaker(speaker, SAMPLE_RATE);
             let mut output = input.clone();
             for (index, block) in output.chunks_mut(BLOCK).enumerate() {
                 if index == 100 {
-                    chain.cab_stage().offer_speaker(amp.own_speaker(), SAMPLE_RATE);
+                    chain.cab_stage().offer_speaker(speaker, SAMPLE_RATE);
                 }
                 chain.process(&settings, block, None);
             }
-            let difference = largest_difference(&output, &reference);
-            assert!(difference < 1e-6, "{:?}: {difference}", amp);
+            assert!(output == reference, "{}", SPEAKERS[speaker].id);
         }
     }
 
@@ -4197,8 +4206,9 @@ mod tests {
     #[test]
     fn test_speakers_sound_apart_and_about_as_loud() {
         // Every amp through every built-in cabinet: none is much louder or quieter than
-        // through the amp's own, and no two cabinets sound alike
-        let input = power_chords(SAMPLE_RATE, 0.5);
+        // through the amp's own, and every two are heard apart: at least 3 dB apart in
+        // one octave band of a guitar, where the amps' own cabinets are 1 to 2 dB apart
+        let input = guitar_di(SAMPLE_RATE);
         for amp in Amp::ALL {
             let settings = with_amp(amp, 0.5);
             let own_level = loudness_lufs(&[&run(&settings, &input, SAMPLE_RATE)], SAMPLE_RATE);
@@ -4220,8 +4230,20 @@ mod tests {
                     own_level
                 );
                 assert!(peak(output) < 1.0);
-                for other in &outputs[..speaker] {
-                    assert!(largest_difference(output, other) > 0.02 * peak(output));
+                let bands = band_levels_db(output, SAMPLE_RATE);
+                for (other, other_output) in outputs[..speaker].iter().enumerate() {
+                    let apart = band_levels_db(other_output, SAMPLE_RATE)
+                        .iter()
+                        .zip(&bands)
+                        .fold(0.0f32, |top, (a, b)| top.max((a - b).abs()));
+                    assert!(
+                        apart > 3.0,
+                        "{:?}: {} and {} are {:.1} dB apart",
+                        amp,
+                        SPEAKERS[speaker].id,
+                        SPEAKERS[other].id,
+                        apart
+                    );
                 }
             }
         }
@@ -6080,6 +6102,76 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
                 print!("{:>8.1} ns{:>6.2} %", ns, share(ns, *sample_rate));
             }
             println!();
+        }
+    }
+
+    /// A guitar through `amp` at `gain` and one of the built-in cabinets
+    fn through_speaker(amp: Amp, gain: f32, speaker: usize, input: &[f32], rate: f32) -> Vec<f32> {
+        let mut chain = new_chain(rate);
+        chain.cab_stage().offer_speaker(speaker, rate);
+        run_blocks(&mut chain, &with_amp(amp, gain), input, BLOCK)
+    }
+
+    /// Prints how far apart the built-in cabinets are: the level of each octave band of a
+    /// guitar through Klar (clean) and Torden (high gain) and each cabinet, against the
+    /// whole, and for each pair the largest and the average difference across the bands:
+    ///   cargo test -p amp --release speaker_report -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn speaker_report() {
+        let input = guitar_di(SAMPLE_RATE);
+        for (amp, gain) in [(Amp::Klar, 0.3), (Amp::Torden, 0.7)] {
+            println!("{:?} at Gain {:.0}: octave bands in dB against the whole", amp, gain * 10.0);
+            print!("{:<12}", "");
+            for edges in BAND_EDGES_HZ.windows(2) {
+                print!("{:>7.0}", (edges[0] * edges[1]).sqrt());
+            }
+            println!("{:>8}", "LUFS");
+            let bands: Vec<Vec<f32>> = (0..SPEAKERS.len())
+                .map(|speaker| {
+                    let output = through_speaker(amp, gain, speaker, &input, SAMPLE_RATE);
+                    let levels = band_levels_db(&output, SAMPLE_RATE);
+                    print!("{:<12}", SPEAKERS[speaker].id);
+                    levels.iter().for_each(|level| print!("{:>7.1}", level));
+                    println!("{:>8.1}", loudness_lufs(&[&output], SAMPLE_RATE));
+                    levels
+                })
+                .collect();
+            println!("Pairs: largest / average difference across the bands, dB");
+            for a in 0..SPEAKERS.len() {
+                print!("{:<12}", SPEAKERS[a].id);
+                for b in 0..SPEAKERS.len() {
+                    let differences: Vec<f32> =
+                        bands[a].iter().zip(&bands[b]).map(|(x, y)| (x - y).abs()).collect();
+                    let largest = differences.iter().fold(0.0f32, |top, d| top.max(*d));
+                    let average = differences.iter().sum::<f32>() / differences.len() as f32;
+                    print!("{:>6.1}/{:<4.1}", largest, average);
+                }
+                println!();
+            }
+            println!();
+        }
+    }
+
+    /// Writes a guitar through Klar and Torden and each built-in cabinet to target/renders
+    /// (amp_cab_<amp>_<cabinet>.wav), to hear them side by side:
+    ///   cargo test -p amp --release render_speakers -- --ignored
+    /// Set AMP_INPUT_WAV to the path of a recording to use that instead of the made-up one
+    #[test]
+    #[ignore]
+    fn render_speakers() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/renders");
+        std::fs::create_dir_all(&dir).unwrap();
+        let (input, sample_rate) = match std::env::var("AMP_INPUT_WAV") {
+            Ok(path) => read_wav_mono(&path),
+            Err(_) => (guitar_di(SAMPLE_RATE), SAMPLE_RATE as u32),
+        };
+        for (amp, gain) in [(Amp::Klar, 0.3), (Amp::Torden, 0.7)] {
+            for (speaker, model) in SPEAKERS.iter().enumerate() {
+                let output = through_speaker(amp, gain, speaker, &input, sample_rate as f32);
+                let name = format!("amp_cab_{:?}_{}.wav", amp, model.id).to_lowercase();
+                write_wav(&dir.join(name), &[&output, &output], sample_rate);
+            }
         }
     }
 
