@@ -55,6 +55,10 @@ jobs:
         if: runner.os == 'macOS'
         run: cargo xtask bundle-universal -p pitch_shifter -p drums -p amp -p bass -p bells -p pad --release
 
+      # Every bundle carries its plugin's artwork, or it was not built from these sources
+      - name: Check the artwork
+        run: cargo xtask check-art
+
       - name: Package
         shell: bash
         run: bash scripts/package.sh ${{ matrix.name }}
