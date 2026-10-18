@@ -74,7 +74,11 @@ and where; `from:user` marks issues from outside the project.
 - Pull requests, and the specs and comments the agent posts on GitHub, never name a person: say
   "somebody" or "needs to be manually reviewed". Names are for chat
 - The agent turns on auto-merge (and Auto-fix if supported by the agent platform) on every pull request
-  it opens, and builds the next approved issue (`/next`) once one is merged. A merge still needs CI to pass
+  it opens. A merge still needs CI to pass
+- `/next` works through the whole list: the session that runs it only picks and checks, and
+  every issue is built in a sub-session of its own, started with a fresh context. It starts the
+  next once the last is merged, and goes on until every approved issue is merged or waiting on
+  an answer from Rasmus
 - `main` is protected: a pull request merges only when `Test` on all three systems and
   `Format and clippy` pass, for admins too, and nothing is pushed to it directly. A check
   that is renamed in `ci.yml` must be renamed in the protection as well, or nothing merges.
