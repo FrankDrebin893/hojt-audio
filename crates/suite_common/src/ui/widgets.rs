@@ -229,7 +229,12 @@ pub fn stepper(ui: &mut Ui, center: Pos2, width: f32, text: &str, id_source: &st
         let rect = Rect::from_center_size(button, Vec2::splat(STEPPER_BUTTON_RADIUS * 2.0 + 4.0));
         let response =
             ui.interact(rect, Id::new(("stepper", id_source, side > 0.0)), Sense::click());
-        push_button(ui.painter(), button, side, response.is_pointer_button_down_on());
+        push_button(
+            ui.painter(),
+            button,
+            Engraving::Arrow(side),
+            response.is_pointer_button_down_on(),
+        );
         if response.clicked() {
             step = Some(direction);
         }
@@ -405,7 +410,26 @@ fn meter_lamps(painter: &Painter, rect: Rect, cents: Option<f32>) {
 
 /// Small chrome push button with an arrow head engraved in its cap. `side` is -1 for the
 /// arrow pointing left, 1 for right
-fn push_button(painter: &Painter, center: Pos2, side: f32, pressed: bool) {
+/// What is engraved in the cap of a `push_button`
+#[derive(Clone, Copy)]
+enum Engraving {
+    /// An arrow pointing left (-1.0) or right (1.0)
+    Arrow(f32),
+    /// A dot: a button that does one thing, named by the caption beside it
+    Dot,
+}
+
+/// A small chrome push button on its own, like those at the ends of a `stepper`, with a dot
+/// engraved in its cap. For an action, not a setting: it has no LED and stays up. Its
+/// caption is a `silk_label` above it. Returns the click response.
+pub fn chrome_button(ui: &mut Ui, center: Pos2, id_source: &str) -> Response {
+    let rect = Rect::from_center_size(center, Vec2::splat(STEPPER_BUTTON_RADIUS * 2.0 + 4.0));
+    let response = ui.interact(rect, Id::new(("push-button", id_source)), Sense::click());
+    push_button(ui.painter(), center, Engraving::Dot, response.is_pointer_button_down_on());
+    response
+}
+
+fn push_button(painter: &Painter, center: Pos2, engraving: Engraving, pressed: bool) {
     let radius = STEPPER_BUTTON_RADIUS;
     let ring = Stroke::new(1.0, Color32::from_black_alpha(110));
     painter.circle_filled(center + vec2(0.0, 2.5), radius + 0.5, SHADOW);
@@ -421,13 +445,20 @@ fn push_button(painter: &Painter, center: Pos2, side: f32, pressed: bool) {
     );
     painter.circle_stroke(cap, radius - 2.5, ring);
 
-    let tip = cap + vec2(side * 4.0, 0.0);
-    let base = cap - vec2(side * 2.5, 0.0);
-    painter.add(Shape::convex_polygon(
-        vec![tip, base + vec2(0.0, -4.2), base + vec2(0.0, 4.2)],
-        INK,
-        Stroke::NONE,
-    ));
+    match engraving {
+        Engraving::Arrow(side) => {
+            let tip = cap + vec2(side * 4.0, 0.0);
+            let base = cap - vec2(side * 2.5, 0.0);
+            painter.add(Shape::convex_polygon(
+                vec![tip, base + vec2(0.0, -4.2), base + vec2(0.0, 4.2)],
+                INK,
+                Stroke::NONE,
+            ));
+        }
+        Engraving::Dot => {
+            painter.circle_filled(cap, 3.0, INK);
+        }
+    }
 }
 
 /// Chrome stomp switch. Returns the click response.

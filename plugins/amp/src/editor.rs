@@ -1,10 +1,11 @@
 use nih_plug::prelude::*;
-use nih_plug_egui::egui::{vec2, Color32, Id, Rect, Sense, Ui, Vec2};
+use nih_plug_egui::egui::{vec2, Color32, Id, Pos2, Rect, Sense, Ui, Vec2};
 use nih_plug_egui::{create_egui_editor, EguiState};
+use std::path::Path;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, PoisonError};
 use suite_common::ui::{
-    self, level_meter, param_knob, param_switch, rig_led, signal_lamp, silk_label,
+    self, chrome_button, level_meter, param_knob, param_switch, rig_led, signal_lamp, silk_label,
     small_footswitch, stepper, theme, tuner_display, MiniStyle, Motif, Ornament, PedalStyle, Step,
     BENCH_MARGIN, SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED, SLIM_SWITCH,
 };
@@ -16,6 +17,7 @@ use crate::lamps::{LampReading, LampView};
 use crate::presets::{self, PRESETS};
 use crate::tuner::{Note, TunerReading};
 use crate::user_cab;
+use crate::user_presets::{self, Bank};
 use crate::{Amp, GuitarAmpParams, GuitarAmpPlugin, Task};
 
 // The width the head's controls are placed in, and five of the wide pedals
@@ -46,6 +48,12 @@ const PRESET_X: f32 = RIG_WIDTH as f32 / 2.0;
 const PRESET_CAPTION_Y: f32 = 25.0;
 const PRESET_Y: f32 = 47.0;
 const PRESET_WIDTH: f32 = 156.0;
+// The Save button right of the preset display, its caption on the line of the display's
+const SAVE_X: f32 = PRESET_X + 150.0;
+// The longest name of a player's preset the display shows, with room for the edited mark
+const USER_NAME_CHARS: usize = 13;
+// How long the display says what Save did
+const SAVE_NOTE_S: f64 = 1.5;
 // Room for the note and seventeen lamps
 const TUNER_WIDTH: f32 = 286.0;
 
@@ -298,6 +306,139 @@ fn step_cabinet(
     async_executor.execute_background(Task::LoadCabinet);
 }
 
+/// What the editor keeps from one frame to the next
+pub(crate) struct View {
+    lamps: LampView,
+    /// The player's presets, as the folder was when it was last looked at: when the window
+    /// opened, and with every step and save
+    bank: Bank,
+    /// What the preset display says instead of the name, and until when
+    note: Option<(&'static str, f64)>,
+}
+
+/// The preset display and the Save button beside it
+struct PresetDisplay<'a> {
+    params: &'a GuitarAmpParams,
+    setter: &'a ParamSetter<'a>,
+    cab_loader: &'a CabLoader,
+    async_executor: &'a AsyncExecutor<GuitarAmpPlugin>,
+}
+
+impl PresetDisplay<'_> {
+    fn user_preset(&self) -> String {
+        self.params.user_preset.lock().unwrap_or_else(PoisonError::into_inner).clone()
+    }
+
+    fn set_user_preset(&self, file: &str) {
+        file.clone_into(
+            &mut self.params.user_preset.lock().unwrap_or_else(PoisonError::into_inner),
+        );
+    }
+
+    /// The caption with the folder behind it, the display that steps through the presets,
+    /// and the Save button
+    fn draw(&self, ui: &mut Ui, origin: Pos2, view: &mut View, now: f64) {
+        let params = self.params;
+        let dir = user_presets::presets_dir();
+        let factory = presets::index_or_first(params.preset.load(Ordering::Relaxed));
+        let user = self.user_preset();
+
+        let caption = origin + vec2(PRESET_X, PRESET_CAPTION_Y);
+        silk_label(ui.painter(), caption, "Preset", 13.0);
+        // Where the player's presets are kept: shown when the caption is hovered, and opened
+        // by a double-click on it, to rename, copy or throw them away
+        if let Some(dir) = &dir {
+            let response = ui
+                .interact(
+                    Rect::from_center_size(caption, vec2(60.0, 18.0)),
+                    Id::new("preset-folder"),
+                    Sense::click(),
+                )
+                .on_hover_text(format!("Your presets are kept in {}", dir.display()));
+            if response.double_clicked() {
+                let _ = std::fs::create_dir_all(dir);
+                user_cab::open_folder(dir);
+            }
+        }
+
+        let shown = match view.note {
+            Some((note, until)) if now < until => note.to_owned(),
+            _ => {
+                view.note = None;
+                self.shown_name(factory, &user, &view.bank)
+            }
+        };
+        if let Some(step) =
+            stepper(ui, origin + vec2(PRESET_X, PRESET_Y), PRESET_WIDTH, &shown, "preset")
+        {
+            view.note = None;
+            view.bank = Bank::read(params, dir.as_deref());
+            let place = user_presets::place(factory, &user, &view.bank);
+            let next = user_presets::neighbour(place, &view.bank, step == Step::Next);
+            self.load(next, &view.bank);
+        }
+
+        silk_label(ui.painter(), origin + vec2(SAVE_X, PRESET_CAPTION_Y), "Save", 13.0);
+        if chrome_button(ui, origin + vec2(SAVE_X, PRESET_Y), "save-preset").clicked() {
+            let saved = dir.as_deref().is_some_and(|dir| self.save(dir, factory, &user, view));
+            view.note = Some((if saved { "SAVED" } else { "NOT SAVED" }, now + SAVE_NOTE_S));
+            // Draw once more when the note is over
+            ui.ctx().request_repaint_after(std::time::Duration::from_secs_f64(SAVE_NOTE_S));
+        }
+    }
+
+    /// The name of the preset loaded last, marked once something was moved away from it. A
+    /// player's preset that is no longer in the folder has the cabinets' missing mark
+    fn shown_name(&self, factory: usize, user: &str, bank: &Bank) -> String {
+        if user.is_empty() {
+            return PRESETS[factory].display_name(self.params);
+        }
+        let name = user_presets::display_name(user, USER_NAME_CHARS);
+        match bank.find(user) {
+            Some(preset) if preset.matches(self.params) => name,
+            Some(_) => format!("{name}{}", presets::EDITED_MARK),
+            None => format!("{}{name}", user_cab::MISSING_MARK),
+        }
+    }
+
+    /// Loads the preset at `place` in the round
+    fn load(&self, place: usize, bank: &Bank) {
+        let (params, setter) = (self.params, self.setter);
+        match place.checked_sub(PRESETS.len()).and_then(|index| bank.get(index)) {
+            Some((file, preset)) => {
+                if preset.load(params, setter) {
+                    self.cab_loader.chosen();
+                    self.async_executor.execute_background(Task::LoadCabinet);
+                }
+                self.set_user_preset(file);
+            }
+            None => {
+                let index = place.min(PRESETS.len() - 1);
+                PRESETS[index].load(params, setter);
+                params.preset.store(index as u32, Ordering::Relaxed);
+                self.set_user_preset("");
+            }
+        }
+    }
+
+    /// Writes the sound as it stands: over the player's preset loaded last, or, after a
+    /// factory preset, as a new one named after it. Returns whether it was written
+    fn save(&self, dir: &Path, factory: usize, user: &str, view: &mut View) -> bool {
+        view.bank = Bank::read(self.params, Some(dir));
+        let file = if user.is_empty() {
+            user_presets::new_file_name(PRESETS[factory].name, &view.bank.files)
+        } else {
+            user.to_owned()
+        };
+        if user_presets::save(self.params, dir, &file).is_err() {
+            return false;
+        }
+        self.set_user_preset(&file);
+        view.bank = Bank::read(self.params, Some(dir));
+        true
+    }
+}
+
 pub fn default_state() -> Arc<EguiState> {
     EguiState::from_size(WINDOW_WIDTH, WINDOW_HEIGHT)
 }
@@ -332,30 +473,33 @@ pub fn create(
 ) -> Option<Box<dyn Editor>> {
     let (opened_loader, opened_executor) = (cab_loader.clone(), async_executor.clone());
     let opened_reading = lamp_reading.clone();
+    let opened_params = params.clone();
     create_egui_editor(
         editor_state,
-        LampView::new(&lamp_reading),
-        move |egui_ctx, lamps| {
+        View { lamps: LampView::new(&lamp_reading), bank: Bank::default(), note: None },
+        move |egui_ctx, view| {
             ui::install(egui_ctx);
             // What was clipped while the window was closed is not news
-            *lamps = LampView::new(&opened_reading);
+            view.lamps = LampView::new(&opened_reading);
+            // The player may have renamed or added presets in the folder since
+            view.bank = Bank::read(&opened_params, user_presets::presets_dir().as_deref());
             // A cabinet file that was missing or unusable may have been put right since:
             // look again whenever the window opens
             if opened_loader.status() != CabStatus::Fine {
                 opened_executor.execute_background(Task::LoadCabinet);
             }
         },
-        move |egui_ctx, setter, lamps| {
+        move |egui_ctx, setter, view| {
             ui::rig(egui_ctx, |ui, window| {
                 // The update runs with every frame of the window whether it is painted
                 // or not, so this costs two atomic reads per frame, and a repaint only
                 // when a lamp changes
                 let now = ui.input(|input| input.time);
-                if lamps.look(&lamp_reading, params.gate_on.value(), now) {
+                if view.lamps.look(&lamp_reading, params.gate_on.value(), now) {
                     ui.ctx().request_repaint();
                 }
-                let (gate_open, clipping) = lamps.shown();
-                let [input_db, output_db] = lamps.levels();
+                let (gate_open, clipping) = view.lamps.shown();
+                let [input_db, output_db] = view.lamps.levels();
 
                 let head = Rect::from_min_size(
                     window + vec2(BENCH_MARGIN, BENCH_MARGIN),
@@ -386,27 +530,13 @@ pub fn create(
                     // What it hears changes without anyone touching the window
                     ui.ctx().request_repaint();
                 } else {
-                    // The preset loaded last, marked once a knob was moved away from it. The
-                    // buttons step through the list and load what they arrive at
-                    let loaded = presets::index_or_first(params.preset.load(Ordering::Relaxed));
-                    silk_label(
-                        ui.painter(),
-                        origin + vec2(PRESET_X, PRESET_CAPTION_Y),
-                        "Preset",
-                        13.0,
-                    );
-                    let shown = PRESETS[loaded].display_name(&params);
-                    if let Some(step) = stepper(
-                        ui,
-                        origin + vec2(PRESET_X, PRESET_Y),
-                        PRESET_WIDTH,
-                        &shown,
-                        "preset",
-                    ) {
-                        let next = presets::neighbour(loaded, step == Step::Next);
-                        PRESETS[next].load(&params, setter);
-                        params.preset.store(next as u32, Ordering::Relaxed);
-                    }
+                    let presets = PresetDisplay {
+                        params: &params,
+                        setter,
+                        cab_loader: &cab_loader,
+                        async_executor: &async_executor,
+                    };
+                    presets.draw(ui, origin, view, now);
                 }
 
                 let dials = ["Gain", "Bass", "Mid", "Treble", "Presence", "Master"];

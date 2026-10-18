@@ -13,6 +13,12 @@ GitHub release.
   and a bright top), `4X12 MID`, `4X12 TIGHT` and `1X15 DEEP` (one 15" speaker, round and
   dark). Four of them are the amps' own cabinets: Klar's, Glød's, Brøl's and Torden's. A
   cabinet you pick stays when you change amps, and the Mic and Resonance dials work on it
+- Your own preset bank: the Save button beside the Preset display keeps the sound as it
+  stands, with the pedal order, the microphone and the cabinet. After a factory preset it
+  makes a new preset named after it (`GRUS 2`); after one of your own it saves over it. Your
+  presets come after the factory ones on the Preset display. They are files in
+  `Documents/Hojt Audio/Presets`, which a double-click on the Preset caption opens: rename,
+  copy, delete or share them there
 
 ## 0.2.1
 

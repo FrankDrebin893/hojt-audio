@@ -23,6 +23,7 @@ mod reverb;
 mod test_util;
 mod tuner;
 mod user_cab;
+mod user_presets;
 pub use amp::model::Amp;
 use cab::MicType;
 use cab_stage::CabLoader;
@@ -71,6 +72,11 @@ pub struct GuitarAmpParams {
     /// sets the parameters themselves when a preset is loaded
     #[persist = "preset"]
     pub preset: std::sync::atomic::AtomicU32,
+
+    /// File name, in the presets folder, of the player's own preset loaded last. Empty while
+    /// the one loaded last is a factory preset (`preset`). Not a parameter, like `preset`
+    #[persist = "user-preset"]
+    pub user_preset: std::sync::Mutex<String>,
 
     /// File name, in the cabinets folder, of the player's own cabinet. Empty for the amp's
     /// own. Not a parameter: a file name cannot be one. The audio thread never reads it
@@ -252,6 +258,7 @@ impl Default for GuitarAmpParams {
         Self {
             editor_state: editor::default_state(),
             preset: std::sync::atomic::AtomicU32::new(0),
+            user_preset: std::sync::Mutex::new(String::new()),
             cabinet: std::sync::Mutex::new(String::new()),
             order: StoredOrder::new(),
             dial_memory: DialMemory::new([

@@ -156,6 +156,7 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
 - `widgets.rs` - `param_knob` (fluted knob, name, value on label tape), `footswitch`, `led`,
   `small_footswitch`, `rig_led` and `param_switch` (the switch and LED of a rig, bound to an on/off
   parameter), `stepper` (label tape with a chrome button at each end, for picking one of many),
+  `chrome_button` (one such button alone, for an action such as Save),
   `tuner_display` (note name and a row of lamps on one strip of label tape) and `cents_meter`
   (the lamps alone), `level_meter` (a column of ten lamps on label tape for a signal level, the
   lowest lit from -45 dBFS, the top one at full scale), `value_knob` and `value_switch` (a knob
