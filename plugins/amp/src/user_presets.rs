@@ -36,7 +36,7 @@ use std::path::{Path, PathBuf};
 use crate::cab::MicType;
 use crate::dial_memory;
 use crate::order::ChainOrder;
-use crate::presets::{self, MATCH_TOLERANCE, PRESETS};
+use crate::presets::{self, Edit, MATCH_TOLERANCE, PRESETS};
 use crate::user_cab;
 use crate::{Amp, GuitarAmpParams};
 
@@ -216,14 +216,12 @@ impl Control<'_> {
         }
     }
 
-    fn set(self, setter: &ParamSetter, plain: f32) {
+    fn edit(self, plain: f32) -> Edit {
         match self {
-            Control::Knob(param) => presets::set(setter, param, plain),
-            Control::Switch(param) => presets::set(setter, param, plain >= 0.5),
-            Control::Amp(param) => presets::set(setter, param, Amp::from_index(plain as usize)),
-            Control::Mic(param) => {
-                presets::set(setter, param, MicType::from_index(plain as usize));
-            }
+            Control::Knob(param) => Edit::of(param, plain),
+            Control::Switch(param) => Edit::of(param, plain >= 0.5),
+            Control::Amp(param) => Edit::of(param, Amp::from_index(plain as usize)),
+            Control::Mic(param) => Edit::of(param, MicType::from_index(plain as usize)),
         }
     }
 
@@ -392,9 +390,12 @@ impl UserPreset {
             .map(|id| params_dial(params, id, self.value(params, id)));
         dial_memory::preset_loaded(params, amp, dials);
         params.order.put(self.order);
-        for (&(_, control), &plain) in controls(params).iter().zip(&self.values) {
-            control.set(setter, plain);
-        }
+        let edits: Vec<Edit> = controls(params)
+            .iter()
+            .zip(&self.values)
+            .map(|(&(_, control), &plain)| control.edit(plain))
+            .collect();
+        presets::set_together(setter, &edits);
         let mut cabinet = params.cabinet.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if *cabinet == self.cabinet {
             return false;
@@ -521,7 +522,7 @@ pub fn display_name(file: &str, max_chars: usize) -> String {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::user_cab::tests::test_dir;
     use std::sync::Mutex;
@@ -532,19 +533,40 @@ mod tests {
 
     /// Stands in for the host: writes down what it is asked to set, and sets nothing
     #[derive(Default)]
-    struct Host {
+    pub(crate) struct Host {
         set: Mutex<Vec<(ParamPtr, f32)>>,
+        /// Everything it was told, in turn: `b`egin, `s`et or `e`nd, and of which parameter
+        pub(crate) told: Mutex<Vec<(char, ParamPtr)>>,
+    }
+
+    /// Whether the host was told of the changes as one edit: every gesture begun before the
+    /// first value, every value set inside them, every gesture ended after the last
+    pub(crate) fn as_one_edit(told: &[(char, ParamPtr)]) -> bool {
+        let first_set = told.iter().position(|&(kind, _)| kind == 's').unwrap_or(0);
+        let last_set = told.iter().rposition(|&(kind, _)| kind == 's').unwrap_or(0);
+        let begun = told.iter().filter(|&&(kind, _)| kind == 'b').count();
+        let ended = told.iter().filter(|&&(kind, _)| kind == 'e').count();
+        begun > 1
+            && begun == ended
+            && told[..first_set].iter().all(|&(kind, _)| kind == 'b')
+            && told[last_set + 1..].iter().all(|&(kind, _)| kind == 'e')
+            && told[first_set..=last_set].iter().all(|&(kind, _)| kind == 's')
     }
 
     impl GuiContext for Host {
         fn plugin_api(&self) -> PluginApi {
             PluginApi::Standalone
         }
-        unsafe fn raw_begin_set_parameter(&self, _param: ParamPtr) {}
+        unsafe fn raw_begin_set_parameter(&self, param: ParamPtr) {
+            self.told.lock().unwrap().push(('b', param));
+        }
         unsafe fn raw_set_parameter_normalized(&self, param: ParamPtr, normalized: f32) {
             self.set.lock().unwrap().push((param, normalized));
+            self.told.lock().unwrap().push(('s', param));
         }
-        unsafe fn raw_end_set_parameter(&self, _param: ParamPtr) {}
+        unsafe fn raw_end_set_parameter(&self, param: ParamPtr) {
+            self.told.lock().unwrap().push(('e', param));
+        }
         fn get_state(&self) -> PluginState {
             unimplemented!()
         }
@@ -627,6 +649,8 @@ mod tests {
         }
         assert_eq!(params.order.get(), saved.order);
         assert_eq!(*params.cabinet.lock().unwrap(), "speaker:test");
+        // All of it as one edit, so a host that groups gestures undoes it in one step
+        assert!(as_one_edit(&host.told.lock().unwrap()));
         // The amp it picks remembers its dials
         assert_eq!(params.dial_memory.enter(Amp::Torden)[0], 0.73);
         // Loading it again has no cabinet to read

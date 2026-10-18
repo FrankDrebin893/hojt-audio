@@ -23,6 +23,7 @@ use nih_plug::params::persist::PersistentField;
 use nih_plug::prelude::*;
 use std::sync::atomic::{AtomicU32, Ordering};
 
+use crate::presets::{self, Edit};
 use crate::{Amp, GuitarAmpParams};
 
 /// Gain, Bass, Mid, Treble, Presence, Master, as the parameters store them: 0.0 to 1.0
@@ -84,8 +85,8 @@ impl PersistentField<'_, Vec<AmpDials>> for DialMemory {
 }
 
 /// The amp selector on the head was clicked: the amp that is left remembers its dials, and
-/// the dials go to where the amp that is entered had them. Told to the host like any knob
-/// movement: seven changes, the amp first. The chain fades the amp out before it switches
+/// the dials go to where the amp that is entered had them. Told to the host as one edit of
+/// seven changes, the amp first (`presets::set_together`). The chain fades the amp out before it switches
 /// and starts the new one at its dials, so they are not heard moving
 pub fn switch_amp(params: &GuitarAmpParams, setter: &ParamSetter, to: Amp) {
     let from = params.amp.value();
@@ -95,14 +96,15 @@ pub fn switch_amp(params: &GuitarAmpParams, setter: &ParamSetter, to: Amp) {
     let dials = params.amp_dials();
     params.dial_memory.leave(from, dials.map(|dial| dial.unmodulated_plain_value()));
 
-    setter.begin_set_parameter(&params.amp);
-    setter.set_parameter(&params.amp, to);
-    setter.end_set_parameter(&params.amp);
-    for (dial, value) in dials.into_iter().zip(params.dial_memory.enter(to)) {
-        setter.begin_set_parameter(dial);
-        setter.set_parameter(dial, value);
-        setter.end_set_parameter(dial);
-    }
+    let edits: Vec<Edit> = std::iter::once(Edit::of(&params.amp, to))
+        .chain(
+            dials
+                .into_iter()
+                .zip(params.dial_memory.enter(to))
+                .map(|(dial, value)| Edit::of(dial, value)),
+        )
+        .collect();
+    presets::set_together(setter, &edits);
 }
 
 /// A preset for `amp` with its dials at `dials` is about to be loaded: the amp that is left
@@ -124,6 +126,24 @@ mod tests {
     const DEFAULTS: AmpDials = [0.5; 6];
     const KLAR: AmpDials = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6];
     const TORDEN: AmpDials = [0.9, 0.35, 0.7, 0.65, 0.8, 0.45];
+
+    #[test]
+    fn test_an_amp_switch_is_one_edit_of_the_amp_and_its_six_dials() {
+        use crate::user_presets::tests::{as_one_edit, Host};
+        let params = GuitarAmpParams::default();
+        let host = Host::default();
+        let to = Amp::ALL.into_iter().find(|&amp| amp != params.amp.value()).unwrap();
+        switch_amp(&params, &ParamSetter::new(&host), to);
+        let told = host.told.lock().unwrap();
+        assert!(as_one_edit(&told), "{told:?}");
+        // The amp and six dials, each begun, set and ended once, the amp first
+        assert_eq!(told.len(), 3 * 7);
+        assert!(told[0].1 == params.amp.as_ptr());
+        // Switching to the amp that plays tells the host nothing
+        let quiet = Host::default();
+        switch_amp(&params, &ParamSetter::new(&quiet), params.amp.value());
+        assert!(quiet.told.lock().unwrap().is_empty());
+    }
 
     #[test]
     fn test_amp_never_left_holds_the_defaults() {

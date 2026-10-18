@@ -7,6 +7,9 @@ GitHub release.
 
 ### Guitar Amp
 
+- Loading a preset or switching the amp is one step of the host's undo: in REAPER one Ctrl+Z
+  puts the whole sound back, every dial, switch and the amp, instead of one knob at a time
+
 - Seven built-in cabinets to play any amp through, picked on the Cab pedal's Speaker display
   between the amp's own (`OWN`) and your own files, each with a sound of its own:
   - `1X10 SMALL`: one 10" speaker in a small box, hardly any low end and a boxy honk
