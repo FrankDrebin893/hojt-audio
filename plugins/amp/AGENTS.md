@@ -120,6 +120,11 @@ How it behaves:
   are still six shared parameters. A host that changes Amp itself leaves the dials alone; a
   preset's dials become its amp's memory
 - An amp that is switched to starts at the dials' target, at the silent sample of the switch
+- A preset load (factory or the player's) and an amp switch are told to the host as one edit
+  (`presets::set_together`): every gesture begun, then every value set, then every gesture
+  ended. REAPER makes that one undo point, and one undo puts the whole sound back, the preset
+  display's name and the pedal order with it (checked by hand in REAPER, #16). A host that
+  keeps one undo step per gesture still makes one per parameter
 - The Gate pedal's `OPEN` lamp is lit while the gate is on and lets the guitar through; `CLIP`
   beside Output is lit for 150 ms after the output went over the safety clip's knee
 - Two level meters on the head (`level_meter`): `INPUT` left of the dials shows the input before
