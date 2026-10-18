@@ -176,6 +176,22 @@ pub fn list(dir: &Path) -> Vec<String> {
     list_with_extension(dir, EXTENSION)
 }
 
+/// The folders directly in a folder, by name. Nothing when there is no such folder. A bank
+/// of presets is one of these
+pub fn folders(dir: &Path) -> Vec<String> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut found: Vec<String> = entries
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .filter(|name| is_file_name(name))
+        .collect();
+    found.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()).then_with(|| a.cmp(b)));
+    found
+}
+
 /// The files in a folder with the given extension, by name. Nothing when there is no such
 /// folder
 pub fn list_with_extension(dir: &Path, wanted: &str) -> Vec<String> {

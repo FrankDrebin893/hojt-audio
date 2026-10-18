@@ -73,10 +73,17 @@ pub struct GuitarAmpParams {
     #[persist = "preset"]
     pub preset: std::sync::atomic::AtomicU32,
 
-    /// File name, in the presets folder, of the player's own preset loaded last. Empty while
-    /// the one loaded last is a factory preset (`preset`). Not a parameter, like `preset`
+    /// File name, in the folder of the bank showing, of the player's own preset loaded
+    /// last. Empty while the one loaded last is a factory preset (`preset`), and while a
+    /// bank is showing that nothing has been loaded out of. Not a parameter, like `preset`
     #[persist = "user-preset"]
     pub user_preset: std::sync::Mutex<String>,
+
+    /// The bank of presets showing on the head: empty for the factory presets, `/` for the
+    /// presets folder itself and `/<folder>` for a folder in it (`user_presets`). A place,
+    /// not a sound, so not a parameter
+    #[persist = "preset-bank"]
+    pub preset_bank: std::sync::Mutex<String>,
 
     /// File name, in the cabinets folder, of the player's own cabinet. Empty for the amp's
     /// own. Not a parameter: a file name cannot be one. The audio thread never reads it
@@ -259,6 +266,7 @@ impl Default for GuitarAmpParams {
             editor_state: editor::default_state(),
             preset: std::sync::atomic::AtomicU32::new(0),
             user_preset: std::sync::Mutex::new(String::new()),
+            preset_bank: std::sync::Mutex::new(String::new()),
             cabinet: std::sync::Mutex::new(String::new()),
             order: StoredOrder::new(),
             dial_memory: DialMemory::new([

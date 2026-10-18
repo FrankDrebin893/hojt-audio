@@ -32,16 +32,19 @@ gain), Glød (warm edge of breakup, between Klar and Brøl). They share the six 
   `pair.rs` (two samples' divisions and square roots as one SSE2 pair), `fft.rs` (radix-2 real
   FFT), `partitioned.rs` (`Tail`: the late part of a long impulse response in FFT partitions)
 - `src/presets.rs` - Factory presets as plain data, and `preset_report`
-- `src/user_presets.rs` - The player's own preset bank: one text file per preset in
-  `Documents/Hojt Audio/Presets` (or `HOJT_PRESETS_DIR`), read, written and stepped through
+- `src/user_presets.rs` - The player's own presets: one text file per preset in
+  `Documents/Hojt Audio/Presets` (or `HOJT_PRESETS_DIR`), and the banks they are kept in,
+  which are the factory presets, that folder itself and the folders the player made in it:
+  read, written, listed and stepped through
 - `src/dial_memory.rs` - Each amp's six dial positions, kept by the editor and saved with the
   project (`amp-dials`)
 - `src/lamps.rs` - Gate-open and clip lamps and the input and output level meters: what the
   chain tells the editor, and how long the editor shows it
 - `src/tuner.rs` - Tuner: pitch detector on the mono input, `TunerReading` (one atomic shared
   with the editor), `Note`
-- `src/editor.rs` - egui GUI: oxblood head (1590 x 694 window) with the preset stepper or the tuner
-  display top centre; draws each of the ten pedals, each in its own paint with its own art
+- `src/editor.rs` - egui GUI: oxblood head (1590 x 694 window) with the Bank and Preset displays,
+  the list they drop open, or the tuner display top centre; draws each of the ten pedals, each in
+  its own paint with its own art
 - `src/board.rs` - The row of pedals under the head in the chain's order, the amp's marker,
   and dragging a pedal to another place
 
@@ -150,13 +153,35 @@ How it behaves:
   `Documents/Hojt Audio/Presets` (or the folder in `HOJT_PRESETS_DIR`), one `id = value` line
   per parameter by its frozen id, then `order` and `cabinet`. They hold what a factory preset
   holds and the microphone and cabinet too. A file is read forgivingly: unknown lines are
-  skipped and what it does not name gets its default. The Preset stepper goes on from the last
-  factory preset into them in name order. Save writes over the player's preset loaded last,
-  or after a factory preset makes `<name> 2.preset` (the next free number). The file name of
-  the one loaded last is persisted as `user-preset` (empty after a factory preset); renaming,
-  copying and deleting is done in the folder, which a double-click on the Preset caption opens.
-  A test holds every parameter to being in a preset or left alone with Bypass, Input, Output
-  and the Tuner
+  skipped and what it does not name gets its default. A test holds every parameter to being
+  in a preset or left alone with Bypass, Input, Output and the Tuner
+- Every preset is in a bank, and the Bank display on the head says which one is showing:
+  `FACTORY` (the built-in presets), `MINE` (the files loose in the presets folder, where every
+  preset was kept before there were banks) or one of the folders the player made in it, in
+  name order. Only the folders directly in the presets folder are banks, and what is deeper is
+  left alone. The bank showing is persisted as `preset-bank`: empty for the factory bank, `/`
+  for the presets folder itself and `/<folder>` for a folder in it, checked like a file name so
+  it is never a path and never `..`. A project saved before there were banks has a preset of
+  the player's and no bank, and opens on `MINE`
+- The Preset display's buttons step through the bank showing and come round in it without ever
+  leaving it; in a bank with nothing in it they say `NO PRESETS` for 1.5 s. The tape of either
+  display drops the list open: the banks in one column and the presets of the bank clicked in
+  the other. The bank showing changes when a preset is picked out of another bank, when the
+  Bank buttons step and when a bank is made; the sound then stays as it stands, and with
+  nothing loaded out of the bank the display falls back to the name of the preset the sound
+  came from
+- `+ NEW BANK`, at the end of the banks, makes one. Clicked, its tape takes a name; enter keeps
+  it, escape drops it, and a second click on the tape keeps it as it stands, so a bank can be
+  made with the mouse alone. A bank nobody named is `Bank 1`, `Bank 2` and so on, the first
+  that is free, renamed in the folder afterwards. A name is filtered like a file name, and one
+  that already stands as a folder is simply that bank, with everything still in it
+- Save writes into the bank showing: over the preset loaded out of it, or, with none loaded out
+  of it, as `<name> 2.preset` (the next free number) named after the preset the sound came
+  from. Nothing is written into `FACTORY`: a sound saved there goes into `MINE`, which is the
+  bank showing from then on. The file name of the one loaded last is persisted as `user-preset`
+  (empty after a factory preset, and after the bank changed); renaming, moving from one bank to
+  another, copying and deleting is done in the folder, which a double-click on the Preset
+  caption opens — the folder of the bank showing
 - The pedal order (`order.rs`): Gate always first, amp and cabinet one block in the middle.
   Drive only in front of the amp; Delay and Reverb only behind the cabinet; Comp, Chorus,
   Phaser, Flanger and Tremolo on either side. Default: Comp, Drive, Phaser, amp, Chorus,
@@ -316,17 +341,35 @@ The style guide of the root `AGENTS.md` applies; these are the rules for a windo
   Lamps are read from atomics the audio thread writes once per block; the editor asks for a
   repaint only when one changes, 20 times a second at most
 - **Pick one of many (presets):** a `stepper` with a `silk_label` caption above it, top centre of
-  the head on the jack-caption line, at least 12 px clear of the knob ticks. No dropdowns, lists
-  or pop-ups. Step arrows are engraved in chrome buttons; silk triangles on the paint mean signal
-  direction at the jacks only. Names have at most 14 characters and are our own words. A trailing
-  `*` on the tape means a control was moved since loading
+  the head on the jack-caption line, at least 12 px clear of the knob ticks. Step arrows are
+  engraved in chrome buttons; silk triangles on the paint mean signal direction at the jacks only.
+  Names have at most 14 characters and are our own words. A trailing `*` on the tape means a
+  control was moved since loading. The bank the presets come from is picked the same way, on a
+  `menu_stepper` 120 px wide left of the preset display, its `Bank` caption on the preset
+  caption's line and its tape on the preset tape's line. While the tuner is on neither is drawn
+- **A list that drops open** is for the preset banks and nothing else, where stepping through
+  every preset one at a time is too slow: everywhere else a choice is stepped through, with no
+  dropdowns, lists or pop-ups. It is hardware, not a menu. `drop_panel` drops a dark plate with
+  a chrome edge from under the tape of a `menu_stepper`, its columns under cream `display`
+  captions and every row a strip of label tape in `mono` capitals. The row in use carries a lit
+  lamp at its left, the row under the pointer lightens, and a column of more than seven rows
+  shows seven, with a chrome bar at its right and the wheel to reach the others. It is drawn
+  after everything else in the window, in a foreground layer, so nothing behind it answers a
+  click while it is open, and it closes on a pick, on a click outside it or on escape. No bar to
+  drag, no icons, and no widget of egui's own
+- **Typed text** is taken in one place only: the name of a new preset bank, on its row of that
+  list (`type_into`, the letters on the tape with a `_` after them, enter to keep it and escape
+  to drop it). Nothing else in the suite is typed, and egui's text widget is never drawn.
+  Nothing ever waits for the keyboard: a second click on the row keeps the name as it stands,
+  and an empty name is one the player did not give, so the mouse alone is enough
 - **Steppers under the band** (the amp and the microphone): the `silk_label` caption above
   the tape on the line of the switches' LEDs, the tape on the line of their captions, and
   the buttons clear of the next caption or LED
 - **Save (a preset):** a `chrome_button` (a stepper's push button with a dot in its cap) right
   of the preset stepper, its `silk_label` caption on the stepper's caption line. It writes the
-  sound and the stepper's tape says `SAVED` (or `NOT SAVED`) for 1.5 s. No text entry: a new
-  preset is named after the one it started from, and renamed in the folder
+  sound into the bank showing and the stepper's tape says `SAVED` (or `NOT SAVED`) for 1.5 s.
+  A new preset is not named by typing: it is named after the one it started from, and renamed
+  in the folder
 - **A preset choice is never a parameter.** The editor sets the real parameters through the
   `ParamSetter` and keeps only the index in a `#[persist]` field
 - **Pick a file (cabinets):** files are never picked in a dialog. They live in one folder and are

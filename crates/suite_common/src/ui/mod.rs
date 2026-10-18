@@ -1,7 +1,8 @@
 //! The suite's shared look: every plugin is a painted stompbox.
 //!
 //! - `theme`: colours, embedded fonts, text helpers
-//! - `widgets`: knob, footswitch, LED, signal lamp, label tape, stepper, tuner display, logo badge
+//! - `widgets`: knob, footswitch, LED, signal lamp, label tape, stepper, the plate of rows a
+//!   display drops open, tuner display, logo badge
 //! - `art`: what is painted on each mini pedal of a rig under its controls
 //! - `frame`: the enclosure every editor is drawn on. `pedal` is one stompbox filling the window;
 //!   `rig` is the bare bench for a `head` with `mini_pedal`s and `slim_pedal`s below it
@@ -22,7 +23,8 @@ pub use frame::{
 };
 pub use theme::install;
 pub use widgets::{
-    cents_meter, chrome_button, footswitch, led, level_meter, lit_level_lamps, param_knob,
-    param_switch, rig_led, signal_lamp, silk_frame, silk_label, small_footswitch, stepper,
-    tuner_display, value_knob, value_switch, Step, LEVEL_MIN_DB,
+    cents_meter, chrome_button, drop_panel, footswitch, led, level_meter, lit_level_lamps,
+    menu_stepper, param_knob, param_switch, rig_led, signal_lamp, silk_frame, silk_label,
+    small_footswitch, stepper, tuner_display, type_into, value_knob, value_switch, Column, Pick,
+    Picked, Row, Step, Typed, LEVEL_MIN_DB,
 };

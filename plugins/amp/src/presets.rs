@@ -759,9 +759,9 @@ mod tests {
 
     #[test]
     fn test_stepping_goes_round_and_survives_a_stale_index() {
-        // With none of the player's own presets, the round is the factory ones
-        let (last, none) = (PRESETS.len() - 1, crate::user_presets::Bank::default());
-        let neighbour = |place, forward| crate::user_presets::neighbour(place, &none, forward);
+        // The factory bank is a round of its own: a step never leaves it
+        let last = PRESETS.len() - 1;
+        let neighbour = crate::user_presets::neighbour_factory;
         assert_eq!(neighbour(0, true), 1);
         assert_eq!(neighbour(last, true), 0);
         assert_eq!(neighbour(0, false), last);

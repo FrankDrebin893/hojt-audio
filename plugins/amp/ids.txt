@@ -51,4 +51,5 @@ persist cabinet
 persist chain-order
 persist editor-state-rig3
 persist preset
+persist preset-bank
 persist user-preset
