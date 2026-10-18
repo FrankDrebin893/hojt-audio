@@ -2,8 +2,8 @@
 # Usage (from anywhere, in PowerShell):  scripts\install.ps1 [plugin ...]
 #   plugins: pitch_shifter drums amp bass pad bells   (none given = all six)
 #
-# It pins the build folder to this checkout's own target\, so a git worktree can never
-# bundle the stale DLLs of another checkout, then checks every installed file against the
+# It pins the build folder to this checkout's own target\ (xtask bundles this checkout's own
+# sources, even in a git worktree inside another checkout), then checks every installed file against the
 # build byte for byte and says which commit it came from. Close the DAW first: a host holds
 # the files it has loaded open, and Windows refuses to overwrite them.
 param([string[]]$Plugins = @('pitch_shifter', 'drums', 'amp', 'bass', 'pad', 'bells'))
