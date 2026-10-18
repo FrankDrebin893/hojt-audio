@@ -38,10 +38,6 @@ and a large hall whose tail comes back an octave up.
 
 **Glass Bells** (`plugins/bells`). Soft glassy bells with a ping-pong delay and a hall.
 
-The latest release (0.1.0) has the Guitar Amp, Drum Synth and Pitch Shifter as they were then.
-Bass Synth, Shimmer Pad, Glass Bells and everything under `Unreleased` in
-[CHANGELOG.md](CHANGELOG.md) come with the next release, and can be built from source now.
-
 ## Install
 
 Download the zip for your system from the [page](https://hojte.net/hojt-audio/)
