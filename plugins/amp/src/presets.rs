@@ -456,7 +456,7 @@ impl Preset {
     }
 
     /// Set every parameter the preset holds, as the host would see the knobs being turned:
-    /// it records the changes and can undo them.
+    /// it records the changes and can undo them, as one edit where it can (`set_together`).
     ///
     /// All of them are set, also those that seem to stand right already: a host may apply
     /// a change some time after it was asked for, so what a parameter reads here can be
@@ -468,13 +468,11 @@ impl Preset {
     pub fn load(&self, params: &GuitarAmpParams, setter: &ParamSetter) {
         dial_memory::preset_loaded(params, self.amp, self.dials.map(dial));
         params.order.put(self.chain_order());
-        set(setter, &params.amp, self.amp);
-        for (param, on) in self.switches(params) {
-            set(setter, param, on);
-        }
-        for (param, value) in self.knobs(params) {
-            set(setter, param, value);
-        }
+        let edits: Vec<Edit> = std::iter::once(Edit::of(&params.amp, self.amp))
+            .chain(self.switches(params).into_iter().map(|(param, on)| Edit::of(param, on)))
+            .chain(self.knobs(params).into_iter().map(|(param, value)| Edit::of(param, value)))
+            .collect();
+        set_together(setter, &edits);
     }
 
     /// The order the preset puts the pedals in
@@ -504,14 +502,57 @@ impl Preset {
     }
 }
 
-pub(crate) fn set<P: Param>(setter: &ParamSetter, param: &P, value: P::Plain) {
-    setter.begin_set_parameter(param);
-    setter.set_parameter(param, value);
-    setter.end_set_parameter(param);
+/// One parameter's new value, for `set_together`
+#[derive(Clone, Copy)]
+pub(crate) struct Edit {
+    param: ParamPtr,
+    normalized: f32,
+}
+
+impl Edit {
+    pub(crate) fn of<P: Param>(param: &P, value: P::Plain) -> Self {
+        Self { param: param.as_ptr(), normalized: param.preview_normalized(value) }
+    }
+}
+
+/// Moves many parameters as one edit, which a preset load or an amp switch is to the player:
+/// every gesture is begun before the first value is set, and ended after the last, the last
+/// begun first. A host that keeps one undo step per gesture still makes one per parameter;
+/// one that groups what happens inside gestures that overlap makes one for all of them
+pub(crate) fn set_together(setter: &ParamSetter, edits: &[Edit]) {
+    // SAFETY: every pointer comes from a parameter of `GuitarAmpParams`, which lives as long as
+    // the editor that calls this
+    unsafe {
+        for edit in edits {
+            setter.raw_context.raw_begin_set_parameter(edit.param);
+        }
+        for edit in edits {
+            setter.raw_context.raw_set_parameter_normalized(edit.param, edit.normalized);
+        }
+        for edit in edits.iter().rev() {
+            setter.raw_context.raw_end_set_parameter(edit.param);
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn test_a_preset_is_loaded_as_one_edit_of_every_parameter_it_holds() {
+        use crate::user_presets::tests::{as_one_edit, Host};
+        for preset in &PRESETS {
+            let params = GuitarAmpParams::default();
+            let host = Host::default();
+            preset.load(&params, &ParamSetter::new(&host));
+            let told = host.told.lock().unwrap();
+            assert!(as_one_edit(&told), "{}", preset.name);
+            // The amp, the ten switches and every knob: each begun, set and ended once
+            let held = 1 + preset.switches(&params).len() + preset.knobs(&params).len();
+            assert_eq!(told.len(), 3 * held, "{}", preset.name);
+            assert!(told[0].1 == params.amp.as_ptr(), "{} begins with the amp", preset.name);
+        }
+    }
+
     use super::*;
     use crate::chain::{AmpChain, AmpSettings};
     use crate::comp::CompSettings;
