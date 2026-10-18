@@ -23,6 +23,8 @@ A suite of VST3/CLAP plugins built with Rust and the nih-plug framework. The bra
 - `site/` - The public page (plain HTML and CSS, no build step), published by GitHub Pages
 - `site-sources/` - What is played in a sound example of the page when it is our own playing
   (DI recordings, MIDI drum parts); not published. See its `README.md`
+- `scripts/install.ps1` - Builds the VST3 bundles from this checkout and installs them on Windows (see Install)
+- `scripts/make-art.py` - Makes the pedals' artwork in `crates/suite_common/assets/art/`
 - `scripts/package.sh` - Packs the bundles into the zips of a release
 - `scripts/site-audio.sh` - Makes the page's sound examples from the render tests
 - `scripts/sound-reports.sh` - The sound reports without their timings, for comparing two builds
@@ -142,7 +144,10 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
   `small_footswitch`, `rig_led` and `param_switch` (the switch and LED of a rig, bound to an on/off
   parameter), `stepper` (label tape with a chrome button at each end, for picking one of many),
   `tuner_display` (note name and a row of lamps on one strip of label tape) and `cents_meter`
-  (the lamps alone), `signal_lamp` (a small lamp with no switch, for what the sound is doing),
+  (the lamps alone), `level_meter` (a column of ten lamps on label tape for a signal level, the
+  lowest lit from -45 dBFS, the top one at full scale), `value_knob` and `value_switch` (a knob
+  and a rig switch for a plain value that is not a parameter),
+  `signal_lamp` (a small lamp with no switch, for what the sound is doing),
   `silk_frame`, `silk_label`, and `badge` (the HØJT logo: the Ø is a knob, its slash the pointer)
 - `frame.rs` - `pedal`: enclosure, screws, jack captions, tilted name band, model number, logo.
   A plugin describes itself with a `PedalStyle`. For a window with several enclosures: `rig`

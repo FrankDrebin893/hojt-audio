@@ -28,6 +28,7 @@ drums-groove.mp3|drums|render_wavs|drums_groove_groove.wav|-
 amp-dry.mp3|amp|render_wavs|amp_dry.wav|-
 amp-klar.mp3|amp|render_wavs|amp_klar_gain5.wav|-
 amp-brol.mp3|amp|render_wavs|amp_brol_gain7.wav|-
+amp-glod.mp3|amp|render_wavs|amp_glod_gain7.wav|-
 amp-torden.mp3|amp|render_wavs|amp_torden_gain7.wav|-
 amp-torden-lead.mp3|amp|render_wavs|amp_torden_gain7_lead_delay.wav|-
 amp-preset-taage.mp3|amp|render_presets|amp_preset_03_*.wav|-
