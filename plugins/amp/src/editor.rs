@@ -70,17 +70,19 @@ const OUTPUT_METER: Vec2 = vec2(915.0, 126.0);
 const METER_HEIGHT: f32 = 104.0;
 const METER_CAPTION: Vec2 = vec2(0.0, 64.0);
 
-// Small switches below the band. Left of each, its LED above its caption. The amp selector
-// is a stepper under the dials, so any number of amps fit; the bypass under the output knob, and the tuner beside the bypass,
-// further from the amps than they are from each other: it is not a fourth amp
+// Below the band. Small switches, left of each its LED above its caption: the bypass under
+// the output knob, and the tuner beside it on the side away from the amp selector. The amp
+// selector is a stepper under the dials, so any number of amps fit. A stepper's caption is
+// above its tape, on the line of the LEDs, and its tape on the line of the switch captions
 const SWITCH_Y: f32 = 320.0;
+const STEPPER_Y: f32 = 335.0;
 const AMP_STEPPER_X: f32 = 385.0;
 const AMP_STEPPER_WIDTH: f32 = 150.0;
 // The microphone of the cabinet, beside the amp selector: three letters on its tape
-const MIC_STEPPER_X: f32 = 560.0;
+const MIC_STEPPER_X: f32 = 590.0;
 const MIC_STEPPER_WIDTH: f32 = 54.0;
 const BYPASS_X: f32 = 790.0;
-const TUNER_X: f32 = 680.0;
+const TUNER_X: f32 = 910.0;
 const CAPTION_OFFSET: f32 = -58.0;
 const LED_Y: f32 = 309.0;
 const CAPTION_Y: f32 = 335.0;
@@ -449,15 +451,10 @@ pub fn create(
                 // The amp selector: the amp that is left keeps its dials, and the one picked
                 // gets its own back
                 let amp_shown = params.amp.value();
-                silk_label(
-                    ui.painter(),
-                    origin + vec2(AMP_STEPPER_X, CAPTION_Y),
-                    "Amp",
-                    CAPTION_SIZE,
-                );
+                silk_label(ui.painter(), origin + vec2(AMP_STEPPER_X, LED_Y), "Amp", CAPTION_SIZE);
                 if let Some(step) = stepper(
                     ui,
-                    origin + vec2(AMP_STEPPER_X, SWITCH_Y),
+                    origin + vec2(AMP_STEPPER_X, STEPPER_Y),
                     AMP_STEPPER_WIDTH,
                     amp_shown.model().name,
                     "amp",
@@ -467,15 +464,10 @@ pub fn create(
 
                 // The microphone the cabinet is heard with, as the selector of the amp
                 let mic_shown = params.cab_mic_type.value();
-                silk_label(
-                    ui.painter(),
-                    origin + vec2(MIC_STEPPER_X, CAPTION_Y),
-                    "Mic",
-                    CAPTION_SIZE,
-                );
+                silk_label(ui.painter(), origin + vec2(MIC_STEPPER_X, LED_Y), "Mic", CAPTION_SIZE);
                 if let Some(step) = stepper(
                     ui,
-                    origin + vec2(MIC_STEPPER_X, SWITCH_Y),
+                    origin + vec2(MIC_STEPPER_X, STEPPER_Y),
                     MIC_STEPPER_WIDTH,
                     mic_shown.short_name(),
                     "mic",
