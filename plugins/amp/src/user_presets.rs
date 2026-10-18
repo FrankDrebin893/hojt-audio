@@ -3,8 +3,14 @@
 //! Each preset is one small text file in `Hojt Audio/Presets` in the user's Documents
 //! folder. Its name is the file's name, so a preset is renamed, copied or thrown away in the
 //! file manager, and a preset can be handed to someone else as a file. There is no dialog:
-//! the Preset stepper on the head goes on from the last factory preset into these, in name
-//! order, and the Save button beside it writes the sound as it stands.
+//! the Bank and Preset displays on the head pick one, in name order, and the Save button
+//! beside them writes the sound as it stands into the bank that is showing.
+//!
+//! A bank is where a set of presets is kept, and a bank id says which: the empty id is the
+//! factory presets, `/` is the presets folder itself, where every preset was kept before
+//! there were banks, and `/<folder>` is a folder in it that the player made for sounds of
+//! one kind of their own. Only the folders directly in the presets folder are banks, and
+//! what is deeper is left alone. An id never holds a path: the folder is one plain name.
 //!
 //! A file holds what a factory preset holds, and also the microphone and the cabinet:
 //! every parameter except Bypass, the Tuner switch, Input and Output, then the order of the
@@ -49,6 +55,118 @@ const HEADER: &str = "# Hojt Guitar Amp preset";
 /// Looks nothing up on the disk and creates nothing
 pub fn presets_dir() -> Option<PathBuf> {
     user_cab::folder_in_documents(FOLDER_ENV, &FOLDER)
+}
+
+/// The bank of the factory presets: the one that is no folder at all
+pub const FACTORY: &str = "";
+/// The bank of the presets loose in the presets folder
+pub const MINE: &str = "/";
+// What the displays call the two banks that are not a folder of the player's
+const FACTORY_NAME: &str = "Factory";
+const MINE_NAME: &str = "Mine";
+
+/// Whether `bank` is an id a bank may have: the factory presets, the presets folder itself,
+/// or one plain folder name in it. Never `..`, and never a path on any system: a backslash
+/// is a separator on Windows and a letter of a name elsewhere, so an id that holds one is
+/// refused everywhere, and a project carries the same bank from one system to the other
+pub fn is_bank(bank: &str) -> bool {
+    match bank.strip_prefix('/') {
+        None => bank.is_empty(),
+        Some("") => true,
+        Some(folder) => user_cab::is_file_name(folder) && !folder.contains('\\'),
+    }
+}
+
+/// The id of the bank kept in the folder `folder` of the presets folder
+pub fn folder_bank(folder: &str) -> String {
+    format!("{MINE}{folder}")
+}
+
+/// Where the presets of `bank` are kept: nothing for the factory bank, for an id no bank
+/// may have, or when there is no presets folder
+pub fn bank_dir(bank: &str) -> Option<PathBuf> {
+    let folder = bank.strip_prefix('/').filter(|_| is_bank(bank))?;
+    let dir = presets_dir()?;
+    Some(if folder.is_empty() { dir } else { dir.join(folder) })
+}
+
+/// Every bank there is now, in the order the displays go round them: the factory presets,
+/// the presets folder itself, then the folders in it in name order. `dir` is the presets
+/// folder, which does not have to be there
+pub fn banks(dir: Option<&Path>) -> Vec<String> {
+    let mut banks = vec![FACTORY.to_owned(), MINE.to_owned()];
+    if let Some(dir) = dir {
+        banks.extend(user_cab::folders(dir).iter().map(|folder| folder_bank(folder)));
+    }
+    banks
+}
+
+/// What a display calls `bank`, with `max_chars` at most
+pub fn bank_name(bank: &str, max_chars: usize) -> String {
+    let name = match bank.strip_prefix('/') {
+        None => FACTORY_NAME,
+        Some("") => MINE_NAME,
+        Some(folder) => folder,
+    };
+    user_cab::display_name_without(name, "", max_chars)
+}
+
+/// The bank a step arrives at, round the banks there are now
+pub fn neighbour_bank(banks: &[String], bank: &str, forward: bool) -> String {
+    if banks.is_empty() {
+        return FACTORY.to_owned();
+    }
+    let at = banks.iter().position(|each| each == bank).unwrap_or(0);
+    let count = banks.len();
+    banks[(at + if forward { 1 } else { count - 1 }) % count].clone()
+}
+
+/// The bank a window shows for a project that holds `bank` with `user` loaded out of it:
+/// what it holds, and the presets folder itself for a project saved before there were
+/// banks, which has a preset of the player's and no bank. An id no bank may have is read
+/// as the factory bank
+pub fn bank_shown(bank: &str, user: &str) -> String {
+    if bank.is_empty() && !user.is_empty() {
+        return MINE.to_owned();
+    }
+    if is_bank(bank) {
+        bank.to_owned()
+    } else {
+        FACTORY.to_owned()
+    }
+}
+
+/// The bank a project opens on: `bank_shown` of what it holds
+pub fn bank_of(params: &GuitarAmpParams) -> String {
+    let bank = params.preset_bank.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let user = params.user_preset.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    bank_shown(&bank, &user)
+}
+
+/// Makes the bank `name` in `dir` and gives back its id. The name is filtered like a file
+/// name, and one that nothing is left of gets the next free `Bank <n>`, so a bank can be
+/// made without typing anything and renamed in the folder afterwards. A folder that is
+/// already there is simply that bank
+pub fn make_bank(dir: &Path, name: &str) -> std::io::Result<String> {
+    let mut folder = plain_name(name);
+    if folder.is_empty() {
+        folder = new_bank_name(dir);
+    }
+    if !user_cab::is_file_name(&folder) {
+        return Err(std::io::ErrorKind::InvalidInput.into());
+    }
+    std::fs::create_dir_all(dir.join(&folder))?;
+    Ok(folder_bank(&folder))
+}
+
+/// A name for a bank nobody named: `Bank 1`, `Bank 2` and so on, the first that is not
+/// taken in `dir` (letters in either case)
+pub fn new_bank_name(dir: &Path) -> String {
+    let taken = user_cab::folders(dir);
+    (1..)
+        .map(|number| format!("Bank {number}"))
+        .find(|name| !taken.iter().any(|each| each.eq_ignore_ascii_case(name)))
+        .unwrap_or_default()
 }
 
 /// One parameter a preset holds
@@ -346,30 +464,42 @@ impl Bank {
     }
 }
 
-/// Where in the round of presets the one loaded last is: the factory ones first, then the
-/// player's in name order. A player's preset that is no longer in the folder counts as the
-/// factory preset loaded before it
-pub fn place(factory: usize, user: &str, bank: &Bank) -> usize {
-    if user.is_empty() {
-        return factory;
-    }
-    bank.position(user).map_or(factory, |index| PRESETS.len() + index)
+/// The factory preset a step arrives at, round that bank
+pub fn neighbour_factory(index: usize, forward: bool) -> usize {
+    let count = PRESETS.len();
+    (index.min(count - 1) + if forward { 1 } else { count - 1 }) % count
 }
 
-/// The place before or after `place` in the round of the factory presets and the player's
-pub fn neighbour(place: usize, bank: &Bank, forward: bool) -> usize {
-    let count = PRESETS.len() + bank.len();
-    (place + if forward { 1 } else { count - 1 }) % count
+/// The preset a step arrives at in a bank of the player's, counting from `file`, the one
+/// loaded from it: with none loaded, the first one going forward and the last going back.
+/// Nothing when the bank holds no presets
+pub fn neighbour_user(bank: &Bank, file: &str, forward: bool) -> Option<usize> {
+    let count = bank.len();
+    if count == 0 {
+        return None;
+    }
+    Some(match bank.position(file) {
+        Some(at) => (at + if forward { 1 } else { count - 1 }) % count,
+        None if forward => 0,
+        None => count - 1,
+    })
+}
+
+/// A name as a file or a folder may be called: without the characters a name cannot hold,
+/// and without the spaces at its ends
+fn plain_name(text: &str) -> String {
+    text.chars()
+        .filter(|letter| !matches!(letter, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|'))
+        .collect::<String>()
+        .trim()
+        .to_owned()
 }
 
 /// A file name for a new preset made from `base`, the name of the preset it started as:
 /// `base 2`, `base 3` and so on, the first that is not taken (letters in either case)
 pub fn new_file_name(base: &str, taken: &[String]) -> String {
-    let base: String = base
-        .chars()
-        .filter(|letter| !matches!(letter, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|'))
-        .collect();
-    let base = if base.trim().is_empty() { "Preset".to_owned() } else { base };
+    let base = plain_name(base);
+    let base = if base.is_empty() { "Preset".to_owned() } else { base };
     (2..)
         .map(|number| format!("{base} {number}.{EXTENSION}"))
         .find(|name| !taken.iter().any(|each| each.eq_ignore_ascii_case(name)))
@@ -568,21 +698,116 @@ mod tests {
     }
 
     #[test]
-    fn test_stepping_goes_on_from_the_factory_presets_into_the_players() {
+    fn test_stepping_comes_round_within_the_bank_showing() {
         let dir = test_dir("user-presets-round");
         let params = GuitarAmpParams::default();
         for file in ["Mine.preset", "Other.preset"] {
             save(&params, &dir, file).unwrap();
         }
         let bank = Bank::read(&params, Some(&dir));
-        let factory = PRESETS.len();
-        assert_eq!(place(3, "", &bank), 3);
-        assert_eq!(place(3, "Other.preset", &bank), factory + 1);
-        // One that was thrown away counts as the factory preset it was loaded after
-        assert_eq!(place(3, "Gone.preset", &bank), 3);
-        assert_eq!(neighbour(factory - 1, &bank, true), factory);
-        assert_eq!(neighbour(factory + 1, &bank, true), 0);
-        assert_eq!(neighbour(0, &bank, false), factory + 1);
+        // The factory bank comes round in itself and never leaves it
+        assert_eq!(neighbour_factory(3, true), 4);
+        assert_eq!(neighbour_factory(PRESETS.len() - 1, true), 0);
+        assert_eq!(neighbour_factory(0, false), PRESETS.len() - 1);
+        // An index out of a project of another build is brought back in
+        assert_eq!(neighbour_factory(PRESETS.len() + 5, true), 0);
+        // A bank of the player's comes round in its own files
+        assert_eq!(neighbour_user(&bank, "Mine.preset", true), Some(1));
+        assert_eq!(neighbour_user(&bank, "Other.preset", true), Some(0));
+        assert_eq!(neighbour_user(&bank, "Mine.preset", false), Some(1));
+        // With nothing loaded from the bank a step lands at the end it comes from
+        assert_eq!(neighbour_user(&bank, "", true), Some(0));
+        assert_eq!(neighbour_user(&bank, "Gone.preset", false), Some(1));
+        // A bank with nothing in it has nowhere to step
+        assert_eq!(neighbour_user(&Bank::default(), "", true), None);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_the_banks_are_the_factory_presets_the_folder_and_the_folders_in_it() {
+        let dir = test_dir("user-presets-banks");
+        let params = GuitarAmpParams::default();
+        save(&params, &dir, "Loose.preset").unwrap();
+        for folder in ["jazz", "Metal"] {
+            std::fs::create_dir_all(dir.join(folder)).unwrap();
+        }
+        // What is deeper than one folder is no bank
+        std::fs::create_dir_all(dir.join("Metal").join("Deeper")).unwrap();
+
+        assert_eq!(banks(Some(&dir)), [FACTORY, MINE, "/jazz", "/Metal"]);
+        // Without a presets folder there are still the two banks that are no folder
+        assert_eq!(banks(None), [FACTORY, MINE]);
+        assert_eq!(bank_name(FACTORY, 10), "FACTORY");
+        assert_eq!(bank_name(MINE, 10), "MINE");
+        assert_eq!(bank_name("/jazz", 10), "JAZZ");
+        assert_eq!(bank_name("/Tåge og Regn", 8), "TÅG~REGN");
+
+        let banks = banks(Some(&dir));
+        assert_eq!(neighbour_bank(&banks, FACTORY, true), MINE);
+        assert_eq!(neighbour_bank(&banks, "/Metal", true), FACTORY);
+        assert_eq!(neighbour_bank(&banks, FACTORY, false), "/Metal");
+        // A bank that is no longer there counts as the factory one
+        assert_eq!(neighbour_bank(&banks, "/Gone", true), MINE);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_a_project_from_before_there_were_banks_opens_on_the_presets_folder() {
+        // A preset of the player's with no bank is one of the presets kept loose in the
+        // folder, which is what every build before banks saved
+        assert_eq!(bank_shown("", "Smooth.preset"), MINE);
+        assert_eq!(bank_shown("", ""), FACTORY);
+        assert_eq!(bank_shown(MINE, "Smooth.preset"), MINE);
+        assert_eq!(bank_shown("/Jazz", "Smooth.preset"), "/Jazz");
+        assert_eq!(bank_shown("/Jazz", ""), "/Jazz");
+        // One out of a project of another build, or a damaged one, is the factory bank
+        assert_eq!(bank_shown("/../secret", "Smooth.preset"), FACTORY);
+        assert_eq!(bank_shown("Jazz", ""), FACTORY);
+
+        let params = GuitarAmpParams::default();
+        assert_eq!(bank_of(&params), FACTORY);
+        *params.user_preset.lock().unwrap() = "Smooth.preset".to_owned();
+        assert_eq!(bank_of(&params), MINE);
+        *params.preset_bank.lock().unwrap() = "/Jazz".to_owned();
+        assert_eq!(bank_of(&params), "/Jazz");
+    }
+
+    #[test]
+    fn test_a_bank_is_never_a_path_out_of_the_presets_folder() {
+        for bank in [FACTORY, MINE, "/Jazz", "/Tåge"] {
+            assert!(is_bank(bank), "{bank}");
+        }
+        for bank in ["/..", "/../secret", "/a/b", "/a\\b", "Jazz", "/.", "//"] {
+            assert!(!is_bank(bank), "{bank}");
+        }
+        // An id no bank may have has no folder, and is read as the factory bank
+        assert!(bank_dir("/../secret").is_none());
+        assert!(bank_dir(FACTORY).is_none());
+        assert_eq!(bank_name("nonsense", 10), "FACTORY");
+    }
+
+    #[test]
+    fn test_a_new_bank_is_named_like_a_file_and_one_that_is_there_is_simply_picked() {
+        let dir = test_dir("user-presets-new-bank");
+        assert_eq!(make_bank(&dir, " Jazz ").unwrap(), "/Jazz");
+        assert!(dir.join("Jazz").is_dir());
+        // The characters a name cannot hold are left out, so it stays one plain name
+        assert_eq!(make_bank(&dir, "Jazz/Trio").unwrap(), "/JazzTrio");
+        // The same name again is that bank, and nothing in it is lost
+        save(&GuitarAmpParams::default(), &dir.join("Jazz"), "Smooth.preset").unwrap();
+        assert_eq!(make_bank(&dir, "Jazz").unwrap(), "/Jazz");
+        assert!(dir.join("Jazz").join("Smooth.preset").is_file());
+        // A name nothing is left of makes a bank nobody named, to rename in the folder
+        for (name, made) in [("", "/Bank 1"), ("   ", "/Bank 2"), ("/", "/Bank 3")] {
+            assert_eq!(make_bank(&dir, name).unwrap(), made, "{name}");
+        }
+        assert_eq!(new_bank_name(&dir), "Bank 4");
+        // A name that is no name at all is refused
+        for name in ["..", "."] {
+            assert!(make_bank(&dir, name).is_err(), "{name}");
+        }
+        // The factory bank, the folder itself, and the five folders made here
+        assert_eq!(banks(Some(&dir)).len(), 2 + 5);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

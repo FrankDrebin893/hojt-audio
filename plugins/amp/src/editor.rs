@@ -5,9 +5,10 @@ use std::path::Path;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, PoisonError};
 use suite_common::ui::{
-    self, chrome_button, level_meter, param_knob, param_switch, rig_led, signal_lamp, silk_label,
-    small_footswitch, stepper, theme, tuner_display, MiniStyle, Motif, Ornament, PedalStyle, Step,
-    BENCH_MARGIN, SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED, SLIM_SWITCH,
+    self, chrome_button, drop_panel, level_meter, menu_stepper, param_knob, param_switch, rig_led,
+    signal_lamp, silk_label, small_footswitch, stepper, theme, tuner_display, type_into, Column,
+    MiniStyle, Motif, Ornament, PedalStyle, Pick, Row, Step, Typed, BENCH_MARGIN, SLIM_KNOBS,
+    SLIM_KNOB_RADIUS, SLIM_LED, SLIM_SWITCH,
 };
 
 use crate::cab::MicType;
@@ -56,6 +57,25 @@ const USER_NAME_CHARS: usize = 13;
 const SAVE_NOTE_S: f64 = 1.5;
 // Room for the note and seventeen lamps
 const TUNER_WIDTH: f32 = 286.0;
+
+// The bank display left of the preset display: which set of presets the preset display
+// picks from. Its caption is on the preset caption's line and its tape on the preset
+// tape's line; its buttons go round the banks and its tape drops the whole list open
+const BANK_X: f32 = PRESET_X - 210.0;
+const BANK_WIDTH: f32 = 120.0;
+const BANK_NAME_CHARS: usize = 10;
+
+// The list that drops out of either display, under the preset tape: the banks in the first
+// column and the presets of the bank that is listed in the second
+const DROP_Y: f32 = PRESET_Y + 17.0;
+const BANK_COLUMN: usize = 0;
+const DROP_BANK_WIDTH: f32 = 132.0;
+const DROP_PRESET_WIDTH: f32 = 186.0;
+const DROP_BANK_CHARS: usize = 12;
+const DROP_PRESET_CHARS: usize = 17;
+// The row at the end of the banks that makes one, and how long a name typed on it may be
+const NEW_BANK_ROW: &str = "+ New Bank";
+const NEW_BANK_CHARS: usize = 14;
 
 // The amp's own six dials in an even row, and the output level set apart from them
 const KNOB_Y: f32 = 114.0;
@@ -309,11 +329,26 @@ fn step_cabinet(
 /// What the editor keeps from one frame to the next
 pub(crate) struct View {
     lamps: LampView,
-    /// The player's presets, as the folder was when it was last looked at: when the window
-    /// opened, and with every step and save
+    /// The presets of the bank showing, as its folder was when it was last looked at: when
+    /// the window opened, and with every step, pick and save
     bank: Bank,
+    /// The list of banks and presets while it is dropped open
+    menu: Option<Menu>,
     /// What the preset display says instead of the name, and until when
     note: Option<(&'static str, f64)>,
+}
+
+/// The list of banks and presets while it is dropped open
+struct Menu {
+    /// The bank whose presets it lists: the one showing, until another is clicked in it
+    listed: String,
+    /// The file names in `listed`, as its folder was when it was listed. Empty for the
+    /// factory bank, whose presets are built in
+    files: Vec<String>,
+    /// The name being typed for a new bank
+    naming: Option<String>,
+    /// Opened in this frame: the click that opened it is no click outside it
+    opened: bool,
 }
 
 /// The preset display and the Save button beside it
@@ -335,30 +370,75 @@ impl PresetDisplay<'_> {
         );
     }
 
-    /// The caption with the folder behind it, the display that steps through the presets,
-    /// and the Save button
+    /// The bank showing, which the preset display picks from
+    fn bank(&self) -> String {
+        user_presets::bank_of(self.params)
+    }
+
+    /// Writes down which bank is showing
+    fn set_bank(&self, bank: &str) {
+        bank.clone_into(
+            &mut self.params.preset_bank.lock().unwrap_or_else(PoisonError::into_inner),
+        );
+    }
+
+    /// Shows `bank`, with nothing loaded out of it: the sound stays as it stands, the
+    /// display falls back to the name of the preset it came from, and Save makes a new
+    /// preset in the bank
+    fn show_bank(&self, bank: &str, view: &mut View) {
+        self.set_bank(bank);
+        self.set_user_preset("");
+        view.bank = Bank::read(self.params, user_presets::bank_dir(bank).as_deref());
+    }
+
+    /// The names of the presets in `bank` without reading them: nothing for the factory
+    /// bank, whose presets are built in
+    fn bank_files(&self, bank: &str) -> Vec<String> {
+        user_presets::bank_dir(bank)
+            .map(|dir| user_cab::list_with_extension(&dir, user_presets::EXTENSION))
+            .unwrap_or_default()
+    }
+
+    /// The caption with the folder behind it, the Bank and Preset displays and the Save
+    /// button. The list they open is drawn afterwards, by `menu`
     fn draw(&self, ui: &mut Ui, origin: Pos2, view: &mut View, now: f64) {
         let params = self.params;
-        let dir = user_presets::presets_dir();
+        let bank = self.bank();
+        let dir = user_presets::bank_dir(&bank);
         let factory = presets::index_or_first(params.preset.load(Ordering::Relaxed));
         let user = self.user_preset();
 
         let caption = origin + vec2(PRESET_X, PRESET_CAPTION_Y);
         silk_label(ui.painter(), caption, "Preset", 13.0);
-        // Where the player's presets are kept: shown when the caption is hovered, and opened
-        // by a double-click on it, to rename, copy or throw them away
-        if let Some(dir) = &dir {
+        // Where the presets of the bank showing are kept: shown when the caption is
+        // hovered, and opened by a double-click on it, to rename, move, copy or throw them
+        // away. The factory bank has no folder, so it names the presets folder itself
+        let folder = dir.clone().or_else(user_presets::presets_dir);
+        if let Some(folder) = &folder {
             let response = ui
                 .interact(
                     Rect::from_center_size(caption, vec2(60.0, 18.0)),
                     Id::new("preset-folder"),
                     Sense::click(),
                 )
-                .on_hover_text(format!("Your presets are kept in {}", dir.display()));
+                .on_hover_text(format!("Your presets are kept in {}", folder.display()));
             if response.double_clicked() {
-                let _ = std::fs::create_dir_all(dir);
-                user_cab::open_folder(dir);
+                let _ = std::fs::create_dir_all(folder);
+                user_cab::open_folder(folder);
             }
+        }
+
+        silk_label(ui.painter(), origin + vec2(BANK_X, PRESET_CAPTION_Y), "Bank", 13.0);
+        let bank_shown = user_presets::bank_name(&bank, BANK_NAME_CHARS);
+        match menu_stepper(ui, origin + vec2(BANK_X, PRESET_Y), BANK_WIDTH, &bank_shown, "bank") {
+            Some(Pick::Open) => self.toggle_menu(view, &bank),
+            Some(Pick::Step(step)) => {
+                let banks = user_presets::banks(user_presets::presets_dir().as_deref());
+                let next = user_presets::neighbour_bank(&banks, &bank, step == Step::Next);
+                self.show_bank(&next, view);
+                view.note = None;
+            }
+            None => {}
         }
 
         let shown = match view.note {
@@ -368,22 +448,175 @@ impl PresetDisplay<'_> {
                 self.shown_name(factory, &user, &view.bank)
             }
         };
-        if let Some(step) =
-            stepper(ui, origin + vec2(PRESET_X, PRESET_Y), PRESET_WIDTH, &shown, "preset")
-        {
-            view.note = None;
-            view.bank = Bank::read(params, dir.as_deref());
-            let place = user_presets::place(factory, &user, &view.bank);
-            let next = user_presets::neighbour(place, &view.bank, step == Step::Next);
-            self.load(next, &view.bank);
+        match menu_stepper(ui, origin + vec2(PRESET_X, PRESET_Y), PRESET_WIDTH, &shown, "preset") {
+            Some(Pick::Open) => self.toggle_menu(view, &bank),
+            Some(Pick::Step(step)) => {
+                view.note = None;
+                self.step(step == Step::Next, &bank, factory, &user, view, now);
+            }
+            None => {}
         }
 
         silk_label(ui.painter(), origin + vec2(SAVE_X, PRESET_CAPTION_Y), "Save", 13.0);
         if chrome_button(ui, origin + vec2(SAVE_X, PRESET_Y), "save-preset").clicked() {
-            let saved = dir.as_deref().is_some_and(|dir| self.save(dir, factory, &user, view));
+            // Nothing is written into the factory bank: a sound saved there goes into the
+            // presets folder, which is the bank showing from then on
+            let into = dir.clone().or_else(user_presets::presets_dir);
+            let saved = into.as_deref().is_some_and(|into| self.save(into, factory, &user, view));
+            if saved && dir.is_none() {
+                self.set_bank(user_presets::MINE);
+            }
             view.note = Some((if saved { "SAVED" } else { "NOT SAVED" }, now + SAVE_NOTE_S));
-            // Draw once more when the note is over
+        }
+        // A note is only up for a while: draw once more when it is over
+        if view.note.is_some() {
             ui.ctx().request_repaint_after(std::time::Duration::from_secs_f64(SAVE_NOTE_S));
+        }
+    }
+
+    /// Drops the list open on the bank showing, or closes it if it is open already
+    fn toggle_menu(&self, view: &mut View, bank: &str) {
+        view.menu = match view.menu {
+            Some(_) => None,
+            None => Some(Menu {
+                listed: bank.to_owned(),
+                files: self.bank_files(bank),
+                naming: None,
+                opened: true,
+            }),
+        };
+    }
+
+    /// The list the displays drop open: the banks in the first column, the presets of the
+    /// bank that is listed in the second. It is drawn after everything else in the window,
+    /// in a layer above it, so nothing behind it answers a click while it is open
+    fn menu(&self, ui: &mut Ui, origin: Pos2, view: &mut View, now: f64) {
+        let Some(mut menu) = view.menu.take() else {
+            return;
+        };
+        let params = self.params;
+        let presets_dir = user_presets::presets_dir();
+        let banks = user_presets::banks(presets_dir.as_deref());
+
+        // What is typed for a new bank is taken before the list is drawn, so the letter is
+        // on the tape in the same frame. Escape ends the naming, not the list
+        let typed = menu.naming.as_mut().and_then(|name| type_into(ui, name, NEW_BANK_CHARS));
+        match typed {
+            Some(Typed::Done) => self.make_bank(&mut menu, presets_dir.as_deref(), view, now, ui),
+            Some(Typed::Cancelled) => menu.naming = None,
+            None => {}
+        }
+
+        let showing = self.bank();
+        let user = self.user_preset();
+        let factory = presets::index_or_first(params.preset.load(Ordering::Relaxed));
+        let listed_is_factory = user_presets::bank_dir(&menu.listed).is_none();
+        // Which preset is lit: only the bank that is listed can hold the one loaded
+        let loaded = match (menu.listed == showing, listed_is_factory) {
+            (false, _) => Loaded::Nothing,
+            (true, true) if user.is_empty() => Loaded::Factory(factory),
+            (true, true) => Loaded::Nothing,
+            (true, false) => Loaded::File(&user),
+        };
+        let bank_rows = bank_rows(&banks, &menu.listed, menu.naming.as_deref());
+        let preset_rows =
+            preset_rows((!listed_is_factory).then_some(menu.files.as_slice()), loaded);
+
+        let columns = [
+            Column { title: "Bank", key: "banks", width: DROP_BANK_WIDTH, rows: &bank_rows },
+            Column {
+                title: "Preset",
+                key: &menu.listed,
+                width: DROP_PRESET_WIDTH,
+                rows: &preset_rows,
+            },
+        ];
+        let picked = drop_panel(ui, origin + vec2(PRESET_X, DROP_Y), &columns, "presets");
+        // Neither the click that opened it nor the escape that ended a name closes it
+        let mut open = !(picked.closed && !menu.opened && typed.is_none());
+        menu.opened = false;
+
+        match picked.row {
+            // The row at the end of the banks takes a name for a new one. Clicked again it
+            // keeps the name as it stands, so a bank can be made without the keyboard
+            Some((BANK_COLUMN, row)) if row == banks.len() => {
+                if menu.naming.is_some() {
+                    self.make_bank(&mut menu, presets_dir.as_deref(), view, now, ui);
+                } else {
+                    menu.naming = Some(String::new());
+                }
+            }
+            Some((BANK_COLUMN, row)) => {
+                menu.naming = None;
+                if let Some(bank) = banks.get(row) {
+                    menu.files = self.bank_files(bank);
+                    menu.listed = bank.clone();
+                }
+            }
+            Some((_, row)) => {
+                // The bank a preset is picked from is the bank showing from then on
+                self.set_bank(&menu.listed);
+                view.bank = Bank::read(params, user_presets::bank_dir(&menu.listed).as_deref());
+                if listed_is_factory {
+                    self.load_factory(row);
+                } else {
+                    self.load_user(row, view);
+                }
+                view.note = None;
+                open = false;
+            }
+            None => {}
+        }
+        if open {
+            view.menu = Some(menu);
+        }
+    }
+
+    /// Makes the bank of the name that was typed, and lists it. A name nothing was typed
+    /// for is `Bank 1`, `Bank 2` and so on, which is renamed in the folder
+    fn make_bank(
+        &self,
+        menu: &mut Menu,
+        presets_dir: Option<&Path>,
+        view: &mut View,
+        now: f64,
+        ui: &Ui,
+    ) {
+        let name = menu.naming.take().unwrap_or_default();
+        match presets_dir.map(|dir| user_presets::make_bank(dir, &name)) {
+            Some(Ok(made)) => {
+                self.show_bank(&made, view);
+                menu.files = self.bank_files(&made);
+                menu.listed = made;
+            }
+            _ => {
+                // The display says so where the name was typed, so it is drawn again
+                view.note = Some(("NO BANK", now + SAVE_NOTE_S));
+                ui.ctx().request_repaint();
+            }
+        }
+    }
+
+    /// The preset a button of the preset display asks for: the one after or before it in
+    /// the bank showing, which it comes round in without leaving it
+    fn step(
+        &self,
+        forward: bool,
+        bank: &str,
+        factory: usize,
+        user: &str,
+        view: &mut View,
+        now: f64,
+    ) {
+        let Some(dir) = user_presets::bank_dir(bank) else {
+            self.load_factory(user_presets::neighbour_factory(factory, forward));
+            return;
+        };
+        view.bank = Bank::read(self.params, Some(&dir));
+        match user_presets::neighbour_user(&view.bank, user, forward) {
+            Some(at) => self.load_user(at, view),
+            // A bank of the player's with nothing saved in it yet
+            None => view.note = Some(("NO PRESETS", now + SAVE_NOTE_S)),
         }
     }
 
@@ -401,24 +634,24 @@ impl PresetDisplay<'_> {
         }
     }
 
-    /// Loads the preset at `place` in the round
-    fn load(&self, place: usize, bank: &Bank) {
-        let (params, setter) = (self.params, self.setter);
-        match place.checked_sub(PRESETS.len()).and_then(|index| bank.get(index)) {
-            Some((file, preset)) => {
-                if preset.load(params, setter) {
-                    self.cab_loader.chosen();
-                    self.async_executor.execute_background(Task::LoadCabinet);
-                }
-                self.set_user_preset(file);
-            }
-            None => {
-                let index = place.min(PRESETS.len() - 1);
-                PRESETS[index].load(params, setter);
-                params.preset.store(index as u32, Ordering::Relaxed);
-                self.set_user_preset("");
-            }
+    /// Loads the factory preset `index`
+    fn load_factory(&self, index: usize) {
+        let index = index.min(PRESETS.len() - 1);
+        PRESETS[index].load(self.params, self.setter);
+        self.params.preset.store(index as u32, Ordering::Relaxed);
+        self.set_user_preset("");
+    }
+
+    /// Loads the preset at `at` of the bank the window has read, and the cabinet with it
+    fn load_user(&self, at: usize, view: &View) {
+        let Some((file, preset)) = view.bank.get(at) else {
+            return;
+        };
+        if preset.load(self.params, self.setter) {
+            self.cab_loader.chosen();
+            self.async_executor.execute_background(Task::LoadCabinet);
         }
+        self.set_user_preset(file);
     }
 
     /// Writes the sound as it stands: over the player's preset loaded last, or, after a
@@ -437,6 +670,63 @@ impl PresetDisplay<'_> {
         view.bank = Bank::read(self.params, Some(dir));
         true
     }
+}
+
+/// Which preset of the bank a column lists is loaded, and so lit
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Loaded<'a> {
+    /// None of them: the sound came from another bank
+    Nothing,
+    Factory(usize),
+    File(&'a str),
+}
+
+/// The rows of the bank column: every bank with the one that is listed lit, and the row
+/// that makes a bank at the end, which holds the name while it is being typed
+fn bank_rows(banks: &[String], listed: &str, naming: Option<&str>) -> Vec<Row> {
+    let mut rows: Vec<Row> = banks
+        .iter()
+        .map(|bank| Row {
+            text: user_presets::bank_name(bank, DROP_BANK_CHARS),
+            lit: bank == listed,
+            dim: false,
+        })
+        .collect();
+    rows.push(match naming {
+        // The name as it is typed, with the caret after it
+        Some(name) => Row { text: format!("{name}_"), lit: true, dim: false },
+        None => Row { text: NEW_BANK_ROW.to_owned(), lit: false, dim: false },
+    });
+    rows
+}
+
+/// The rows of the preset column: the factory presets when `files` is nothing, else the
+/// files of the bank that is listed, with the one that is loaded lit. A bank with nothing
+/// in it has one row that says so and is not picked
+fn preset_rows(files: Option<&[String]>, loaded: Loaded) -> Vec<Row> {
+    let mut rows: Vec<Row> = match files {
+        None => PRESETS
+            .iter()
+            .enumerate()
+            .map(|(at, preset)| Row {
+                text: preset.name.to_owned(),
+                lit: loaded == Loaded::Factory(at),
+                dim: false,
+            })
+            .collect(),
+        Some(files) => files
+            .iter()
+            .map(|file| Row {
+                text: user_presets::display_name(file, DROP_PRESET_CHARS),
+                lit: loaded == Loaded::File(file),
+                dim: false,
+            })
+            .collect(),
+    };
+    if rows.is_empty() {
+        rows.push(Row { text: "No presets".to_owned(), lit: false, dim: true });
+    }
+    rows
 }
 
 pub fn default_state() -> Arc<EguiState> {
@@ -476,13 +766,15 @@ pub fn create(
     let opened_params = params.clone();
     create_egui_editor(
         editor_state,
-        View { lamps: LampView::new(&lamp_reading), bank: Bank::default(), note: None },
+        View { lamps: LampView::new(&lamp_reading), bank: Bank::default(), menu: None, note: None },
         move |egui_ctx, view| {
             ui::install(egui_ctx);
             // What was clipped while the window was closed is not news
             view.lamps = LampView::new(&opened_reading);
-            // The player may have renamed or added presets in the folder since
-            view.bank = Bank::read(&opened_params, user_presets::presets_dir().as_deref());
+            // The player may have renamed, moved or added presets in the folder since
+            let bank = user_presets::bank_of(&opened_params);
+            view.bank = Bank::read(&opened_params, user_presets::bank_dir(&bank).as_deref());
+            view.menu = None;
             // A cabinet file that was missing or unusable may have been put right since:
             // look again whenever the window opens
             if opened_loader.status() != CabStatus::Fine {
@@ -509,8 +801,16 @@ pub fn create(
                 // What is on the head is placed from here
                 let origin = window + vec2(HEAD_X, 0.0);
 
+                let presets = PresetDisplay {
+                    params: &params,
+                    setter,
+                    cab_loader: &cab_loader,
+                    async_executor: &async_executor,
+                };
                 let tuning = params.tuner_on.value();
                 if tuning {
+                    // The tuner takes the place of the preset display, list and all
+                    view.menu = None;
                     // The note the tuner hears and how far off it is, where the preset was
                     let note = tuner.hz().map(Note::nearest);
                     let name = note.map(|note| format!("{}{}", note.name, note.octave));
@@ -530,12 +830,6 @@ pub fn create(
                     // What it hears changes without anyone touching the window
                     ui.ctx().request_repaint();
                 } else {
-                    let presets = PresetDisplay {
-                        params: &params,
-                        setter,
-                        cab_loader: &cab_loader,
-                        async_executor: &async_executor,
-                    };
                     presets.draw(ui, origin, view, now);
                 }
 
@@ -647,6 +941,9 @@ pub fn create(
                     async_executor: &async_executor,
                 };
                 crate::board::board(ui, window, &pedals, &params.order);
+
+                // The preset list after everything else, in a layer above the window
+                presets.menu(ui, origin, view, now);
             });
         },
     )
@@ -660,6 +957,66 @@ mod tests {
     #[test]
     fn test_the_pedal_is_drawn_with_its_art() {
         assert!(STYLE.art == Some(ui::artwork::AMP), "the pedal has lost its art");
+    }
+
+    /// How far a stepper's buttons stand out from the middle of its tape
+    fn reach(width: f32) -> f32 {
+        width / 2.0 + 22.0
+    }
+
+    /// The bottom edge of a display's tape, from the top of the window
+    fn tape_bottom(y: f32) -> f32 {
+        y + 11.0
+    }
+
+    #[test]
+    fn test_the_bank_display_stands_clear_of_the_preset_display() {
+        assert!(
+            BANK_X + reach(BANK_WIDTH) < PRESET_X - reach(PRESET_WIDTH),
+            "the bank display runs into the preset display"
+        );
+        // Both stand clear of the knob ticks, and the list drops out under their tapes
+        assert!(tape_bottom(PRESET_Y) < KNOB_Y - KNOB_RADIUS - 12.0, "they run into the dials");
+        assert!(DROP_Y > tape_bottom(PRESET_Y), "the list covers the display it drops from");
+    }
+
+    #[test]
+    fn test_the_list_holds_every_bank_and_the_row_that_makes_one() {
+        let banks = vec![user_presets::FACTORY.to_owned(), user_presets::MINE.to_owned()];
+        let rows = bank_rows(&banks, user_presets::MINE, None);
+        let texts: Vec<&str> = rows.iter().map(|row| row.text.as_str()).collect();
+        assert_eq!(texts, ["FACTORY", "MINE", NEW_BANK_ROW]);
+        // The bank that is listed is the lit one, and nothing else
+        assert_eq!(rows.iter().filter(|row| row.lit).count(), 1);
+        assert!(rows[1].lit);
+        // While a bank is being named, its row holds what is typed with the caret after it
+        let naming = bank_rows(&banks, user_presets::MINE, Some("Jaz"));
+        assert_eq!(naming[2].text, "Jaz_");
+        assert!(naming[2].lit);
+    }
+
+    #[test]
+    fn test_the_list_holds_the_presets_of_the_bank_it_lists_with_the_one_loaded_lit() {
+        // The factory bank: every built-in preset, the one loaded lit
+        let rows = preset_rows(None, Loaded::Factory(3));
+        assert_eq!(rows.len(), PRESETS.len());
+        assert_eq!(rows[3].text, PRESETS[3].name);
+        assert_eq!(rows.iter().filter(|row| row.lit).count(), 1);
+        assert!(rows[3].lit);
+
+        // A bank of the player's: its files, without the extension and in capitals
+        let files = vec!["Smooth.preset".to_owned(), "Tåge 2.preset".to_owned()];
+        let rows = preset_rows(Some(&files), Loaded::File("Tåge 2.preset"));
+        assert_eq!(rows[0].text, "SMOOTH");
+        assert!(!rows[0].lit && rows[1].lit);
+
+        // Nothing is lit while the sound came out of another bank
+        let rows = preset_rows(Some(&files), Loaded::Nothing);
+        assert!(rows.iter().all(|row| !row.lit && !row.dim));
+        // A bank with nothing in it says so, and that row is not picked
+        let empty = preset_rows(Some(&[]), Loaded::Nothing);
+        assert_eq!(empty.len(), 1);
+        assert!(empty[0].dim);
     }
 
     #[test]

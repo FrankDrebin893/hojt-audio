@@ -156,6 +156,9 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
 - `widgets.rs` - `param_knob` (fluted knob, name, value on label tape), `footswitch`, `led`,
   `small_footswitch`, `rig_led` and `param_switch` (the switch and LED of a rig, bound to an on/off
   parameter), `stepper` (label tape with a chrome button at each end, for picking one of many),
+  `menu_stepper` (one whose tape drops a list open instead of stepping on) with `drop_panel`
+  (the plate of tape rows that list, the amp's preset banks, is picked from) and `type_into`
+  (a name typed on a row of it, the one place in the suite that takes typed text),
   `chrome_button` (one such button alone, for an action such as Save),
   `tuner_display` (note name and a row of lamps on one strip of label tape) and `cents_meter`
   (the lamps alone), `level_meter` (a column of ten lamps on label tape for a signal level, the

@@ -1,7 +1,7 @@
 use nih_plug::prelude::{BoolParam, Param, ParamSetter};
 use nih_plug_egui::egui::{
-    vec2, Align2, Color32, CornerRadius, Id, Painter, Pos2, Rect, Response, Sense, Shape, Stroke,
-    StrokeKind, Ui, Vec2,
+    vec2, Align2, Area, Color32, CornerRadius, Event, Id, Key, Order, Painter, Pos2, Rect,
+    Response, Sense, Shape, Stroke, StrokeKind, Ui, Vec2,
 };
 
 use super::theme::*;
@@ -32,6 +32,27 @@ const STEPPER_TEXT_SIZE: f32 = 13.0;
 const STEPPER_TAPE_HEIGHT: f32 = 22.0;
 const STEPPER_BUTTON_RADIUS: f32 = 11.0;
 const STEPPER_BUTTON_GAP: f32 = 9.0;
+
+// The plate that drops out of a display: the space round its columns, the caption over
+// each of them, and its rows of label tape
+const DROP_PADDING: f32 = 10.0;
+const DROP_TITLE_SIZE: f32 = 13.0;
+const DROP_TITLE_HEIGHT: f32 = 18.0;
+const DROP_ROW_HEIGHT: f32 = 22.0;
+// The tape of a row is painted a little over its rectangle, so the rows stand far enough
+// apart for the strips not to overlap
+const DROP_ROW_GAP: f32 = 6.0;
+const DROP_COLUMN_GAP: f32 = 12.0;
+const DROP_TEXT_SIZE: f32 = 13.0;
+// The lamp of the row that is in use, and where the text starts after it
+const DROP_LAMP_X: f32 = 9.0;
+const DROP_LAMP_RADIUS: f32 = 3.5;
+const DROP_TEXT_X: f32 = 19.0;
+// The chrome bar of a column that holds more rows than it shows, and the space to it
+const DROP_BAR_WIDTH: f32 = 5.0;
+const DROP_BAR_GAP: f32 = 4.0;
+/// The most rows a column of a `drop_panel` shows at once: the rest are scrolled to
+pub const DROP_ROWS: usize = 7;
 
 // The tuner's display: the note in a cell at the left end of a strip of label tape, and
 // a row of lamps in the rest of it
@@ -211,6 +232,15 @@ pub enum Step {
     Next,
 }
 
+/// What a click on a `menu_stepper` asked for
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Pick {
+    /// A button: the entry before or after the one showing
+    Step(Step),
+    /// The tape: the whole list, to be drawn with a `drop_panel`
+    Open,
+}
+
 /// Display for picking one of a list: `text` on a strip of label tape `width` wide, centred
 /// on `center`, with a small chrome push button at each end for the previous and the next
 /// entry. A click on the tape also asks for the next one. The caller owns the list: it
@@ -218,12 +248,40 @@ pub enum Step {
 ///
 /// The tape does not grow with the text: choose `width` for the longest entry.
 pub fn stepper(ui: &mut Ui, center: Pos2, width: f32, text: &str, id_source: &str) -> Option<Step> {
+    match stepper_parts(ui, center, width, text, id_source) {
+        Some(Pick::Step(step)) => Some(step),
+        // On a stepper that opens nothing, the tape asks for the next entry as well
+        Some(Pick::Open) => Some(Step::Next),
+        None => None,
+    }
+}
+
+/// A `stepper` whose tape opens the whole list instead of stepping on, for a list too long
+/// to click through one at a time: the buttons step as they do on any stepper, and a click
+/// on the tape comes back as `Pick::Open`, which a `drop_panel` is drawn for.
+pub fn menu_stepper(
+    ui: &mut Ui,
+    center: Pos2,
+    width: f32,
+    text: &str,
+    id_source: &str,
+) -> Option<Pick> {
+    stepper_parts(ui, center, width, text, id_source)
+}
+
+fn stepper_parts(
+    ui: &mut Ui,
+    center: Pos2,
+    width: f32,
+    text: &str,
+    id_source: &str,
+) -> Option<Pick> {
     let tape = Rect::from_center_size(center, vec2(width, STEPPER_TAPE_HEIGHT));
     let reach = width / 2.0 + STEPPER_BUTTON_GAP + STEPPER_BUTTON_RADIUS;
     let tape_clicked =
         ui.interact(tape, Id::new(("stepper", id_source, "tape")), Sense::click()).clicked();
 
-    let mut step = tape_clicked.then_some(Step::Next);
+    let mut step = tape_clicked.then_some(Pick::Open);
     for (direction, side) in [(Step::Previous, -1.0), (Step::Next, 1.0)] {
         let button = center + vec2(side * reach, 0.0);
         let rect = Rect::from_center_size(button, Vec2::splat(STEPPER_BUTTON_RADIUS * 2.0 + 4.0));
@@ -236,7 +294,7 @@ pub fn stepper(ui: &mut Ui, center: Pos2, width: f32, text: &str, id_source: &st
             response.is_pointer_button_down_on(),
         );
         if response.clicked() {
-            step = Some(direction);
+            step = Some(Pick::Step(direction));
         }
     }
 
@@ -253,6 +311,220 @@ pub fn stepper(ui: &mut Ui, center: Pos2, width: f32, text: &str, id_source: &st
     );
 
     step
+}
+
+/// One row of a column of a `drop_panel`: a strip of label tape with `text` on it
+#[derive(Clone, Default)]
+pub struct Row {
+    pub text: String,
+    /// Lit: a small lamp at the left of the tape says this is the one in use
+    pub lit: bool,
+    /// Nothing to pick, for a column with nothing in it: darker, and never clicked
+    pub dim: bool,
+}
+
+/// One column of a `drop_panel`: its caption, its rows, and how wide its tape is
+pub struct Column<'a> {
+    pub title: &'a str,
+    /// Tells this list from another in the same panel: a column keeps how far down it
+    /// stands under this, so a column that is given another list starts at its lit row
+    pub key: &'a str,
+    pub width: f32,
+    pub rows: &'a [Row],
+}
+
+/// What came of a `drop_panel`
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Picked {
+    /// The column and the row in it that was clicked
+    pub row: Option<(usize, usize)>,
+    /// It was asked to close: a click outside it, or escape. A row that was clicked does
+    /// not close it; the caller knows which of its lists ends the picking
+    pub closed: bool,
+}
+
+/// A plate of label-tape rows that drops out of a display, for picking one of a list too
+/// long to step through: the columns side by side, each under its own caption, on a dark
+/// plate with a chrome edge. `top_center` is the middle of its top edge.
+///
+/// It is drawn above everything else in the window and takes every click in its own area,
+/// so nothing behind it answers while it is open. A column of more than `DROP_ROWS` rows
+/// shows that many and scrolls with the wheel.
+pub fn drop_panel(ui: &Ui, top_center: Pos2, columns: &[Column], id_source: &str) -> Picked {
+    let lane = DROP_BAR_WIDTH + DROP_BAR_GAP;
+    let shown =
+        columns.iter().map(|column| column.rows.len().clamp(1, DROP_ROWS)).max().unwrap_or(1);
+    let rows_height =
+        shown as f32 * DROP_ROW_HEIGHT + (shown.saturating_sub(1)) as f32 * DROP_ROW_GAP;
+    let inner: f32 = columns.iter().map(|column| column.width + lane).sum::<f32>()
+        + DROP_COLUMN_GAP * columns.len().saturating_sub(1) as f32;
+    let size =
+        vec2(inner + 2.0 * DROP_PADDING, rows_height + DROP_TITLE_HEIGHT + 2.0 * DROP_PADDING);
+    let rect = Rect::from_min_size(Pos2::new(top_center.x - size.x / 2.0, top_center.y), size);
+
+    let mut picked = Picked::default();
+    // Its own layer above the window: it is drawn over what is under it, and the controls
+    // under it are in a lower layer, so they answer no clicks while it is open
+    Area::new(Id::new(("drop-panel", id_source)))
+        .order(Order::Foreground)
+        .fixed_pos(rect.min)
+        .show(ui.ctx(), |ui| {
+            // The plate takes the whole area up, so that the layer is known to cover it:
+            // every click in it is the plate's, whether it lands on a row or not, and the
+            // wheel over a column is the column's
+            ui.allocate_rect(rect, Sense::click_and_drag());
+            let painter = ui.painter().clone();
+            painter.rect_filled(rect.translate(vec2(0.0, 5.0)).expand(2.0), 7.0, SHADOW);
+            painter.rect_filled(rect, 5.0, PANEL);
+            painter.rect_stroke(rect, 5.0, Stroke::new(1.0, CHROME_DARK), StrokeKind::Inside);
+
+            let top = rect.top() + DROP_PADDING + DROP_TITLE_HEIGHT;
+            let mut left = rect.left() + DROP_PADDING;
+            for (index, column) in columns.iter().enumerate() {
+                silk_label(
+                    &painter,
+                    Pos2::new(
+                        left + column.width / 2.0,
+                        rect.top() + DROP_PADDING + DROP_TITLE_HEIGHT / 2.0,
+                    ),
+                    column.title,
+                    DROP_TITLE_SIZE,
+                );
+                let lane_rect = Rect::from_min_size(
+                    Pos2::new(left, top),
+                    vec2(column.width + lane, rows_height),
+                );
+                let first = column_scroll(ui, id_source, column, index, lane_rect, shown);
+                for (at, row) in column.rows.iter().enumerate().skip(first).take(shown) {
+                    let tape = Rect::from_min_size(
+                        Pos2::new(
+                            left,
+                            top + (at - first) as f32 * (DROP_ROW_HEIGHT + DROP_ROW_GAP),
+                        ),
+                        vec2(column.width, DROP_ROW_HEIGHT),
+                    );
+                    let response = ui.interact(
+                        tape,
+                        Id::new(("drop-row", id_source, index, at)),
+                        Sense::click(),
+                    );
+                    drop_row(&painter, tape, row, response.hovered());
+                    if response.clicked() && !row.dim {
+                        picked.row = Some((index, at));
+                    }
+                }
+                if column.rows.len() > shown {
+                    drop_bar(&painter, lane_rect, column.rows.len(), shown, first);
+                }
+                left += column.width + lane + DROP_COLUMN_GAP;
+            }
+
+            // A click anywhere else, or escape, asks it to close
+            let away =
+                ui.input(|input| input.pointer.any_click()) && !ui.rect_contains_pointer(rect);
+            picked.closed = away || ui.input(|input| input.key_pressed(Key::Escape));
+        });
+    picked
+}
+
+/// How far down a column of a `drop_panel` stands: the wheel moves it while the pointer is
+/// over it, and it is kept from frame to frame under the column's key
+fn column_scroll(
+    ui: &Ui,
+    id_source: &str,
+    column: &Column,
+    index: usize,
+    rect: Rect,
+    shown: usize,
+) -> usize {
+    let most = column.rows.len().saturating_sub(shown) as f32;
+    let id = Id::new(("drop-scroll", id_source, index, column.key));
+    let lit = column.rows.iter().position(|row| row.lit).unwrap_or(0);
+    let mut at: f32 = ui.data(|data| data.get_temp(id)).unwrap_or(lit as f32);
+    if ui.rect_contains_pointer(rect) {
+        at -= ui.input(|input| input.raw_scroll_delta.y) / DROP_ROW_HEIGHT;
+    }
+    at = at.clamp(0.0, most);
+    ui.data_mut(|data| data.insert_temp(id, at));
+    at.round() as usize
+}
+
+fn drop_row(painter: &Painter, tape: Rect, row: &Row, hovered: bool) {
+    super::hardware::paint_tape(painter, tape);
+    if hovered && !row.dim {
+        painter.rect_filled(tape, 2.0, Color32::from_white_alpha(20));
+    }
+    if row.lit {
+        painter.circle_filled(
+            Pos2::new(tape.left() + DROP_LAMP_X, tape.center().y),
+            DROP_LAMP_RADIUS,
+            LED_ON,
+        );
+    }
+    let color = if row.dim { blend(TAPE_TEXT, TAPE, 0.55) } else { TAPE_TEXT };
+    // A name longer than the tape is cut off at its edge, not drawn over the plate
+    let inside = painter.with_clip_rect(tape);
+    let galley = layout(&inside, &row.text.to_uppercase(), mono(DROP_TEXT_SIZE), color, 0.1);
+    inside.galley(
+        Pos2::new(tape.left() + DROP_TEXT_X, tape.center().y - galley.size().y / 2.0),
+        galley,
+        color,
+    );
+}
+
+/// The chrome bar at the right of a column that holds more rows than it shows
+fn drop_bar(painter: &Painter, rect: Rect, rows: usize, shown: usize, first: usize) {
+    let track = Rect::from_min_size(
+        Pos2::new(rect.right() - DROP_BAR_WIDTH, rect.top()),
+        vec2(DROP_BAR_WIDTH, rect.height()),
+    );
+    painter.rect_filled(track, 2.0, blend(CHROME_DARK, PANEL, 0.6));
+    let height = (track.height() * shown as f32 / rows as f32).max(DROP_ROW_HEIGHT);
+    let travel = (track.height() - height) * first as f32 / (rows - shown) as f32;
+    painter.rect_filled(
+        Rect::from_min_size(
+            Pos2::new(track.left(), track.top() + travel),
+            vec2(track.width(), height),
+        ),
+        2.0,
+        CHROME,
+    );
+}
+
+/// What came of a name being typed
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Typed {
+    /// Enter: the name stands as it is
+    Done,
+    /// Escape: nothing is named
+    Cancelled,
+}
+
+/// Takes what was typed this frame into `text`: letters, backspace, enter and escape, and
+/// `max_chars` at most. For the one place in the suite where a name is typed (a new bank of
+/// presets, on its row of a `drop_panel`), so that no egui text widget is drawn.
+pub fn type_into(ui: &Ui, text: &mut String, max_chars: usize) -> Option<Typed> {
+    let mut end = None;
+    ui.input(|input| {
+        for event in &input.events {
+            match event {
+                Event::Text(typed) => {
+                    for letter in typed.chars().filter(|letter| !letter.is_control()) {
+                        if text.chars().count() < max_chars {
+                            text.push(letter);
+                        }
+                    }
+                }
+                Event::Key { key: Key::Backspace, pressed: true, .. } => {
+                    text.pop();
+                }
+                Event::Key { key: Key::Enter, pressed: true, .. } => end = Some(Typed::Done),
+                Event::Key { key: Key::Escape, pressed: true, .. } => end = Some(Typed::Cancelled),
+                _ => {}
+            }
+        }
+    });
+    end
 }
 
 /// Display of a tuner: a strip of label tape `width` wide, centred on `center`, with the
@@ -612,6 +884,55 @@ pub fn badge(painter: &Painter, right_bottom: Pos2, size: f32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nih_plug_egui::egui::{CentralPanel, Context, Modifiers, RawInput};
+
+    /// Draws one frame with `events` in it and gives back what `type_into` made of them
+    fn typing(text: &mut String, events: Vec<Event>) -> Option<Typed> {
+        let mut end = None;
+        let input = RawInput { events, ..RawInput::default() };
+        let _ = Context::default().run(input, |ctx| {
+            CentralPanel::default().show(ctx, |ui| end = type_into(ui, text, 6));
+        });
+        end
+    }
+
+    fn key(key: Key) -> Event {
+        Event::Key {
+            key,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: Modifiers::NONE,
+        }
+    }
+
+    #[test]
+    fn test_a_name_is_typed_rubbed_out_kept_or_dropped() {
+        let mut name = String::new();
+        // The letters of a frame land in the name, in their order
+        assert_eq!(
+            typing(&mut name, vec![Event::Text("Ja".into()), Event::Text("zz".into())]),
+            None
+        );
+        assert_eq!(name, "Jazz");
+        // Backspace takes the last letter off, and takes nothing off an empty name
+        assert_eq!(typing(&mut name, vec![key(Key::Backspace), key(Key::Backspace)]), None);
+        assert_eq!(name, "Ja");
+        // A name stops at its length, so it stays on the tape
+        typing(&mut name, vec![Event::Text("zz Trio".into())]);
+        assert_eq!(name, "Jazz T");
+        // Enter keeps it, escape drops it, and neither is a letter of the name
+        assert_eq!(typing(&mut name, vec![key(Key::Enter)]), Some(Typed::Done));
+        assert_eq!(typing(&mut name, vec![key(Key::Escape)]), Some(Typed::Cancelled));
+        assert_eq!(name, "Jazz T");
+        // What is not a letter is left alone
+        typing(&mut name, vec![Event::Text("\u{7}".into()), key(Key::F1)]);
+        assert_eq!(name, "Jazz T");
+
+        let mut empty = String::new();
+        assert_eq!(typing(&mut empty, vec![key(Key::Backspace)]), None);
+        assert!(empty.is_empty());
+    }
 
     #[test]
     fn test_level_lamps_light_from_the_bottom_five_decibels_apart() {

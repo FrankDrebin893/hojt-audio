@@ -20,10 +20,22 @@ GitHub release.
   A cabinet you pick stays when you change amps, and the Mic and Resonance dials work on it
 - Your own preset bank: the Save button beside the Preset display keeps the sound as it
   stands, with the pedal order, the microphone and the cabinet. After a factory preset it
-  makes a new preset named after it (`GRUS 2`); after one of your own it saves over it. Your
-  presets come after the factory ones on the Preset display. They are files in
-  `Documents/Hojt Audio/Presets`, which a double-click on the Preset caption opens: rename,
-  copy, delete or share them there
+  makes a new preset named after it (`GRUS 2`); after one of your own it saves over it. They
+  are files in `Documents/Hojt Audio/Presets`, which a double-click on the Preset caption
+  opens: rename, copy, delete or share them there
+- Preset banks, and a list to pick from: a click on the Preset display drops a list open with
+  the banks on the left and the presets of the bank you click on the right, and a click on a
+  preset loads it. `FACTORY` holds the built-in presets and `MINE` the ones you have saved so
+  far. A new Bank display left of the Preset display says which bank you are in, and its arrows
+  go round them
+- `+ NEW BANK` at the end of the banks makes one of your own: type a name on its tape, `JAZZ`
+  for one, and press enter — or click it again and take `BANK 1`, and rename the folder later.
+  A bank is a folder in `Documents/Hojt Audio/Presets`, so you can also make one there, and
+  move a preset from one bank to another by moving its file
+- The Preset arrows now step through the bank you are in and come round in it, instead of
+  running on from the factory presets into your own. Save keeps the sound in the bank you are
+  in — in `FACTORY` it goes to `MINE`, as before — and the Preset caption opens that bank's
+  folder, where you can move a preset from one bank to another
 
 ## 0.2.1
 
