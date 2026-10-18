@@ -36,17 +36,6 @@ impl Amp {
     pub fn index(self) -> usize {
         self as usize
     }
-
-    /// Where the amp's own cabinet is in `SPEAKERS`
-    pub fn own_speaker(self) -> usize {
-        let id = match self {
-            Amp::Klar => "1x12-open",
-            Amp::Brol => "4x12-mid",
-            Amp::Torden => "4x12-tight",
-            Amp::Glod => "2x12-open",
-        };
-        speaker_index(id).expect("Every amp's cabinet is a speaker")
-    }
 }
 
 /// Where the speaker with this id is in `SPEAKERS`
@@ -185,18 +174,137 @@ pub struct Speaker {
     pub cab: CabModel,
 }
 
-/// The built-in cabinets, in the order the Speaker display steps through them. The four
-/// amps' own are among them (`Amp::own_speaker`). New ones may go anywhere: a project
-/// stores the id, not the place
+/// The built-in cabinets, in the order the Speaker display steps through them. Each has a
+/// voice of its own, further apart than the amps' own cabinets are (`speaker_report`
+/// prints how far). New ones may go anywhere: a project stores the id, not the place
 pub static SPEAKERS: [Speaker; 7] = [
     Speaker { id: "1x10-small", name: "1X10 SMALL", cab: SMALL_CAB },
-    Speaker { id: "1x12-open", name: "1X12 OPEN", cab: KLAR_CAB },
-    Speaker { id: "2x12-open", name: "2X12 OPEN", cab: GLOD_CAB },
+    Speaker { id: "1x12-open", name: "1X12 OPEN", cab: OPEN_ONE_CAB },
+    Speaker { id: "2x12-open", name: "2X12 OPEN", cab: OPEN_TWO_CAB },
     Speaker { id: "4x10-crisp", name: "4X10 CRISP", cab: CRISP_CAB },
-    Speaker { id: "4x12-mid", name: "4X12 MID", cab: BROL_CAB },
-    Speaker { id: "4x12-tight", name: "4X12 TIGHT", cab: TORDEN_CAB },
+    Speaker { id: "4x12-mid", name: "4X12 MID", cab: MID_CAB },
+    Speaker { id: "4x12-tight", name: "4X12 TIGHT", cab: TIGHT_CAB },
     Speaker { id: "1x15-deep", name: "1X15 DEEP", cab: DEEP_CAB },
 ];
+
+/// One 10" speaker in a small open box: hardly any low end, a boxy honk around 700 Hz
+/// and an early top. Small and old-fashioned, for blues and a cutting lead
+const SMALL_CAB: CabModel = CabModel {
+    resonance_hz: 150.0,
+    resonance_q: 0.8,
+    body: [700.0, 0.9, 5.0],
+    dip: [1500.0, 1.2, -3.0],
+    bite: [2500.0, 1.0, 4.0],
+    rolloff_hz: 4500.0,
+    air_ratio: 1.3,
+    breakup_hz: [1400.0, 6000.0],
+    breakup_count: 22,
+    breakup_db: 2.5,
+    breakup_seed: 110,
+    ir_ms: 5.0,
+};
+
+/// One 12" speaker in an open back: a soft low end that does not thump, thin low mids
+/// and a glassy top that reaches high. Clean and airy
+const OPEN_ONE_CAB: CabModel = CabModel {
+    resonance_hz: 90.0,
+    resonance_q: 0.7,
+    body: [200.0, 0.8, -1.5],
+    dip: [650.0, 1.0, -1.5],
+    bite: [3600.0, 0.6, 5.0],
+    rolloff_hz: 6600.0,
+    air_ratio: 1.15,
+    breakup_hz: [1500.0, 7500.0],
+    breakup_count: 24,
+    breakup_db: 1.8,
+    breakup_seed: 120,
+    ir_ms: 5.0,
+};
+
+/// Two 12" speakers in an open back: a round bump in the lows, warm low mids and a
+/// chime lower down than one 12". Full and sweet
+const OPEN_TWO_CAB: CabModel = CabModel {
+    resonance_hz: 95.0,
+    resonance_q: 1.4,
+    body: [250.0, 0.8, 3.0],
+    dip: [600.0, 1.0, -2.0],
+    bite: [2200.0, 1.0, 5.0],
+    rolloff_hz: 5200.0,
+    air_ratio: 1.5,
+    breakup_hz: [1200.0, 6500.0],
+    breakup_count: 26,
+    breakup_db: 2.2,
+    breakup_seed: 140,
+    ir_ms: 8.0,
+};
+
+/// Four 10" speakers: tight lows, the mids scooped deep and a bright, hard top.
+/// Sparkle for clean playing, snap for funk
+const CRISP_CAB: CabModel = CabModel {
+    resonance_hz: 120.0,
+    resonance_q: 1.0,
+    body: [180.0, 1.0, 0.0],
+    dip: [480.0, 0.8, -9.0],
+    bite: [3000.0, 0.8, 8.0],
+    rolloff_hz: 6200.0,
+    air_ratio: 1.2,
+    breakup_hz: [1500.0, 8000.0],
+    breakup_count: 26,
+    breakup_db: 2.0,
+    breakup_seed: 130,
+    ir_ms: 5.0,
+};
+
+/// Four 12" speakers in a closed box, old style: a thumping low end, thick low mids and
+/// a honk around 1.6 kHz with the top rolled off early. Classic rock
+const MID_CAB: CabModel = CabModel {
+    resonance_hz: 100.0,
+    resonance_q: 1.5,
+    body: [300.0, 0.8, 3.0],
+    dip: [700.0, 1.2, -2.0],
+    bite: [1600.0, 1.0, 8.0],
+    rolloff_hz: 4000.0,
+    air_ratio: 1.6,
+    breakup_hz: [1000.0, 5500.0],
+    breakup_count: 28,
+    breakup_db: 3.0,
+    breakup_seed: 160,
+    ir_ms: 10.0,
+};
+
+/// Four 12" speakers in a closed box, modern: a strong, tight thump, the mids scooped
+/// and a sharp edge at 3.3 kHz. For a lot of gain
+const TIGHT_CAB: CabModel = CabModel {
+    resonance_hz: 120.0,
+    resonance_q: 1.45,
+    body: [180.0, 0.8, 3.0],
+    dip: [800.0, 1.0, -6.0],
+    bite: [3300.0, 1.0, 7.0],
+    rolloff_hz: 5200.0,
+    air_ratio: 1.15,
+    breakup_hz: [1000.0, 5500.0],
+    breakup_count: 26,
+    breakup_db: 3.0,
+    breakup_seed: 170,
+    ir_ms: 8.0,
+};
+
+/// One 15" speaker: deep and round, the upper mids held back and a soft, early top.
+/// Warm clean and jazz
+const DEEP_CAB: CabModel = CabModel {
+    resonance_hz: 85.0,
+    resonance_q: 0.9,
+    body: [120.0, 0.8, 5.0],
+    dip: [1500.0, 1.0, -4.0],
+    bite: [2300.0, 0.9, 2.0],
+    rolloff_hz: 3200.0,
+    air_ratio: 1.8,
+    breakup_hz: [900.0, 4500.0],
+    breakup_count: 22,
+    breakup_db: 2.2,
+    breakup_seed: 150,
+    ir_ms: 8.0,
+};
 
 /// Klar's own: one 12" speaker in an open back. Light low end, a clear top
 const KLAR_CAB: CabModel = CabModel {
@@ -261,56 +369,6 @@ const TORDEN_CAB: CabModel = CabModel {
     breakup_db: 3.0,
     breakup_seed: 100,
     ir_ms: 6.0,
-};
-
-/// One 10" speaker in a small open box: little low end, a boxy honk in the mids. Small
-/// and old-fashioned, for blues and a cutting lead
-const SMALL_CAB: CabModel = CabModel {
-    resonance_hz: 135.0,
-    resonance_q: 0.9,
-    body: [600.0, 0.8, 3.0],
-    dip: [1300.0, 1.2, -2.0],
-    bite: [2400.0, 0.9, 4.0],
-    rolloff_hz: 5000.0,
-    air_ratio: 1.4,
-    breakup_hz: [1400.0, 6500.0],
-    breakup_count: 22,
-    breakup_db: 2.4,
-    breakup_seed: 110,
-    ir_ms: 5.0,
-};
-
-/// Four 10" speakers: a quick, tight low end, scooped lower mids and a top that reaches
-/// higher than any 12". Sparkle for clean playing
-const CRISP_CAB: CabModel = CabModel {
-    resonance_hz: 90.0,
-    resonance_q: 1.0,
-    body: [170.0, 0.9, 1.0],
-    dip: [650.0, 0.9, -3.5],
-    bite: [3600.0, 0.8, 5.0],
-    rolloff_hz: 6700.0,
-    air_ratio: 1.2,
-    breakup_hz: [1500.0, 8000.0],
-    breakup_count: 26,
-    breakup_db: 2.0,
-    breakup_seed: 130,
-    ir_ms: 5.0,
-};
-
-/// One 15" speaker: deep and round, a soft top. Warm clean and jazz
-const DEEP_CAB: CabModel = CabModel {
-    resonance_hz: 78.0,
-    resonance_q: 0.9,
-    body: [140.0, 0.8, 2.5],
-    dip: [1500.0, 1.0, -2.5],
-    bite: [2300.0, 0.9, 3.0],
-    rolloff_hz: 3800.0,
-    air_ratio: 1.8,
-    breakup_hz: [900.0, 4500.0],
-    breakup_count: 22,
-    breakup_db: 2.2,
-    breakup_seed: 150,
-    ir_ms: 8.0,
 };
 
 /// Everything that makes one amp differ from another
@@ -703,7 +761,7 @@ mod tests {
     }
 
     #[test]
-    fn test_speakers_are_usable_and_hold_every_amps_own() {
+    fn test_speakers_are_usable() {
         for (index, speaker) in SPEAKERS.iter().enumerate() {
             assert_eq!(speaker_index(speaker.id), Some(index), "{}: ids must differ", speaker.id);
             assert!(!speaker.id.ends_with(".wav") && !speaker.id.is_empty());
@@ -716,9 +774,6 @@ mod tests {
             for other in &SPEAKERS[..index] {
                 assert!(other.name != speaker.name && other.cab != speaker.cab);
             }
-        }
-        for amp in Amp::ALL {
-            assert!(SPEAKERS[amp.own_speaker()].cab == amp.model().cab, "{:?}", amp);
         }
     }
 

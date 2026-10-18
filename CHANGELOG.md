@@ -8,11 +8,16 @@ GitHub release.
 ### Guitar Amp
 
 - Seven built-in cabinets to play any amp through, picked on the Cab pedal's Speaker display
-  between the amp's own (`OWN`) and your own files: `1X10 SMALL` (one 10" speaker in a small
-  box, boxy and lean), `1X12 OPEN`, `2X12 OPEN`, `4X10 CRISP` (four 10" speakers, tight lows
-  and a bright top), `4X12 MID`, `4X12 TIGHT` and `1X15 DEEP` (one 15" speaker, round and
-  dark). Four of them are the amps' own cabinets: Klar's, Glød's, Brøl's and Torden's. A
-  cabinet you pick stays when you change amps, and the Mic and Resonance dials work on it
+  between the amp's own (`OWN`) and your own files, each with a sound of its own:
+  - `1X10 SMALL`: one 10" speaker in a small box, hardly any low end and a boxy honk
+  - `1X12 OPEN`: one 12" in an open back, soft lows and a glassy top
+  - `2X12 OPEN`: two 12"s in an open back, warm and full, with a sweet chime
+  - `4X10 CRISP`: four 10"s, tight lows, deeply scooped mids and a bright, hard top
+  - `4X12 MID`: four 12"s in a closed box, old style, thumping lows and a thick honk
+  - `4X12 TIGHT`: four 12"s in a closed box, modern, a tight thump and a sharp edge
+  - `1X15 DEEP`: one 15", deep and round with a soft top
+
+  A cabinet you pick stays when you change amps, and the Mic and Resonance dials work on it
 - Your own preset bank: the Save button beside the Preset display keeps the sound as it
   stands, with the pedal order, the microphone and the cabinet. After a factory preset it
   makes a new preset named after it (`GRUS 2`); after one of your own it saves over it. Your

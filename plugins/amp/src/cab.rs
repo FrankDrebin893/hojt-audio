@@ -842,9 +842,12 @@ pub mod tests {
     // How close a cabinet is to itself at another sample rate, in dB, from 60 Hz to 10 kHz
     const SAME_DB: f32 = 0.1;
 
-    /// Every built-in cabinet, the amps' own among them, with its id
+    /// Every cabinet designed here, the amps' own and the built-in ones, with a name
     fn every_cab() -> impl Iterator<Item = (&'static str, &'static CabModel)> {
-        SPEAKERS.iter().map(|speaker| (speaker.id, &speaker.cab))
+        Amp::ALL
+            .iter()
+            .map(|amp| (amp.model().name, &amp.model().cab))
+            .chain(SPEAKERS.iter().map(|speaker| (speaker.id, &speaker.cab)))
     }
 
     fn design(cab: &CabModel, sample_rate: f32) -> CabIr {
