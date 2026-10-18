@@ -3,6 +3,17 @@
 Each release has a `## <version>` section here. The release workflow uses it as the text of the
 GitHub release.
 
+## Unreleased
+
+### Guitar Amp
+
+- Seven built-in cabinets to play any amp through, picked on the Cab pedal's Speaker display
+  between the amp's own (`OWN`) and your own files: `1X10 SMALL` (one 10" speaker in a small
+  box, boxy and lean), `1X12 OPEN`, `2X12 OPEN`, `4X10 CRISP` (four 10" speakers, tight lows
+  and a bright top), `4X12 MID`, `4X12 TIGHT` and `1X15 DEEP` (one 15" speaker, round and
+  dark). Four of them are the amps' own cabinets: Klar's, Glød's, Brøl's and Torden's. A
+  cabinet you pick stays when you change amps, and the Mic and Resonance dials work on it
+
 ## 0.2.1
 
 ### Guitar Amp

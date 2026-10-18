@@ -1,4 +1,4 @@
-use crate::amp::model::{Amp, NEUTRAL_CAB};
+use crate::amp::model::{Amp, CabModel, NEUTRAL_CAB, SPEAKERS};
 use crate::amp::poweramp::PowerAmp;
 use crate::amp::preamp::Preamp;
 use crate::amp::tonestack::{ToneCurve, ToneStack};
@@ -61,6 +61,17 @@ const CAB_OFF_DB: f32 = -1.4;
 pub const IN_GAIN_DB: [f32; 2] = [-24.0, 24.0];
 pub const GATE_THRESHOLD_DB: [f32; 2] = [-80.0, -20.0];
 pub const GATE_RELEASE_MS: [f32; 2] = [20.0, 500.0];
+
+/// Which cabinet plays
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Playing {
+    /// The amp's own: it changes with the amp
+    Own,
+    /// One of the built-in cabinets, by its place in `SPEAKERS`, whichever amp plays
+    Speaker(usize),
+    /// A file of the player's own
+    File,
+}
 
 /// What the knobs say, read once per block. The chain smooths the values itself
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -268,12 +279,12 @@ pub struct AmpChain {
     tone: ToneStack,
     power: PowerAmp,
     cabinet: Cabinet,
-    // One cabinet per amp, designed when the sample rate is set
+    // Every built-in cabinet (`SPEAKERS`), designed when the sample rate is set
     cab_irs: Vec<CabIr>,
-    // Where a cabinet the player chose is left for the chain to take, and whether one of
-    // the player's own is playing: it then stays whatever amp is picked
+    // Where a cabinet the player chose is left for the chain to take, and which cabinet
+    // plays: one the player chose stays whatever amp is picked
     cab_stage: Arc<CabStage>,
-    user_cab: bool,
+    playing: Playing,
     cab_voicing: CabVoicing,
     // Share of the cabinet in what follows it: 1.0 on, 0.0 the amp's own signal
     cab_mix: Ramp,
@@ -361,7 +372,7 @@ impl AmpChain {
             cabinet: Cabinet::new(),
             cab_irs: Vec::new(),
             cab_stage: Arc::new(CabStage::new()),
-            user_cab: false,
+            playing: Playing::Own,
             cab_voicing: CabVoicing::new(),
             cab_mix: Ramp::new(1.0),
             cab_fade_steps: 1,
@@ -420,12 +431,12 @@ impl AmpChain {
         self.reverb.set_sample_rate(sample_rate);
 
         self.cab_irs =
-            Amp::ALL.iter().map(|amp| design_ir(&amp.model().cab, sample_rate)).collect();
+            SPEAKERS.iter().map(|speaker| design_ir(&speaker.cab, sample_rate)).collect();
         self.cabinet.set_sample_rate(sample_rate);
-        // A cabinet of the player's own was made for the rate before: it has to be left
-        // on the stage again for this one. Until then the amp plays through its own
-        self.cabinet.set_ir(&self.cab_irs[self.amp.index()]);
-        self.user_cab = false;
+        // A cabinet the player chose was made for the rate before: it has to be left on
+        // the stage again for this one. Until then the amp plays through its own
+        self.cabinet.set_ir(&self.cab_irs[self.amp.own_speaker()]);
+        self.playing = Playing::Own;
 
         self.configure_amp();
         self.reset();
@@ -489,8 +500,8 @@ impl AmpChain {
 
     /// Moves towards the amp the settings ask for. Does not allocate. While the amp is heard
     /// its output first fades to silence; there the stages are set up as the new amp and
-    /// start from rest, and the cabinet crossfades to the new amp's own, unless the player's
-    /// own cabinet is playing: that one stays
+    /// start from rest, and the cabinet crossfades to the new amp's own, unless the player
+    /// chose a cabinet: that one stays
     fn follow_amp(&mut self) {
         if self.wanted_amp == self.amp {
             return;
@@ -503,14 +514,15 @@ impl AmpChain {
         }
 
         self.amp = self.wanted_amp;
+        let own = self.playing == Playing::Own;
         if unheard {
-            if !self.user_cab {
-                self.cabinet.set_ir(&self.cab_irs[self.amp.index()]);
+            if own {
+                self.cabinet.set_ir(&self.cab_irs[self.amp.own_speaker()]);
             }
             self.amp_fade = self.amp_fade_len;
-        } else if !self.user_cab {
+        } else if own {
             debug_assert!(!self.cabinet.is_swapping());
-            self.cabinet.swap_ir(&self.cab_irs[self.amp.index()]);
+            self.cabinet.swap_ir(&self.cab_irs[self.amp.own_speaker()]);
             self.cabinet_busy = self.cabinet.swap_len();
         }
         self.configure_amp();
@@ -531,35 +543,66 @@ impl AmpChain {
             return;
         }
         let unheard = !self.primed || self.wet == 0.0;
-        let was_user_cab = self.user_cab;
-        let Self { cab_stage, cabinet, cab_irs, user_cab, cabinet_busy, amp, sample_rate, .. } =
+        let was_voiced = self.voiced_cab();
+        let Self { cab_stage, cabinet, cab_irs, playing, cabinet_busy, amp, sample_rate, .. } =
             self;
-        cab_stage.take(|taps, spectra, made_for| {
-            // One made for another sample rate is of no use: its successor is on its way.
-            // And the amp's own cabinet is not swapped for itself
-            if made_for != *sample_rate || (taps.is_empty() && !*user_cab) {
+        cab_stage.take(|taps, spectra, speaker, made_for| {
+            // One made for another sample rate is of no use: its successor is on its way
+            if made_for != *sample_rate {
                 return;
             }
-            *user_cab = !taps.is_empty();
-            let own = &cab_irs[amp.index()];
-            match (unheard, *user_cab) {
-                (true, true) => cabinet.set_taps(taps, spectra),
-                (true, false) => cabinet.set_ir(own),
-                (false, true) => cabinet.swap_taps(taps, spectra),
-                (false, false) => cabinet.swap_ir(own),
+            let chosen = match speaker {
+                _ if !taps.is_empty() => Playing::File,
+                Some(speaker) if speaker < cab_irs.len() => Playing::Speaker(speaker),
+                _ => Playing::Own,
+            };
+            // Which built-in cabinet plays, and which is chosen
+            let built_in_of = |playing: Playing| match playing {
+                Playing::Own => Some(amp.own_speaker()),
+                Playing::Speaker(speaker) => Some(speaker),
+                Playing::File => None,
+            };
+            let was_built_in = built_in_of(*playing);
+            *playing = chosen;
+            let Some(speaker) = built_in_of(chosen) else {
+                if unheard {
+                    cabinet.set_taps(taps, spectra);
+                } else {
+                    cabinet.swap_taps(taps, spectra);
+                    *cabinet_busy = cabinet.swap_len();
+                }
+                return;
+            };
+            // A built-in cabinet is not swapped for itself
+            if was_built_in == Some(speaker) {
+                return;
             }
-            if !unheard {
+            if unheard {
+                cabinet.set_ir(&cab_irs[speaker]);
+            } else {
+                cabinet.swap_ir(&cab_irs[speaker]);
                 *cabinet_busy = cabinet.swap_len();
             }
         });
-        // The dials work on other frequencies with a file than without: set them again
-        if self.user_cab != was_user_cab {
+        // The dials work on the frequencies of the cabinet that plays: set them again
+        if self.voiced_cab() != was_voiced {
             self.cab_applied = [f32::NAN; 2];
         }
     }
 
     pub fn sample_rate(&self) -> f32 {
         self.sample_rate
+    }
+
+    /// The cabinet whose frequencies the Mic and Resonance dials work on: the one that
+    /// plays. A file has its own mic position and resonance: the dials work on fixed
+    /// frequencies there
+    fn voiced_cab(&self) -> &'static CabModel {
+        match self.playing {
+            Playing::Own => &self.amp.model().cab,
+            Playing::Speaker(speaker) => &SPEAKERS[speaker].cab,
+            Playing::File => &NEUTRAL_CAB,
+        }
     }
 
     /// Where to leave a cabinet for the chain: see `CabStage`
@@ -820,9 +863,7 @@ impl AmpChain {
         let cab = [self.dials.cab_mic, self.dials.cab_res];
         if cab != self.cab_applied {
             let steps = if snap { 0 } else { CHUNK as u32 };
-            // A file has its own mic position and resonance: the dials work on fixed
-            // frequencies there, not on the amp's cabinet
-            let voiced = if self.user_cab { &NEUTRAL_CAB } else { &model.cab };
+            let voiced = self.voiced_cab();
             self.cab_voicing.set(voiced, cab[0], cab[1], self.sample_rate, steps);
             self.cab_applied = cab;
         }
@@ -1048,6 +1089,7 @@ impl AmpChain {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::amp::model::speaker_index;
     use crate::cab::tests::{design_ms, off_the_design_rate};
     use crate::cab::{user_ir_len, MAX_USER_IR_LEN, USER_IR_MS};
     use crate::cab_stage::{CabLoader, CabStatus};
@@ -2545,7 +2587,7 @@ mod tests {
                 chain.process(&with_amp(Amp::ALL[(index / 40) % Amp::ALL.len()], 0.5), piece, None);
             }
             assert_eq!(layout(&chain), before);
-            assert_eq!(chain.cab_irs.len(), Amp::ALL.len());
+            assert_eq!(chain.cab_irs.len(), SPEAKERS.len());
         }
     }
 
@@ -4097,6 +4139,95 @@ mod tests {
     }
 
     #[test]
+    fn test_an_amps_own_cabinet_picked_as_a_speaker_changes_nothing() {
+        // Bit for bit, picked before the first block or while playing
+        let input = power_chords(SAMPLE_RATE, 0.5);
+        for amp in Amp::ALL {
+            let settings = with_effects(everything_on(amp, 0.6));
+            let reference = run(&settings, &input, SAMPLE_RATE);
+            let mut chain = new_chain(SAMPLE_RATE);
+            chain.cab_stage().offer_speaker(amp.own_speaker(), SAMPLE_RATE);
+            assert!(run_blocks(&mut chain, &settings, &input, BLOCK) == reference, "{:?}", amp);
+            assert_eq!(chain.playing, Playing::Speaker(amp.own_speaker()));
+
+            let mut chain = new_chain(SAMPLE_RATE);
+            let mut output = input.clone();
+            for (index, block) in output.chunks_mut(BLOCK).enumerate() {
+                if index == 100 {
+                    chain.cab_stage().offer_speaker(amp.own_speaker(), SAMPLE_RATE);
+                }
+                chain.process(&settings, block, None);
+            }
+            let difference = largest_difference(&output, &reference);
+            assert!(difference < 1e-6, "{:?}: {difference}", amp);
+        }
+    }
+
+    #[test]
+    fn test_a_speaker_stays_when_the_amp_changes() {
+        let input = power_chords(SAMPLE_RATE, 0.25);
+        let deep = speaker_index("1x15-deep").unwrap();
+        let mut chain = new_chain(SAMPLE_RATE);
+        chain.cab_stage().offer_speaker(deep, SAMPLE_RATE);
+        run_blocks(&mut chain, &with_amp(Amp::Brol, 0.5), &input, BLOCK);
+        assert_eq!(chain.playing, Playing::Speaker(deep));
+
+        // Torden through it: not through Torden's own
+        let torden = with_amp(Amp::Torden, 0.5);
+        run_blocks(&mut chain, &torden, &input, BLOCK);
+        let through_deep = run_blocks(&mut chain, &torden, &input, BLOCK);
+        assert_eq!((chain.playing, chain.amp), (Playing::Speaker(deep), Amp::Torden));
+        let mut own = new_chain(SAMPLE_RATE);
+        run_blocks(&mut own, &torden, &input, BLOCK);
+        let through_own = run_blocks(&mut own, &torden, &input, BLOCK);
+        assert!(largest_difference(&through_deep, &through_own) > 0.1 * peak(&through_own));
+
+        // And the dials work on its frequencies, not on the amp's cabinet
+        assert!(chain.voiced_cab() == &SPEAKERS[deep].cab);
+
+        // Back to the amp's own, which is Torden's now
+        chain.cab_stage().offer(&[], SAMPLE_RATE);
+        run_blocks(&mut chain, &torden, &input, BLOCK);
+        let back = run_blocks(&mut chain, &torden, &input, BLOCK);
+        assert_eq!(chain.playing, Playing::Own);
+        assert!(largest_difference(&back, &through_own) < 1e-4);
+        assert!(chain.voiced_cab() == &Amp::Torden.model().cab);
+    }
+
+    #[test]
+    fn test_speakers_sound_apart_and_about_as_loud() {
+        // Every amp through every built-in cabinet: none is much louder or quieter than
+        // through the amp's own, and no two cabinets sound alike
+        let input = power_chords(SAMPLE_RATE, 0.5);
+        for amp in Amp::ALL {
+            let settings = with_amp(amp, 0.5);
+            let own_level = loudness_lufs(&[&run(&settings, &input, SAMPLE_RATE)], SAMPLE_RATE);
+            let outputs: Vec<Vec<f32>> = (0..SPEAKERS.len())
+                .map(|speaker| {
+                    let mut chain = new_chain(SAMPLE_RATE);
+                    chain.cab_stage().offer_speaker(speaker, SAMPLE_RATE);
+                    run_blocks(&mut chain, &settings, &input, BLOCK)
+                })
+                .collect();
+            for (speaker, output) in outputs.iter().enumerate() {
+                let level = loudness_lufs(&[output], SAMPLE_RATE);
+                assert!(
+                    (level - own_level).abs() < 3.0,
+                    "{:?} through {}: {:.1} LUFS against {:.1}",
+                    amp,
+                    SPEAKERS[speaker].id,
+                    level,
+                    own_level
+                );
+                assert!(peak(output) < 1.0);
+                for other in &outputs[..speaker] {
+                    assert!(largest_difference(output, other) > 0.02 * peak(output));
+                }
+            }
+        }
+    }
+
+    #[test]
     fn test_own_cabinet_left_on_the_stage_changes_nothing() {
         // Bit for bit: before the first block, while playing, and with a cabinet that was
         // made for another sample rate, which is never played
@@ -4115,7 +4246,7 @@ mod tests {
                 chain.process(&settings, block, None);
             }
             assert!(output == reference, "{:?}", amp);
-            assert!(!chain.user_cab && !chain.cab_stage.is_ready());
+            assert!(chain.playing != Playing::File && !chain.cab_stage.is_ready());
         }
     }
 
@@ -4151,10 +4282,10 @@ mod tests {
             // Also when it comes while one of the player's own plays: back to the amp's own
             let mut chain = chain_with_cab(&file_taps(Amp::Brol, SAMPLE_RATE), SAMPLE_RATE);
             run_blocks(&mut chain, &settings, &input, BLOCK);
-            assert!(chain.user_cab);
+            assert!(chain.playing == Playing::File);
             loader_for(&chain).load_from(&Mutex::new(name.to_owned()), Some(&dir));
             let output = run_blocks(&mut chain, &settings, &input, BLOCK);
-            assert!(!chain.user_cab, "{:?}", name);
+            assert!(chain.playing != Playing::File, "{:?}", name);
             assert!(largest_difference(&output[4800..], &again[4800..]) < 1e-4, "{:?}", name);
         }
 
@@ -4162,7 +4293,7 @@ mod tests {
         let mut chain = new_chain(SAMPLE_RATE);
         loader_for(&chain).load_from(&Mutex::new("good.wav".to_owned()), Some(&dir));
         let output = run_blocks(&mut chain, &settings, &input, BLOCK);
-        assert!(chain.user_cab);
+        assert!(chain.playing == Playing::File);
         let through_file = run_blocks(
             &mut chain_with_cab(&file_taps(Amp::Klar, SAMPLE_RATE), SAMPLE_RATE),
             &settings,
@@ -4284,7 +4415,7 @@ mod tests {
                 assert!(stage.is_ready(), "Taken during the crossfade, in piece {}", index);
             }
         }
-        assert!(!stage.is_ready() && chain.user_cab);
+        assert!(!stage.is_ready() && chain.playing == Playing::File);
         assert_eq!(buffer_layout(&chain), before);
 
         let at = 600 * piece;
@@ -4306,7 +4437,7 @@ mod tests {
         for (from, to) in [(Amp::Klar, Amp::Torden), (Amp::Torden, Amp::Brol)] {
             let mut chain = chain_with_cab(&taps, SAMPLE_RATE);
             let switched = run_switch(&mut chain, from, to, 0.5, &input, at);
-            assert!(chain.user_cab);
+            assert!(chain.playing == Playing::File);
             assert!(
                 step_ratio(&switched, at) < 1.2,
                 "{:?} to {:?}: step {}",
@@ -4341,7 +4472,7 @@ mod tests {
             run_blocks(&mut chain, &with_amp(from, 0.5), &input[..4800], BLOCK);
             run_blocks(&mut chain, &bypassed(from), &input[..4800], BLOCK);
             run_blocks(&mut chain, &bypassed(to), &input[..4800], BLOCK);
-            assert!(chain.user_cab && chain.amp == to);
+            assert!(chain.playing == Playing::File && chain.amp == to);
             let back = run_blocks(&mut chain, &with_amp(to, 0.5), &input, BLOCK);
             let difference = largest_difference(&back[settled..], &through[settled..]);
             assert!(
@@ -4372,11 +4503,11 @@ mod tests {
         }
         for settings in &settings {
             run_blocks(&mut chain, settings, &input, BLOCK);
-            assert!(chain.user_cab);
+            assert!(chain.playing == Playing::File);
         }
         chain.reset();
         run_blocks(&mut chain, &settings[0], &input, BLOCK);
-        assert!(chain.user_cab);
+        assert!(chain.playing == Playing::File);
     }
 
     #[test]
@@ -4455,14 +4586,14 @@ mod tests {
         let settings = with_amp(Amp::Brol, 0.5);
         let mut chain = chain_with_cab(&file_taps(Amp::Klar, 48000.0), 48000.0);
         run_blocks(&mut chain, &settings, &power_chords(48000.0, 0.05), BLOCK);
-        assert!(chain.user_cab);
+        assert!(chain.playing == Playing::File);
 
         // What was made for 48 kHz is not played at 96 kHz, whether it was taken or still waits
         chain.cab_stage().offer(&file_taps(Amp::Torden, 48000.0), 48000.0);
         chain.set_sample_rate(96000.0);
         let input = power_chords(96000.0, 0.25);
         let output = run_blocks(&mut chain, &settings, &input, BLOCK);
-        assert!(!chain.user_cab && !chain.cab_stage.is_ready());
+        assert!(chain.playing != Playing::File && !chain.cab_stage.is_ready());
         assert!(output == run(&settings, &input, 96000.0));
 
         // Left again for the new rate, as the plugin does when the rate is set, it plays
@@ -4471,7 +4602,7 @@ mod tests {
         chain.set_sample_rate(96000.0);
         chain.cab_stage().offer(&taps, 96000.0);
         let output = run_blocks(&mut chain, &settings, &input, BLOCK);
-        assert!(chain.user_cab);
+        assert!(chain.playing == Playing::File);
         assert!(
             output == run_blocks(&mut chain_with_cab(&taps, 96000.0), &settings, &input, BLOCK)
         );
@@ -4586,7 +4717,7 @@ mod tests {
                 };
                 let mut chain = chain_with_cab(&taps, sample_rate);
                 run_stereo_blocks(&mut chain, &settings, &chords, BLOCK);
-                assert_eq!(chain.user_cab, len > 0);
+                assert_eq!(chain.playing == Playing::File, len > 0);
                 let time = (0..5)
                     .map(|_| block_time_stereo_us(&mut chain, &settings, &chords))
                     .fold(f64::MAX, f64::min);
@@ -5784,7 +5915,8 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
                 for probe in probes {
                     print!("{:>7.1}", to_db(ir.magnitude(probe, sample_rate)));
                 }
-                let (off, freq_hz) = off_the_design_rate(amp, sample_rate, 10_000.0, 600);
+                let (off, freq_hz) =
+                    off_the_design_rate(&amp.model().cab, sample_rate, 10_000.0, 600);
                 println!("{:>9.3} at {:>5.0} Hz", off, freq_hz);
             }
         }

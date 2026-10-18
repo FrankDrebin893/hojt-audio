@@ -16,6 +16,7 @@
 //!    -80 dB of the peak at its end dropped
 //! 5. Levelled like the cabinets designed here: 0 dB average power from 100 Hz to 4 kHz
 
+use crate::amp::model::{speaker_index, SPEAKERS};
 use crate::cab::{ir_magnitude, level_gain, user_ir_len, USER_IR_MS};
 use crate::dsp::resample::resample;
 use std::fs::File;
@@ -36,6 +37,8 @@ pub const BAD_MARK: char = '!';
 /// What the display says for a moment after stepping where the folder has no files
 pub const NO_FILES_NAME: &str = "NO FILES";
 pub const MISSING_MARK: char = '?';
+// In front of the id of a built-in cabinet in the stored choice
+const SPEAKER_PREFIX: &str = "speaker:";
 // A name too long for the display keeps its start and this many characters of its end,
 // where takes and microphone positions are told apart, with this between them
 const NAME_TAIL: usize = 4;
@@ -182,17 +185,32 @@ pub fn list(dir: &Path) -> Vec<String> {
 }
 
 /// The choice before or after `current` in the round of the amp's own cabinet, which is
-/// the empty name, and then the files. A `current` that is not among the files counts as
-/// the amp's own
+/// the empty name, the built-in cabinets and then the files. A `current` that is in none
+/// of them counts as the amp's own
 pub fn neighbour(files: &[String], current: &str, forward: bool) -> String {
-    let count = files.len() + 1;
-    let position = files.iter().position(|file| file == current).map_or(0, |index| index + 1);
-    let next = (position + if forward { 1 } else { count - 1 }) % count;
-    if next == 0 {
-        String::new()
-    } else {
-        files[next - 1].clone()
-    }
+    let round: Vec<String> = std::iter::once(String::new())
+        .chain((0..SPEAKERS.len()).map(speaker_choice))
+        .chain(files.iter().cloned())
+        .collect();
+    let position = round.iter().position(|choice| choice == current).unwrap_or(0);
+    let next = (position + if forward { 1 } else { round.len() - 1 }) % round.len();
+    round[next].clone()
+}
+
+/// What a choice of one of the built-in cabinets is stored as: never a file's name, as
+/// those end in `.wav`
+pub fn speaker_choice(speaker: usize) -> String {
+    format!("{SPEAKER_PREFIX}{}", SPEAKERS[speaker].id)
+}
+
+/// True for a choice of a built-in cabinet, known to this build or not
+pub fn is_speaker_choice(chosen: &str) -> bool {
+    chosen.starts_with(SPEAKER_PREFIX)
+}
+
+/// Which built-in cabinet a choice is, if it is one this build has
+pub fn speaker_of(chosen: &str) -> Option<usize> {
+    chosen.strip_prefix(SPEAKER_PREFIX).and_then(speaker_index)
 }
 
 /// A file's name as the display shows it: without `.wav`, in capitals, in letters the
@@ -427,7 +445,7 @@ pub fn load(path: &Path, sample_rate: f32) -> Result<Vec<f32>, LoadError> {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::amp::model::Amp;
+    use crate::amp::model::{Amp, CabModel};
     use crate::cab::{design_ir, CabIr, Cabinet};
     use crate::dsp::resample::sinc;
     use crate::test_util::{to_db, Noise};
@@ -503,12 +521,17 @@ pub mod tests {
         writer.finalize().unwrap();
     }
 
-    /// A cabinet designed here as one impulse response, resonance included: what a file
+    /// An amp's own cabinet as one impulse response, resonance included: what a file
     /// of it holds. Peaks at about `level`
     pub fn whole_response(amp: Amp, sample_rate: f32, seconds: f32, level: f32) -> Vec<f32> {
+        cab_response(&amp.model().cab, sample_rate, seconds, level)
+    }
+
+    /// The same for any cabinet designed here
+    pub fn cab_response(cab: &CabModel, sample_rate: f32, seconds: f32, level: f32) -> Vec<f32> {
         let mut cabinet = Cabinet::new();
         cabinet.set_sample_rate(sample_rate);
-        cabinet.set_ir(&design_ir(&amp.model().cab, sample_rate));
+        cabinet.set_ir(&design_ir(cab, sample_rate));
         let mut response = vec![0.0; (seconds * sample_rate) as usize];
         response[0] = 1.0;
         cabinet.process(&mut response);
@@ -925,18 +948,34 @@ pub mod tests {
         let files = list(&dir);
         assert_eq!(files, ["Alpha.WAV", "beta.wav", "gamma.Wav"]);
 
-        // The amp's own cabinet, then the files, and round again, both ways
-        assert_eq!(neighbour(&files, "", true), "Alpha.WAV");
+        // The amp's own cabinet, the built-in ones, then the files, and round again, both ways
+        let first = speaker_choice(0);
+        let last = speaker_choice(SPEAKERS.len() - 1);
+        assert_eq!(neighbour(&files, "", true), first);
+        assert_eq!(neighbour(&files, &first, true), speaker_choice(1));
+        assert_eq!(neighbour(&files, &last, true), "Alpha.WAV");
         assert_eq!(neighbour(&files, "Alpha.WAV", true), "beta.wav");
         assert_eq!(neighbour(&files, "gamma.Wav", true), "");
         assert_eq!(neighbour(&files, "", false), "gamma.Wav");
-        assert_eq!(neighbour(&files, "Alpha.WAV", false), "");
-        // From a file that is gone, as from the amp's own
-        assert_eq!(neighbour(&files, "gone.wav", true), "Alpha.WAV");
+        assert_eq!(neighbour(&files, "Alpha.WAV", false), last);
+        assert_eq!(neighbour(&files, &first, false), "");
+        // From a file or a built-in cabinet that is gone, as from the amp's own
+        assert_eq!(neighbour(&files, "gone.wav", true), first);
         assert_eq!(neighbour(&files, "gone.wav", false), "gamma.Wav");
-        // With no files there is nowhere to go
-        assert_eq!(neighbour(&[], "", true), "");
-        assert_eq!(neighbour(&[], "gone.wav", false), "");
+        assert_eq!(neighbour(&files, "speaker:gone", true), first);
+        // With no files the built-in cabinets are still there
+        assert_eq!(neighbour(&[], "", false), last);
+        assert_eq!(neighbour(&[], &last, true), "");
+
+        // Every built-in cabinet is found again from its choice, and none is a file
+        for speaker in 0..SPEAKERS.len() {
+            let choice = speaker_choice(speaker);
+            assert_eq!(speaker_of(&choice), Some(speaker));
+            assert!(is_speaker_choice(&choice) && !files.contains(&choice));
+        }
+        assert_eq!(speaker_of("speaker:gone"), None);
+        assert!(is_speaker_choice("speaker:gone") && !is_speaker_choice("Alpha.WAV"));
+        assert_eq!(speaker_of("Alpha.WAV"), None);
     }
 
     #[test]
@@ -991,11 +1030,11 @@ pub mod tests {
     fn export_cabinets() {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/renders/cabinets");
         std::fs::create_dir_all(&dir).unwrap();
-        for amp in Amp::ALL {
-            let path = dir.join(format!("{} cabinet.wav", amp.model().name));
+        for speaker in &SPEAKERS {
+            let path = dir.join(format!("{}.wav", speaker.id));
             write_ir_wav(
                 &path,
-                &whole_response(amp, 48000.0, EXPORT_S, EXPORT_LEVEL),
+                &cab_response(&speaker.cab, 48000.0, EXPORT_S, EXPORT_LEVEL),
                 1,
                 24,
                 false,

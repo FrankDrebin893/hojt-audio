@@ -270,26 +270,29 @@ impl Pedals<'_> {
     }
 }
 
-/// Moves the choice of cabinet one on in the round of the amp's own and the files in the
-/// cabinets folder as they are now, and has what it arrives at read away from this thread
-/// and the audio. The folder is made here, the first time someone looks for cabinets in
-/// it, and not by opening the plugin
+/// Moves the choice of cabinet one on in the round of the amp's own, the built-in ones and
+/// the files in the cabinets folder as they are now, and has what it arrives at read away
+/// from this thread and the audio. The folder is made here, the first time someone looks
+/// for cabinets in it, and not by opening the plugin
 fn step_cabinet(
     params: &GuitarAmpParams,
     cab_loader: &CabLoader,
     async_executor: &AsyncExecutor<GuitarAmpPlugin>,
     forward: bool,
 ) {
-    let Some(dir) = user_cab::cabinets_dir() else {
-        return;
+    let files = match user_cab::cabinets_dir() {
+        Some(dir) => {
+            let _ = std::fs::create_dir_all(&dir);
+            user_cab::list(&dir)
+        }
+        None => Vec::new(),
     };
-    let _ = std::fs::create_dir_all(&dir);
     let mut chosen = params.cabinet.lock().unwrap_or_else(PoisonError::into_inner);
-    let files = user_cab::list(&dir);
-    if files.is_empty() {
+    *chosen = user_cab::neighbour(&files, &chosen, forward);
+    // Come round to the amp's own past where the files would be: say there are none
+    if files.is_empty() && chosen.is_empty() && forward {
         cab_loader.found_no_files();
     }
-    *chosen = user_cab::neighbour(&files, &chosen, forward);
     drop(chosen);
     cab_loader.chosen();
     async_executor.execute_background(Task::LoadCabinet);
