@@ -66,12 +66,14 @@ const FACTORY_NAME: &str = "Factory";
 const MINE_NAME: &str = "Mine";
 
 /// Whether `bank` is an id a bank may have: the factory presets, the presets folder itself,
-/// or one plain folder name in it. Never a path, and never `..`
+/// or one plain folder name in it. Never `..`, and never a path on any system: a backslash
+/// is a separator on Windows and a letter of a name elsewhere, so an id that holds one is
+/// refused everywhere, and a project carries the same bank from one system to the other
 pub fn is_bank(bank: &str) -> bool {
     match bank.strip_prefix('/') {
         None => bank.is_empty(),
         Some("") => true,
-        Some(folder) => user_cab::is_file_name(folder),
+        Some(folder) => user_cab::is_file_name(folder) && !folder.contains('\\'),
     }
 }
 
