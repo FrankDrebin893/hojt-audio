@@ -291,6 +291,9 @@ The style guide of the root `AGENTS.md` applies; these are the rules for a windo
   or pop-ups. Step arrows are engraved in chrome buttons; silk triangles on the paint mean signal
   direction at the jacks only. Names have at most 14 characters and are our own words. A trailing
   `*` on the tape means a control was moved since loading
+- **Steppers under the band** (the amp and the microphone): the `silk_label` caption above
+  the tape on the line of the switches' LEDs, the tape on the line of their captions, and
+  the buttons clear of the next caption or LED
 - **A preset choice is never a parameter.** The editor sets the real parameters through the
   `ParamSetter` and keeps only the index in a `#[persist]` field
 - **Pick a file (cabinets):** files are never picked in a dialog. They live in one folder and are

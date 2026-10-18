@@ -3,6 +3,18 @@
 Each release has a `## <version>` section here. The release workflow uses it as the text of the
 GitHub release.
 
+## Unreleased
+
+### Guitar Amp
+
+- The Amp and Mic captions under the name band sit above their displays instead of under
+  them, where they were half hidden, and the Tuner switch is to the right of the On switch,
+  clear of the Mic display
+
+### Bass Synth
+
+- The model number in the lower left corner is no longer printed over by the art
+
 ## 0.2.0
 
 ### Every plugin

@@ -304,8 +304,9 @@ def bass(w=1320, h=1200):
             line = np.clip(1 - np.abs(x - (cx - 40 + k * 20)) / 1.4, 0, 1)
             fret = np.maximum(fret, line * (np.abs(x - cx) < 56))
     inlay = np.zeros((h, w), np.float32)
-    for cx in (w * 0.075, w * 0.925):
-        for row, r in ((0.7, 12), (0.82, 12), (0.93, 16)):
+    # The left neck has no inlay at its foot: the model number is printed there
+    for cx, rows in ((w * 0.075, ((0.7, 12), (0.82, 12))), (w * 0.925, ((0.7, 12), (0.82, 12), (0.93, 16)))):
+        for row, r in rows:
             inlay = np.maximum(inlay, np.clip(r - np.sqrt((x - cx) ** 2 + (y - h * row) ** 2) + 0.5, 0, 1))
     strings = np.zeros((h, w), np.float32)
     swing = smooth(0.05, 0.5, np.minimum(x, w - x) / w * 2)
