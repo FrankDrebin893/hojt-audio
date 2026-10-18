@@ -16,6 +16,13 @@ license = "GPL-3.0-or-later"
 nih_plug = { git = "https://github.com/FrankDrebin893/nih-plug.git", rev = "b122ba697d363f3035545e6ed7d2b8466a8864d8" }
 nih_plug_egui = { git = "https://github.com/FrankDrebin893/nih-plug.git", rev = "b122ba697d363f3035545e6ed7d2b8466a8864d8" }
 nih_plug_xtask = { git = "https://github.com/FrankDrebin893/nih-plug.git", rev = "b122ba697d363f3035545e6ed7d2b8466a8864d8" }
+# Only for its `windows_keyboard_workaround` feature, which nih_plug_egui does not turn on:
+# a plugin's editor is a child window of the host's, and on Windows nothing ever gives it the
+# keyboard focus, so a name typed on a label tape was never heard. With the feature on,
+# egui-baseview takes the focus for the window whenever a widget of ours asks egui for the
+# keyboard, which only the row that names a preset bank does. Same git revision as the one
+# nih_plug_egui depends on, so it is the same crate and the features are added together
+egui-baseview = { git = "https://github.com/BillyDM/egui-baseview.git", rev = "ec70c3fe6b2f070dcacbc22924431edbe24bd1c0", features = ["windows_keyboard_workaround"] }
 suite_common = { path = "crates/suite_common" }
 
 [profile.release]

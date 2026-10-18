@@ -1,7 +1,7 @@
 use nih_plug::prelude::{BoolParam, Param, ParamSetter};
 use nih_plug_egui::egui::{
     vec2, Align2, Area, Color32, CornerRadius, Event, Id, Key, Order, Painter, Pos2, Rect,
-    Response, Sense, Shape, Stroke, StrokeKind, Ui, Vec2,
+    Response, Sense, Shape, Stroke, StrokeKind, Ui, Vec2, WidgetInfo,
 };
 
 use super::theme::*;
@@ -321,6 +321,8 @@ pub struct Row {
     pub lit: bool,
     /// Nothing to pick, for a column with nothing in it: darker, and never clicked
     pub dim: bool,
+    /// What is typed goes on this row, so it asks egui for the keyboard (see `type_into`)
+    pub typing: bool,
 }
 
 /// One column of a `drop_panel`: its caption, its rows, and how wide its tape is
@@ -408,6 +410,9 @@ pub fn drop_panel(ui: &Ui, top_center: Pos2, columns: &[Column], id_source: &str
                         Id::new(("drop-row", id_source, index, at)),
                         Sense::click(),
                     );
+                    if row.typing {
+                        ask_for_keyboard(&response, &row.text);
+                    }
                     drop_row(&painter, tape, row, response.hovered());
                     if response.clicked() && !row.dim {
                         picked.row = Some((index, at));
@@ -489,6 +494,21 @@ fn drop_bar(painter: &Painter, rect: Rect, rows: usize, shown: usize, first: usi
         2.0,
         CHROME,
     );
+}
+
+/// Asks egui for the keyboard for the row a name is typed on, and tells it, for anything
+/// reading the window out, that the row is a field with text in it.
+///
+/// On Windows this is what gets the letters at all: a plugin's editor is a child window of
+/// the host's, which nothing gives the keyboard focus to by itself. egui-baseview takes the
+/// focus when a widget asks egui for the keyboard like this, which is why the workspace
+/// turns its `windows_keyboard_workaround` on (see the root `Cargo.toml`). Nothing else in
+/// the suite asks, so the window never takes the focus away from the host for a knob.
+fn ask_for_keyboard(response: &Response, text: &str) {
+    if !response.has_focus() {
+        response.request_focus();
+    }
+    response.widget_info(|| WidgetInfo::text_edit(true, text, text));
 }
 
 /// What came of a name being typed
