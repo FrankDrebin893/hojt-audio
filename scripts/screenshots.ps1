@@ -7,7 +7,9 @@
 # Run it on a display at 100 % scaling, or the windows are larger than their own size and it
 # stops. The window is brought to the front and captured from the screen, so leave the
 # desktop alone while it runs.
-param([string[]]$Plugins = @('pitch_shifter', 'drums', 'amp', 'bass', 'pad', 'bells'))
+param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Plugins = @('pitch_shifter', 'drums', 'amp', 'bass', 'pad', 'bells'))
+# Names may be given apart (amp drums) or as one list (amp,drums)
+$Plugins = @("$Plugins" -split '[,\s]+' | Where-Object { $_ })
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot

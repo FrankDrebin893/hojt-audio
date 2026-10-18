@@ -90,7 +90,7 @@ dependencies = [
 
 [[package]]
 name = "amp"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "hound",
  "nih_plug",
@@ -279,7 +279,7 @@ dependencies = [
 
 [[package]]
 name = "bass"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "hound",
  "nih_plug",
@@ -289,7 +289,7 @@ dependencies = [
 
 [[package]]
 name = "bells"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "hound",
  "nih_plug",
@@ -824,7 +824,7 @@ checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
 
 [[package]]
 name = "drums"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "hound",
  "midly",
@@ -1964,7 +1964,7 @@ dependencies = [
 
 [[package]]
 name = "pad"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "hound",
  "nih_plug",
@@ -2041,7 +2041,7 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
 name = "pitch_shifter"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "hound",
  "nih_plug",
@@ -2410,7 +2410,7 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "suite_common"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "nih_plug",
  "nih_plug_egui",

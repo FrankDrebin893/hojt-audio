@@ -8,7 +8,9 @@
 # then checks every installed file against the build byte for byte and says which commit it
 # came from. Close the DAW first: a host holds the files it has loaded open, and Windows
 # refuses to overwrite them.
-param([string[]]$Plugins = @('pitch_shifter', 'drums', 'amp', 'bass', 'pad', 'bells'))
+param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Plugins = @('pitch_shifter', 'drums', 'amp', 'bass', 'pad', 'bells'))
+# Names may be given apart (amp drums) or as one list (amp,drums)
+$Plugins = @("$Plugins" -split '[,\s]+' | Where-Object { $_ })
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
