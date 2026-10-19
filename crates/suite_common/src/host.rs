@@ -207,7 +207,8 @@ pub fn notes<S>(
 }
 
 /// What `initialize` may ask of the host. Tasks are not run: a host runs them on another
-/// thread, and none of them is the audio thread's
+/// thread, and none of them is the audio thread's. So what one would bring (the amp's own
+/// cabinet file) never reaches the plugin here, and a test that needs it gives it to the DSP
 struct Host;
 
 impl<P: Plugin> InitContext<P> for Host {

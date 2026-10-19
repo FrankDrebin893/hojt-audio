@@ -208,6 +208,32 @@ fn test_no_dsp_branches_on_the_amp() {
     );
 }
 
+#[test]
+fn test_what_counts_as_a_branch_on_the_amp() {
+    for branch in [
+        "match self.amp {",
+        "match settings.wanted_amp {",
+        "Amp::Klar => 1.0,",
+        "Amp::Brol | Amp::Glod => 2.0,",
+        "if amp == Amp::Brol {",
+        "if amp != Amp::Torden {",
+        "if let Amp::Klar = amp {",
+        "let tight = matches!(amp, Amp::Torden);",
+    ] {
+        assert!(branches_on_the_amp(branch), "not seen: {branch}");
+    }
+    for fine in [
+        "for amp in Amp::ALL {",
+        "amp: Amp::Brol,",
+        "let amp = Amp::default();",
+        "let model = settings.amp.model();",
+        "match self.mic_type {",
+        "let x = clamp(y);",
+    ] {
+        assert!(!branches_on_the_amp(fine), "taken for a branch: {fine}");
+    }
+}
+
 /// Prints the hash of `NAME`, for adding a name to [`NAMES`]
 #[test]
 #[ignore]
