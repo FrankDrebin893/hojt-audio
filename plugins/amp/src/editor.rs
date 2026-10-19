@@ -1,5 +1,5 @@
 use nih_plug::prelude::*;
-use nih_plug_egui::egui::{vec2, Color32, Id, Pos2, Rect, Sense, Stroke, StrokeKind, Ui, Vec2};
+use nih_plug_egui::egui::{vec2, Color32, Id, Pos2, Rect, Sense, Ui, Vec2};
 use nih_plug_egui::{create_egui_editor, EguiState};
 use std::path::Path;
 use std::sync::atomic::Ordering;
@@ -127,14 +127,11 @@ const DIAL_Y: f32 = 52.0;
 const DIAL_RADIUS: f32 = 18.0;
 const DIAL_SPACING: f32 = 61.0;
 const DIALS: [&str; 6] = ["Gain", "Bass", "Mid", "Treble", "Presence", "Master"];
-// The amp's oxblood, darker: the cabinet is a plain enclosure for now
-const CAB_PAINT: Color32 = Color32::from_rgb(56, 13, 14);
-
-// On the cabinet, from its top left corner: a control plate across its top. The cabinet
-// that plays (the amp's own, a built-in one or a file) over the microphone that hears it,
-// the Mic and Res knobs, and the cabinet's switch with its LED and caption above it. The
-// output jack the cable to the pedals behind it leaves from is under the plate
-const PLATE: Rect = Rect::from_min_max(Pos2::new(20.0, 20.0), Pos2::new(430.0, 140.0));
+// On the cabinet, which looks as the cabinet that plays (`looks::cab_look`), from its top left
+// corner: on the control plate across its top, the cabinet that plays (the amp's own, a
+// built-in one or a file) over the microphone that hears it, the Mic and Res knobs, and the
+// cabinet's switch with its LED and caption above it. The output jack the cable to the pedals
+// behind it leaves from is under the plate
 const SPEAKER_CAPTION: Vec2 = vec2(110.0, 38.0);
 const SPEAKER_STEPPER: Vec2 = vec2(110.0, 60.0);
 // The tape is as wide as fits beside the knobs, and holds this many letters
@@ -151,6 +148,9 @@ const CAB_LED: Vec2 = vec2(385.0, 60.0);
 const CAB_SWITCH: Vec2 = vec2(385.0, 104.0);
 const CAB_JACK: Vec2 = vec2(425.0, 160.0);
 const CAB_JACK_CAPTION: Vec2 = vec2(425.0, 182.0);
+// The jack and its caption are on a small plate of their own over the grille's corner, so the
+// caption reads on every cloth
+const CAB_JACK_PLATE: Rect = Rect::from_min_max(Pos2::new(400.0, 150.0), Pos2::new(448.0, 196.0));
 
 // The pedals: four wide ones and five slim ones
 const WIDE_PEDALS: usize = 4;
@@ -296,8 +296,8 @@ impl Pedals<'_> {
     }
 
     /// Draws the stack with its top left corner at `top_left`: the head of the amp that is
-    /// picked, and the cabinet it stands on, which is as tall as the pedals and a plain
-    /// enclosure for now. Returns where the cables go in and out
+    /// picked, and the cabinet it stands on, as tall as the pedals and looking as the cabinet
+    /// that plays. Returns where the cables go in and out
     pub(crate) fn stack(&self, ui: &mut Ui, top_left: Pos2) -> Jacks {
         let (params, setter) = (self.params, self.setter);
         let amp_shown = params.amp.value();
@@ -310,7 +310,17 @@ impl Pedals<'_> {
             Pos2::new(top_left.x, top_left.y + HEAD_HEIGHT),
             vec2(STACK_WIDTH, PEDAL_HEIGHT),
         );
-        let cab = ui::enclosure(ui.painter(), cab, CAB_PAINT).min;
+        // The cabinet that plays: the amp's own, a built-in one or a file from the
+        // cabinets folder. The buttons of its display step through them
+        let chosen = params.cabinet.lock().unwrap_or_else(PoisonError::into_inner).clone();
+        let cab_look = looks::cab_look(amp_shown, &chosen, self.cab_loader.status());
+        ui::cabinet(ui, cab, cab_look);
+        let cab = cab.min;
+        ui::amp::mounted_plate(
+            ui.painter(),
+            CAB_JACK_PLATE.translate(cab.to_vec2()),
+            cab_look.plate,
+        );
 
         // The nameplate picks the amp: the amp that is left keeps its dials, and the one
         // picked gets its own back
@@ -325,14 +335,6 @@ impl Pedals<'_> {
         }
         print_label(ui.painter(), places.jack_caption, "In", LAMP_CAPTION_SIZE, print);
 
-        let painter = ui.painter();
-        let plate = PLATE.translate(cab.to_vec2());
-        painter.rect_filled(plate, 6.0, theme::PANEL);
-        painter.rect_stroke(plate, 6.0, Stroke::new(1.5, theme::CHROME_DARK), StrokeKind::Inside);
-
-        // The cabinet that plays: the amp's own, a built-in one or a file from the
-        // cabinets folder. The buttons step through them
-        let chosen = params.cabinet.lock().unwrap_or_else(PoisonError::into_inner).clone();
         let shown = self.cab_loader.display_name(&chosen, CAB_NAME_CHARS);
         silk_label(ui.painter(), cab + SPEAKER_CAPTION, "Speaker", LAMP_CAPTION_SIZE);
         // Where the files go: shown when the caption is hovered, and opened by a
@@ -1100,8 +1102,35 @@ mod tests {
         assert!(BANK_X + reach(BANK_WIDTH) < PRESET_X - reach(PRESET_WIDTH));
     }
 
+    /// The control plate of every cabinet's look, from the cabinet's top left corner
+    fn cab_plates() -> impl Iterator<Item = Rect> {
+        let cab = Rect::from_min_size(Pos2::ZERO, vec2(STACK_WIDTH, PEDAL_HEIGHT));
+        let files = ["", "room.wav"].map(str::to_owned);
+        let speakers = (0..crate::amp::model::SPEAKERS.len()).map(user_cab::speaker_choice);
+        let choices: Vec<String> = files.into_iter().chain(speakers).collect();
+        Amp::ALL.into_iter().flat_map(move |amp| {
+            let choices = choices.clone();
+            choices.into_iter().map(move |chosen| {
+                ui::cab_faces(cab, looks::cab_look(amp, &chosen, CabStatus::Fine)).plate
+            })
+        })
+    }
+
+    #[test]
+    fn test_every_cab_has_its_plate_in_one_place() {
+        let mut plates = cab_plates();
+        let first = plates.next().unwrap();
+        assert!(plates.all(|plate| plate == first));
+    }
+
+    /// Where the cabinet's controls go
+    fn plate() -> Rect {
+        cab_plates().next().unwrap()
+    }
+
     #[test]
     fn test_the_cab_plate_controls_stand_clear_of_their_neighbours() {
+        let plate = plate();
         let display =
             |at: Vec2, width: f32| (at.x - reach(width) - BUTTON, at.x + reach(width) + BUTTON);
         let knob = CAB_KNOB_RADIUS + TICKS;
@@ -1109,26 +1138,37 @@ mod tests {
             [display(SPEAKER_STEPPER, SPEAKER_WIDTH), display(MIC_STEPPER, MIC_STEPPER_WIDTH)]
         {
             in_a_row(&[
-                ("the plate's edge", 0.0, PLATE.left()),
+                ("the plate's edge", 0.0, plate.left()),
                 ("a stepper", stepper.0, stepper.1),
                 ("the Mic knob", CAB_KNOBS[0].x - knob, CAB_KNOBS[0].x + knob),
                 ("the Res knob", CAB_KNOBS[1].x - knob, CAB_KNOBS[1].x + knob),
                 ("the Cab switch", CAB_SWITCH.x - SWITCH, CAB_SWITCH.x + SWITCH),
-                ("the plate's edge", PLATE.right(), STACK_WIDTH),
+                ("the plate's edge", plate.right(), STACK_WIDTH),
             ]);
         }
         // The speaker's tape over the microphone's caption, and both on the plate
         assert!(tape_bottom(SPEAKER_STEPPER.y) + 4.0 < MIC_CAPTION.y - 7.0);
-        assert!(tape_bottom(MIC_STEPPER.y) < PLATE.bottom());
-        assert!(CAB_SWITCH.y + SWITCH < PLATE.bottom());
+        assert!(tape_bottom(MIC_STEPPER.y) < plate.bottom());
+        assert!(CAB_SWITCH.y + SWITCH < plate.bottom());
         // From top to bottom, the switch's LED over the switch
         in_a_row(&[
             ("the Cab LED", CAB_LED.y - LAMP, CAB_LED.y + LAMP),
             ("the Cab switch", CAB_SWITCH.y - SWITCH, CAB_SWITCH.y + SWITCH),
         ]);
         // The output jack under the plate, at the height of the pedals' plugs
-        assert!(CAB_JACK.y - 8.0 > PLATE.bottom());
+        assert!(CAB_JACK.y - 8.0 > plate.bottom());
         assert!((CAB_JACK.y - ui::PLUG_Y).abs() < 20.0);
+        // On its own plate with its caption, clear of the plate's screws, on the cabinet
+        let cab = Rect::from_min_size(Pos2::ZERO, vec2(STACK_WIDTH, PEDAL_HEIGHT));
+        assert!(cab.contains_rect(CAB_JACK_PLATE));
+        assert!(CAB_JACK_PLATE.top() > plate.bottom());
+        let screws = CAB_JACK_PLATE.shrink(7.0);
+        let caption = Rect::from_center_size(CAB_JACK_CAPTION.to_pos2(), vec2(24.0, 14.0));
+        let jack = Rect::from_center_size(CAB_JACK.to_pos2(), Vec2::splat(2.0 * JACK));
+        for (name, rect) in [("the jack", jack), ("its caption", caption)] {
+            assert!(CAB_JACK_PLATE.contains_rect(rect), "{name} is off its plate");
+            assert!(screws.left() + 2.0 < rect.left() && rect.right() < screws.right() - 2.0);
+        }
     }
 
     /// The faces of every amp's head, as the window has them

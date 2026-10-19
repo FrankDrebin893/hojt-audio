@@ -20,7 +20,10 @@ pub mod raster;
 pub mod theme;
 pub mod widgets;
 
-pub use amp::{amp_head, cabinet, head_faces, CabFaces, CabStyle, HeadFaces, HeadStyle, Speakers};
+pub use amp::{
+    amp_head, cab_faces, cabinet, head_faces, CabFaces, CabStyle, Corners, HeadFaces, HeadStyle,
+    Speakers,
+};
 pub use art::Motif;
 pub use frame::{
     coupler, enclosure, lifted, mini_pedal, patch_cable, pedal, rig, slim_pedal, strip, title_grip,

@@ -342,10 +342,36 @@ The style guide of the root `AGENTS.md` applies; these are the rules for a windo
   jack the cable from the pedals goes into with its `In` caption, the six dials as
   `panel_knob`s (radius 18, caption above, value tape under, in the panel's print and the amp's
   cap), and the jewel pilot lamp, lit while the amp is On. Tests hold every scale, caption and
-  tape on the panel and apart, and the nameplate's buttons on the grille under the handle. The
-  cabinet's controls are on a dark control plate across its top: the `Speaker` stepper over the
-  `Mic Type` stepper, the Mic and Res knobs (radius 17), and its switch with LED and caption
-  above it. Its output jack is under the plate. The cabinet is a plain enclosure for now
+  tape on the panel and apart, and the nameplate's buttons on the grille under the handle.
+
+  The cabinet (`ui::cabinet`) looks as the cabinet that plays, and changes the moment another
+  is picked (`looks::cab_look`, from the cabinet choice, the amp and what the loader says of
+  the choice):
+
+  | What plays | Covering | Grille | Speakers | Piping, corners |
+  |------------|----------|--------|----------|-----------------|
+  | `OWN`, Klar | ivory, smooth | wheat cloth | one 12" | none |
+  | `OWN`, Glød | lacquered tweed | oxblood-brown cloth | two 12" | none |
+  | `OWN`, Brøl | black levant | basketweave | four 12" | white piping, chrome corners |
+  | `OWN`, Torden | black bronco | perforated steel | four 12" | steel corners |
+  | `1X10 SMALL` | tan, smooth | wheat cloth | one 10", set high | none |
+  | `1X12 OPEN` | cream levant | silver cloth | one 12" | none |
+  | `2X12 OPEN` | grey levant | silver cloth | two 12" | none |
+  | `4X10 CRISP` | black, smooth | silver cloth | four 10" | none |
+  | `4X12 MID` | black levant | basketweave | four 12" | white piping |
+  | `4X12 TIGHT` | black bronco | perforated steel | four 12" | none |
+  | `1X15 DEEP` | navy levant | black felt | one 15" | none |
+  | a WAV file | charcoal, smooth | grey felt | one 12", a shadow behind the felt | none |
+
+  A choice shown with `?` (missing, or a built-in cabinet of another build) or a file shown
+  with `!` (unusable) plays the amp's own cabinet and shows its look. Switching the cabinet off
+  does not change the look: its LED says so. A new built-in cabinet needs a look in
+  `SPEAKER_CABS` (a test walks `SPEAKERS`), and no two built-in looks share covering, grille
+  and speakers. Every cabinet is the same size with the same black control plate across its
+  top (`CAB_PLATE_HEIGHT`, cream print): the `Speaker` stepper over the `Mic Type` stepper, the
+  Mic and Res knobs (radius 17), and its switch with LED and caption above it. Its output jack
+  is under the plate, at the height of the pedals' plugs, on a small plate of the same black
+  with its `Out` caption, so the caption reads on every cloth
 - **Pedal art:** every mini pedal has its own `PAINT_*` and its own `Motif`, all on one theme
   per rig (the Guitar Amp: northern weather and nature). Two coats and a print: a large motif
   in darker tones of the pedal's paint (`theme::shade`) that may run under the controls, with

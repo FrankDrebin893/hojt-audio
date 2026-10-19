@@ -189,8 +189,10 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
 - `art.rs` - `Motif`: what is painted on a mini pedal under its controls
 - `amp.rs` - The half stack of a rig: `amp_head` (handle, tolex, grille with piping and a stripe if it has
   them, panel with a printed line if it has one, jewel pilot lamp lit or not; `head_faces` says where its faces go)
-  and `cabinet` (tolex, metal corners, control plate, grille with the `Speakers` behind it), each described by
-  a `HeadStyle` or `CabStyle` and returning the faces the controls go on
+  and `cabinet` (tolex, chrome or steel `Corners` if it has them, piping if it has it, control plate, grille
+  with the `Speakers` behind it, set high or in the middle; `cab_faces` says where its faces go), each described
+  by a `HeadStyle` or `CabStyle` and returning the faces the controls go on. `mounted_plate` is a plate with a
+  screw in each corner, for a small plate of the caller's (the cabinet's jack plate)
 
 Controls are placed at fixed positions relative to the window's top left corner. Knobs: drag up and
 down, Shift for fine steps, double-click for the default.
@@ -209,7 +211,8 @@ controls, portrait) or `plugins/drums/src/editor.rs` (many controls, landscape) 
 - **Print on the paint is always `SILK` (cream).** Black is only for knobs, label tape and the logo plate.
   The one exception is the half stack of a rig (`amp.rs`): head and cabinet are covered, not painted (tolex,
   grille cloth or mesh, plates instead of powder coat), and print on a plate is the `print` of its style:
-  `SILK` on a dark plate, `INK` on metal
+  `SILK` on a dark plate, `INK` on metal. Each amp has a head of its own and the cabinet looks as the
+  cabinet that plays, all from `plugins/amp/src/looks.rs`
   The one other thing on paint is the second coat of a mini pedal's art, in `shade`s of its own paint.
   `BRAND_ORANGE` is only the pointer in the logo
 - **Fonts, by role:** `display` (Bebas Neue) for every caption, in capitals; `model` (Bowlby One SC)
