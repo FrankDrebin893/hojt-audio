@@ -42,6 +42,8 @@ pub struct Preset {
     pub reverb: (bool, f32, f32),
     /// Switch, then Sustain, Level: 0.0 to 10.0
     pub comp: (bool, [f32; 2]),
+    /// Switch, then Fuzz, Tone: 0.0 to 10.0
+    pub fuzz: (bool, [f32; 2]),
     /// Chorus, phaser, flanger, tremolo: switch, rate in Hz, depth in percent
     pub mods: [(bool, f32, f32); 4],
     /// The pedals in the order the signal goes through them, with `amp` where the amp and
@@ -49,14 +51,15 @@ pub struct Preset {
     pub order: &'static [&'static str],
 }
 
-// The compressor and the modulation pedals switched off, with their dials where the
-// parameters start
+// The fuzz, the compressor and the modulation pedals switched off, with their dials where
+// the parameters start
+const FUZZ_OFF: (bool, [f32; 2]) = (OFF, [5.0, 5.0]);
 const COMP_OFF: (bool, [f32; 2]) = (OFF, [5.0, 5.0]);
 const MODS_OFF: [(bool, f32, f32); 4] =
     [(OFF, 0.8, 50.0), (OFF, 0.5, 50.0), (OFF, 0.3, 50.0), (OFF, 5.0, 50.0)];
 // The order the chain starts in: `ChainOrder::default`
 const USUAL_ORDER: &[&str] =
-    &["comp", "drive", "phaser", "amp", "chorus", "flanger", "tremolo", "delay", "reverb"];
+    &["fuzz", "comp", "drive", "phaser", "amp", "chorus", "flanger", "tremolo", "delay", "reverb"];
 
 // Chosen from the amp models' constants and measured with `preset_report` below: nobody
 // has listened to them yet. Master is where their levels were matched, by how loud they
@@ -71,7 +74,7 @@ const USUAL_ORDER: &[&str] =
 // the gate starts to close on the tail of every mute. The gate closes 3 dB under its
 // threshold, so that is -60 dB, which was -54 dB with the 6 dB it had before. How fast a
 // gate shuts in a rest is its release, not its threshold: 8 dB of threshold are 9 ms
-pub static PRESETS: [Preset; 20] = [
+pub static PRESETS: [Preset; 22] = [
     Preset {
         name: "Init",
         amp: Amp::Brol,
@@ -82,6 +85,7 @@ pub static PRESETS: [Preset; 20] = [
         delay: (OFF, 350.0, 35.0, 25.0),
         reverb: (OFF, 1.5, 20.0),
         comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
@@ -97,6 +101,7 @@ pub static PRESETS: [Preset; 20] = [
         delay: (OFF, 350.0, 30.0, 20.0),
         reverb: (ON, 1.2, 12.0),
         comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
@@ -112,6 +117,7 @@ pub static PRESETS: [Preset; 20] = [
         delay: (OFF, 350.0, 30.0, 20.0),
         reverb: (ON, 1.4, 14.0),
         comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
@@ -127,6 +133,7 @@ pub static PRESETS: [Preset; 20] = [
         delay: (ON, 480.0, 45.0, 35.0),
         reverb: (ON, 4.0, 40.0),
         comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
@@ -142,6 +149,7 @@ pub static PRESETS: [Preset; 20] = [
         delay: (OFF, 350.0, 30.0, 20.0),
         reverb: (ON, 1.5, 15.0),
         comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
@@ -157,6 +165,7 @@ pub static PRESETS: [Preset; 20] = [
         delay: (OFF, 350.0, 30.0, 20.0),
         reverb: (ON, 1.4, 15.0),
         comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
@@ -171,6 +180,7 @@ pub static PRESETS: [Preset; 20] = [
         delay: (OFF, 350.0, 30.0, 20.0),
         reverb: (OFF, 1.5, 15.0),
         comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
@@ -186,6 +196,7 @@ pub static PRESETS: [Preset; 20] = [
         delay: (ON, 380.0, 30.0, 22.0),
         reverb: (OFF, 1.8, 12.0),
         comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
@@ -202,6 +213,7 @@ pub static PRESETS: [Preset; 20] = [
         delay: (OFF, 350.0, 30.0, 20.0),
         reverb: (OFF, 1.5, 10.0),
         comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
@@ -217,6 +229,7 @@ pub static PRESETS: [Preset; 20] = [
         delay: (OFF, 350.0, 30.0, 20.0),
         reverb: (OFF, 1.5, 10.0),
         comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
@@ -232,6 +245,7 @@ pub static PRESETS: [Preset; 20] = [
         delay: (OFF, 350.0, 30.0, 20.0),
         reverb: (OFF, 1.5, 10.0),
         comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
@@ -247,6 +261,7 @@ pub static PRESETS: [Preset; 20] = [
         delay: (ON, 420.0, 30.0, 20.0),
         reverb: (ON, 2.0, 10.0),
         comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
@@ -265,6 +280,7 @@ pub static PRESETS: [Preset; 20] = [
         delay: (OFF, 350.0, 30.0, 20.0),
         reverb: (ON, 1.4, 14.0),
         comp: (ON, [5.0, 5.0]),
+        fuzz: FUZZ_OFF,
         mods: [(ON, 0.8, 55.0), (OFF, 0.5, 50.0), (OFF, 0.3, 50.0), (OFF, 5.0, 50.0)],
         order: USUAL_ORDER,
     },
@@ -279,6 +295,7 @@ pub static PRESETS: [Preset; 20] = [
         delay: (OFF, 350.0, 30.0, 20.0),
         reverb: (ON, 2.0, 18.0),
         comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
         mods: [(OFF, 0.8, 50.0), (OFF, 0.5, 50.0), (OFF, 0.3, 50.0), (ON, 5.5, 60.0)],
         order: USUAL_ORDER,
     },
@@ -294,6 +311,7 @@ pub static PRESETS: [Preset; 20] = [
         delay: (OFF, 350.0, 30.0, 20.0),
         reverb: (OFF, 1.5, 15.0),
         comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
         mods: [(OFF, 0.8, 50.0), (ON, 0.5, 60.0), (OFF, 0.3, 50.0), (OFF, 5.0, 50.0)],
         order: USUAL_ORDER,
     },
@@ -308,6 +326,7 @@ pub static PRESETS: [Preset; 20] = [
         delay: (ON, 380.0, 25.0, 18.0),
         reverb: (OFF, 1.5, 10.0),
         comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
         mods: [(OFF, 0.8, 50.0), (OFF, 0.5, 50.0), (ON, 0.25, 50.0), (OFF, 5.0, 50.0)],
         order: USUAL_ORDER,
     },
@@ -323,9 +342,11 @@ pub static PRESETS: [Preset; 20] = [
         delay: (ON, 450.0, 40.0, 30.0),
         reverb: (ON, 3.5, 35.0),
         comp: (ON, [4.0, 5.0]),
+        fuzz: FUZZ_OFF,
         mods: [(ON, 0.6, 50.0), (OFF, 0.5, 50.0), (OFF, 0.3, 50.0), (OFF, 5.0, 50.0)],
         order: &[
-            "comp", "chorus", "drive", "phaser", "amp", "flanger", "tremolo", "reverb", "delay",
+            "fuzz", "comp", "chorus", "drive", "phaser", "amp", "flanger", "tremolo", "reverb",
+            "delay",
         ],
     },
     // Glød. Edge of breakup by the fire: the amp's own warmth at the middle of the Gain dial,
@@ -340,6 +361,7 @@ pub static PRESETS: [Preset; 20] = [
         delay: (OFF, 350.0, 30.0, 20.0),
         reverb: (ON, 1.3, 14.0),
         comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
@@ -355,6 +377,7 @@ pub static PRESETS: [Preset; 20] = [
         delay: (ON, 300.0, 25.0, 18.0),
         reverb: (ON, 1.5, 15.0),
         comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
@@ -370,6 +393,39 @@ pub static PRESETS: [Preset; 20] = [
         delay: (OFF, 350.0, 30.0, 20.0),
         reverb: (OFF, 1.5, 15.0),
         comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
+        mods: MODS_OFF,
+        order: USUAL_ORDER,
+    },
+    // Brøl. Doom: the fuzz high and dark in front of the amp low on its Gain dial, which only
+    // thickens it, the lows and mids up and a darker microphone
+    Preset {
+        name: "Mose",
+        amp: Amp::Brol,
+        dials: [3.5, 6.0, 6.0, 4.5, 4.5, 5.0],
+        gate: (ON, -58.0, 150.0),
+        drive: (OFF, [3.0, 5.0, 5.0]),
+        cab: (ON, [4.0, 5.5]),
+        delay: (OFF, 350.0, 30.0, 20.0),
+        reverb: (ON, 1.8, 12.0),
+        comp: COMP_OFF,
+        fuzz: (ON, [8.5, 3.0]),
+        mods: MODS_OFF,
+        order: USUAL_ORDER,
+    },
+    // Glød. A singing fuzz lead: the fuzz bright into the amp just under where it breaks up,
+    // a delay and a hall behind it
+    Preset {
+        name: "Sværm",
+        amp: Amp::Glod,
+        dials: [4.0, 5.0, 6.0, 5.5, 5.5, 5.0],
+        gate: (ON, -60.0, 200.0),
+        drive: (OFF, [3.0, 5.0, 5.0]),
+        cab: (ON, [5.0, 5.0]),
+        delay: (ON, 380.0, 30.0, 22.0),
+        reverb: (ON, 2.0, 18.0),
+        comp: COMP_OFF,
+        fuzz: (ON, [6.0, 7.0]),
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
@@ -398,7 +454,7 @@ pub fn index_or_first(stored: u32) -> usize {
 
 impl Preset {
     /// Every continuous parameter the preset holds, with the value it gets
-    fn knobs<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a FloatParam, f32); 28] {
+    fn knobs<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a FloatParam, f32); 30] {
         let [gain, bass, mid, treble, presence, master] = self.dials;
         let (_, gate_thresh_db, gate_release_ms) = self.gate;
         let (_, [drive_gain, drive_tone, drive_level]) = self.drive;
@@ -406,8 +462,11 @@ impl Preset {
         let (_, delay_time_ms, delay_feedback, delay_mix) = self.delay;
         let (_, reverb_decay_s, reverb_mix) = self.reverb;
         let (_, [comp_sustain, comp_level]) = self.comp;
+        let (_, [fuzz_fuzz, fuzz_tone]) = self.fuzz;
         let [chorus, phaser, flanger, tremolo] = self.mods;
         [
+            (&params.fuzz_fuzz, dial(fuzz_fuzz)),
+            (&params.fuzz_tone, dial(fuzz_tone)),
             (&params.comp_sustain, dial(comp_sustain)),
             (&params.comp_level, dial(comp_level)),
             (&params.chorus_rate, chorus.1),
@@ -440,9 +499,10 @@ impl Preset {
     }
 
     /// Every switch the preset holds, with the position it gets
-    fn switches<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a BoolParam, bool); 10] {
+    fn switches<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a BoolParam, bool); 11] {
         [
             (&params.gate_on, self.gate.0),
+            (&params.fuzz_on, self.fuzz.0),
             (&params.comp_on, self.comp.0),
             (&params.chorus_on, self.mods[0].0),
             (&params.phaser_on, self.mods[1].0),
@@ -559,6 +619,7 @@ mod tests {
     use crate::delay::DelaySettings;
     use crate::dsp::db_to_gain;
     use crate::dsp::shaper::OUTPUT_CLIP_KNEE;
+    use crate::fuzz::FuzzSettings;
     use crate::gate::tests::{decaying_note, gain_trace, hiss, transitions as gate_changes};
     use crate::gate::Gate;
     use crate::mods::chorus::ChorusSettings;
@@ -581,8 +642,10 @@ mod tests {
             let [drive_gain, drive_tone, drive_level] = self.drive.1.map(dial);
             let [cab_mic, cab_res] = self.cab.1.map(dial);
             let [comp_sustain, comp_level] = self.comp.1.map(dial);
+            let [fuzz, fuzz_tone] = self.fuzz.1.map(dial);
             let [chorus, phaser, flanger, tremolo] = self.mods;
             AmpSettings {
+                fuzz: FuzzSettings { on: self.fuzz.0, fuzz, tone: fuzz_tone },
                 comp: CompSettings { on: self.comp.0, sustain: comp_sustain, level: comp_level },
                 chorus: ChorusSettings {
                     on: chorus.0,
@@ -703,7 +766,8 @@ mod tests {
                 .iter()
                 .chain(&preset.drive.1)
                 .chain(&preset.cab.1)
-                .chain(&preset.comp.1);
+                .chain(&preset.comp.1)
+                .chain(&preset.fuzz.1);
             for &shown in dials {
                 assert!((0.0..=10.0).contains(&shown), "{}: dial at {shown}", preset.name);
             }
@@ -730,6 +794,10 @@ mod tests {
         for preset in &PRESETS[..12] {
             assert_eq!(preset.chain_order(), ChainOrder::default(), "{}", preset.name);
             assert_eq!((preset.comp, preset.mods), (COMP_OFF, MODS_OFF), "{}", preset.name);
+        }
+        // And those from before the fuzz have it off
+        for preset in &PRESETS[..20] {
+            assert_eq!(preset.fuzz, FUZZ_OFF, "{}", preset.name);
         }
     }
 

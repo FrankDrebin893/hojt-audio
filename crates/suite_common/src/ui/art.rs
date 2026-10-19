@@ -45,6 +45,8 @@ pub enum Motif {
     Ridges,
     /// Steep walls of a fjord at night (wide, two knobs)
     Fjord,
+    /// A geyser blowing from its mound, with the spray falling beside it (slim)
+    Geyser,
 }
 
 /// Paints `motif` on the top face `face` of a pedal painted `paint`. Call it over the paint
@@ -63,6 +65,7 @@ pub(super) fn motif(painter: &Painter, face: Rect, paint: Color32, motif: Motif)
         Motif::Rain => rain(&print),
         Motif::Ridges => ridges(&print),
         Motif::Fjord => fjord(&print),
+        Motif::Geyser => geyser(&print),
     }
 }
 
@@ -362,4 +365,40 @@ fn fjord(print: &Print) {
     }
     print.line((70.0, 232.0), (110.0, 232.0));
     print.line((78.0, 240.0), (102.0, 240.0));
+}
+
+fn geyser(print: &Print) {
+    let coat = print.coat();
+    let middle = print.width() / 2.0;
+    // The sinter mound, and the column out of its vent, widening as it rises
+    print.ground(268.0, coat);
+    print.fill(
+        &[
+            (middle - 34.0, 270.0),
+            (middle - 14.0, 252.0),
+            (middle + 14.0, 252.0),
+            (middle + 34.0, 270.0),
+        ],
+        coat,
+    );
+    print.fill(
+        &[
+            (middle - 5.0, 256.0),
+            (middle - 14.0, 132.0),
+            (middle + 16.0, 132.0),
+            (middle + 7.0, 256.0),
+        ],
+        coat,
+    );
+    // Where it bursts into steam
+    for (x, y, radius) in [(-8.0, 124.0, 16.0), (8.0, 116.0, 18.0), (2.0, 100.0, 14.0)] {
+        print.disc((middle + x, y), radius, coat);
+    }
+    // The spray falling back, in the clear paint right of the column
+    for (x, y) in [(26.0, 150.0), (32.0, 166.0), (24.0, 180.0), (37.0, 186.0), (30.0, 204.0)] {
+        print.disc((middle + x, y), 1.8, SILK);
+    }
+    // Steam drifting off under the lamp
+    print.line((middle - 44.0, 112.0), (middle - 36.0, 104.0));
+    print.line((middle - 44.0, 128.0), (middle - 34.0, 118.0));
 }

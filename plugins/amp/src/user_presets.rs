@@ -20,7 +20,7 @@
 //! amp = torden
 //! gain = 0.55
 //! gate_on = on
-//! order = comp drive phaser amp chorus flanger tremolo delay reverb
+//! order = fuzz comp drive phaser amp chorus flanger tremolo delay reverb
 //! cabinet = speaker:v30
 //! ```
 //!
@@ -260,7 +260,7 @@ fn enum_index<T: Enum>(id: &str) -> Option<usize> {
 
 /// Every parameter a preset holds, by its id: all of them but `LEFT_ALONE`. The amp comes
 /// first, so the host hears it change before its dials do
-fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 40] {
+fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 43] {
     use Control::{Knob, Mic, Switch};
     [
         ("amp", Control::Amp(&params.amp)),
@@ -273,6 +273,9 @@ fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 40] {
         ("gate_on", Switch(&params.gate_on)),
         ("gate_thresh", Knob(&params.gate_thresh)),
         ("gate_release", Knob(&params.gate_release)),
+        ("fuzz_on", Switch(&params.fuzz_on)),
+        ("fuzz_fuzz", Knob(&params.fuzz_fuzz)),
+        ("fuzz_tone", Knob(&params.fuzz_tone)),
         ("comp_on", Switch(&params.comp_on)),
         ("comp_sustain", Knob(&params.comp_sustain)),
         ("comp_level", Knob(&params.comp_level)),
@@ -618,7 +621,8 @@ pub(crate) mod tests {
         assert_eq!(saved.value(&params, "gain"), 0.73);
         assert_eq!(saved.value(&params, "delay_on"), 1.0);
         assert_eq!(saved.value(&params, "cab_mic_type"), MicType::Ribbon.to_index() as f32);
-        assert_eq!(saved.order.ids()[0], "chorus");
+        // Saved before there was a fuzz: it stands where the default has it, first
+        assert_eq!(saved.order.ids()[..2], ["fuzz", "chorus"]);
         assert_eq!(saved.cabinet, "speaker:test");
 
         let text = saved.to_text(&params);
@@ -626,7 +630,7 @@ pub(crate) mod tests {
             assert!(text.lines().any(|each| each == line), "{line} is not in\n{text}");
         }
         // Every parameter is written out, also those at their defaults
-        assert_eq!(text.lines().filter(|line| line.contains(" = ")).count(), 42);
+        assert_eq!(text.lines().filter(|line| line.contains(" = ")).count(), 45);
         assert_eq!(UserPreset::parse(&params, &text), saved);
     }
 

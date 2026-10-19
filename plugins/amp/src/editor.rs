@@ -86,13 +86,16 @@ const DROP_PRESET_CHARS: usize = 17;
 const NEW_BANK_ROW: &str = "+ New Bank";
 const NEW_BANK_CHARS: usize = 14;
 
+// The right wing is placed from the window's right edge, so it stays at the end of the strip
+const RIGHT: f32 = WINDOW_WIDTH as f32;
+
 // The output level, the plugin's own and not the amp's
-const OUTPUT_KNOB: Vec2 = vec2(1250.0, 56.0);
+const OUTPUT_KNOB: Vec2 = vec2(RIGHT - 580.0, 56.0);
 const OUTPUT_RADIUS: f32 = 22.0;
 
 // The clip lamp, right of the output meter: lit while the output is rounded off by the
 // safety clip. A signal lamp has its caption this far under it
-const CLIP_LAMP: Vec2 = vec2(1385.0, 58.0);
+const CLIP_LAMP: Vec2 = vec2(RIGHT - 445.0, 58.0);
 const LAMP_CAPTION: Vec2 = vec2(0.0, 18.0);
 const LAMP_CAPTION_SIZE: f32 = 13.0;
 
@@ -100,15 +103,15 @@ const LAMP_CAPTION_SIZE: f32 = 13.0;
 // output's between the output knob and the clip lamp. A column of lamps on label tape,
 // with its caption under it
 const INPUT_METER: Vec2 = vec2(120.0, 66.0);
-const OUTPUT_METER: Vec2 = vec2(1330.0, 66.0);
+const OUTPUT_METER: Vec2 = vec2(RIGHT - 500.0, 66.0);
 const METER_HEIGHT: f32 = 80.0;
 const METER_CAPTION: Vec2 = vec2(0.0, 52.0);
 
 // Small switches, left of each its LED above its caption: the bypass, and the tuner beside
 // it at the end of the wing
 const SWITCH_Y: f32 = 72.0;
-const BYPASS_X: f32 = 1500.0;
-const TUNER_X: f32 = 1640.0;
+const BYPASS_X: f32 = RIGHT - 330.0;
+const TUNER_X: f32 = RIGHT - 190.0;
 const CAPTION_OFFSET: f32 = -58.0;
 const LED_Y: f32 = 61.0;
 const CAPTION_Y: f32 = 87.0;
@@ -152,9 +155,9 @@ const CAB_JACK_CAPTION: Vec2 = vec2(425.0, 182.0);
 // caption reads on every cloth
 const CAB_JACK_PLATE: Rect = Rect::from_min_max(Pos2::new(400.0, 150.0), Pos2::new(448.0, 196.0));
 
-// The pedals: four wide ones and five slim ones
+// The pedals: four wide ones and six slim ones
 const WIDE_PEDALS: usize = 4;
-const PEDAL_SLOTS: usize = 9;
+const PEDAL_SLOTS: usize = 10;
 
 // On every pedal, from its top centre: the LED under the title, the knobs, the switch at the bottom.
 // Two knobs sit side by side. Three do not fit in a row, so they are smaller and in a triangle,
@@ -262,6 +265,11 @@ impl Pedals<'_> {
                 look("Tremolo", theme::PAINT_HEATHER, Motif::Rain),
                 &params.trem_on,
                 &[(&params.trem_rate, "Rate"), (&params.trem_depth, "Depth")],
+            ),
+            (
+                look("Fuzz", theme::PAINT_EMBER, Motif::Geyser),
+                &params.fuzz_on,
+                &[(&params.fuzz_fuzz, "Fuzz"), (&params.fuzz_tone, "Tone")],
             ),
         ];
         let (style, on, knobs) = pedals[slot];
