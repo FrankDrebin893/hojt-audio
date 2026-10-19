@@ -5,6 +5,14 @@ GitHub release.
 
 ## Unreleased
 
+### Every plugin
+
+- A window that sits still costs next to nothing: it is drawn again only when something in
+  it changes (a knob moved, automation, a lamp, a meter, the tuner), not with every frame of
+  the screen. An idle Guitar Amp took up to two thirds of a CPU core and now takes a few percent of
+  one; the other windows went from about a sixth of a core to under two percent. Nothing in the
+  sound or the look changed
+
 ### Guitar Amp
 
 - A Fuzz pedal joins the board, in ember red with a geyser on it: thick, saturated fuzz that

@@ -366,5 +366,11 @@ Lints that clash with DSP code are allowed in the root `Cargo.toml`, each with i
   letters. Features are added together, so nih_plug_egui's own copy gets it. See "Asking for
   the keyboard" in `plugins/amp/AGENTS.md`
 - nih-plug is pinned to one revision in the root `Cargo.toml` (`[workspace.dependencies]`); bump it there for all plugins at once.
-  The pin is our fork `FrankDrebin893/nih-plug`: upstream plus one commit (`Vst3Plugin::VST3_INFINITE_TAIL`,
-  branch `hojt-vst3-infinite-tail`). To move to a newer upstream, rebase that commit onto it and pin the result
+  The pin is our fork `FrankDrebin893/nih-plug`: upstream plus two commits on branch `hojt-vst3-infinite-tail`
+  (`Vst3Plugin::VST3_INFINITE_TAIL`, and nih_plug_egui painting a frame only when asked, #23). To move to a
+  newer upstream, rebase those commits onto it and pin the result
+- An editor's update runs with every frame, but the window is painted only on input, when the host
+  changes a parameter, in the first second after it opens, and when the editor asks with
+  `request_repaint` (or `request_repaint_after`). Anything an editor shows that changes on its own
+  (meters, lamps, the tuner, a gliding pedal, a file read in the background) asks for a repaint when
+  it changes, in the frame that draws it, and only then: painting every frame costs a good part of a core

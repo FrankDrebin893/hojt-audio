@@ -453,6 +453,8 @@ pub(crate) struct View {
     menu: Option<Menu>,
     /// What the preset display says instead of the name, and until when
     note: Option<(&'static str, f64)>,
+    /// What the cabinet showed when the window was last drawn
+    cab_status: CabStatus,
 }
 
 /// The list of banks and presets while it is dropped open
@@ -883,7 +885,13 @@ pub fn create(
     let opened_params = params.clone();
     create_egui_editor(
         editor_state,
-        View { lamps: LampView::new(&lamp_reading), bank: Bank::default(), menu: None, note: None },
+        View {
+            lamps: LampView::new(&lamp_reading),
+            bank: Bank::default(),
+            menu: None,
+            note: None,
+            cab_status: CabStatus::Fine,
+        },
         move |egui_ctx, view| {
             ui::install(egui_ctx);
             // What was clipped while the window was closed is not news
@@ -905,6 +913,13 @@ pub fn create(
                 // when a lamp changes
                 let now = ui.input(|input| input.time);
                 if view.lamps.look(&lamp_reading, params.gate_on.value(), now) {
+                    ui.ctx().request_repaint();
+                }
+                // A cabinet file is read in the background, and the cabinet shows whether it
+                // could be used
+                let cab_status = cab_loader.status();
+                if cab_status != view.cab_status {
+                    view.cab_status = cab_status;
                     ui.ctx().request_repaint();
                 }
                 let (gate_open, clipping) = view.lamps.shown();
