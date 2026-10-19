@@ -159,14 +159,8 @@ fn test_the_amp_names_no_maker() {
     let mut found = Vec::new();
     for path in files(&amp_dir(), &|_| true) {
         let Ok(text) = std::fs::read_to_string(&path) else { continue };
-        let words = words(&text);
-        let pairs =
-            words.windows(2).map(|pair| (format!("{} {}", pair[0].1, pair[1].1), pair[1].0));
-        let singles = words.iter().map(|(line, word)| (word.clone(), *line));
-        for (name, line) in singles.chain(pairs) {
-            if NAMES.contains(&fnv1a(&name)) {
-                found.push(format!("{}:{line}: \"{name}\"", shown(&path)));
-            }
+        for (line, name) in named(&text, NAMES) {
+            found.push(format!("{}:{line}: \"{name}\"", shown(&path)));
         }
     }
     assert!(
@@ -181,7 +175,8 @@ fn test_the_amp_names_no_maker() {
 #[test]
 fn test_no_dsp_branches_on_the_amp() {
     // Picking an amp is the model's job; the editor and the looks show each amp its own way
-    let allowed = ["amp/model.rs", "editor.rs", "looks.rs"];
+    // `test_util.rs` is a module of tests only
+    let allowed = ["amp/model.rs", "editor.rs", "looks.rs", "test_util.rs"];
     let src = amp_dir().join("src");
     let is_dsp = |path: &Path| {
         path.extension().is_some_and(|ext| ext == "rs")
@@ -190,12 +185,9 @@ fn test_no_dsp_branches_on_the_amp() {
     let mut found = Vec::new();
     for path in files(&src, &is_dsp) {
         let text = std::fs::read_to_string(&path).unwrap();
-        // Tests may go through the amps one by one
-        let code = text.split("#[cfg(test)]").next().unwrap();
-        for (i, line) in code.lines().enumerate() {
-            let line = line.split("//").next().unwrap();
-            if branches_on_the_amp(line) {
-                found.push(format!("{}:{}: {}", shown(&path), i + 1, line.trim()));
+        for (line, code) in outside_tests(&text) {
+            if branches_on_the_amp(code) {
+                found.push(format!("{}:{line}: {}", shown(&path), code.trim()));
             }
         }
     }
@@ -217,6 +209,7 @@ fn test_what_counts_as_a_branch_on_the_amp() {
         "Amp::Brol | Amp::Glod => 2.0,",
         "if amp == Amp::Brol {",
         "if amp != Amp::Torden {",
+        "if settings.amp == amp::model::Amp::Klar {}",
         "if let Amp::Klar = amp {",
         "let tight = matches!(amp, Amp::Torden);",
     ] {
@@ -234,6 +227,43 @@ fn test_what_counts_as_a_branch_on_the_amp() {
     }
 }
 
+#[test]
+fn test_only_tests_are_left_out() {
+    let text = "#[cfg(test)]
+mod test_util;
+                fn a() { match self.amp {} }
+                #[cfg(test)]
+#[allow(unused)]
+fn helper() {
+    match amp {}
+}
+                fn b() {}
+                #[cfg(test)]
+mod tests {
+    fn c() { if amp == Amp::Klar {} }
+}
+                fn d() {} // match amp
+";
+    let kept: Vec<usize> = outside_tests(text).into_iter().map(|(line, _)| line).collect();
+    assert_eq!(kept, [3, 9, 14]);
+    let branches: Vec<_> =
+        outside_tests(text).into_iter().filter(|(_, code)| branches_on_the_amp(code)).collect();
+    assert_eq!(branches.len(), 1, "{branches:?}");
+}
+
+#[test]
+fn test_a_listed_name_is_found() {
+    // Made-up names, as no real one may be written here: one word and two, also written as
+    // a type's name and across a line
+    let names = [fnv1a("zorblax"), fnv1a("quint vexel")];
+    let text = "struct ZorblaxStage;
+// a quint
+// vexel in the cabinet
+fn quintet() {}";
+    let found: Vec<(usize, String)> = named(text, &names);
+    assert_eq!(found, [(1, "zorblax".to_string()), (3, "quint vexel".to_string())]);
+}
+
 /// Prints the hash of `NAME`, for adding a name to [`NAMES`]
 #[test]
 #[ignore]
@@ -243,6 +273,46 @@ fn hash_of_name() {
         "    0x{:016x},",
         fnv1a(&words(&name).into_iter().map(|w| w.1).collect::<Vec<_>>().join(" "))
     );
+}
+
+/// The words of `text`, and pairs of them in a row, that are among `names`, each with its line
+fn named(text: &str, names: &[u64]) -> Vec<(usize, String)> {
+    let words = words(text);
+    let pairs = words.windows(2).map(|pair| (pair[1].0, format!("{} {}", pair[0].1, pair[1].1)));
+    words.iter().cloned().chain(pairs).filter(|(_, name)| names.contains(&fnv1a(name))).collect()
+}
+
+/// The lines of `text` that are not tests, with their numbers, without their comments. Tests
+/// may go through the amps one by one: the item after each `#[cfg(test)]` is left out, up to
+/// its `;` or the brace that closes it
+fn outside_tests(text: &str) -> Vec<(usize, &str)> {
+    let mut kept = Vec::new();
+    let mut in_test = false;
+    let mut depth = 0i32;
+    let mut opened = false;
+    for (i, line) in text.lines().enumerate() {
+        let code = line.split("//").next().unwrap();
+        if code.trim_start().starts_with("#[cfg(test)]") {
+            (in_test, depth, opened) = (true, 0, false);
+            continue;
+        }
+        if !in_test {
+            kept.push((i + 1, code));
+            continue;
+        }
+        for c in code.chars() {
+            match c {
+                '{' => (depth, opened) = (depth + 1, true),
+                '}' => depth -= 1,
+                _ => {}
+            }
+        }
+        let attribute = !opened && code.trim_start().starts_with("#[");
+        if !attribute && ((opened && depth <= 0) || (!opened && code.trim_end().ends_with(';'))) {
+            in_test = false;
+        }
+    }
+    kept
 }
 
 /// A `match` on something named amp, a match arm or comparison with one amp
@@ -261,7 +331,10 @@ fn branches_on_the_amp(line: &str) -> bool {
         let variant: String = after.chars().take_while(|c| c.is_alphanumeric()).collect();
         let is_variant = variant.chars().next().is_some_and(char::is_uppercase) && variant != "ALL";
         let rest = after[variant.len()..].trim_start();
-        let before = line[..at].trim_end();
+        // What comes before the path the variant is named by, as in `model::Amp::Klar`
+        let before = line[..at]
+            .trim_end_matches(|c: char| c.is_alphanumeric() || c == '_' || c == ':')
+            .trim_end();
         is_variant
             && (rest.starts_with("=>")
                 || rest.starts_with('|')

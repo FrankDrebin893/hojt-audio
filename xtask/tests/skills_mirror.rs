@@ -51,3 +51,11 @@ fn mirror(skill: &str, name: &str) -> String {
     }
     lines.join("\n")
 }
+
+#[test]
+fn test_a_command_is_its_skill_without_the_name() {
+    let skill = "---\r\nname: next\r\ndescription: Build it\r\n---\r\n\r\n# /next\r\n\r\nname: next stays in the text\r\n";
+    let command = "---\ndescription: Build it\n---\n\n# /next\n\nname: next stays in the text\n";
+    assert_eq!(mirror(skill, "next"), command);
+    assert_ne!(mirror(skill, "next"), command.replace("Build it", "Build"));
+}
