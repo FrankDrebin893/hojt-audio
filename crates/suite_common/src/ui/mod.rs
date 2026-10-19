@@ -20,7 +20,7 @@ pub mod raster;
 pub mod theme;
 pub mod widgets;
 
-pub use amp::{amp_head, cabinet, CabFaces, CabStyle, HeadFaces, HeadStyle, Speakers};
+pub use amp::{amp_head, cabinet, head_faces, CabFaces, CabStyle, HeadFaces, HeadStyle, Speakers};
 pub use art::Motif;
 pub use frame::{
     coupler, enclosure, lifted, mini_pedal, patch_cable, pedal, rig, slim_pedal, strip, title_grip,
@@ -31,7 +31,8 @@ pub use raster::{Grille, KnobCap, Plate, Tolex};
 pub use theme::install;
 pub use widgets::{
     cents_meter, chrome_button, drop_panel, footswitch, led, level_meter, lit_level_lamps,
-    menu_stepper, nameplate_stepper, param_knob, param_knob_with, param_switch, rig_led,
-    signal_lamp, silk_frame, silk_label, small_footswitch, stepper, tuner_display, type_into,
-    value_knob, value_switch, Column, Pick, Picked, Row, Step, Typed, LEVEL_MIN_DB,
+    menu_stepper, nameplate_stepper, panel_caption, panel_knob, panel_knob_rect, param_knob,
+    param_knob_with, param_switch, print_label, rig_led, signal_lamp, silk_frame, silk_label,
+    small_footswitch, stepper, tuner_display, type_into, value_knob, value_switch, Column, Pick,
+    Picked, Row, Step, Typed, LEVEL_MIN_DB,
 };

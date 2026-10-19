@@ -82,6 +82,15 @@ pub fn knob(
     knob_with(painter, center, radius, normalized, scale, KnobCap::Fluted, SILK);
 }
 
+/// The ticks of a knob's scale: the angle of each, and how far past the rim and how wide
+fn scale_ticks() -> impl Iterator<Item = (f32, f32, f32)> {
+    (0..=10).map(|tick| {
+        let angle = KNOB_START_ANGLE + KNOB_SWEEP * tick as f32 / 10.0;
+        let (length, width) = if tick % 5 == 0 { (13.0, 2.2) } else { (10.0, 1.3) };
+        (angle, length, width)
+    })
+}
+
 /// A `knob` with the cap `cap`, its scale printed in `print`
 pub fn knob_with(
     painter: &Painter,
@@ -93,10 +102,7 @@ pub fn knob_with(
     print: Color32,
 ) {
     // Scale printed on the enclosure
-    for tick in 0..=10 {
-        let angle = KNOB_START_ANGLE + KNOB_SWEEP * tick as f32 / 10.0;
-        let major = tick % 5 == 0;
-        let (length, width) = if major { (13.0, 2.2) } else { (10.0, 1.3) };
+    for (angle, length, width) in scale_ticks() {
         painter.line_segment(
             [polar(center, radius + 6.0, angle), polar(center, radius + length, angle)],
             Stroke::new(width, print),
@@ -126,15 +132,28 @@ pub fn knob_with(
     };
     match cap {
         KnobCap::Fluted => pointer(0.94, SILK),
-        KnobCap::ChickenHead => chicken_wing(painter, center, radius, angle),
+        KnobCap::ChickenHead => chicken_wing(painter, center, radius, angle, BAKELITE, SILK),
+        KnobCap::CreamChickenHead => {
+            chicken_wing(painter, center, radius, angle, super::raster::CREAM_BAKELITE_COLOR, INK)
+        }
         KnobCap::GoldTop => pointer(0.66, INK),
         KnobCap::ChromeSkirt => pointer(0.54, SILK),
     }
 }
 
-/// The wing of a chicken-head knob, pointing at `angle`: black bakelite tapering to a point
-/// past the base, with a cream line along it
-fn chicken_wing(painter: &Painter, center: Pos2, radius: f32, angle: f32) {
+// The wing of a black chicken-head knob; a cream one is `raster::CREAM_BAKELITE_COLOR`
+const BAKELITE: Color32 = Color32::from_rgb(34, 31, 28);
+
+/// The wing of a chicken-head knob, pointing at `angle`: bakelite of `body` tapering to a
+/// point past the base, with a line of `line` along it
+fn chicken_wing(
+    painter: &Painter,
+    center: Pos2,
+    radius: f32,
+    angle: f32,
+    body: Color32,
+    line: Color32,
+) {
     let half_turn = std::f32::consts::PI;
     let wing = |at: Pos2| {
         vec![
@@ -148,12 +167,12 @@ fn chicken_wing(painter: &Painter, center: Pos2, radius: f32, angle: f32) {
     painter.add(Shape::convex_polygon(wing(center + vec2(0.6, 1.8)), SHADOW, Stroke::NONE));
     painter.add(Shape::convex_polygon(
         wing(center),
-        Color32::from_rgb(34, 31, 28),
+        body,
         Stroke::new(1.0, Color32::from_white_alpha(28)),
     ));
     painter.line_segment(
         [polar(center, radius * 0.1, angle), polar(center, radius * 0.92, angle)],
-        Stroke::new((radius * 0.08).max(2.0), SILK),
+        Stroke::new((radius * 0.08).max(2.0), line),
     );
 }
 
@@ -186,6 +205,23 @@ pub fn param_knob_with<P: Param>(
     cap: KnobCap,
     print: Color32,
 ) -> Response {
+    let (response, normalized) = turn_param(ui, setter, param, center, radius);
+    knob_with(ui.painter(), center, radius, normalized, scale, cap, print);
+    let value = param.normalized_value_to_string(normalized, true);
+    knob_caption(ui.painter(), center, radius, label, &value, print);
+
+    response
+}
+
+/// What a knob of `radius` on `center` does to `param` when it is dragged or double-clicked.
+/// Returns its response and where the parameter stands now
+fn turn_param<P: Param>(
+    ui: &mut Ui,
+    setter: &ParamSetter,
+    param: &P,
+    center: Pos2,
+    radius: f32,
+) -> (Response, f32) {
     let id = Id::new(("param_knob", param.name()));
     let rect = Rect::from_center_size(center, Vec2::splat((radius + 6.0) * 2.0));
     let response = ui.interact(rect, id, Sense::click_and_drag());
@@ -218,11 +254,71 @@ pub fn param_knob_with<P: Param>(
         setter.end_set_parameter(param);
     }
 
-    knob_with(ui.painter(), center, radius, normalized, scale, cap, print);
-    let value = param.normalized_value_to_string(normalized, true);
-    knob_caption(ui.painter(), center, radius, label, &value, print);
+    (response, normalized)
+}
 
+/// How far a panel knob's caption is above its middle, past the top of the scale, and how
+/// far its tape is under it, between the ends of the scale
+const PANEL_CAPTION_ABOVE: f32 = 22.0;
+const PANEL_TAPE_BELOW: f32 = 5.0;
+const PANEL_CAPTION_SIZE: f32 = 13.0;
+const PANEL_VALUE_SIZE: f32 = 10.0;
+// The room a caption and a tape take
+const PANEL_CAPTION_HALF: f32 = 7.0;
+const PANEL_TAPE_HEIGHT: f32 = 17.0;
+
+/// A knob on the panel of an amp head, where there is room for one line of controls: its name
+/// printed in `print` over its scale, and its value on label tape under it, between the ends
+/// of the scale. For the small knobs of a panel (radius about 19); otherwise as `param_knob_with`
+#[allow(clippy::too_many_arguments)]
+pub fn panel_knob<P: Param>(
+    ui: &mut Ui,
+    setter: &ParamSetter,
+    param: &P,
+    center: Pos2,
+    radius: f32,
+    label: &str,
+    cap: KnobCap,
+    print: Color32,
+) -> Response {
+    let (response, normalized) = turn_param(ui, setter, param, center, radius);
+    let painter = ui.painter();
+    knob_with(painter, center, radius, normalized, None, cap, print);
+    spaced_text(
+        painter,
+        panel_caption(center, radius),
+        Align2::CENTER_CENTER,
+        &label.to_uppercase(),
+        display(PANEL_CAPTION_SIZE),
+        print,
+        LABEL_SPACING,
+    );
+    let value = param.normalized_value_to_string(normalized, true);
+    label_tape(
+        painter,
+        Pos2::new(center.x, center.y + radius + PANEL_TAPE_BELOW),
+        &value,
+        PANEL_VALUE_SIZE,
+    );
     response
+}
+
+/// The middle of the caption of a `panel_knob` of `radius` on `center`: the line other
+/// captions on its panel go on
+pub fn panel_caption(center: Pos2, radius: f32) -> Pos2 {
+    Pos2::new(center.x, center.y - radius - PANEL_CAPTION_ABOVE)
+}
+
+/// The room a `panel_knob` of `radius` on `center` takes: across, the ends of its scale's
+/// ticks; from its caption's top down to its tape's bottom
+pub fn panel_knob_rect(center: Pos2, radius: f32) -> Rect {
+    let reach = scale_ticks()
+        .map(|(angle, length, width)| angle.cos().abs() * (radius + length) + width / 2.0)
+        .fold(0.0, f32::max);
+    Rect::from_min_max(
+        Pos2::new(center.x - reach, center.y - radius - PANEL_CAPTION_ABOVE - PANEL_CAPTION_HALF),
+        Pos2::new(center.x + reach, center.y + radius + PANEL_TAPE_BELOW + PANEL_TAPE_HEIGHT),
+    )
 }
 
 /// Knob that turns a plain value from 0 to 1 and not a parameter, with its name and value
@@ -950,13 +1046,18 @@ fn lamp(painter: &Painter, center: Pos2, on: bool, off_color: Color32, socket: b
 
 /// Screen-printed caption, centred on `center`
 pub fn silk_label(painter: &Painter, center: Pos2, text: &str, size: f32) -> Rect {
+    print_label(painter, center, text, size, SILK)
+}
+
+/// A `silk_label` printed in `print`, for a plate that is not dark (`INK` on metal)
+pub fn print_label(painter: &Painter, center: Pos2, text: &str, size: f32, print: Color32) -> Rect {
     spaced_text(
         painter,
         center,
         Align2::CENTER_CENTER,
         &text.to_uppercase(),
         display(size),
-        SILK,
+        print,
         0.16,
     )
 }

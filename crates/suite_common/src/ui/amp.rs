@@ -7,7 +7,7 @@
 //! `amp_head` and `cabinet` draw only the furniture and return the faces the caller puts its
 //! controls on.
 
-use nih_plug_egui::egui::{pos2, vec2, Color32, ColorImage, Painter, Pos2, Rect, Ui, Vec2};
+use nih_plug_egui::egui::{pos2, vec2, Color32, ColorImage, Painter, Pos2, Rect, Stroke, Ui, Vec2};
 
 use super::raster::{
     blit, cached, device, diffuse, hash, image, paint_grille, paint_plate, paint_screw,
@@ -33,6 +33,11 @@ const GRILLE_RADIUS: f32 = 4.0;
 const PLATE_RADIUS: f32 = 3.0;
 const PIPING_WIDTH: f32 = 2.5;
 const PIPING_MARGIN: f32 = 3.0;
+// The band across a grille, and the line along the top of a panel: how wide, and how far
+// the line is from the panel's ends and from its top
+const CLOTH_STRIPE_WIDTH: f32 = 3.0;
+const PANEL_STRIPE_WIDTH: f32 = 1.5;
+const PANEL_STRIPE_INSET: Vec2 = vec2(16.0, 3.0);
 const PLATE_SCREW_INSET: f32 = 7.0;
 const PLATE_SCREW_SCALE: f32 = 0.5;
 
@@ -47,21 +52,25 @@ const CORNER_SIZE: f32 = 26.0;
 const CORNER_MARGIN: f32 = 3.0;
 
 /// How an amp head looks
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct HeadStyle {
     pub tolex: Tolex,
     /// The colour of the tolex
     pub covering: Color32,
-    /// The cord between the covering and the grille
-    pub piping: Color32,
+    /// The cord between the covering and the grille, if there is one
+    pub piping: Option<Color32>,
     pub grille: Grille,
     /// The colour of the grille's cloth or steel
     pub cloth: Color32,
+    /// A band of metallic thread of this colour woven across the middle of the grille
+    pub cloth_stripe: Option<Color32>,
     /// The grille runs across the top of the head, this tall; the panel fills the rest
     pub grille_height: f32,
     pub panel: Plate,
     /// What is printed on the panel: `SILK` on a dark one, `INK` on metal
     pub print: Color32,
+    /// A line of this colour printed along the top of the panel
+    pub panel_stripe: Option<Color32>,
     /// The colour of the pilot lamp's jewel
     pub jewel: Color32,
 }
@@ -151,7 +160,8 @@ fn head_box(rect: Rect) -> Rect {
     Rect::from_min_max(rect.min + vec2(0.0, HANDLE_HEIGHT), rect.max)
 }
 
-fn head_faces(rect: Rect, style: &HeadStyle) -> HeadFaces {
+/// Where `amp_head` puts the faces of a head of `style` filling `rect`
+pub fn head_faces(rect: Rect, style: &HeadStyle) -> HeadFaces {
     let inner = head_box(rect).shrink(HEAD_BORDER);
     let grille_height = style.grille_height.clamp(0.0, (inner.height() - FACE_GAP).max(0.0));
     let grille = Rect::from_min_size(inner.min, vec2(inner.width(), grille_height));
@@ -171,8 +181,8 @@ fn cab_faces(rect: Rect, style: &CabStyle) -> CabFaces {
 
 /// An amp head filling `rect`: a carry handle on top, the box covered in tolex, the grille
 /// across its top with piping round it, the panel under it with a jewel pilot lamp at its
-/// right end. Returns the faces, for the caller's nameplate and knobs.
-pub fn amp_head(ui: &Ui, rect: Rect, style: &HeadStyle) -> HeadFaces {
+/// right end, `lit` or not. Returns the faces, for the caller's nameplate and knobs.
+pub fn amp_head(ui: &Ui, rect: Rect, style: &HeadStyle, lit: bool) -> HeadFaces {
     let painter = ui.painter();
     let faces = head_faces(rect, style);
     let body = head_box(rect);
@@ -185,14 +195,34 @@ pub fn amp_head(ui: &Ui, rect: Rect, style: &HeadStyle) -> HeadFaces {
         ),
     );
     paint_grille(painter, faces.grille, GRILLE_RADIUS, style.grille, style.cloth, &[]);
-    paint_piping(painter, faces.grille, style.piping);
+    if let Some(stripe) = style.cloth_stripe {
+        paint_grille(painter, cloth_stripe(faces.grille), 0.0, Grille::Silver, stripe, &[]);
+    }
+    if let Some(piping) = style.piping {
+        paint_piping(painter, faces.grille, piping);
+    }
     mounted_plate(painter, faces.panel, style.panel);
+    if let Some(stripe) = style.panel_stripe {
+        painter.line_segment(panel_stripe(faces.panel), Stroke::new(PANEL_STRIPE_WIDTH, stripe));
+    }
     paint_jewel(
         painter,
         pos2(faces.panel.right() - JEWEL_INSET, faces.panel.center().y),
         style.jewel,
+        lit,
     );
     faces
+}
+
+/// The band woven across the middle of a grille
+fn cloth_stripe(grille: Rect) -> Rect {
+    Rect::from_center_size(grille.center(), vec2(grille.width(), CLOTH_STRIPE_WIDTH))
+}
+
+/// The line printed along the top of a panel, between its screws
+pub fn panel_stripe(panel: Rect) -> [Pos2; 2] {
+    let y = panel.top() + PANEL_STRIPE_INSET.y;
+    [pos2(panel.left() + PANEL_STRIPE_INSET.x, y), pos2(panel.right() - PANEL_STRIPE_INSET.x, y)]
 }
 
 /// A speaker cabinet filling `rect`: the box covered in tolex with a metal corner on each
@@ -338,14 +368,19 @@ fn paint_handle(painter: &Painter, rect: Rect) {
     blit(painter, &texture, rect.expand(device(HANDLE_MARGIN, ppp).round() / ppp));
 }
 
-/// A pilot lamp: a faceted jewel of `color` `radius` large, lit from within, in a chrome
-/// bezel, with its glow round it
-pub fn jewel_image(radius: f32, color: Color32, ppp: f32) -> ColorImage {
+/// A pilot lamp: a faceted jewel of `color` `radius` large in a chrome bezel. While it is
+/// `lit` it glows from within and round it; unlit it is the dark glass alone
+pub fn jewel_image(radius: f32, color: Color32, lit: bool, ppp: f32) -> ColorImage {
     let side = ((radius * JEWEL_BEZEL + JEWEL_MARGIN) * 2.0 * ppp).ceil() as usize;
     let c = side as f32 / 2.0;
     let r = device(radius, ppp);
     let bezel = r * JEWEL_BEZEL;
     let base = rgb(color);
+    let (base, halo, within) = if lit {
+        (base, 0.35, 90.0)
+    } else {
+        ([base[0] * 0.3, base[1] * 0.3, base[2] * 0.3], 0.0, 0.0)
+    };
     let chrome = rgb(CHROME);
     let facet = std::f32::consts::TAU / 8.0;
     let mut pixels = vec![Pixel::default(); side * side];
@@ -354,7 +389,7 @@ pub fn jewel_image(radius: f32, color: Color32, ppp: f32) -> ColorImage {
             let (dx, dy) = (x as f32 + 0.5 - c, y as f32 + 0.5 - c);
             let dist = (dx * dx + dy * dy).sqrt();
             let mut pixel = Pixel::default();
-            pixel.over(base, 0.35 * (-(dist / (bezel * 1.3)).powi(2)).exp());
+            pixel.over(base, halo * (-(dist / (bezel * 1.3)).powi(2)).exp());
             let outer = (bezel - dist + 0.5).clamp(0.0, 1.0);
             if outer > 0.0 {
                 let t = ((dist - r) / (bezel - r)).clamp(0.0, 1.0);
@@ -371,7 +406,7 @@ pub fn jewel_image(radius: f32, color: Color32, ppp: f32) -> ColorImage {
                 let phi = (dy.atan2(dx) / facet).round() * facet;
                 let slope = if t < 0.45 { 0.0 } else { 0.6 };
                 let normal = tilted(phi.cos() * slope, phi.sin() * slope);
-                let glow = (1.0 - t).powi(2) * 90.0;
+                let glow = (1.0 - t).powi(2) * within;
                 let light = 0.75 + 0.35 * diffuse(normal);
                 let gloss = specular(normal, 24.0) * 0.8;
                 let color = [
@@ -387,11 +422,11 @@ pub fn jewel_image(radius: f32, color: Color32, ppp: f32) -> ColorImage {
     image(side, side, pixels)
 }
 
-fn paint_jewel(painter: &Painter, center: Pos2, color: Color32) {
+fn paint_jewel(painter: &Painter, center: Pos2, color: Color32, lit: bool) {
     let ctx = painter.ctx();
     let ppp = ctx.pixels_per_point();
-    let key = ("jewel", color, ppp.to_bits());
-    let texture = cached(ctx, key, || jewel_image(JEWEL_RADIUS, color, ppp));
+    let key = ("jewel", color, lit, ppp.to_bits());
+    let texture = cached(ctx, key, || jewel_image(JEWEL_RADIUS, color, lit, ppp));
     let side = (JEWEL_RADIUS * JEWEL_BEZEL + JEWEL_MARGIN) * 2.0;
     blit(painter, &texture, Rect::from_center_size(center, Vec2::splat(side)));
 }
@@ -527,8 +562,14 @@ pub(crate) fn preview_stack(
     let grille =
         grille_image(faces.grille.size(), GRILLE_RADIUS, head.grille, head.cloth, &[], ppp);
     lay(&grille, faces.grille.min, 0.0);
-    let piping = piping_image(faces.grille.size(), GRILLE_RADIUS, PIPING_WIDTH, head.piping, ppp);
-    lay(&piping, faces.grille.min, PIPING_MARGIN);
+    if let Some(stripe) = head.cloth_stripe {
+        let band = cloth_stripe(faces.grille);
+        lay(&grille_image(band.size(), 0.0, Grille::Silver, stripe, &[], ppp), band.min, 0.0);
+    }
+    if let Some(piping) = head.piping {
+        let piping = piping_image(faces.grille.size(), GRILLE_RADIUS, PIPING_WIDTH, piping, ppp);
+        lay(&piping, faces.grille.min, PIPING_MARGIN);
+    }
     plate(&mut lay, faces.panel, head.panel);
     let nameplate = Rect::from_center_size(faces.grille.center(), vec2(140.0, 30.0));
     plate(&mut lay, nameplate, head.panel);
@@ -539,7 +580,7 @@ pub(crate) fn preview_stack(
     }
     let jewel = pos2(faces.panel.right() - JEWEL_INSET, faces.panel.center().y);
     lay(
-        &jewel_image(JEWEL_RADIUS, head.jewel, ppp),
+        &jewel_image(JEWEL_RADIUS, head.jewel, true, ppp),
         jewel,
         JEWEL_RADIUS * JEWEL_BEZEL + JEWEL_MARGIN,
     );
@@ -579,12 +620,14 @@ mod tests {
         HeadStyle {
             tolex: Tolex::Levant,
             covering: Color32::from_rgb(24, 22, 21),
-            piping: Color32::from_rgb(220, 214, 200),
+            piping: Some(Color32::from_rgb(220, 214, 200)),
             grille: Grille::Basketweave,
             cloth: Color32::from_rgb(120, 110, 90),
+            cloth_stripe: Some(Color32::from_rgb(200, 160, 70)),
             grille_height,
             panel: Plate::BrushedBrass,
             print: INK,
+            panel_stripe: None,
             jewel: Color32::from_rgb(200, 30, 24),
         }
     }
@@ -676,7 +719,8 @@ mod tests {
         let images = [
             piping_image(vec2(100.0, 60.0), 4.0, 2.5, Color32::from_rgb(220, 214, 200), 2.0),
             handle_image(vec2(120.0, 12.0), 2.0),
-            jewel_image(6.0, Color32::from_rgb(200, 30, 24), 2.0),
+            jewel_image(6.0, Color32::from_rgb(200, 30, 24), true, 2.0),
+            jewel_image(6.0, Color32::from_rgb(200, 30, 24), false, 2.0),
             corner_image([false, false], 2.0),
             corner_image([true, true], 2.0),
         ];

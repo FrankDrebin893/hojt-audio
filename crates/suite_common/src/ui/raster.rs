@@ -235,6 +235,8 @@ pub enum KnobCap {
     Fluted,
     /// Black bakelite: a low round base under a wing that points
     ChickenHead,
+    /// The chicken-head in cream bakelite, with a dark line along its wing
+    CreamChickenHead,
     /// A black knurled skirt under a domed cap of brushed gold
     GoldTop,
     /// A black domed cap in a flared skirt of turned chrome
@@ -246,7 +248,8 @@ pub enum KnobCap {
 pub fn knob_image(radius: f32, cap: KnobCap, ppp: f32) -> ColorImage {
     match cap {
         KnobCap::Fluted => fluted_knob(radius, ppp),
-        KnobCap::ChickenHead => round_knob(radius, ppp, chicken_head),
+        KnobCap::ChickenHead => round_knob(radius, ppp, |at| chicken_head(at, BLACK_BAKELITE)),
+        KnobCap::CreamChickenHead => round_knob(radius, ppp, |at| chicken_head(at, CREAM_BAKELITE)),
         KnobCap::GoldTop => round_knob(radius, ppp, gold_top),
         KnobCap::ChromeSkirt => round_knob(radius, ppp, chrome_skirt),
     }
@@ -348,8 +351,17 @@ fn groove(color: Rgb, t: f32, at: f32, width: f32, depth: f32) -> Rgb {
 }
 
 /// Black bakelite: a low glossy base that rounds off at its rim. The wing is drawn over it
-fn chicken_head(KnobPoint { t, ux, uy, .. }: KnobPoint) -> Rgb {
-    let bakelite = [30.0, 27.0, 25.0];
+/// The bakelite of a chicken-head knob: black, and cream
+const BLACK_BAKELITE: Rgb = [30.0, 27.0, 25.0];
+const CREAM_BAKELITE: Rgb = [
+    CREAM_BAKELITE_COLOR.r() as f32,
+    CREAM_BAKELITE_COLOR.g() as f32,
+    CREAM_BAKELITE_COLOR.b() as f32,
+];
+/// The cream bakelite of a `CreamChickenHead`, its base and its wing
+pub(super) const CREAM_BAKELITE_COLOR: Color32 = Color32::from_rgb(216, 204, 178);
+
+fn chicken_head(KnobPoint { t, ux, uy, .. }: KnobPoint, bakelite: Rgb) -> Rgb {
     let slope = if t > 0.78 { ((t - 0.78) / 0.22).powi(2) * 1.4 } else { t * 0.22 };
     let normal = tilted(ux * slope, uy * slope);
     let color = shaded(bakelite, diffuse(normal), specular(normal, 44.0) * 0.55);
@@ -502,6 +514,19 @@ pub enum Plate {
     BlackAnodised,
     /// Lacquered dark wood
     DarkWood,
+}
+
+impl Plate {
+    /// The colour of the plate before it is lit: for the wood, its lighter rings. What is
+    /// printed on the plate must read on this
+    pub fn color(self) -> Color32 {
+        match self {
+            Plate::BrushedBrass => Color32::from_rgb(192, 158, 86),
+            Plate::BrushedChrome => Color32::from_rgb(196, 194, 188),
+            Plate::BlackAnodised => Color32::from_rgb(40, 40, 42),
+            Plate::DarkWood => Color32::from_rgb(92, 54, 30),
+        }
+    }
 }
 
 /// A speaker behind a grille: its centre, in points from the grille's top left corner, and
@@ -870,12 +895,11 @@ fn plate_at(plate: Plate, q: [f32; 2], px: [i32; 2]) -> Surface {
         }
     };
     match plate {
-        Plate::BrushedBrass => brushed([192.0, 158.0, 86.0]),
-        Plate::BrushedChrome => brushed([196.0, 194.0, 188.0]),
+        Plate::BrushedBrass | Plate::BrushedChrome => brushed(rgb(plate.color())),
         Plate::BlackAnodised => {
             let satin = (hash(px[0], px[1], 109) - 0.5) * 0.12;
             Surface {
-                color: scaled([40.0, 40.0, 42.0], 1.0 + satin),
+                color: scaled(rgb(plate.color()), 1.0 + satin),
                 slope: [0.0; 2],
                 shine: 0.2,
                 sharpness: 10.0,
@@ -887,7 +911,7 @@ fn plate_at(plate: Plate, q: [f32; 2], px: [i32; 2]) -> Surface {
                 + (value_noise(q[0] / 40.0, q[1] / 4.0, 83) - 0.5) * 5.0
                 + (value_noise(q[0] / 7.0, q[1] / 1.2, 89) - 0.5) * 0.6;
             let ring = smoothstep(0.5, 0.95, grain.rem_euclid(1.0));
-            let (early, late) = ([92.0, 54.0, 30.0], [52.0, 28.0, 14.0]);
+            let (early, late) = (rgb(plate.color()), [52.0, 28.0, 14.0]);
             let pores = 1.0 + (value_noise(q[0] / 6.0, q[1] / 0.3, 111) - 0.5) * 0.12;
             let color = [
                 (early[0] + (late[0] - early[0]) * ring) * pores,
@@ -1144,8 +1168,13 @@ mod tests {
     ];
     const PLATES: [Plate; 4] =
         [Plate::BrushedBrass, Plate::BrushedChrome, Plate::BlackAnodised, Plate::DarkWood];
-    const CAPS: [KnobCap; 4] =
-        [KnobCap::Fluted, KnobCap::ChickenHead, KnobCap::GoldTop, KnobCap::ChromeSkirt];
+    const CAPS: [KnobCap; 5] = [
+        KnobCap::Fluted,
+        KnobCap::ChickenHead,
+        KnobCap::CreamChickenHead,
+        KnobCap::GoldTop,
+        KnobCap::ChromeSkirt,
+    ];
     const TAN: Color32 = Color32::from_rgb(150, 120, 80);
 
     #[test]
@@ -1412,8 +1441,8 @@ mod tests {
             put(&plate_image(vec2(200.0, 60.0), 3.0, plate, ppp).0, 10 + i * 440, 1130);
         }
         for (i, cap) in CAPS.into_iter().enumerate() {
-            put(&knob_image(30.0, cap, ppp), 40 + i * 440, 1280);
-            put(&knob_image(20.0, cap, ppp), 220 + i * 440, 1300);
+            put(&knob_image(30.0, cap, ppp), 40 + i * 350, 1280);
+            put(&knob_image(20.0, cap, ppp), 210 + i * 350, 1300);
         }
         use crate::ui::amp::*;
         use crate::ui::theme::{INK, SILK};
@@ -1422,12 +1451,14 @@ mod tests {
             HeadStyle {
                 tolex: Tolex::Levant,
                 covering: rgb(26, 24, 23),
-                piping: cream,
+                piping: Some(cream),
                 grille: Grille::Basketweave,
                 cloth: rgb(124, 116, 100),
+                cloth_stripe: None,
                 grille_height: 50.0,
                 panel: Plate::BrushedBrass,
                 print: INK,
+                panel_stripe: None,
                 jewel: rgb(214, 36, 28),
             },
             CabStyle {
@@ -1447,12 +1478,14 @@ mod tests {
             HeadStyle {
                 tolex: Tolex::Tweed,
                 covering: rgb(198, 172, 122),
-                piping: rgb(40, 30, 24),
+                piping: None,
                 grille: Grille::Wheat,
-                cloth: rgb(192, 162, 112),
+                cloth: rgb(110, 44, 32),
+                cloth_stripe: Some(rgb(200, 160, 70)),
                 grille_height: 50.0,
                 panel: Plate::BrushedChrome,
                 print: INK,
+                panel_stripe: Some(rgb(200, 40, 32)),
                 jewel: rgb(240, 160, 40),
             },
             CabStyle {
