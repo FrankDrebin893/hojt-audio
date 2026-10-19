@@ -157,7 +157,9 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
 
 - `theme.rs` - Colours, the three embedded fonts (`install`), text helpers. One paint colour per plugin,
   one per mini pedal of a rig (`PEDAL_PAINTS`), and `shade` for darker tones of a paint
-- `widgets.rs` - `param_knob` (fluted knob, name, value on label tape), `footswitch`, `led`,
+- `widgets.rs` - `param_knob` (fluted knob, name, value on label tape; `param_knob_with` for another
+  `KnobCap` and print colour), `nameplate_stepper` (a name on a plate with a chrome step button each side),
+  `footswitch`, `led`,
   `small_footswitch`, `rig_led` and `param_switch` (the switch and LED of a rig, bound to an on/off
   parameter), `stepper` (label tape with a chrome button at each end, for picking one of many),
   `menu_stepper` (one whose tape drops a list open instead of stepping on) with `drop_panel`
@@ -175,12 +177,17 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
   (the bare bench), `strip` (shallow enclosure with everything a pedal has printed on it, the
   name band across its middle only) and `mini_pedal` (small enclosure with only a title), each
   mini pedal described by a `MiniStyle`; `coupler` and `patch_cable` carry the signal between them
-- `raster.rs` - Per-pixel lit surfaces (signed distance field + one fixed light): `box_image`, `knob_image`,
-  `screw_image`, and `paint_*` that cache them as textures. To look at them without a window:
+- `raster.rs` - Per-pixel lit surfaces (signed distance field + one fixed light): `box_image`, `knob_image`
+  (a `KnobCap`: `Fluted`, the pedals' knob, `ChickenHead`, `GoldTop`, `ChromeSkirt`), `screw_image`, and for the
+  half stack `tolex_image` (`Tolex`), `grille_image` (`Grille`, cloth or mesh with the speakers behind it) and
+  `plate_image` (`Plate`); `paint_*` cache them as textures. To look at them without a window:
   `RASTER_PREVIEW=out.raw cargo test -p suite_common --release preview -- --ignored`
 - `artwork.rs` - Loads the PNGs of `assets/art/`, covers the top face with one, cuts it to the corners
 - `hardware.rs` - Lit footswitch, indicator light, label tape, the paper of the name band
 - `art.rs` - `Motif`: what is painted on a mini pedal under its controls
+- `amp.rs` - The half stack of a rig: `amp_head` (handle, tolex, grille with piping, panel, jewel pilot lamp)
+  and `cabinet` (tolex, metal corners, control plate, grille with the `Speakers` behind it), each described by
+  a `HeadStyle` or `CabStyle` and returning the faces the controls go on
 
 Controls are placed at fixed positions relative to the window's top left corner. Knobs: drag up and
 down, Shift for fine steps, double-click for the default.
@@ -197,6 +204,9 @@ controls, portrait) or `plugins/drums/src/editor.rs` (many controls, landscape) 
   plum (Shimmer Pad), pine green (Glass Bells). A new one must be clearly different from those
   and dark enough for cream print to read on it; it goes in `PLUGIN_PAINTS`, where a test holds it to both
 - **Print on the paint is always `SILK` (cream).** Black is only for knobs, label tape and the logo plate.
+  The one exception is the half stack of a rig (`amp.rs`): head and cabinet are covered, not painted (tolex,
+  grille cloth or mesh, plates instead of powder coat), and print on a plate is the `print` of its style:
+  `SILK` on a dark plate, `INK` on metal
   The one other thing on paint is the second coat of a mini pedal's art, in `shade`s of its own paint.
   `BRAND_ORANGE` is only the pointer in the logo
 - **Fonts, by role:** `display` (Bebas Neue) for every caption, in capitals; `model` (Bowlby One SC)

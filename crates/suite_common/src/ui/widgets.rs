@@ -4,6 +4,7 @@ use nih_plug_egui::egui::{
     Response, Sense, Shape, Stroke, StrokeKind, Ui, Vec2, WidgetInfo,
 };
 
+use super::raster::{KnobCap, Plate};
 use super::theme::*;
 
 // The knob travels 270 degrees, from bottom-left over the top to bottom-right
@@ -78,6 +79,19 @@ pub fn knob(
     normalized: f32,
     scale: Option<[&str; 3]>,
 ) {
+    knob_with(painter, center, radius, normalized, scale, KnobCap::Fluted, SILK);
+}
+
+/// A `knob` with the cap `cap`, its scale printed in `print`
+pub fn knob_with(
+    painter: &Painter,
+    center: Pos2,
+    radius: f32,
+    normalized: f32,
+    scale: Option<[&str; 3]>,
+    cap: KnobCap,
+    print: Color32,
+) {
     // Scale printed on the enclosure
     for tick in 0..=10 {
         let angle = KNOB_START_ANGLE + KNOB_SWEEP * tick as f32 / 10.0;
@@ -85,7 +99,7 @@ pub fn knob(
         let (length, width) = if major { (13.0, 2.2) } else { (10.0, 1.3) };
         painter.line_segment(
             [polar(center, radius + 6.0, angle), polar(center, radius + length, angle)],
-            Stroke::new(width, SILK),
+            Stroke::new(width, print),
         );
     }
     if let Some(scale) = scale {
@@ -96,17 +110,50 @@ pub fn knob(
                 Align2::CENTER_CENTER,
                 text,
                 display(15.0),
-                SILK,
+                print,
             );
         }
     }
 
-    super::raster::paint_knob(painter, center, radius);
+    super::raster::paint_knob(painter, center, radius, cap);
 
     let angle = KNOB_START_ANGLE + KNOB_SWEEP * normalized.clamp(0.0, 1.0);
+    let pointer = |reach: f32, color: Color32| {
+        painter.line_segment(
+            [polar(center, radius * 0.12, angle), polar(center, radius * reach, angle)],
+            Stroke::new((radius * 0.1).max(2.6), color),
+        );
+    };
+    match cap {
+        KnobCap::Fluted => pointer(0.94, SILK),
+        KnobCap::ChickenHead => chicken_wing(painter, center, radius, angle),
+        KnobCap::GoldTop => pointer(0.66, INK),
+        KnobCap::ChromeSkirt => pointer(0.54, SILK),
+    }
+}
+
+/// The wing of a chicken-head knob, pointing at `angle`: black bakelite tapering to a point
+/// past the base, with a cream line along it
+fn chicken_wing(painter: &Painter, center: Pos2, radius: f32, angle: f32) {
+    let half_turn = std::f32::consts::PI;
+    let wing = |at: Pos2| {
+        vec![
+            polar(at, radius * 1.04, angle),
+            polar(at, radius * 0.34, angle + half_turn * 0.5),
+            polar(at, radius * 0.62, angle + half_turn * 0.88),
+            polar(at, radius * 0.62, angle - half_turn * 0.88),
+            polar(at, radius * 0.34, angle - half_turn * 0.5),
+        ]
+    };
+    painter.add(Shape::convex_polygon(wing(center + vec2(0.6, 1.8)), SHADOW, Stroke::NONE));
+    painter.add(Shape::convex_polygon(
+        wing(center),
+        Color32::from_rgb(34, 31, 28),
+        Stroke::new(1.0, Color32::from_white_alpha(28)),
+    ));
     painter.line_segment(
-        [polar(center, radius * 0.12, angle), polar(center, radius * 0.94, angle)],
-        Stroke::new((radius * 0.1).max(2.6), SILK),
+        [polar(center, radius * 0.1, angle), polar(center, radius * 0.92, angle)],
+        Stroke::new((radius * 0.08).max(2.0), SILK),
     );
 }
 
@@ -121,6 +168,23 @@ pub fn param_knob<P: Param>(
     radius: f32,
     label: &str,
     scale: Option<[&str; 3]>,
+) -> Response {
+    param_knob_with(ui, setter, param, center, radius, label, scale, KnobCap::Fluted, SILK)
+}
+
+/// A `param_knob` with the cap `cap`, its scale and name printed in `print` (`SILK` on paint
+/// and dark plates, `INK` on metal)
+#[allow(clippy::too_many_arguments)]
+pub fn param_knob_with<P: Param>(
+    ui: &mut Ui,
+    setter: &ParamSetter,
+    param: &P,
+    center: Pos2,
+    radius: f32,
+    label: &str,
+    scale: Option<[&str; 3]>,
+    cap: KnobCap,
+    print: Color32,
 ) -> Response {
     let id = Id::new(("param_knob", param.name()));
     let rect = Rect::from_center_size(center, Vec2::splat((radius + 6.0) * 2.0));
@@ -154,9 +218,9 @@ pub fn param_knob<P: Param>(
         setter.end_set_parameter(param);
     }
 
-    knob(ui.painter(), center, radius, normalized, scale);
+    knob_with(ui.painter(), center, radius, normalized, scale, cap, print);
     let value = param.normalized_value_to_string(normalized, true);
-    knob_caption(ui.painter(), center, radius, label, &value);
+    knob_caption(ui.painter(), center, radius, label, &value, print);
 
     response
 }
@@ -187,13 +251,20 @@ pub fn value_knob(
     }
 
     knob(ui.painter(), center, radius, *value, None);
-    knob_caption(ui.painter(), center, radius, label, &shown(*value));
+    knob_caption(ui.painter(), center, radius, label, &shown(*value), SILK);
 
     response
 }
 
-/// A knob's name printed under it, and under that its value on label tape
-fn knob_caption(painter: &Painter, center: Pos2, radius: f32, label: &str, value: &str) {
+/// A knob's name printed under it in `print`, and under that its value on label tape
+fn knob_caption(
+    painter: &Painter,
+    center: Pos2,
+    radius: f32,
+    label: &str,
+    value: &str,
+    print: Color32,
+) {
     let (label_size, value_size) = if radius >= BIG_KNOB_RADIUS {
         (19.0, 14.0)
     } else if radius < SMALL_KNOB_RADIUS {
@@ -207,7 +278,7 @@ fn knob_caption(painter: &Painter, center: Pos2, radius: f32, label: &str, value
         Align2::CENTER_TOP,
         &label.to_uppercase(),
         display(label_size),
-        SILK,
+        print,
         LABEL_SPACING,
     );
     label_tape(painter, Pos2::new(center.x, label_rect.bottom() + 2.0), value, value_size);
@@ -281,22 +352,9 @@ fn stepper_parts(
     let tape_clicked =
         ui.interact(tape, Id::new(("stepper", id_source, "tape")), Sense::click()).clicked();
 
-    let mut step = tape_clicked.then_some(Pick::Open);
-    for (direction, side) in [(Step::Previous, -1.0), (Step::Next, 1.0)] {
-        let button = center + vec2(side * reach, 0.0);
-        let rect = Rect::from_center_size(button, Vec2::splat(STEPPER_BUTTON_RADIUS * 2.0 + 4.0));
-        let response =
-            ui.interact(rect, Id::new(("stepper", id_source, side > 0.0)), Sense::click());
-        push_button(
-            ui.painter(),
-            button,
-            Engraving::Arrow(side),
-            response.is_pointer_button_down_on(),
-        );
-        if response.clicked() {
-            step = Some(Pick::Step(direction));
-        }
-    }
+    let step = step_buttons(ui, center, reach, id_source)
+        .map(Pick::Step)
+        .or(tape_clicked.then_some(Pick::Open));
 
     let painter = ui.painter();
     painter.rect_filled(tape.translate(vec2(0.0, 2.0)), 2.0, SHADOW);
@@ -311,6 +369,66 @@ fn stepper_parts(
     );
 
     step
+}
+
+/// The chrome push buttons of a stepper, `reach` left and right of `center`. Returns the step
+/// a click on one asked for
+fn step_buttons(ui: &mut Ui, center: Pos2, reach: f32, id_source: &str) -> Option<Step> {
+    let mut step = None;
+    for (direction, side) in [(Step::Previous, -1.0), (Step::Next, 1.0)] {
+        let button = center + vec2(side * reach, 0.0);
+        let rect = Rect::from_center_size(button, Vec2::splat(STEPPER_BUTTON_RADIUS * 2.0 + 4.0));
+        let response =
+            ui.interact(rect, Id::new(("stepper", id_source, side > 0.0)), Sense::click());
+        push_button(
+            ui.painter(),
+            button,
+            Engraving::Arrow(side),
+            response.is_pointer_button_down_on(),
+        );
+        if response.clicked() {
+            step = Some(direction);
+        }
+    }
+    step
+}
+
+/// Height of the plate of a `nameplate_stepper`
+pub const NAMEPLATE_HEIGHT: f32 = 30.0;
+const NAMEPLATE_TEXT_SIZE: f32 = 22.0;
+
+/// A nameplate for picking one of a few by name (the amp, on its head): `text` printed in
+/// `print` on a plate of `plate` `width` wide, centred on `center`, with a chrome push button
+/// each side of it for the previous and the next. A click on the plate also asks for the
+/// next. As with a `stepper`, the caller owns the list.
+pub fn nameplate_stepper(
+    ui: &mut Ui,
+    center: Pos2,
+    width: f32,
+    plate: Plate,
+    print: Color32,
+    text: &str,
+    id_source: &str,
+) -> Option<Step> {
+    let rect = Rect::from_center_size(center, vec2(width, NAMEPLATE_HEIGHT));
+    let reach = width / 2.0 + STEPPER_BUTTON_GAP + STEPPER_BUTTON_RADIUS;
+    let plate_clicked =
+        ui.interact(rect, Id::new(("stepper", id_source, "plate")), Sense::click()).clicked();
+    let step = step_buttons(ui, center, reach, id_source);
+
+    let painter = ui.painter();
+    super::raster::paint_plate(painter, rect, 3.0, plate);
+    spaced_text(
+        painter,
+        center + vec2(0.0, 1.0),
+        Align2::CENTER_CENTER,
+        &text.to_uppercase(),
+        display(NAMEPLATE_TEXT_SIZE),
+        print,
+        0.2,
+    );
+
+    step.or(plate_clicked.then_some(Step::Next))
 }
 
 /// One row of a column of a `drop_panel`: a strip of label tape with `text` on it
