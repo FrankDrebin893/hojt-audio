@@ -1,7 +1,9 @@
 ---
-description: Bring the public page (site/) up to date with the work of a session, or with a release
+description: Bring the public page (site/) up to date with the work of a session, or with a release. Use at the end of every session that changed something a player can notice, and from /release.
 argument-hint: [release <version>]
 ---
+
+# /page
 
 Keep https://hojte.net/hojt-audio/ (`site/index.html`, published from `main` by `pages.yml`)
 true to what a player can download. The rules are "Releasing" in AGENTS.md; the ones that

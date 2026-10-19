@@ -1,7 +1,9 @@
 ---
-description: Prepare a release of the suite; stops before the tag
+description: Prepare a release of the suite; stops before the tag. Use when cutting a new version.
 argument-hint: <version, e.g. 0.4.0>
 ---
+
+# /release
 
 Prepare release $ARGUMENTS by "Releasing" in AGENTS.md. Start from `main`, up to date, with a
 clean tree (if it is not, stop and say so), on a branch `release/$ARGUMENTS`: `main` is

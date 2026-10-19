@@ -1,4 +1,5 @@
 pub mod dsp;
+pub mod host;
 pub mod ids;
 pub mod measure;
 pub mod ui;

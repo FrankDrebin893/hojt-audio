@@ -4,6 +4,8 @@ use std::sync::Arc;
 
 mod bass;
 mod editor;
+#[cfg(test)]
+mod no_alloc;
 use bass::{Bass, BassSettings, Voice};
 
 pub struct BassSynthPlugin {

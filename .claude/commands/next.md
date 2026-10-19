@@ -1,5 +1,5 @@
 ---
-description: Work through every approved backlog issue, one fresh sub-session per issue, until none is left
+description: Work through every approved backlog issue, one fresh sub-session per issue, until none is left. Use when ready to implement approved backlog issues.
 argument-hint: [issue number]
 ---
 

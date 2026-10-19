@@ -18,6 +18,8 @@ mod gate;
 mod lamps;
 mod looks;
 mod mods;
+#[cfg(test)]
+mod no_alloc;
 mod order;
 mod presets;
 mod reverb;

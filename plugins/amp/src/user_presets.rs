@@ -21,7 +21,7 @@
 //! gain = 0.55
 //! gate_on = on
 //! order = fuzz comp drive phaser amp chorus flanger tremolo delay reverb
-//! cabinet = speaker:v30
+//! cabinet = speaker:4x12-mid
 //! ```
 //!
 //! Knobs are written as their parameters store them, switches `on` or `off`, and choices by

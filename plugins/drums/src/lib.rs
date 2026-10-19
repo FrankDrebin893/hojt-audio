@@ -7,6 +7,8 @@ mod dsp;
 mod editor;
 mod engines;
 mod kit;
+#[cfg(test)]
+mod no_alloc;
 mod reverb;
 #[cfg(test)]
 mod test_util;

@@ -637,7 +637,7 @@ mod tests {
 
     impl Preset {
         /// What the chain is given once the preset is loaded, with Input and Output untouched
-        fn settings(&self) -> AmpSettings {
+        pub(crate) fn settings(&self) -> AmpSettings {
             let [gain, bass, mid, treble, presence, master] = self.dials.map(dial);
             let [drive_gain, drive_tone, drive_level] = self.drive.1.map(dial);
             let [cab_mic, cab_res] = self.cab.1.map(dial);

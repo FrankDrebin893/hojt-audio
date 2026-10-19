@@ -4,6 +4,8 @@ use std::sync::Arc;
 
 mod bells;
 mod editor;
+#[cfg(test)]
+mod no_alloc;
 use bells::{BellSettings, GlassBells};
 
 pub struct GlassBellsPlugin {
