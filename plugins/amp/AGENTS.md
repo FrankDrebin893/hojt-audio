@@ -42,11 +42,12 @@ gain), Glød (warm edge of breakup, between Klar and Brøl). They share the six 
   chain tells the editor, and how long the editor shows it
 - `src/tuner.rs` - Tuner: pitch detector on the mono input, `TunerReading` (one atomic shared
   with the editor), `Note`
-- `src/editor.rs` - egui GUI: oxblood head (1590 x 694 window) with the Bank and Preset displays,
-  the list they drop open, or the tuner display top centre; draws each of the ten pedals, each in
-  its own paint with its own art
-- `src/board.rs` - The row of pedals under the head in the chain's order, the amp's marker,
-  and dragging a pedal to another place
+- `src/editor.rs` - egui GUI (1830 x 650 window): the oxblood strip across the top with the
+  Bank and Preset displays, the list they drop open, or the tuner display in its left wing and
+  Output, meters, Clip, On and Tuner in its right; the stack (head with the amp selector and
+  dials, cabinet with its control plate); each of the nine pedals in its own paint with its own art
+- `src/board.rs` - The line under the strip in the chain's order: the pedals and the stack,
+  the couplers and patch cables between them, and dragging a pedal to another place
 
 Signal flow:
 
@@ -90,12 +91,12 @@ How it behaves:
 - Besides its own cabinet an amp can play through any of the seven built-in cabinets
   (`SPEAKERS` in `amp/model.rs`: `1X10 SMALL`, `1X12 OPEN`, `2X12 OPEN`, `4X10 CRISP`,
   `4X12 MID`, `4X12 TIGHT`, `1X15 DEEP`; designs of their own, not the amps'), picked on the
-  Cab pedal after `OWN`. A built-in cabinet is stored as `speaker:<id>` in the cabinet choice;
+  cabinet's control plate after `OWN`. A built-in cabinet is stored as `speaker:<id>` in the cabinet choice;
   the ids are frozen (a test holds them), the order may change. One this build does not have
   plays the amp's own and is shown with `?`. Picking the cabinet that already plays changes
   nothing, to the bit. The chain designs them all when the sample rate is set
 - Besides a built-in cabinet an amp can play through a WAV impulse response from
-  `Documents/Hojt Audio/Cabinets` (or the folder in `HOJT_CABINETS_DIR`), picked on the Cab pedal.
+  `Documents/Hojt Audio/Cabinets` (or the folder in `HOJT_CABINETS_DIR`), picked on the cabinet.
   Mono or the left channel of stereo, 8/16/24/32-bit integer or 32/64-bit float, any rate; resampled,
   trimmed so the sound arrives within 0.2 ms, cut to 40 ms, levelled like the built-in ones.
   Latency stays the same
@@ -127,7 +128,7 @@ How it behaves:
   keeps one undo step per gesture still makes one per parameter
 - The Gate pedal's `OPEN` lamp is lit while the gate is on and lets the guitar through; `CLIP`
   beside Output is lit for 150 ms after the output went over the safety clip's knee
-- Two level meters on the head (`level_meter`): `INPUT` left of the dials shows the input before
+- Two level meters on the strip (`level_meter`): `INPUT` in the left wing shows the input before
   the input gain, `OUTPUT` by the clip lamp the output in front of the safety clip. They take a
   peak at once and fall 60 dB a second; the window is redrawn for them only while they move,
   30 times a second at most
@@ -160,7 +161,7 @@ How it behaves:
   holds and the microphone and cabinet too. A file is read forgivingly: unknown lines are
   skipped and what it does not name gets its default. A test holds every parameter to being
   in a preset or left alone with Bypass, Input, Output and the Tuner
-- Every preset is in a bank, and the Bank display on the head says which one is showing:
+- Every preset is in a bank, and the Bank display on the strip says which one is showing:
   `FACTORY` (the built-in presets), `MINE` (the files loose in the presets folder, where every
   preset was kept before there were banks) or one of the folders the player made in it, in
   name order. Only the folders directly in the presets folder are banks, and what is deeper is
@@ -208,7 +209,7 @@ How it behaves:
 
 | Parameter (id) | Range | Default | Description |
 |----------------|-------|---------|-------------|
-| Bypass (`bypass`) | on / off | off | The On switch on the head |
+| Bypass (`bypass`) | on / off | off | The On switch on the strip |
 | Input (`in_gain`) | -24 to +24 dB | 0 dB | Gain in front of everything except the gate's detector |
 | Gate (`gate_on`) | on / off | on | Noise gate on the input |
 | Gate Threshold (`gate_thresh`) | -80 to -20 dB | -60 dB | Input level that opens the gate (closes 3 dB lower) |
@@ -309,12 +310,25 @@ cargo test -p amp --release render_mods -- --ignored
 The style guide of the root `AGENTS.md` applies; these are the rules for a window of several pedals, which only the amp has.
 
 - **Rigs:** a plugin made of several components (the Guitar Amp) is the one exception to one
-  pedal per plugin. Its window is a `rig`: one `head` across the top, which carries the name band,
-  model number and logo, and from left to right in signal order a row of `mini_pedal`s below it.
-  The head has the plugin's paint; each mini pedal has a paint of its own. On a head and on mini pedals the switches are
-  `small_footswitch` and the LEDs `rig_led` (an unlit `led` disappears on dark paint), beside or
-  above the switch. A mini pedal holds two knobs of radius 24 side by side or three of radius 17
-  in a triangle. Everything else in this guide applies
+  pedal per plugin. Its window is a `rig`: a `strip` across the top, a shallow enclosure in the
+  plugin's paint that carries the name band (across its middle only), model number, logo and
+  art, with a wing at each end for the plugin's own controls; and under it one line in signal
+  order: the gate, the pedals in front of the amp, the stack (the head standing on the cabinet,
+  `STACK_WIDTH` wide), the pedals behind the cabinet. The pedals stand on the floor beside the
+  cabinet, as tall as it. Each mini pedal has a paint of its own. On a strip, a head and mini
+  pedals the switches are `small_footswitch` and the LEDs `rig_led` (an unlit `led` disappears
+  on dark paint), beside or above the switch. A mini pedal holds two knobs of radius 24 side by
+  side or three of radius 17 in a triangle. Everything else in this guide applies
+- **The strip's wings:** the left one holds what comes in and what is picked (input meter,
+  Bank, Preset, Save; the tuner display while tuning), the right one what goes out (Output, the
+  output meter, Clip, On, Tuner). Its jack captions read `In` at the left and `Stereo Out` at
+  the right, arrows left to right: the signal runs along the window. Nothing in a wing reaches
+  the band (a test holds it)
+- **Head and cabinet:** the amp's controls are on the head: the `Amp` stepper at the top, the
+  six dials under it (radius 20), and the input jack at the left end of the dials. The cabinet's
+  controls are on a dark control plate across its top: the `Speaker` stepper over the `Mic
+  Type` stepper, the Mic and Res knobs (radius 17), and its switch with LED and caption above
+  it. Its output jack is under the plate. Head and cabinet are plain enclosures for now
 - **Pedal art:** every mini pedal has its own `PAINT_*` and its own `Motif`, all on one theme
   per rig (the Guitar Amp: northern weather and nature). Two coats and a print: a large motif
   in darker tones of the pedal's paint (`theme::shade`) that may run under the controls, with
@@ -331,22 +345,23 @@ The style guide of the root `AGENTS.md` applies; these are the rules for a windo
   (`title_grip`); while it is held it is drawn `lifted` and last, the others glide to make
   room, and it lands in the nearest place it may have. No arrows, menus or lists. A pedal
   that cannot be moved has no grip
-- **The amp's place in the row** is the one thing drawn on the bench: `amp_marker`, two patch
-  cables (`CABLE`) from the pedals on either side up to the head with a cream tag reading
-  `AMP`, in a 40 px gap. Objects on the bench, not print: silk triangles still mean signal
-  direction at the jacks only
+- **The signal between the pieces** is drawn on the bench: a `coupler` between two pedals that
+  stand side by side, a `patch_cable` from the last pedal in front of the amp into the head's
+  input jack and one from the cabinet's output jack to the first pedal behind it. They follow
+  a pedal that is dragged; a pedal that is held has no couplers. The stack never leaves its
+  place among the pedals, and glides with it when a pedal changes sides. Objects on the bench,
+  not print: silk triangles still mean signal direction at the jacks only
 - **An order is never a parameter.** Keep it in a `#[persist]` field, as ids, like a preset
   or a file choice
 - **Level meters:** a signal level (the amp's input and output) is a `level_meter`, a column
-  of lamps on label tape with a `silk_label` caption under it, in a wing of the head beside
-  the dials. Same atomics and repaint rule as the signal lamps
+  of lamps on label tape with a `silk_label` caption under it, in a wing of the strip. Same atomics and repaint rule as the signal lamps
 - **Signal lamps:** a light that follows the sound and not a switch (gate open, output clipping)
   is a `signal_lamp`, with a `silk_label` of size 13 centred 18 px under it, placed beside the
   control it belongs to. An LED above or beside a switch only ever says that the switch is on.
   Lamps are read from atomics the audio thread writes once per block; the editor asks for a
   repaint only when one changes, 20 times a second at most
-- **Pick one of many (presets):** a `stepper` with a `silk_label` caption above it, top centre of
-  the head on the jack-caption line, at least 12 px clear of the knob ticks. Step arrows are
+- **Pick one of many (presets):** a `stepper` with a `silk_label` caption above it, in the left
+  wing of the strip. Step arrows are
   engraved in chrome buttons; silk triangles on the paint mean signal direction at the jacks only.
   Names have at most 14 characters and are our own words. A trailing `*` on the tape means a
   control was moved since loading. The bank the presets come from is picked the same way, on a
@@ -375,9 +390,8 @@ The style guide of the root `AGENTS.md` applies; these are the rules for a windo
   window; the workspace turns that feature on (see the root `Cargo.toml`). Nothing else in the
   suite asks, so a knob or a footswitch never takes the keyboard from the host. The window
   keeps it until the player clicks the host again, which is the price of typing there
-- **Steppers under the band** (the amp and the microphone): the `silk_label` caption above
-  the tape on the line of the switches' LEDs, the tape on the line of their captions, and
-  the buttons clear of the next caption or LED
+- **Steppers on the head and the cabinet** (the amp, the speaker and the microphone): the
+  `silk_label` caption above the tape, and the buttons clear of the next knob, caption or LED
 - **Save (a preset):** a `chrome_button` (a stepper's push button with a dot in its cap) right
   of the preset stepper, its `silk_label` caption on the stepper's caption line. It writes the
   sound into the bank showing and the stepper's tape says `SAVED` (or `NOT SAVED`) for 1.5 s.
@@ -387,16 +401,15 @@ The style guide of the root `AGENTS.md` applies; these are the rules for a windo
   `ParamSetter` and keeps only the index in a `#[persist]` field
 - **Pick a file (cabinets):** files are never picked in a dialog. They live in one folder and are
   stepped through in name order with a `stepper` under a `silk_label` caption, after the built-in
-  choices: the amp's own (`OWN`), then the built-in cabinets. On a mini pedal the stepper takes the place of the third knob of a trio: two
-  radius-17 knobs with the LED between them, caption at y+174, tape 100 px wide at y+198. The
-  tape shows at most 10 characters: no extension, capitals, long names as the first 5 and last 4
+  choices: the amp's own (`OWN`), then the built-in cabinets. On the cabinet's control plate
+  the tape is 100 px wide and shows at most 10 characters: no extension, capitals, long names as the first 5 and last 4
   with `~` between. `!` in front of the name of a file that cannot be used, `?` in front of the name of one
   that is not there. Stepping on to `OWN` past where the files would be, with none in the folder,
   says `NO FILES` for 1.5 s. Hovering the
   `Speaker` caption names the folder; a double-click on it opens the folder
 - **A file choice is never a parameter.** Keep the file name (not the path) in a `#[persist]` field
-- **Tuner:** a `small_footswitch` with `rig_led` and a `silk_label` on the head, beside the On
-  switch and further from the amp stepper than the On switch is. While it is on, a
+- **Tuner:** a `small_footswitch` with `rig_led` and a `silk_label` at the end of the strip's
+  right wing, beside the On switch. While it is on, a
   `tuner_display` under its own caption takes the place of the preset `stepper`: note name in
   `mono` capitals at the left, 17 lamps, flat to the left and sharp to the right, the larger
   middle lamp lit alone within 2 cents. Lamps are `LED_ON` and `LED_OFF` on `TAPE`; no needles,

@@ -5,7 +5,8 @@
 //!   display drops open, tuner display, logo badge
 //! - `art`: what is painted on each mini pedal of a rig under its controls
 //! - `frame`: the enclosure every editor is drawn on. `pedal` is one stompbox filling the window;
-//!   `rig` is the bare bench for a `head` with `mini_pedal`s and `slim_pedal`s below it
+//!   `rig` is the bare bench for a `strip` with `mini_pedal`s and `slim_pedal`s below it,
+//!   joined by `coupler`s and `patch_cable`s
 
 pub mod art;
 pub mod artwork;
@@ -17,9 +18,9 @@ pub mod widgets;
 
 pub use art::Motif;
 pub use frame::{
-    amp_marker, enclosure, head, lifted, mini_pedal, pedal, rig, slim_pedal, title_grip, MiniStyle,
-    Ornament, PedalStyle, BENCH_MARGIN, SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED, SLIM_PEDAL_WIDTH,
-    SLIM_SWITCH,
+    coupler, enclosure, lifted, mini_pedal, patch_cable, pedal, rig, slim_pedal, strip, title_grip,
+    MiniStyle, Ornament, PedalStyle, BENCH_MARGIN, PLUG_Y, SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED,
+    SLIM_PEDAL_WIDTH, SLIM_SWITCH, STRIP_BAND_WIDTH,
 };
 pub use theme::install;
 pub use widgets::{

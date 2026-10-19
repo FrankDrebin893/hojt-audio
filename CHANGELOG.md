@@ -7,10 +7,18 @@ GitHub release.
 
 ### Guitar Amp
 
+- A new layout: every piece stands on one line in the order the sound goes through it, the
+  Gate, the pedals in front of the amp, the amp's head on its cabinet, the pedals behind it,
+  with patch cables and couplers from one to the next. Drag a pedal across the amp and the
+  cables follow it. The presets, tuner, meters, Output, On and Tuner are on a slim strip across
+  the top; the amp's dials and the Amp display are on the head. The Cab pedal is gone: Speaker,
+  Mic Type, Mic, Res and the cabinet's switch are on a plate on the cabinet. The window is
+  1830 x 650. Nothing in the sound changed
+
 - Loading a preset or switching the amp is one step of the host's undo: in REAPER one Ctrl+Z
   puts the whole sound back, every dial, switch and the amp, instead of one knob at a time
 
-- Seven built-in cabinets to play any amp through, picked on the Cab pedal's Speaker display
+- Seven built-in cabinets to play any amp through, picked on the cabinet's Speaker display
   between the amp's own (`OWN`) and your own files, each with a sound of its own:
   - `1X10 SMALL`: one 10" speaker in a small box, hardly any low end and a boxy honk
   - `1X12 OPEN`: one 12" in an open back, soft lows and a glassy top

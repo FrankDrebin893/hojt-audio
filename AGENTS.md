@@ -172,8 +172,9 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
   `silk_frame`, `silk_label`, and `badge` (the HØJT logo: the Ø is a knob, its slash the pointer)
 - `frame.rs` - `pedal`: enclosure, screws, jack captions, tilted name band, model number, logo.
   A plugin describes itself with a `PedalStyle`. For a window with several enclosures: `rig`
-  (the bare bench), `head` (wide enclosure with everything a pedal has printed on it) and
-  `mini_pedal` (small enclosure with only a title), each mini pedal described by a `MiniStyle`
+  (the bare bench), `strip` (shallow enclosure with everything a pedal has printed on it, the
+  name band across its middle only) and `mini_pedal` (small enclosure with only a title), each
+  mini pedal described by a `MiniStyle`; `coupler` and `patch_cable` carry the signal between them
 - `raster.rs` - Per-pixel lit surfaces (signed distance field + one fixed light): `box_image`, `knob_image`,
   `screw_image`, and `paint_*` that cache them as textures. To look at them without a window:
   `RASTER_PREVIEW=out.raw cargo test -p suite_common --release preview -- --ignored`
@@ -217,7 +218,7 @@ controls, portrait) or `plugins/drums/src/editor.rs` (many controls, landscape) 
 - **Clean factory paint:** no wear or dirt. Surfaces are lit, not flat: powder-coat flake, bevels, brushed and knurled metal come from `ui/raster.rs`, never from image files
 - **New shared pieces go in `suite_common::ui`,** not in a plugin's editor, so every plugin gets them
 
-- **Rigs** (a window of several pedals, as the Guitar Amp has): the rules for the head, mini pedals, pedal art, slim pedals, a rearrangeable board, signal lamps, presets, file choices and the tuner are in `plugins/amp/AGENTS.md`, "Look: the rig". Read them before drawing a second rig
+- **Rigs** (a window of several pedals, as the Guitar Amp has): the rules for the strip, the stack, mini pedals, pedal art, slim pedals, a rearrangeable board, signal lamps, presets, file choices and the tuner are in `plugins/amp/AGENTS.md`, "Look: the rig". Read them before drawing a second rig
 
 After changing an editor, run it standalone (see Build Commands) and look at it before bundling.
 
