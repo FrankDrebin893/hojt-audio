@@ -8,6 +8,7 @@
         MinWidth="900" MinHeight="420"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource Brush.Window}"
+        FontFamily="{StaticResource Font.Display}"
         WindowStyle="None"
         AllowsTransparency="True"
         ResizeMode="CanResizeWithGrip"
@@ -135,11 +136,16 @@
         </Border>
 
         <!-- ===================== Stage ===================== -->
-        <Grid Grid.Row="1" Background="{StaticResource Brush.Stage}">
+        <Grid Grid.Row="1" Background="{StaticResource Brush.Surface}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>   <!-- collapses to zero with the sidebar -->
             </Grid.ColumnDefinitions>
+
+            <!-- The tube: green-black glass with an etched graticule. The sidebar beside it
+                 stays on the case. -->
+            <Rectangle Grid.Column="0" Fill="{StaticResource Brush.Crt.Screen}" IsHitTestVisible="False"/>
+            <Rectangle Grid.Column="0" Fill="{StaticResource Brush.Crt.Graticule}" IsHitTestVisible="False"/>
 
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
@@ -161,7 +167,7 @@
                      the readout leaves, so it stays centred whichever side panels are shown. Each
                      side panel should hug its outer edge: its column's width changes with the
                      chord name's length, and a panel centred in it would slide as you played. -->
-                <Grid Grid.Row="1">
+                <Grid Grid.Row="1" Effect="{StaticResource Effect.Glow}">
                     <!-- Song practice takes this row over, hiding all three columns together. -->
                     <Grid.Style>
                         <Style TargetType="Grid">
@@ -177,6 +183,15 @@
                         <ColumnDefinition Width="Auto"/>   <!-- chord readout -->
                         <ColumnDefinition Width="*"/>      <!-- circle of fifths -->
                     </Grid.ColumnDefinitions>
+
+                    <!-- Channel 1: the held chord as a waveform, running behind the readout
+                         across the whole row. Dimmed so the chord name stays the brightest
+                         thing on the tube; it latches and fades with the readout. -->
+                    <views:ScopeTraceControl Grid.ColumnSpan="3" Margin="0,8" Opacity="0.25"
+                                             Style="{StaticResource Style.Readout.Latch}"
+                                             Notes="{Binding TraceNotes}"
+                                             TraceBrush="{StaticResource Brush.Crt.Trace}"
+                                             IdleBrush="{StaticResource Brush.Crt.TraceIdle}"/>
 
                     <!-- Chord readout. Every line has a MinHeight so releasing the keys empties the
                          text without collapsing the line box and shifting the layout. After the
@@ -687,15 +702,17 @@
                      narrow window. MaxHeight stops it from dwarfing the readout on a wide one.
                      The keys start at the top of the canvas, so in song practice, with no top
                      margin, the falling notes' hit line is exactly the keys' top edge. -->
+                <!-- The bottom margin keeps the keys clear of the CRT bezel (CrtOverlay). -->
                 <Viewbox Grid.Row="4" Stretch="Uniform" StretchDirection="Both"
                          MaxHeight="360" HorizontalAlignment="Center" VerticalAlignment="Bottom"
-                         TextOptions.TextFormattingMode="Ideal">
+                         TextOptions.TextFormattingMode="Ideal"
+                         Effect="{StaticResource Effect.Glow.Soft}">
                     <Viewbox.Style>
                         <Style TargetType="Viewbox">
-                            <Setter Property="Margin" Value="16,16,16,0"/>
+                            <Setter Property="Margin" Value="22,16,22,8"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
-                                    <Setter Property="Margin" Value="16,0"/>
+                                    <Setter Property="Margin" Value="22,0,22,8"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -703,6 +720,9 @@
                     <views:PianoKeyboardControl x:Name="PianoKeys" DataContext="{Binding PianoKeyboard}"/>
                 </Viewbox>
             </Grid>
+
+            <!-- The glass over the tube: scanlines, vignette and the bezel round its corners. -->
+            <views:CrtOverlay Grid.Column="0"/>
 
             <!-- Chord progression sidebar, with its playback, transpose and next-chord tools.
                  Widened from 200 to fit the tool rows; hidden by Shift+F4 and zen with the rest. -->

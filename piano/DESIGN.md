@@ -150,6 +150,12 @@ components:
 
 <!-- Provenance: recorded after the build from the shipped artifact (commits 5338eec, efe044d, 6f28a91 on feature/beautiful-torvalds-9762d6). Direction contract: .impeccable/surfaces/src-pianomidivisualizationapp-mainwindow-xaml.md, seed key a1a0326c. Form: "Piano character", pinned by the user; the dealt player-piano roll (position 5) folded into the song lane and take timeline. Finish review: ship, scoped to the eight scored fixes. Product truth lives in PRODUCT.md and is not repeated here. -->
 
+> **Superseded in trial (2026-10-19).** The app is trying the "phosphor scope" direction
+> (`docs/design-concepts/Scope.dc.html`, PRODUCT.md). `Themes/Dark.xaml` now holds phosphor
+> values under the same `Color.*` keys, so the hex values below are out of date; the token
+> names, roles and one-job-per-hue rules still hold. This file will be re-recorded once the
+> direction settles.
+
 # Design System: Piano MIDI Visualization
 
 Platform note: this is a native WPF (.NET 10) app. The normative source is `src/PianoMidiVisualizationApp/Themes/Dark.xaml`: `Color.*` primitives, `Brush.*` role brushes built only from them, `Size.Readout.*`, and the control templates. The code-behind renderers (`PianoKeyboardControl`, `FallingNotesControl`, `TakeTimeline`, `CircleOfFifthsControl`, `GrandStaffControl`) resolve those brushes by key and must keep doing so. Token slugs above map one-to-one to `Color.*` keys (`lacquer-stage` is `Color.Lacquer.Stage`, `held-blue` is `Color.Blue`, `target-magenta` is `Color.Target`, and so on). The CSS in the sidecar is a translation for preview only.

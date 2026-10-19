@@ -243,6 +243,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private KeySignature _staffSignature = KeySignature.None;
 
+    /// <summary>The readout's notes as MIDI numbers, lowest first, for the scope trace behind it.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<int> _traceNotes = Array.Empty<int>();
+
     /// <summary>
     /// Derived rather than stored, so it can never desync: turning any panel back on
     /// manually leaves zen mode with no extra bookkeeping.
@@ -483,6 +487,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Analysis = _analyzer.Analyze(_readoutNotes, UseFlats, Settings.CurrentKey);
         StaffSignature = KeySignature.For(Settings.CurrentKey);
         StaffNotes = NoteSpeller.SpellChord(_readoutNotes, Settings.CurrentKey);
+        TraceNotes = _readoutNotes;
         UpdateSaveHint();
     }
 
