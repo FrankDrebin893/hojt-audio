@@ -7,13 +7,20 @@ GitHub release.
 
 ### Guitar Amp
 
+- A Fuzz pedal joins the board, in ember red with a geyser on it: thick, saturated fuzz that
+  sustains and breaks up as a note dies. Fuzz (0 to 10) sets how hard it clips, Tone (0 to 10)
+  goes from dark and woolly through scooped mids to thin and biting. It has no Level knob: it
+  is about as loud as switched off at any setting. It stands first on the board, in front of
+  the amp, and can be dragged anywhere, also behind the cabinet. Two new presets play it: Mose
+  (Brøl, doom) and Sværm (Glød, a fuzz lead with delay). Projects and presets from before open
+  with it off
 - A new layout: every piece stands on one line in the order the sound goes through it, the
   Gate, the pedals in front of the amp, the amp's head on its cabinet, the pedals behind it,
   with patch cables and couplers from one to the next. Drag a pedal across the amp and the
   cables follow it. The presets, tuner, meters, Output, On and Tuner are on a slim strip across
   the top; the amp's dials and the Amp display are on the head. The Cab pedal is gone: Speaker,
   Mic Type, Mic, Res and the cabinet's switch are on a plate on the cabinet. The window is
-  1830 x 650. Nothing in the sound changed
+  1950 x 650. Nothing in the sound changed
 - Each of the four amps has a head of its own: Klar in ivory with a chrome panel, Glød in
   tweed with a wooden panel and cream knobs, Brøl in black with a brass panel and gold knobs,
   Torden in black with steel mesh, red piping and a black panel. Pick the amp on the nameplate

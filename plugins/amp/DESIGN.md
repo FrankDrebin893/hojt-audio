@@ -94,6 +94,16 @@ The reasons behind choices that the code alone does not explain. What it does is
   mutes at -30 dBFS alone; release, not threshold, sets how tight the rests are
 - Drive: 720 Hz high-pass into a soft clipper with the dry signal added back, in the
   oversampled region before the preamp
+- Fuzz (#11): a slim pedal with Fuzz and Tone only. Its level is matched inside instead of a
+  third knob (a slim pedal holds two), so it is as loud as off at any setting. The window grew
+  by one slim pedal rather than the rows changing. Gain of 26 to 56 dB into the asymmetric
+  clipper of the drive (second-order antialiased), whose own average is fed back against its
+  bias: hard playing moves the operating point and a dying note breaks up. Behind the cabinet
+  it oversamples itself, since nothing else there does. What held its aliasing at -70 dB was
+  not the clipper but a square wave's harmonics in the decimator's transition band (20 to
+  28 kHz at 48 kHz), folding back just under the host's half rate: a fourth-order low-pass at
+  6 kHz in front of the decimator took it to -92 dB. Clipping at twice the rate again was
+  measured and gained nothing, at twice the cost
 - Delay and reverb are additive (the dry signal is never scaled, so mix 0 and off are
   bit-transparent). The delay's two lines feed each other so the left-right offset does not
   grow; its odd repeats lose 3 dB in mono by design (#36). Bypass cuts the tails in 10 ms
@@ -133,7 +143,7 @@ The reasons behind choices that the code alone does not explain. What it does is
   panel's one line of knobs left no room for full scales at radius 19 with the jack and the
   pilot lamp beside them, so the dials are radius 18, and a scale is measured by where its
   ticks end, not by a circle round it (#99)
-- The window's size is persisted under a key of its own (`editor-state-rig4`); it is renamed
+- The window's size is persisted under a key of its own (`editor-state-rig5`); it is renamed
   whenever the size changes, so a project saved before opens at the new size
 - The gate's `OPEN` lamp is its own small lamp: a half-lit pedal LED was built and rejected
   because at 30 % the lens is about the colour of the paint

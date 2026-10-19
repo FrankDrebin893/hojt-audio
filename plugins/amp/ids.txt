@@ -26,6 +26,9 @@ param drive_tone
 param flanger_depth
 param flanger_on
 param flanger_rate
+param fuzz_fuzz
+param fuzz_on
+param fuzz_tone
 param gain
 param gate_on
 param gate_release
@@ -49,7 +52,7 @@ param tuner
 persist amp-dials
 persist cabinet
 persist chain-order
-persist editor-state-rig4
+persist editor-state-rig5
 persist preset
 persist preset-bank
 persist user-preset

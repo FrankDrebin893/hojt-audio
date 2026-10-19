@@ -12,6 +12,8 @@ gain), Glød (warm edge of breakup, between Klar and Brøl). They share the six 
 - `src/lib.rs` - Plugin entry point, parameters. Reads them once per block into `AmpSettings`
 - `src/chain.rs` - `AmpChain`: the whole chain, dial smoothing, bypass crossfade, amp switching
 - `src/gate.rs`, `src/drive.rs` - Noise gate; overdrive pedal
+- `src/fuzz.rs` - Fuzz pedal: clipper with a bias that moves with the playing, Tone, its level
+  matched inside
 - `src/amp/` - `model.rs` (`Amp` and one `AmpModel` of constants per amp; `SPEAKERS`, the
   built-in cabinets), `preamp.rs`,
   `tonestack.rs`, `poweramp.rs`
@@ -42,10 +44,10 @@ gain), Glød (warm edge of breakup, between Klar and Brøl). They share the six 
   chain tells the editor, and how long the editor shows it
 - `src/tuner.rs` - Tuner: pitch detector on the mono input, `TunerReading` (one atomic shared
   with the editor), `Note`
-- `src/editor.rs` - egui GUI (1830 x 650 window): the oxblood strip across the top with the
+- `src/editor.rs` - egui GUI (1950 x 650 window): the oxblood strip across the top with the
   Bank and Preset displays, the list they drop open, or the tuner display in its left wing and
   Output, meters, Clip, On and Tuner in its right; the stack (the head of the amp that is
-  picked, with its nameplate and dials, the cabinet with its control plate); each of the nine
+  picked, with its nameplate and dials, the cabinet with its control plate); each of the ten
   pedals in its own paint with its own art
 - `src/looks.rs` - What each amp's head looks like: a `Look` (its `HeadStyle` and knob cap) per
   amp, in the order of `Amp::ALL`. The sound stays in `amp/model.rs`
@@ -192,13 +194,15 @@ How it behaves:
   another, copying and deleting is done in the folder, which a double-click on the Preset
   caption opens — the folder of the bank showing
 - The pedal order (`order.rs`): Gate always first, amp and cabinet one block in the middle.
-  Drive only in front of the amp; Delay and Reverb only behind the cabinet; Comp, Chorus,
-  Phaser, Flanger and Tremolo on either side. Default: Comp, Drive, Phaser, amp, Chorus,
-  Flanger, Tremolo, Delay, Reverb, which with the new pedals off is the chain as it was, to
-  the bit
+  Drive only in front of the amp; Delay and Reverb only behind the cabinet; Fuzz, Comp,
+  Chorus, Phaser, Flanger and Tremolo on either side. Default: Fuzz, Comp, Drive, Phaser, amp,
+  Chorus, Flanger, Tremolo, Delay, Reverb, which with the new pedals off is the chain as it
+  was, to the bit. A project saved before a pedal existed gets it where the default has it
 - In front of the amp a pedal runs on one channel at the oversampled rate, behind the cabinet
   on two at the host's rate (chorus, flanger and phaser a quarter turn apart left and right).
-  Either way without latency
+  Either way without latency. The fuzz is the one exception behind the cabinet: it raises the
+  rate itself for its clipping (as the amp does: 4x, 2x from 88.2 kHz), which delays it by
+  the oversampler's fraction of a millisecond while it is on
 - The order is saved with the project (`chain-order`, a list of pedal ids with `amp` between
   the sides), not a parameter and not automatable. The chain reads it with the dials: the
   output fades to silence in 4.5 ms, the pedals change places, it fades back. A pedal that
@@ -206,8 +210,14 @@ How it behaves:
   never refused
 - The compressor's Level at 5 is as loud as the pedal off (within 0.3 LU at the reference
   level); Sustain 10 adds at most 20 dB to what is quiet, hiss included
-- Cost with everything on (Torden): about 2.0 % of a core at 48 kHz, 2.6 % at 96 kHz, 5.5 % at
-  192 kHz, on a fast core. The cores of a machine differ (1.33 times on the development
+- The fuzz has no Level knob: it is as loud as the pedal off for a guitar at the reference
+  level, within 0.3 LU at any Fuzz and Tone (within 1 LU held by a test). Everything that is
+  not a harmonic is at least 80 dB under the note at any setting and rate (about -92 dB at
+  44.1 kHz flat out), and flat out in front of any amp at full gain at most -72 dB, as with
+  the drive. It costs about 0.6 % of a core at 48 kHz in front of the amp and 1.2 % behind
+  the cabinet, where it runs two channels and its own oversampling
+- Cost with everything on but the fuzz (Torden; the fuzz is the line above): about 2.0 % of
+  a core at 48 kHz, 2.6 % at 96 kHz, 5.5 % at 192 kHz, on a fast core. The cores of a machine differ (1.33 times on the development
   machine): the reports pin their thread (`test_util::pin_thread`)
 
 | Parameter (id) | Range | Default | Description |
@@ -224,6 +234,9 @@ How it behaves:
 | Drive Gain (`drive_gain`) | 0.0-10.0 | 3.0 | Amount of clipping in the pedal |
 | Drive Tone (`drive_tone`) | 0.0-10.0 | 5.0 | The pedal's top end, 1.5 to 7 kHz |
 | Drive Level (`drive_level`) | 0.0-10.0 | 5.0 | The pedal's output, -20 to +20 dB into the amp |
+| Fuzz (`fuzz_on`) | on / off | off | Fuzz pedal, either side of the amp |
+| Fuzz Amount (`fuzz_fuzz`) | 0.0-10.0 | 5.0 | Gain into the clipper, 26 to 56 dB |
+| Fuzz Tone (`fuzz_tone`) | 0.0-10.0 | 5.0 | Dark (a low-pass at 650 Hz) to bright (a high-pass at 1.1 kHz), the mids scooped in between |
 | Amp (`amp`) | Klar / Brøl / Torden / Glød | Brøl | Amp and its cabinet. Variant ids `klar`, `brol`, `torden`, `glod`. New amps go at the end: a project remembers its amp by its number |
 | Gain, Bass, Mid, Treble, Presence, Master (`gain`, `bass`, `mid`, `treble`, `presence`, `master`) | 0.0-10.0 | 5.0 | The amp's dials |
 | Chorus, Phaser, Flanger, Tremolo (`chorus_on`, `phaser_on`, `flanger_on`, `trem_on`) | on / off | off | Modulation pedals |
@@ -274,8 +287,9 @@ cargo test -p amp --release preset_report -- --ignored --nocapture
 # How every preset's gate treats ringing notes, quiet playing, palm mutes and hiss.
 cargo test -p amp --release preset_gate_report -- --ignored --nocapture
 
-# Compressor and modulation pedals by themselves: what they do per setting, and their cost.
+# Compressor, fuzz and modulation pedals by themselves: what they do per setting, and their cost.
 cargo test -p amp --release comp_report -- --ignored --nocapture
+cargo test -p amp --release fuzz_report -- --ignored --nocapture
 cargo test -p amp --release mods_report -- --ignored --nocapture
 
 # Tuner: error in cents per note and signal, time to the first reading, drift, cost.

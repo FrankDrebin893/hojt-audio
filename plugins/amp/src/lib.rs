@@ -13,6 +13,7 @@ mod dial_memory;
 mod drive;
 mod dsp;
 mod editor;
+mod fuzz;
 mod gate;
 mod lamps;
 mod looks;
@@ -32,6 +33,7 @@ use chain::{AmpChain, AmpSettings, GATE_RELEASE_MS, GATE_THRESHOLD_DB, IN_GAIN_D
 use comp::CompSettings;
 use delay::{DelaySettings, FEEDBACK_MAX, TIME_MAX_MS, TIME_MIN_MS};
 use dial_memory::DialMemory;
+use fuzz::FuzzSettings;
 use mods::chorus::{self, ChorusSettings};
 use mods::flanger::{self, FlangerSettings};
 use mods::phaser::{self, PhaserSettings};
@@ -66,7 +68,7 @@ pub enum Task {
 // The full table of ids is in `ids.txt`, held by the `ids` test
 #[derive(Params)]
 pub struct GuitarAmpParams {
-    #[persist = "editor-state-rig4"]
+    #[persist = "editor-state-rig5"]
     pub editor_state: Arc<EguiState>,
 
     /// Index into `presets::PRESETS` of the preset loaded last. Not a parameter: the editor
@@ -117,6 +119,16 @@ pub struct GuitarAmpParams {
 
     #[id = "gate_release"]
     pub gate_release: FloatParam,
+
+    // Fuzz pedal
+    #[id = "fuzz_on"]
+    pub fuzz_on: BoolParam,
+
+    #[id = "fuzz_fuzz"]
+    pub fuzz_fuzz: FloatParam,
+
+    #[id = "fuzz_tone"]
+    pub fuzz_tone: FloatParam,
 
     // Compressor pedal
     #[id = "comp_on"]
@@ -308,6 +320,10 @@ impl Default for GuitarAmpParams {
             .with_unit(" ms")
             .with_value_to_string(formatters::v2s_f32_rounded(0)),
 
+            fuzz_on: BoolParam::new("Fuzz", defaults.fuzz.on),
+            fuzz_fuzz: dial_param("Fuzz Amount", defaults.fuzz.fuzz),
+            fuzz_tone: dial_param("Fuzz Tone", defaults.fuzz.tone),
+
             comp_on: BoolParam::new("Comp", defaults.comp.on),
             comp_sustain: dial_param("Comp Sustain", defaults.comp.sustain),
             comp_level: dial_param("Comp Level", defaults.comp.level),
@@ -425,6 +441,11 @@ impl GuitarAmpParams {
             gate_on: self.gate_on.value(),
             gate_thresh_db: self.gate_thresh.value(),
             gate_release_ms: self.gate_release.value(),
+            fuzz: FuzzSettings {
+                on: self.fuzz_on.value(),
+                fuzz: self.fuzz_fuzz.value(),
+                tone: self.fuzz_tone.value(),
+            },
             comp: CompSettings {
                 on: self.comp_on.value(),
                 sustain: self.comp_sustain.value(),
@@ -698,6 +719,7 @@ mod tests {
             (settings.comp.on, settings.comp.sustain, settings.comp.level),
             (false, 0.5, 0.5)
         );
+        assert_eq!((settings.fuzz.on, settings.fuzz.fuzz, settings.fuzz.tone), (false, 0.5, 0.5));
         assert_eq!(
             (settings.chorus.on, settings.chorus.rate_hz, settings.chorus.depth),
             (false, 0.8, 0.5)
@@ -773,6 +795,8 @@ mod tests {
             &params.cab_mic,
             &params.comp_sustain,
             &params.comp_level,
+            &params.fuzz_fuzz,
+            &params.fuzz_tone,
         ] {
             assert_eq!(range(dial), (0.0, 1.0));
         }

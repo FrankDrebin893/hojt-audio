@@ -40,8 +40,9 @@ pub const PAINT_AURORA: Color32 = Color32::from_rgb(24, 128, 64);
 pub const PAINT_HEATHER: Color32 = Color32::from_rgb(148, 48, 104);
 pub const PAINT_PETROL: Color32 = Color32::from_rgb(14, 100, 108);
 pub const PAINT_FJORD: Color32 = Color32::from_rgb(40, 56, 84);
+pub const PAINT_EMBER: Color32 = Color32::from_rgb(178, 50, 22);
 /// Every mini pedal paint. A new one must pass the tests below
-pub const PEDAL_PAINTS: [Color32; 10] = [
+pub const PEDAL_PAINTS: [Color32; 11] = [
     PAINT_GRANITE,
     PAINT_MOSS,
     PAINT_OCHRE,
@@ -52,6 +53,7 @@ pub const PEDAL_PAINTS: [Color32; 10] = [
     PAINT_HEATHER,
     PAINT_PETROL,
     PAINT_FJORD,
+    PAINT_EMBER,
 ];
 
 pub const KNOB_SKIRT: Color32 = Color32::from_rgb(21, 19, 17);

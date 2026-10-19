@@ -11,6 +11,7 @@ use crate::dsp::filters::DcBlocker;
 use crate::dsp::oversample::{factor_for, Oversampler, MAX_FACTOR};
 use crate::dsp::shaper::{output_clip, OUTPUT_CLIP_KNEE};
 use crate::dsp::{curve, db_to_gain, smoothing_coeff, Ramp};
+use crate::fuzz::{Fuzz, FuzzSettings};
 use crate::gate::Gate;
 use crate::lamps::LampReading;
 use crate::mods::chorus::{Chorus, ChorusSettings};
@@ -96,7 +97,8 @@ pub struct AmpSettings {
     /// Time the gate takes to close, in milliseconds
     pub gate_release_ms: f32,
 
-    /// The compressor pedal. It smooths its own settings
+    /// The fuzz and the compressor pedals. They smooth their own settings
+    pub fuzz: FuzzSettings,
     pub comp: CompSettings,
 
     pub drive_on: bool,
@@ -152,6 +154,7 @@ impl Default for AmpSettings {
             gate_on: true,
             gate_thresh_db: -60.0,
             gate_release_ms: 100.0,
+            fuzz: FuzzSettings::default(),
             comp: CompSettings::default(),
             drive_on: false,
             drive_gain: 0.3,
@@ -273,6 +276,8 @@ pub struct AmpChain {
     // another order and back up after
     order_fade: u32,
     order_fade_len: u32,
+    fuzz: Fuzz,
+    fuzz_settings: FuzzSettings,
     comp: Comp,
     comp_settings: CompSettings,
     chorus: Chorus,
@@ -366,6 +371,8 @@ impl AmpChain {
             wanted_order: ChainOrder::default(),
             order_fade: 1,
             order_fade_len: 1,
+            fuzz: Fuzz::new(),
+            fuzz_settings: FuzzSettings::default(),
             comp: Comp::new(),
             comp_settings: CompSettings::default(),
             chorus: Chorus::new(),
@@ -473,8 +480,11 @@ impl AmpChain {
     /// Sets a pedal that can stand on either side of the amp up for the side it is on, from
     /// rest. Does not allocate
     fn set_up_pedal(&mut self, pedal: Pedal) {
-        let rate = self.rate_in(self.order.zone_of(pedal));
+        let zone = self.order.zone_of(pedal);
+        let rate = self.rate_in(zone);
         match pedal {
+            // Behind the cabinet it raises the rate itself for its clipping
+            Pedal::Fuzz => self.fuzz.set_sample_rate(rate, zone == Zone::Back),
             Pedal::Comp => self.comp.set_sample_rate(rate),
             Pedal::Chorus => self.chorus.set_sample_rate(rate),
             Pedal::Phaser => self.phaser.set_sample_rate(rate),
@@ -654,6 +664,7 @@ impl AmpChain {
 
     fn reset_stages(&mut self) {
         self.gate.reset();
+        self.fuzz.reset();
         self.comp.reset();
         // As for the delay and the reverb below: a pedal with nothing in it is left alone
         if !self.chorus.is_idle() {
@@ -800,6 +811,7 @@ impl AmpChain {
         // The order is read here as well, so a change falls on the same sample whatever
         // the block size
         self.wanted_order = settings.order;
+        self.fuzz_settings = settings.fuzz;
         self.comp_settings = settings.comp;
         self.chorus_settings = settings.chorus;
         self.phaser_settings = settings.phaser;
@@ -974,6 +986,7 @@ impl AmpChain {
         self.oversampler.upsample(&signal[..len], high);
         for index in 0..self.order.front().len() {
             match self.order.front()[index] {
+                Pedal::Fuzz => self.fuzz.process_mono(&self.fuzz_settings, high),
                 Pedal::Comp => self.comp.process_mono(&self.comp_settings, high),
                 Pedal::Drive => self.drive.process(high),
                 Pedal::Chorus => self.chorus.process_mono(&self.chorus_settings, high),
@@ -1005,6 +1018,7 @@ impl AmpChain {
         let (wide_left, wide_right) = (&mut wide_left[..len], &mut wide_right[..len]);
         for index in 0..self.order.back().len() {
             match self.order.back()[index] {
+                Pedal::Fuzz => self.fuzz.process_stereo(&self.fuzz_settings, wide_left, wide_right),
                 Pedal::Comp => self.comp.process_stereo(&self.comp_settings, wide_left, wide_right),
                 Pedal::Delay => self.delay.process(&self.delay_settings, wide_left, wide_right),
                 Pedal::Reverb => self.reverb.process(&self.reverb_settings, wide_left, wide_right),
@@ -1714,6 +1728,8 @@ mod tests {
             ("chorus in front of the drive", default.moved(Pedal::Chorus, Zone::Front, 1)),
             ("compressor behind the cabinet", default.moved(Pedal::Comp, Zone::Back, 0)),
             ("phaser last", default.moved(Pedal::Phaser, Zone::Back, 99)),
+            ("fuzz behind the cabinet", default.moved(Pedal::Fuzz, Zone::Back, 0)),
+            ("fuzz behind the drive", default.moved(Pedal::Fuzz, Zone::Front, 2)),
             (
                 "all that can in front",
                 default
@@ -1735,7 +1751,11 @@ mod tests {
     /// Every pedal and effect on
     fn whole_board(amp: Amp) -> AmpSettings {
         let (_, mods) = with_mods(with_effects(everything_on(amp, 0.5))).pop().unwrap();
-        mods
+        AmpSettings { fuzz: fuzz_on(0.5, 0.5), ..mods }
+    }
+
+    fn fuzz_on(fuzz: f32, tone: f32) -> FuzzSettings {
+        FuzzSettings { on: true, fuzz, tone }
     }
 
     #[test]
@@ -3409,6 +3429,57 @@ mod tests {
     }
 
     #[test]
+    fn test_aliasing_stays_low_with_the_fuzz_flat_out_in_front_of_every_amp() {
+        // Fuzz and Tone at 10 into every amp at full gain, at the lowest rate: as low as with
+        // the drive pedal flat out
+        for amp in Amp::ALL {
+            let settings = AmpSettings { fuzz: fuzz_on(1.0, 1.0), ..with_amp(amp, 1.0) };
+            for freq_hz in ALIAS_TONES_HZ {
+                let aliasing = aliasing_db_at(&settings, freq_hz, 44100.0);
+                assert!(aliasing < -72.0, "{:?}: {:.1} dB at {} Hz", amp, aliasing, freq_hz);
+            }
+        }
+    }
+
+    #[test]
+    fn test_fuzz_behind_the_cabinet_clips_at_a_raised_rate() {
+        // The amp clean, the fuzz flat out behind the cabinet: it raises the host's rate for
+        // its clipping itself, and folds back as little as in front of the amp
+        let order = ChainOrder::default().moved(Pedal::Fuzz, Zone::Back, 0);
+        for sample_rate in [44100.0, 96000.0] {
+            let settings =
+                AmpSettings { fuzz: fuzz_on(1.0, 1.0), order, ..with_amp(Amp::Klar, 0.2) };
+            for freq_hz in ALIAS_TONES_HZ {
+                let aliasing = aliasing_db_at(&settings, freq_hz, sample_rate);
+                assert!(aliasing < -80.0, "{sample_rate} Hz: {aliasing:.1} dB at {freq_hz} Hz");
+            }
+        }
+    }
+
+    #[test]
+    fn test_fuzz_is_heard_on_either_side_and_switches_without_a_click() {
+        let input = power_chords(SAMPLE_RATE, 1.0);
+        let plain = with_amp(Amp::Klar, 0.2);
+        let clean = run(&plain, &input, SAMPLE_RATE);
+        for zone in [Zone::Front, Zone::Back] {
+            let order = ChainOrder::default().moved(Pedal::Fuzz, zone, 0);
+            let fuzzed = AmpSettings { fuzz: fuzz_on(0.8, 0.5), order, ..plain };
+            let output = run(&fuzzed, &input, SAMPLE_RATE);
+            assert!(rms(&difference(&output, &clean)) > 0.3 * rms(&clean), "{zone:?}");
+            // Switched off again it leaves the amp as it was, to the bit
+            let off = AmpSettings { fuzz: FuzzSettings { on: false, ..fuzzed.fuzz }, ..fuzzed };
+            assert!(run(&off, &input, SAMPLE_RATE) == clean, "{zone:?}");
+
+            // On and off while playing: no step larger than the sound takes by itself
+            let at = input.len() / 2;
+            let switched = run_change(&off, &fuzzed, &input, at);
+            let own = largest_step(&switched[at + 2000..]).max(largest_step(&clean[..at]));
+            let step = largest_step(&switched[at - 1..at + 2000]);
+            assert!(step < own * 1.1, "{zone:?}: {step} against {own}");
+        }
+    }
+
+    #[test]
     fn test_pedal_pushing_klar_stays_under_the_safety_clip_once_the_power_stage_has_given_way() {
         // The pedal's Level at 8 is 12 dB into an amp that does not clip: without the power
         // stage giving way, the output's safety clip took it, at the host's rate
@@ -3449,6 +3520,15 @@ mod tests {
                     gate_thresh_db: -20.0 - (turn % 3) as f32 * 20.0,
                     drive_on: turn % 3 == 0,
                     drive_gain: (turn % 4) as f32 / 3.0,
+                    fuzz: FuzzSettings {
+                        on: turn % 3 == 1,
+                        ..fuzz_on((turn % 4) as f32 / 3.0, 0.5)
+                    },
+                    order: if turn % 2 == 0 {
+                        ChainOrder::default()
+                    } else {
+                        ChainOrder::default().moved(Pedal::Fuzz, Zone::Back, 0)
+                    },
                     cab_on: turn % 5 != 0,
                     cab_mic: (turn % 3) as f32 * 0.5,
                     cab_res: (turn % 4) as f32 / 3.0,
@@ -4850,11 +4930,15 @@ mod tests {
             let recording = &recording[..(4.0 * sample_rate) as usize];
             for amp in Amp::ALL {
                 for gain in [0.0, 0.25, 0.5, 0.75, 1.0] {
-                    for (pedals, drive_on, effects_on) in
-                        [("plain", false, false), ("drive", true, false), ("effects", false, true)]
-                    {
+                    for (pedals, drive_on, effects_on, fuzz_on) in [
+                        ("plain", false, false, false),
+                        ("drive", true, false, false),
+                        ("effects", false, true, false),
+                        ("fuzz", false, false, true),
+                    ] {
                         let mut settings = with_amp(amp, gain);
                         settings.drive_on = drive_on;
+                        settings.fuzz.on = fuzz_on;
                         settings.delay.on = effects_on;
                         settings.reverb.on = effects_on;
                         let mut chain = new_chain(sample_rate);
