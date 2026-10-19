@@ -79,6 +79,11 @@ and where; `from:user` marks issues from outside the project.
   every issue is built in a sub-session of its own, started with a fresh context. It starts the
   next once the last is merged, and goes on until every approved issue is merged or waiting on
   an answer from Rasmus
+- Before a pull request of `/next`, a reviewer with a fresh context, given only the spec and
+  the diff, scores the branch: fits the spec, ids untouched, tests that prove the change,
+  stays in scope. Its verdict, accept or revise, goes in the pull request's description; on
+  revise the builder fixes the findings and a new reviewer looks again. The rubric and the
+  reviewer's brief are in `.agents/skills/next/SKILL.md`, "The reviewer"
 - `main` is protected: a pull request merges only when `Test` on all three systems and
   `Format and clippy` pass, for admins too, and nothing is pushed to it directly. A check
   that is renamed in `ci.yml` must be renamed in the protection as well, or nothing merges.
