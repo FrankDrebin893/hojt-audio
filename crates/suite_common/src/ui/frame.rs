@@ -1,4 +1,4 @@
-use nih_plug_egui::egui::epaint::TextShape;
+use nih_plug_egui::egui::epaint::{CubicBezierShape, TextShape};
 use nih_plug_egui::egui::{
     self, vec2, Align2, Color32, Context, CursorIcon, Id, Painter, Pos2, Rect, Response, Sense,
     Shape, Stroke, StrokeKind, Ui, Vec2,
@@ -21,8 +21,10 @@ const SCREW_INSET: f32 = 17.0;
 
 const BAND_HEIGHT: f32 = 46.0;
 const BAND_ANGLE_DEG: f32 = -4.0;
-// Over the width of a head the pedal's tilt would rise by more than the band is tall
-const HEAD_BAND_ANGLE_DEG: f32 = -1.5;
+// Over the width of a strip's band the pedal's tilt would rise by more than the band is tall
+const STRIP_BAND_ANGLE_DEG: f32 = -1.5;
+/// How much of a `strip` the name band runs across, in its middle: the rest are its wings
+pub const STRIP_BAND_WIDTH: f32 = 500.0;
 
 // Mini pedals are small boxes: tighter corners, smaller screws
 const MINI_CORNER_RADIUS: f32 = 14.0;
@@ -48,13 +50,13 @@ pub const SLIM_KNOBS: [Vec2; 2] = [vec2(19.0, 71.0), vec2(-19.0, 172.0)];
 pub const SLIM_KNOB_RADIUS: f32 = 17.0;
 pub const SLIM_SWITCH: Vec2 = vec2(0.0, 273.0);
 
-// The amp's place in a row of pedals: two patch cables up to the head, and a tag on them
+// The signal between the pieces of a rig: patch cables and couplers
 const CABLE_INSET: f32 = 12.0;
 const CABLE_WIDTH: f32 = 5.0;
-// Height of the plugs in the pedals' sides and of the tag, from the top of the pedals
-const PLUG_Y: f32 = 169.0;
-const TAG_Y: f32 = 71.0;
-const TAG_HEIGHT: f32 = 20.0;
+/// Height of the plugs in the sides of a rig's pedals, from the top of the pedals
+pub const PLUG_Y: f32 = 169.0;
+// The jack a patch cable is plugged into on the face of an enclosure
+const JACK_RADIUS: f32 = 8.0;
 // How far a pedal that is held is above the bench
 const LIFT: f32 = 4.0;
 
@@ -86,7 +88,7 @@ pub struct PedalStyle {
     /// Captions of the jacks, top left and top right
     pub jacks: [&'static str; 2],
     /// Vertical centre of the name band: from the top of the window for `pedal`,
-    /// from the top of its rectangle for `head`
+    /// from the top of its rectangle for `strip`
     pub band_y: f32,
     /// Picture printed on the top face under everything else: one of `artwork`'s, or `None`
     pub art: Option<&'static [u8]>,
@@ -111,12 +113,13 @@ pub fn pedal(ctx: &Context, style: &PedalStyle, add_controls: impl FnOnce(&mut U
         let painter = ui.painter();
         let top = enclosure(painter, window.shrink(BENCH_MARGIN), style.paint);
         art_under_print(painter, top, style);
-        print(painter, top, window.top() + style.band_y, BAND_ANGLE_DEG, style);
+        let band = Band { left: top.left(), right: top.right(), angle_deg: BAND_ANGLE_DEG };
+        print(painter, top, window.top() + style.band_y, band, Flow::RightToLeft, style);
         add_controls(ui, origin);
     });
 }
 
-/// The bare bench, for a window that holds several enclosures: a `head` and `mini_pedal`s.
+/// The bare bench, for a window that holds several enclosures: a `strip` and `mini_pedal`s.
 ///
 /// The closure gets the window's top left corner. Enclosures and controls are placed relative to it.
 pub fn rig(ctx: &Context, add_contents: impl FnOnce(&mut Ui, Pos2)) {
@@ -134,13 +137,22 @@ fn art_under_print(painter: &Painter, top: Rect, style: &PedalStyle) {
     }
 }
 
-/// Amp head: a wide enclosure filling `rect`, with everything a pedal has printed on it.
-/// The name band is tilted less than on a pedal. Returns the top face.
-pub fn head(ui: &Ui, rect: Rect, style: &PedalStyle) -> Rect {
+/// The strip across the top of a rig: a shallow enclosure filling `rect` with everything a
+/// pedal has printed on it. The name band runs only across its middle, `STRIP_BAND_WIDTH`
+/// wide and tilted less than on a pedal, which leaves a wing at each end for controls. The
+/// signal runs from left to right on it: the input's caption is the left one. Returns the
+/// top face.
+pub fn strip(ui: &Ui, rect: Rect, style: &PedalStyle) -> Rect {
     let painter = ui.painter();
     let top = enclosure(painter, rect, style.paint);
     art_under_print(painter, top, style);
-    print(painter, top, rect.top() + style.band_y, HEAD_BAND_ANGLE_DEG, style);
+    let middle = top.center().x;
+    let band = Band {
+        left: middle - STRIP_BAND_WIDTH / 2.0,
+        right: middle + STRIP_BAND_WIDTH / 2.0,
+        angle_deg: STRIP_BAND_ANGLE_DEG,
+    };
+    print(painter, top, rect.top() + style.band_y, band, Flow::LeftToRight, style);
     top
 }
 
@@ -203,49 +215,66 @@ pub fn lifted(painter: &Painter, rect: Rect) -> Rect {
     rect.translate(vec2(0.0, -LIFT))
 }
 
-/// The amp's place in a row of mini pedals, on the bench between two of them: a patch cable
-/// from the pedal on the left up to the head and one from the head down to the pedal on the
-/// right, with a tag on them. `gap` is the bench between the two pedals, over their whole
-/// height; `head_bottom` is the lower edge of the head. Give it 40 px of width.
-pub fn amp_marker(painter: &Painter, gap: Rect, head_bottom: f32) {
-    let plug_y = gap.top() + PLUG_Y;
+/// A patch cable from a jack on the face of an enclosure to an angled plug in the side of a
+/// pedal of a rig. `jack` is the middle of the jack; `side` is where the plug goes into the
+/// pedal, on its left edge (`outward` -1) or its right edge (`outward` 1). The plug's
+/// housing stands out from the pedal on the bench, and the cable hangs from the jack down
+/// to it and goes in at its top.
+pub fn patch_cable(painter: &Painter, jack: Pos2, side: Pos2, outward: f32) {
+    // The jack: a nut on the face and the plug in it, seen end on
     let ring = Stroke::new(1.0, Color32::from_black_alpha(110));
-    for (edge, side) in [(gap.left(), 1.0), (gap.right(), -1.0)] {
-        let x = edge + side * CABLE_INSET;
-        painter.line_segment(
-            [Pos2::new(x, head_bottom), Pos2::new(x, plug_y)],
-            Stroke::new(CABLE_WIDTH, CABLE),
-        );
-        // The sleeve where the cable goes in under the head
-        let sleeve = Rect::from_center_size(Pos2::new(x, head_bottom + 5.0), vec2(9.0, 10.0));
-        painter.rect_filled(sleeve, 1.5, CHROME_DARK);
-        // An angled plug in the side of the pedal: its barrel, and the housing the cable leaves upwards
-        let barrel = Rect::from_min_max(
-            Pos2::new(edge.min(x), plug_y - 3.5),
-            Pos2::new(edge.max(x), plug_y + 3.5),
-        );
-        painter.rect_filled(barrel, 0.0, CHROME_LIGHT);
-        let housing = Rect::from_center_size(Pos2::new(x, plug_y), vec2(13.0, 17.0));
-        painter.rect_filled(housing.translate(vec2(0.0, 2.0)), 3.0, SHADOW);
-        painter.rect_filled(housing, 3.0, CHROME);
-        painter.rect_stroke(housing, 3.0, ring, StrokeKind::Inside);
-    }
+    painter.circle_filled(jack, JACK_RADIUS, CHROME_DARK);
+    painter.circle_filled(jack, JACK_RADIUS - 2.0, CHROME);
+    painter.circle_stroke(jack, JACK_RADIUS, ring);
 
-    // Printed like the name band: ink on cream
-    let tag = Rect::from_center_size(
-        Pos2::new(gap.center().x, gap.top() + TAG_Y),
-        vec2(gap.width() - 2.0 * CABLE_INSET + CABLE_WIDTH + 10.0, TAG_HEIGHT),
+    let x = side.x + outward * CABLE_INSET;
+    let housing = Rect::from_center_size(Pos2::new(x, side.y), vec2(13.0, 17.0));
+    let into = Pos2::new(x, housing.top());
+    // Down from the jack and into the housing from above, sagging with the distance
+    let sag = 20.0 + 0.4 * (into.y - jack.y).abs() + 0.2 * (into.x - jack.x).abs();
+    let points = [jack, jack + vec2(0.0, sag), into - vec2(0.0, sag), into];
+    let shadow = points.map(|point| point + vec2(2.0, 3.0));
+    for (points, color) in [(shadow, SHADOW), (points, CABLE)] {
+        painter.add(CubicBezierShape::from_points_stroke(
+            points,
+            false,
+            Color32::TRANSPARENT,
+            Stroke::new(CABLE_WIDTH, color),
+        ));
+    }
+    painter.circle_filled(jack, JACK_RADIUS - 4.0, CHROME_DARK);
+    angled_plug(painter, side.x, housing);
+}
+
+/// A coupler between two pedals of a rig that stand side by side: a short chrome plug from
+/// the right edge of the one on the left (`left`) to the left edge of the next (`right`), at
+/// the height `y` of the plugs in their sides
+pub fn coupler(painter: &Painter, left: f32, right: f32, y: f32) {
+    let ring = Stroke::new(1.0, Color32::from_black_alpha(110));
+    let barrel =
+        Rect::from_min_max(Pos2::new(left - 2.0, y - 4.0), Pos2::new(right + 2.0, y + 4.0));
+    painter.rect_filled(barrel.translate(vec2(0.0, 2.0)), 1.5, SHADOW);
+    painter.rect_filled(barrel, 1.5, CHROME_LIGHT);
+    painter.rect_stroke(barrel, 1.5, ring, StrokeKind::Inside);
+    // The grip in its middle
+    let grip = Rect::from_center_size(barrel.center(), vec2((right - left).max(4.0), 12.0));
+    painter.rect_filled(grip, 1.5, CHROME);
+    painter.rect_stroke(grip, 1.5, ring, StrokeKind::Inside);
+}
+
+/// An angled plug in the side of a pedal at `edge`: its barrel, and the housing the cable
+/// leaves upwards
+fn angled_plug(painter: &Painter, edge: f32, housing: Rect) {
+    let ring = Stroke::new(1.0, Color32::from_black_alpha(110));
+    let center = housing.center();
+    let barrel = Rect::from_min_max(
+        Pos2::new(edge.min(center.x), center.y - 3.5),
+        Pos2::new(edge.max(center.x), center.y + 3.5),
     );
-    painter.rect_filled(tag.translate(vec2(0.0, 2.0)), 2.0, SHADOW);
-    painter.rect_filled(tag, 2.0, SILK);
-    let galley = layout(painter, "AMP", display(14.0), INK, 0.16);
-    // The letter spacing also follows the last letter: leave it out of the centring
-    let text_width = galley.size().x - 14.0 * 0.16;
-    painter.galley(
-        Pos2::new(tag.center().x - text_width / 2.0, tag.center().y - galley.size().y / 2.0 + 1.0),
-        galley,
-        INK,
-    );
+    painter.rect_filled(barrel, 0.0, CHROME_LIGHT);
+    painter.rect_filled(housing.translate(vec2(0.0, 2.0)), 3.0, SHADOW);
+    painter.rect_filled(housing, 3.0, CHROME);
+    painter.rect_stroke(housing, 3.0, ring, StrokeKind::Inside);
 }
 
 /// Painted box with a screw in each corner, filling `rect`. Returns the top face,
@@ -285,12 +314,30 @@ fn screws(painter: &Painter, top: Rect, screw_inset: f32, screw_scale: f32) {
     }
 }
 
+/// Where the name band runs across a top face, from left to right, and how it is tilted
+#[derive(Clone, Copy)]
+struct Band {
+    left: f32,
+    right: f32,
+    angle_deg: f32,
+}
+
+/// Which way the signal goes through an enclosure, as its jack captions say
+#[derive(Clone, Copy, PartialEq)]
+enum Flow {
+    /// In at the right and out at the left, as on a pedal
+    RightToLeft,
+    /// In at the left and out at the right, as along a rig
+    LeftToRight,
+}
+
 /// Everything printed on the top face `top`: jack captions, name band, model number, logo
 fn print(
     painter: &Painter,
     top: Rect,
     band_center_y: f32,
-    band_angle_deg: f32,
+    band: Band,
+    flow: Flow,
     style: &PedalStyle,
 ) {
     let jack_y = top.top() + 29.0;
@@ -300,15 +347,18 @@ fn print(
         Pos2::new(top.left() + PRINT_INSET, jack_y),
         left_jack,
         Align2::LEFT_CENTER,
+        flow,
     );
     jack_label(
         painter,
         Pos2::new(top.right() - PRINT_INSET, jack_y),
         right_jack,
         Align2::RIGHT_CENTER,
+        flow,
     );
 
-    name_band(painter, top, band_center_y, band_angle_deg, style);
+    let across = Rect::from_x_y_ranges(band.left..=band.right, top.y_range());
+    name_band(painter, across, band_center_y, band.angle_deg, style);
 
     let print_bottom = top.bottom() - 24.0;
     spaced_text(
@@ -332,9 +382,9 @@ fn print(
     badge(painter, Pos2::new(top.right() - PRINT_INSET, print_bottom), 22.0);
 }
 
-/// Jack caption with an arrow for the signal direction, which runs right to left as on a pedal.
-/// The arrow sits on the outer side: `anchor` is `LEFT_CENTER` or `RIGHT_CENTER`.
-fn jack_label(painter: &Painter, pos: Pos2, text: &str, anchor: Align2) {
+/// Jack caption with an arrow for the signal direction, which `flow` says. The arrow sits
+/// on the outer side: `anchor` is `LEFT_CENTER` or `RIGHT_CENTER`.
+fn jack_label(painter: &Painter, pos: Pos2, text: &str, anchor: Align2, flow: Flow) {
     let arrow_width = 8.0;
     let gap = 6.0;
     let (arrow_x, text_pos) = if anchor == Align2::LEFT_CENTER {
@@ -342,9 +392,14 @@ fn jack_label(painter: &Painter, pos: Pos2, text: &str, anchor: Align2) {
     } else {
         (pos.x - arrow_width, pos - vec2(arrow_width + gap, 0.0))
     };
-    let tip = Pos2::new(arrow_x, pos.y - 1.0);
+    // Where the tip is, and the back of the arrow with its two corners
+    let (tip, back) = match flow {
+        Flow::RightToLeft => (arrow_x, arrow_x + arrow_width),
+        Flow::LeftToRight => (arrow_x + arrow_width, arrow_x),
+    };
+    let y = pos.y - 1.0;
     painter.add(Shape::convex_polygon(
-        vec![tip, tip + vec2(arrow_width, -4.5), tip + vec2(arrow_width, 4.5)],
+        vec![Pos2::new(tip, y), Pos2::new(back, y - 4.5), Pos2::new(back, y + 4.5)],
         SILK,
         Stroke::NONE,
     ));

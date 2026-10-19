@@ -9,7 +9,8 @@ The reasons behind choices that the code alone does not explain. What it does is
   boosted by the drive. Klar: glassy, lots of headroom, slightly scooped. Brøl: mid-forward
   stack crunch that cleans up with picking dynamics
 - Presets: good defaults first, a browser later. Cabinets: our own at first, a loader later
-- The window is one rig: a head over a row of pedals, each pedal with its own paint and art
+- The window is one rig: a strip over one line in signal order, the half stack (head on cabinet)
+  among the pedals, each pedal with its own paint and art (#96)
 
 ## Signal and numerics
 
@@ -113,10 +114,12 @@ The reasons behind choices that the code alone does not explain. What it does is
 
 ## Look
 
-- The head is 320 px tall with 50 px small footswitches and the LED beside the switch (a full
-  footswitch with an LED above does not fit under the band); the band on a head tilts -1.5
-  degrees, pedals -4. The amp is picked with a stepper under the dials, not a switch per amp:
-  three switches left no room for a fourth amp, and the Tuner switch beside them read as one
+- The strip has 50 px small footswitches with the LED beside the switch; its band tilts -1.5
+  degrees, pedals -4. The amp is picked with a stepper, not a switch per amp: three switches
+  left no room for a fourth amp. Output stays on the strip next to the output meter and Clip:
+  it is the plugin's level, not the amp's (#97)
+- The window's size is persisted under a key of its own (`editor-state-rig4`); it is renamed
+  whenever the size changes, so a project saved before opens at the new size
 - The gate's `OPEN` lamp is its own small lamp: a half-lit pedal LED was built and rejected
   because at 30 % the lens is about the colour of the paint
 - Rigs use `rig_led` (black socket, darker unlit lens): a plain unlit `led` disappears on dark paint
