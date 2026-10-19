@@ -1,0 +1,31 @@
+//! Nothing allocates on the audio thread (Code Conventions in AGENTS.md)
+
+use crate::pitch_shifter::PitchShifter;
+use crate::GuitarPitchShifterPlugin;
+use suite_common::host::{self, NoAlloc};
+
+#[global_allocator]
+static ALLOC: NoAlloc = NoAlloc;
+
+#[test]
+fn test_process_allocates_nothing() {
+    let mut plugin = GuitarPitchShifterPlugin::default();
+    host::assert_process_allocates_nothing("Pitch Shifter", &mut plugin, 200, &[]);
+}
+
+/// The default is a shift of 0: every other shift, through the shifter itself
+#[test]
+fn test_every_shift_allocates_nothing() {
+    let mut shifter = PitchShifter::new();
+    shifter.set_sample_rate(host::SAMPLE_RATE);
+    for semitones in -12..=12 {
+        host::assert_allocates_nothing(&format!("A shift of {semitones}"), || {
+            shifter.set_semitones(semitones);
+            for i in 0..20_000 {
+                let input = (i as f32 * 0.0144).sin() * 0.5;
+                shifter.process_stereo(input, -input);
+                shifter.process_sample(input);
+            }
+        });
+    }
+}

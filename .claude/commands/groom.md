@@ -1,6 +1,8 @@
 ---
-description: Go through new backlog issues and suggest what to do with each
+description: Go through new backlog issues and suggest what to do with each. Use when reviewing incoming ideas or grooming the backlog.
 ---
+
+# /groom
 
 Go through the open `state:idea` issues of FrankDrebin893/hojt-audio
 (`gh issue list --label state:idea --json number,title,labels,author,body --limit 100`).

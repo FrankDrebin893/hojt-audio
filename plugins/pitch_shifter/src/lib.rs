@@ -3,6 +3,8 @@ use nih_plug_egui::EguiState;
 use std::sync::Arc;
 
 mod editor;
+#[cfg(test)]
+mod no_alloc;
 mod pitch_shifter;
 use pitch_shifter::PitchShifter;
 

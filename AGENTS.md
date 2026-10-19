@@ -11,7 +11,8 @@ A suite of VST3/CLAP plugins built with Rust and the nih-plug framework. The bra
 - `plugins/bells/` - Soft glassy bells with a ping-pong delay and a hall (instrument)
 - `plugins/amp/` - Guitar amp simulator (effect). Its own notes are in `plugins/amp/AGENTS.md` and `plugins/amp/DESIGN.md`
 - `crates/suite_common/` - Shared code: `VENDOR` and `BRAND` constants, `ui` module (the pedal look, see Look below),
-  `dsp` (filter, noise and the `Hall` reverb of the newer instruments), `measure` (what their tests measure with)
+  `dsp` (filter, noise and the `Hall` reverb of the newer instruments), `measure` (what their tests measure with),
+  `host` (a host for tests, and the allocator of the `no_alloc` tests)
 - `prototypes/jsfx/` - The REAPER scripts that Metal, Groove, bass, pad and bells were written as
   first: the reference for those ports, not built or shipped. Its `README.md` says where a port differs
 - `crates/suite_common/assets/art/` - Bespoke artwork: one RGBA PNG per pedal, printed on its top face under the controls
@@ -37,7 +38,8 @@ A suite of VST3/CLAP plugins built with Rust and the nih-plug framework. The bra
 - `scripts/page-check.sh` - Whether `/page` has looked at what changed since `main`, and whether
   the page's links hold. The end-of-session hook runs it
 - `.agents/skills/` - The agent's skills (`/issue`, `/spec`, `/next`, `/groom`, `/release`,
-  `/page`); `.claude/commands/` mirrors them for Claude Code
+  `/page`); `.claude/commands/` mirrors them for Claude Code: a command is its `SKILL.md` without
+  the `name:` line, which `xtask/tests/skills_mirror.rs` holds
 - `.claude/settings.json` - Claude Code's end-of-session hook (see End of a session)
 - `.github/workflows/` - `ci.yml` (tests), `release.yml` (builds and publishes a release),
   `pages.yml` (publishes `site/`), `approval-guard.yml` (see How work flows), `sound.yml` (on a
@@ -269,7 +271,8 @@ Soft glassy bells with a ping-pong delay and a hall, twelve voices; note-off doe
 ### Guitar Amp (`plugins/amp`)
 
 A guitar amp with a full signal chain, all our own designs: own names, no real makers' names,
-trademarks or circuit names anywhere (code, comments, docs, commit messages). Four amps
+trademarks or circuit names anywhere (code, comments, docs, commit messages; `plugins/amp/tests/rules.rs`
+holds this for the amp's folder, against a list kept as hashes). Four amps
 (Klar clean, Brøl crunch, Torden high gain, Glød edge of breakup), a gate, compressor, overdrive, fuzz, four modulation
 pedals, delay and reverb, a cabinet (built-in or the player's own WAV), a tuner, factory
 presets and a pedal order the player sets.
@@ -278,6 +281,7 @@ Its signal flow, behaviour, parameter table and report tools are in `plugins/amp
 which is read when you work there. The rules that matter elsewhere:
 
 - Amps differ only by constants in `amp/model.rs`. Tune there, never with `match amp` in the DSP
+  (`plugins/amp/tests/rules.rs` fails on a branch on the amp outside the model, the editor and the looks)
 - Parameter ids are frozen (see Versioning); the pedal order, the preset choice, the cabinet
   file and the per-amp dials are `#[persist]` fields, never parameters
 - Run `cargo test -p amp --release` too when touching the clippers
@@ -363,7 +367,9 @@ Lints that clash with DSP code are allowed in the root `Cargo.toml`, each with i
 
 - Always run tests before committing
 - Optimize for low latency over audio quality
-- Never allocate or resize buffers on the audio thread (all buffers are fixed-size)
+- Never allocate or resize buffers on the audio thread (all buffers are fixed-size). Each plugin's
+  `no_alloc` tests hold this: `suite_common::host` plays the plugin as a DAW does, with an allocator
+  that fails the test on an allocation in `process` and says where it was. A new plugin gets them too
 - Keep DSP code separate from plugin boilerplate
 - The workspace names `egui-baseview` as a dependency it never uses, at the revision nih-plug
   pins, only to turn its `windows_keyboard_workaround` on: without it a plugin's editor, which
