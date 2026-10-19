@@ -20,6 +20,12 @@ GitHub release.
   across the grille, with its buttons or a click on the name; the head changes at once and the
   dials come back as each amp had them. The jewel lamp on the panel is lit while the amp is
   On. Nothing in the sound changed
+- The cabinet under the head looks as the cabinet that plays: each amp's own (Klar's ivory
+  1x12, Glød's tweed 2x12, Brøl's black 4x12 with white piping and chrome corners, Torden's
+  4x12 with steel mesh and steel corners), each of the seven built-in cabinets with its own
+  covering, grille and speakers, and a plain grey studio cabinet for a file of your own. A file
+  that is gone or cannot be used shows the amp's own cabinet, which is what plays. The cabinet
+  keeps its size and its controls stay where they are. Nothing in the sound changed
 
 - Loading a preset or switching the amp is one step of the host's undo: in REAPER one Ctrl+Z
   puts the whole sound back, every dial, switch and the amp, instead of one knob at a time

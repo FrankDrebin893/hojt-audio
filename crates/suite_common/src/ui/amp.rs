@@ -2,7 +2,7 @@
 //! painted like a pedal but covered, as amps are: tolex over the wood, a grille of cloth or
 //! metal in front of the speakers, a plate the controls are mounted on, piping between the
 //! covering and the grille. Every surface is lit pixel by pixel (see `raster`); the head
-//! carries a handle on top and a jewel pilot lamp, the cabinet metal corners.
+//! carries a handle on top and a jewel pilot lamp, the cabinet metal corners if it has them.
 //!
 //! `amp_head` and `cabinet` draw only the furniture and return the faces the caller puts its
 //! controls on.
@@ -15,6 +15,9 @@ use super::raster::{
     Plate, Rgb, Tolex,
 };
 use super::theme::CHROME;
+
+// Plain steel, for corners that are not chrome
+const STEEL: Color32 = Color32::from_rgb(150, 152, 154);
 
 /// Room over a head's box for its carry handle
 pub const HANDLE_HEIGHT: f32 = 12.0;
@@ -50,6 +53,8 @@ const JEWEL_MARGIN: f32 = 4.0;
 
 const CORNER_SIZE: f32 = 26.0;
 const CORNER_MARGIN: f32 = 3.0;
+// A speaker set high is lifted by this share of the room over it
+const SET_HIGH_LIFT: f32 = 0.7;
 
 /// How an amp head looks
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -128,18 +133,32 @@ impl Speakers {
     }
 }
 
+/// The metal corners on a cabinet's corners
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Corners {
+    /// Polished: bright, with a sharp highlight
+    Chrome,
+    /// Plain steel: greyer and duller
+    Steel,
+}
+
 /// How a speaker cabinet looks
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CabStyle {
     pub tolex: Tolex,
     /// The colour of the tolex
     pub covering: Color32,
-    /// The cord between the covering and the grille
-    pub piping: Color32,
+    /// The cord between the covering and the grille, if it has one
+    pub piping: Option<Color32>,
     pub grille: Grille,
     /// The colour of the grille's cloth or steel
     pub cloth: Color32,
     pub speakers: Speakers,
+    /// The speakers in the upper part of the grille, as a small cabinet has its one; or in
+    /// the middle of it
+    pub set_high: bool,
+    /// The corners, if it has metal ones
+    pub corners: Option<Corners>,
     /// The control plate runs across the top of the cabinet, this tall; the grille fills
     /// the rest
     pub plate: Plate,
@@ -170,7 +189,8 @@ pub fn head_faces(rect: Rect, style: &HeadStyle) -> HeadFaces {
     HeadFaces { grille, panel }
 }
 
-fn cab_faces(rect: Rect, style: &CabStyle) -> CabFaces {
+/// Where `cabinet` puts the faces of a cabinet of `style` filling `rect`
+pub fn cab_faces(rect: Rect, style: &CabStyle) -> CabFaces {
     let inner = rect.shrink(CAB_BORDER);
     let plate_height = style.plate_height.clamp(0.0, (inner.height() - FACE_GAP).max(0.0));
     let plate = Rect::from_min_size(inner.min, vec2(inner.width(), plate_height));
@@ -225,30 +245,53 @@ pub fn panel_stripe(panel: Rect) -> [Pos2; 2] {
     [pos2(panel.left() + PANEL_STRIPE_INSET.x, y), pos2(panel.right() - PANEL_STRIPE_INSET.x, y)]
 }
 
-/// A speaker cabinet filling `rect`: the box covered in tolex with a metal corner on each
-/// corner, the control plate across its top, the grille under it with the speakers behind it
-/// and piping round it. Returns the faces, for the caller's controls.
-pub fn cabinet(ui: &Ui, rect: Rect, style: &CabStyle) -> CabFaces {
-    let painter = ui.painter();
-    let faces = cab_faces(rect, style);
-    paint_tolex(painter, rect, COVER_RADIUS, style.tolex, style.covering);
-    let cones = style.speakers.cones(faces.grille.size());
-    paint_grille(painter, faces.grille, GRILLE_RADIUS, style.grille, style.cloth, &cones);
-    paint_piping(painter, faces.grille, style.piping);
-    mounted_plate(painter, faces.plate, style.plate);
-    for (corner, flip) in [
+/// The speakers behind the grille of a cabinet of `style`, from the grille's top left corner
+pub fn cab_cones(style: &CabStyle, grille: Vec2) -> Vec<Cone> {
+    let mut cones = style.speakers.cones(grille);
+    if style.set_high {
+        let room = cones.iter().map(|cone| cone.center.y - cone.radius).fold(f32::MAX, f32::min);
+        for cone in &mut cones {
+            cone.center.y -= room * SET_HIGH_LIFT;
+        }
+    }
+    cones
+}
+
+/// The four corners of `rect`, each with how a corner is mirrored for it
+fn box_corners(rect: Rect) -> [(Pos2, [bool; 2]); 4] {
+    [
         (rect.left_top(), [false, false]),
         (rect.right_top(), [true, false]),
         (rect.right_bottom(), [true, true]),
         (rect.left_bottom(), [false, true]),
-    ] {
-        paint_corner(painter, corner, flip);
+    ]
+}
+
+/// A speaker cabinet filling `rect`: the box covered in tolex with a metal corner on each
+/// corner if it has them, the control plate across its top, the grille under it with the
+/// speakers behind it and piping round it if it has it. Returns the faces, for the caller's
+/// controls.
+pub fn cabinet(ui: &Ui, rect: Rect, style: &CabStyle) -> CabFaces {
+    let painter = ui.painter();
+    let faces = cab_faces(rect, style);
+    paint_tolex(painter, rect, COVER_RADIUS, style.tolex, style.covering);
+    let cones = cab_cones(style, faces.grille.size());
+    paint_grille(painter, faces.grille, GRILLE_RADIUS, style.grille, style.cloth, &cones);
+    if let Some(piping) = style.piping {
+        paint_piping(painter, faces.grille, piping);
+    }
+    mounted_plate(painter, faces.plate, style.plate);
+    if let Some(metal) = style.corners {
+        for (corner, flip) in box_corners(rect) {
+            paint_corner(painter, corner, flip, metal);
+        }
     }
     faces
 }
 
-/// A plate on `rect` with a small screw in each corner
-fn mounted_plate(painter: &Painter, rect: Rect, plate: Plate) {
+/// A plate on `rect` with a small screw in each corner: for a cabinet's control plate, a
+/// head's panel, or a small plate of the caller's, such as one a jack is mounted on
+pub fn mounted_plate(painter: &Painter, rect: Rect, plate: Plate) {
     paint_plate(painter, rect, PLATE_RADIUS, plate);
     let inset = PLATE_SCREW_INSET;
     for (corner, slot) in [
@@ -431,14 +474,17 @@ fn paint_jewel(painter: &Painter, center: Pos2, color: Color32, lit: bool) {
     blit(painter, &texture, Rect::from_center_size(center, Vec2::splat(side)));
 }
 
-/// A chrome corner for the corner of a box: a quarter of a dome round the corner with a
-/// rivet in it, wrapping the box's edges. Drawn for the top left corner, mirrored by `flip`
-/// (left to right, top to bottom) for the others; the light stays where it is. Its image
-/// runs `CORNER_MARGIN` points past it on every side
-pub fn corner_image(flip: [bool; 2], ppp: f32) -> ColorImage {
+/// A metal corner of `metal` for the corner of a box: a quarter of a dome round the corner
+/// with a rivet in it, wrapping the box's edges. Drawn for the top left corner, mirrored by
+/// `flip` (left to right, top to bottom) for the others; the light stays where it is. Its
+/// image runs `CORNER_MARGIN` points past it on every side
+pub fn corner_image(flip: [bool; 2], metal: Corners, ppp: f32) -> ColorImage {
     let m = CORNER_MARGIN;
     let side = ((CORNER_SIZE + 2.0 * m) * ppp).ceil() as usize;
-    let chrome = rgb(CHROME);
+    let (chrome, shine) = match metal {
+        Corners::Chrome => (rgb(CHROME), 0.6),
+        Corners::Steel => (rgb(STEEL), 0.25),
+    };
     let size = CORNER_SIZE;
     let rivet = [size * 0.34, size * 0.34];
     // From a pixel to the corner's own points, the corner at the origin
@@ -477,7 +523,8 @@ pub fn corner_image(flip: [bool; 2], ppp: f32) -> ColorImage {
                     if flip[1] { -slope[1] } else { slope[1] },
                 ];
                 let normal = tilted(seen[0], seen[1]);
-                let mut color: Rgb = shaded(chrome, diffuse(normal), specular(normal, 20.0) * 0.6);
+                let mut color: Rgb =
+                    shaded(chrome, diffuse(normal), specular(normal, 20.0) * shine);
                 // A reflected horizon: what faces up is lighter
                 let sky = 1.0 - 0.10 * seen[1].clamp(-1.0, 1.0);
                 color = [color[0] * sky, color[1] * sky, color[2] * sky];
@@ -489,10 +536,11 @@ pub fn corner_image(flip: [bool; 2], ppp: f32) -> ColorImage {
     image(side, side, pixels)
 }
 
-fn paint_corner(painter: &Painter, corner: Pos2, flip: [bool; 2]) {
+fn paint_corner(painter: &Painter, corner: Pos2, flip: [bool; 2], metal: Corners) {
     let ctx = painter.ctx();
     let ppp = ctx.pixels_per_point();
-    let texture = cached(ctx, ("corner", flip, ppp.to_bits()), || corner_image(flip, ppp));
+    let texture =
+        cached(ctx, ("corner", flip, metal, ppp.to_bits()), || corner_image(flip, metal, ppp));
     let reach = |flipped: bool| {
         if flipped {
             -(CORNER_SIZE + CORNER_MARGIN)
@@ -592,22 +640,22 @@ pub(crate) fn preview_stack(
     let faces = cab_faces(cab_rect, cab);
     let (image, m) = tolex_image(cab_rect.size(), COVER_RADIUS, cab.tolex, cab.covering, ppp);
     lay(&image, cab_rect.min, m as f32 / ppp);
-    let cones = cab.speakers.cones(faces.grille.size());
+    let cones = cab_cones(cab, faces.grille.size());
     let grille =
         grille_image(faces.grille.size(), GRILLE_RADIUS, cab.grille, cab.cloth, &cones, ppp);
     lay(&grille, faces.grille.min, 0.0);
-    let piping = piping_image(faces.grille.size(), GRILLE_RADIUS, PIPING_WIDTH, cab.piping, ppp);
-    lay(&piping, faces.grille.min, PIPING_MARGIN);
+    if let Some(piping) = cab.piping {
+        let piping = piping_image(faces.grille.size(), GRILLE_RADIUS, PIPING_WIDTH, piping, ppp);
+        lay(&piping, faces.grille.min, PIPING_MARGIN);
+    }
     plate(&mut lay, faces.plate, cab.plate);
-    for (corner, flip) in [
-        (cab_rect.left_top(), [false, false]),
-        (cab_rect.right_top(), [true, false]),
-        (cab_rect.right_bottom(), [true, true]),
-        (cab_rect.left_bottom(), [false, true]),
-    ] {
-        let reach =
-            |flipped: bool| if flipped { CORNER_SIZE + CORNER_MARGIN } else { CORNER_MARGIN };
-        lay(&corner_image(flip, ppp), corner - vec2(reach(flip[0]), reach(flip[1])), 0.0);
+    if let Some(metal) = cab.corners {
+        for (corner, flip) in box_corners(cab_rect) {
+            let reach =
+                |flipped: bool| if flipped { CORNER_SIZE + CORNER_MARGIN } else { CORNER_MARGIN };
+            let image = corner_image(flip, metal, ppp);
+            lay(&image, corner - vec2(reach(flip[0]), reach(flip[1])), 0.0);
+        }
     }
 }
 
@@ -636,10 +684,12 @@ mod tests {
         CabStyle {
             tolex: Tolex::Bronco,
             covering: Color32::from_rgb(24, 22, 21),
-            piping: Color32::from_rgb(220, 214, 200),
+            piping: Some(Color32::from_rgb(220, 214, 200)),
             grille: Grille::SaltPepper,
             cloth: Color32::from_rgb(30, 28, 26),
             speakers,
+            set_high: false,
+            corners: Some(Corners::Chrome),
             plate: Plate::BlackAnodised,
             plate_height,
             print: SILK,
@@ -708,6 +758,25 @@ mod tests {
         }
     }
 
+    // A speaker set high stays inside the grille and above the middle of it
+    #[test]
+    fn test_speakers_set_high_lie_inside_the_grille_and_above_its_middle() {
+        for size in [vec2(418.0, 146.0), vec2(150.0, 300.0)] {
+            for speakers in SPEAKER_LAYOUTS {
+                let style = CabStyle { set_high: true, ..cab_style(speakers, 120.0) };
+                let middle = cab_cones(&cab_style(speakers, 120.0), size);
+                for (cone, centred) in cab_cones(&style, size).iter().zip(&middle) {
+                    assert!(cone.center.y - cone.radius >= 0.0, "{speakers:?}: {cone:?}");
+                    assert!(cone.center.y <= centred.center.y, "{speakers:?}: {cone:?}");
+                    assert_eq!(cone.radius, centred.radius);
+                }
+            }
+        }
+        let size = vec2(418.0, 146.0);
+        let high = cab_cones(&CabStyle { set_high: true, ..cab_style(Speakers::One10, 0.0) }, size);
+        assert!(high[0].center.y < size.y / 2.0 - 10.0, "{high:?}");
+    }
+
     fn valid(image: &ColorImage) {
         for c in &image.pixels {
             assert!(c.r() <= c.a() && c.g() <= c.a() && c.b() <= c.a(), "{c:?}");
@@ -721,8 +790,8 @@ mod tests {
             handle_image(vec2(120.0, 12.0), 2.0),
             jewel_image(6.0, Color32::from_rgb(200, 30, 24), true, 2.0),
             jewel_image(6.0, Color32::from_rgb(200, 30, 24), false, 2.0),
-            corner_image([false, false], 2.0),
-            corner_image([true, true], 2.0),
+            corner_image([false, false], Corners::Chrome, 2.0),
+            corner_image([true, true], Corners::Steel, 2.0),
         ];
         for image in images {
             valid(&image);

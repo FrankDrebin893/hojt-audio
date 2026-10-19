@@ -11,6 +11,13 @@ The reasons behind choices that the code alone does not explain. What it does is
 - Presets: good defaults first, a browser later. Cabinets: our own at first, a loader later
 - The window is one rig: a strip over one line in signal order, the half stack (head on cabinet)
   among the pedals, each pedal with its own paint and art (#96)
+- The cabinet looks as the cabinet that plays (#100), but its box keeps one size and its
+  control plate one place for all twelve looks: the pedals stand beside it as tall as it, the
+  head stands on it, and the cables, the plate's controls and every click stay where they are
+  whatever is picked. A real 1x10 and 4x12 differ in size; here only the speakers behind the
+  grille do. What a missing or unusable choice shows is the amp's own cabinet, because that is
+  what plays. The cabinet is not dimmed while switched off: nothing else in the rig changes
+  look when off, and the LED on its plate says it
 
 ## Signal and numerics
 
