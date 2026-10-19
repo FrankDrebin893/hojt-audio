@@ -14,6 +14,12 @@ GitHub release.
   the top; the amp's dials and the Amp display are on the head. The Cab pedal is gone: Speaker,
   Mic Type, Mic, Res and the cabinet's switch are on a plate on the cabinet. The window is
   1830 x 650. Nothing in the sound changed
+- Each of the four amps has a head of its own: Klar in ivory with a chrome panel, Glød in
+  tweed with a wooden panel and cream knobs, Brøl in black with a brass panel and gold knobs,
+  Torden in black with steel mesh, red piping and a black panel. Pick the amp on the nameplate
+  across the grille, with its buttons or a click on the name; the head changes at once and the
+  dials come back as each amp had them. The jewel lamp on the panel is lit while the amp is
+  On. Nothing in the sound changed
 
 - Loading a preset or switching the amp is one step of the host's undo: in REAPER one Ctrl+Z
   puts the whole sound back, every dial, switch and the amp, instead of one knob at a time

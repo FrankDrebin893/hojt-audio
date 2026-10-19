@@ -44,8 +44,11 @@ gain), Glød (warm edge of breakup, between Klar and Brøl). They share the six 
   with the editor), `Note`
 - `src/editor.rs` - egui GUI (1830 x 650 window): the oxblood strip across the top with the
   Bank and Preset displays, the list they drop open, or the tuner display in its left wing and
-  Output, meters, Clip, On and Tuner in its right; the stack (head with the amp selector and
-  dials, cabinet with its control plate); each of the nine pedals in its own paint with its own art
+  Output, meters, Clip, On and Tuner in its right; the stack (the head of the amp that is
+  picked, with its nameplate and dials, the cabinet with its control plate); each of the nine
+  pedals in its own paint with its own art
+- `src/looks.rs` - What each amp's head looks like: a `Look` (its `HeadStyle` and knob cap) per
+  amp, in the order of `Amp::ALL`. The sound stays in `amp/model.rs`
 - `src/board.rs` - The line under the strip in the chain's order: the pedals and the stack,
   the couplers and patch cables between them, and dragging a pedal to another place
 
@@ -116,7 +119,7 @@ How it behaves:
   That path is only compiled in optimised x86-64 builds: run `cargo test -p amp --release` too
   when touching the clippers
 - `hound` is the amp's one dependency besides nih-plug; it reads the WAV files
-- Each amp remembers its own six dials: the selector on the head stores them under the amp that
+- Each amp remembers its own six dials: the nameplate on the head stores them under the amp that
   is left and sets them to what the amp that is picked had (defaults if never left). The dials
   are still six shared parameters. A host that changes Amp itself leaves the dials alone; a
   preset's dials become its amp's memory
@@ -324,11 +327,25 @@ The style guide of the root `AGENTS.md` applies; these are the rules for a windo
   output meter, Clip, On, Tuner). Its jack captions read `In` at the left and `Stereo Out` at
   the right, arrows left to right: the signal runs along the window. Nothing in a wing reaches
   the band (a test holds it)
-- **Head and cabinet:** the amp's controls are on the head: the `Amp` stepper at the top, the
-  six dials under it (radius 20), and the input jack at the left end of the dials. The cabinet's
-  controls are on a dark control plate across its top: the `Speaker` stepper over the `Mic
-  Type` stepper, the Mic and Res knobs (radius 17), and its switch with LED and caption above
-  it. Its output jack is under the plate. Head and cabinet are plain enclosures for now
+- **Head and cabinet:** each amp has a head of its own (`looks.rs`, drawn by `ui::amp_head`),
+  which changes the moment another amp is picked:
+
+  | Amp | Covering | Grille | Panel, print | Knobs | Piping |
+  |-----|----------|--------|--------------|-------|--------|
+  | Klar | ivory, smooth | wheat cloth with a fine gold thread | brushed chrome, ink | chrome skirt | none |
+  | Glød | lacquered tweed | oxblood-brown cloth, a gold stripe across it | dark wood, cream | cream chicken-head | none |
+  | Brøl | black levant | salt-and-pepper basketweave | brushed brass, ink | gold top | white |
+  | Torden | black bronco | perforated steel | black anodised, cream, one red line | black fluted | red |
+
+  The amp is picked on a `nameplate_stepper` in the middle of the grille: its name on a plate
+  of the panel's metal, a chrome button each side. The panel holds, left to right, the input
+  jack the cable from the pedals goes into with its `In` caption, the six dials as
+  `panel_knob`s (radius 18, caption above, value tape under, in the panel's print and the amp's
+  cap), and the jewel pilot lamp, lit while the amp is On. Tests hold every scale, caption and
+  tape on the panel and apart, and the nameplate's buttons on the grille under the handle. The
+  cabinet's controls are on a dark control plate across its top: the `Speaker` stepper over the
+  `Mic Type` stepper, the Mic and Res knobs (radius 17), and its switch with LED and caption
+  above it. Its output jack is under the plate. The cabinet is a plain enclosure for now
 - **Pedal art:** every mini pedal has its own `PAINT_*` and its own `Motif`, all on one theme
   per rig (the Guitar Amp: northern weather and nature). Two coats and a print: a large motif
   in darker tones of the pedal's paint (`theme::shade`) that may run under the controls, with
@@ -390,8 +407,9 @@ The style guide of the root `AGENTS.md` applies; these are the rules for a windo
   window; the workspace turns that feature on (see the root `Cargo.toml`). Nothing else in the
   suite asks, so a knob or a footswitch never takes the keyboard from the host. The window
   keeps it until the player clicks the host again, which is the price of typing there
-- **Steppers on the head and the cabinet** (the amp, the speaker and the microphone): the
-  `silk_label` caption above the tape, and the buttons clear of the next knob, caption or LED
+- **Steppers on the cabinet** (the speaker and the microphone): the `silk_label` caption
+  above the tape, and the buttons clear of the next knob, caption or LED. The amp's is the
+  nameplate on its head, which needs no caption: it says the amp's name
 - **Save (a preset):** a `chrome_button` (a stepper's push button with a dot in its cap) right
   of the preset stepper, its `silk_label` caption on the stepper's caption line. It writes the
   sound into the bank showing and the stepper's tape says `SAVED` (or `NOT SAVED`) for 1.5 s.

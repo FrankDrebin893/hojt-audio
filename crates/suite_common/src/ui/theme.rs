@@ -162,25 +162,37 @@ pub fn spaced_text(
     rect
 }
 
+/// Relative luminance of a colour, as contrast ratios are counted
+fn luminance(color: Color32) -> f32 {
+    let linear = |channel: u8| {
+        let value = channel as f32 / 255.0;
+        if value <= 0.04045 {
+            value / 12.92
+        } else {
+            ((value + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    0.2126 * linear(color.r()) + 0.7152 * linear(color.g()) + 0.0722 * linear(color.b())
+}
+
+/// How well `print` reads on `ground`: the contrast ratio of the two, 1 to 21
+pub fn contrast(print: Color32, ground: Color32) -> f32 {
+    let (a, b) = (luminance(print), luminance(ground));
+    (a.max(b) + 0.05) / (a.min(b) + 0.05)
+}
+
+/// The least contrast print must have on what it is printed on: cream on the orange of the
+/// Pitch Shifter, the lightest paint print is known to read on
+pub fn least_contrast() -> f32 {
+    contrast(SILK, PAINT_ORANGE)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// Relative luminance of a colour, as contrast ratios are counted
-    fn luminance(color: Color32) -> f32 {
-        let linear = |channel: u8| {
-            let value = channel as f32 / 255.0;
-            if value <= 0.04045 {
-                value / 12.92
-            } else {
-                ((value + 0.055) / 1.055).powf(2.4)
-            }
-        };
-        0.2126 * linear(color.r()) + 0.7152 * linear(color.g()) + 0.0722 * linear(color.b())
-    }
-
     fn silk_contrast(paint: Color32) -> f32 {
-        (luminance(SILK) + 0.05) / (luminance(paint) + 0.05)
+        contrast(SILK, paint)
     }
 
     fn distance(a: Color32, b: Color32) -> f32 {

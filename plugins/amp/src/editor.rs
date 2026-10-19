@@ -5,10 +5,11 @@ use std::path::Path;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, PoisonError};
 use suite_common::ui::{
-    self, chrome_button, drop_panel, level_meter, menu_stepper, param_knob, param_switch, rig_led,
-    signal_lamp, silk_label, small_footswitch, stepper, theme, tuner_display, type_into, Column,
-    MiniStyle, Motif, Ornament, PedalStyle, Pick, Row, Step, Typed, BENCH_MARGIN, SLIM_KNOBS,
-    SLIM_KNOB_RADIUS, SLIM_LED, SLIM_SWITCH,
+    self, chrome_button, drop_panel, level_meter, menu_stepper, nameplate_stepper, panel_knob,
+    param_knob, param_switch, print_label, rig_led, signal_lamp, silk_label, small_footswitch,
+    stepper, theme, tuner_display, type_into, Column, HeadFaces, MiniStyle, Motif, Ornament,
+    PedalStyle, Pick, Row, Step, Typed, BENCH_MARGIN, SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED,
+    SLIM_SWITCH,
 };
 
 use crate::board::STACK_WIDTH;
@@ -16,6 +17,7 @@ use crate::cab::MicType;
 use crate::cab_stage::{CabLoader, CabStatus, NO_FILES_SHOWN};
 use crate::dial_memory;
 use crate::lamps::{LampReading, LampView};
+use crate::looks;
 use crate::presets::{self, PRESETS};
 use crate::tuner::{Note, TunerReading};
 use crate::user_cab;
@@ -112,19 +114,21 @@ const LED_Y: f32 = 61.0;
 const CAPTION_Y: f32 = 87.0;
 const CAPTION_SIZE: f32 = 17.0;
 
-// On the head, from its top left corner: the amp selector at the top, a stepper so any
-// number of amps fit, and under it the amp's six dials in an even row. The input jack the
-// cable from the pedals goes into is at the left end of the row
-// The amp's oxblood, darker: the head and the cabinet are plain enclosures for now
-const HEAD_PAINT: Color32 = Color32::from_rgb(56, 13, 14);
-const AMP_CAPTION: Vec2 = vec2(STACK_WIDTH / 2.0, 18.0);
-const AMP_STEPPER: Vec2 = vec2(STACK_WIDTH / 2.0, 40.0);
-const AMP_STEPPER_WIDTH: f32 = 150.0;
-const DIAL_Y: f32 = 96.0;
-const DIAL_RADIUS: f32 = 20.0;
-const DIAL_SPACING: f32 = 60.0;
-const HEAD_JACK: Vec2 = vec2(22.0, DIAL_Y);
-const HEAD_JACK_CAPTION: Vec2 = vec2(22.0, 72.0);
+// On the head, which looks as its amp does (`looks`): the nameplate on the grille, the amp's
+// name between two buttons that step to the next amp, and the panel under it. On the panel,
+// from its left edge, the input jack the cable from the pedals goes into, the amp's six dials
+// in an even row, and at its right end the pilot lamp, lit while the amp is on
+const NAMEPLATE_WIDTH: f32 = 140.0;
+// The middle of the jack, the first dial and the line of the dials, from the panel's top left
+// corner; captions are on one line above them
+const HEAD_JACK_X: f32 = 18.0;
+const DIAL_FIRST_X: f32 = 59.0;
+const DIAL_Y: f32 = 52.0;
+const DIAL_RADIUS: f32 = 18.0;
+const DIAL_SPACING: f32 = 61.0;
+const DIALS: [&str; 6] = ["Gain", "Bass", "Mid", "Treble", "Presence", "Master"];
+// The amp's oxblood, darker: the cabinet is a plain enclosure for now
+const CAB_PAINT: Color32 = Color32::from_rgb(56, 13, 14);
 
 // On the cabinet, from its top left corner: a control plate across its top. The cabinet
 // that plays (the amp's own, a built-in one or a file) over the microphone that hears it,
@@ -291,37 +295,35 @@ impl Pedals<'_> {
         face
     }
 
-    /// Draws the stack with its top left corner at `top_left`: the head, and the cabinet it
-    /// stands on, which is as tall as the pedals. Head and cabinet are plain enclosures for
-    /// now. Returns where the cables go in and out
+    /// Draws the stack with its top left corner at `top_left`: the head of the amp that is
+    /// picked, and the cabinet it stands on, which is as tall as the pedals and a plain
+    /// enclosure for now. Returns where the cables go in and out
     pub(crate) fn stack(&self, ui: &mut Ui, top_left: Pos2) -> Jacks {
         let (params, setter) = (self.params, self.setter);
-        let painter = ui.painter();
+        let amp_shown = params.amp.value();
+        let look = looks::look(amp_shown);
+        let (panel, print) = (look.head.panel, look.head.print);
         let head = Rect::from_min_size(top_left, vec2(STACK_WIDTH, HEAD_HEIGHT));
-        let head = ui::enclosure(painter, head, HEAD_PAINT);
+        let faces = ui::amp_head(ui, head, &look.head, !params.bypass.value());
+        let places = HeadPlaces::new(faces);
         let cab = Rect::from_min_size(
             Pos2::new(top_left.x, top_left.y + HEAD_HEIGHT),
             vec2(STACK_WIDTH, PEDAL_HEIGHT),
         );
-        let cab = ui::enclosure(painter, cab, HEAD_PAINT);
-        let (head, cab) = (head.min, cab.min);
+        let cab = ui::enclosure(ui.painter(), cab, CAB_PAINT).min;
 
-        // The amp selector: the amp that is left keeps its dials, and the one picked gets
-        // its own back
-        let amp_shown = params.amp.value();
-        silk_label(ui.painter(), head + AMP_CAPTION, "Amp", LAMP_CAPTION_SIZE);
+        // The nameplate picks the amp: the amp that is left keeps its dials, and the one
+        // picked gets its own back
+        let name = amp_shown.model().name;
         if let Some(step) =
-            stepper(ui, head + AMP_STEPPER, AMP_STEPPER_WIDTH, amp_shown.model().name, "amp")
+            nameplate_stepper(ui, places.nameplate, NAMEPLATE_WIDTH, panel, print, name, "amp")
         {
             dial_memory::switch_amp(params, setter, neighbour_amp(amp_shown, step));
         }
-        let dials = ["Gain", "Bass", "Mid", "Treble", "Presence", "Master"];
-        let first = STACK_WIDTH / 2.0 - DIAL_SPACING * (dials.len() - 1) as f32 / 2.0;
-        for (index, (param, label)) in params.amp_dials().into_iter().zip(dials).enumerate() {
-            let at = head + vec2(first + DIAL_SPACING * index as f32, DIAL_Y);
-            param_knob(ui, setter, param, at, DIAL_RADIUS, label, None);
+        for ((param, label), at) in params.amp_dials().into_iter().zip(DIALS).zip(places.dials) {
+            panel_knob(ui, setter, param, at, DIAL_RADIUS, label, look.knobs, print);
         }
-        silk_label(ui.painter(), head + HEAD_JACK_CAPTION, "In", LAMP_CAPTION_SIZE);
+        print_label(ui.painter(), places.jack_caption, "In", LAMP_CAPTION_SIZE, print);
 
         let painter = ui.painter();
         let plate = PLATE.translate(cab.to_vec2());
@@ -373,7 +375,33 @@ impl Pedals<'_> {
         param_switch(ui, setter, &params.cab_on, cab + CAB_SWITCH, cab + CAB_LED);
         silk_label(ui.painter(), cab + CAB_JACK_CAPTION, "Out", LAMP_CAPTION_SIZE);
 
-        Jacks { input: head + HEAD_JACK, output: cab + CAB_JACK }
+        Jacks { input: places.jack, output: cab + CAB_JACK }
+    }
+}
+
+/// Where the controls of a head go, from its faces
+struct HeadPlaces {
+    nameplate: Pos2,
+    jack: Pos2,
+    jack_caption: Pos2,
+    dials: [Pos2; DIALS.len()],
+}
+
+impl HeadPlaces {
+    fn new(faces: HeadFaces) -> Self {
+        let corner = faces.panel.left_top();
+        let dials = std::array::from_fn(|index| {
+            corner + vec2(DIAL_FIRST_X + DIAL_SPACING * index as f32, DIAL_Y)
+        });
+        let jack = corner + vec2(HEAD_JACK_X, DIAL_Y);
+        // On the line of the dials' captions
+        let caption = ui::panel_caption(dials[0], DIAL_RADIUS).y;
+        Self {
+            nameplate: faces.grille.center(),
+            jack,
+            jack_caption: Pos2::new(jack.x, caption),
+            dials,
+        }
     }
 }
 
@@ -1103,12 +1131,62 @@ mod tests {
         assert!((CAB_JACK.y - ui::PLUG_Y).abs() < 20.0);
     }
 
+    /// The faces of every amp's head, as the window has them
+    fn heads() -> impl Iterator<Item = (Amp, Rect, HeadFaces)> {
+        let head = Rect::from_min_size(Pos2::new(0.0, STACK_TOP), vec2(STACK_WIDTH, HEAD_HEIGHT));
+        Amp::ALL
+            .into_iter()
+            .map(move |amp| (amp, head, ui::head_faces(head, &looks::look(amp).head)))
+    }
+
+    // The jack's nut, and the pilot lamp in its bezel, half across
+    const JACK: f32 = 8.0;
+    const PILOT: f32 = 9.0;
+
     #[test]
-    fn test_the_head_holds_the_amp_selector_over_its_dials() {
-        let half = DIAL_SPACING * 2.5 + DIAL_RADIUS + TICKS;
-        assert!(STACK_WIDTH / 2.0 - half > HEAD_JACK.x + 8.0, "the dials run into the jack");
-        assert!(tape_bottom(AMP_STEPPER.y) + 12.0 <= DIAL_Y - DIAL_RADIUS - TICKS);
+    fn test_the_head_panel_holds_the_jack_the_dials_and_the_lamp_in_a_row() {
+        for (amp, _, faces) in heads() {
+            let places = HeadPlaces::new(faces);
+            let jewel = faces.panel.right() - ui::amp::JEWEL_INSET;
+            let mut row = vec![
+                ("the panel's edge", 0.0, faces.panel.left()),
+                ("the jack", places.jack.x - JACK, places.jack.x + JACK),
+            ];
+            for (dial, label) in places.dials.iter().zip(DIALS) {
+                let room = ui::panel_knob_rect(*dial, DIAL_RADIUS);
+                // Its scale, caption and tape all on the panel
+                assert!(faces.panel.contains_rect(room), "{amp:?}: {label} is off the panel");
+                row.push((label, room.left(), room.right()));
+            }
+            row.push(("the pilot lamp", jewel - PILOT, jewel + PILOT));
+            row.push(("the panel's edge", faces.panel.right(), STACK_WIDTH));
+            in_a_row(&row);
+            // The jack's caption over the jack, on the panel
+            assert!(places.jack_caption.y + 7.0 < places.jack.y - JACK);
+            assert!(places.jack_caption.y - 7.0 > faces.panel.top(), "{amp:?}");
+        }
         assert_eq!(PEDAL_TOP + PEDAL_HEIGHT + BENCH_MARGIN, WINDOW_HEIGHT as f32);
+    }
+
+    #[test]
+    fn test_the_nameplate_and_its_buttons_sit_on_the_grille_clear_of_the_handle() {
+        for (amp, head, faces) in heads() {
+            let places = HeadPlaces::new(faces);
+            let plate = Rect::from_center_size(
+                places.nameplate,
+                vec2(NAMEPLATE_WIDTH, ui::widgets::NAMEPLATE_HEIGHT),
+            );
+            assert!(faces.grille.contains_rect(plate), "{amp:?}: {plate:?}");
+            let reach = reach(NAMEPLATE_WIDTH) - 2.0;
+            let buttons = Rect::from_center_size(
+                places.nameplate,
+                vec2(2.0 * (reach + BUTTON), 2.0 * BUTTON),
+            );
+            // Inside the grille, away from its edge and the piping round it
+            assert!(faces.grille.shrink(4.0).contains_rect(buttons), "{amp:?}: {buttons:?}");
+            // The handle stands on the box, over the grille
+            assert!(buttons.top() > head.top() + ui::amp::HANDLE_HEIGHT + 4.0, "{amp:?}");
+        }
     }
 
     #[test]

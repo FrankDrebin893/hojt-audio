@@ -15,6 +15,7 @@ mod dsp;
 mod editor;
 mod gate;
 mod lamps;
+mod looks;
 mod mods;
 mod order;
 mod presets;

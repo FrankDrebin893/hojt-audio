@@ -158,7 +158,9 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
 - `theme.rs` - Colours, the three embedded fonts (`install`), text helpers. One paint colour per plugin,
   one per mini pedal of a rig (`PEDAL_PAINTS`), and `shade` for darker tones of a paint
 - `widgets.rs` - `param_knob` (fluted knob, name, value on label tape; `param_knob_with` for another
-  `KnobCap` and print colour), `nameplate_stepper` (a name on a plate with a chrome step button each side),
+  `KnobCap` and print colour), `panel_knob` (a knob on an amp head's panel: name above, value tape under,
+  where there is room for one line of controls; `panel_knob_rect` is the room it takes),
+  `nameplate_stepper` (a name on a plate with a chrome step button each side),
   `footswitch`, `led`,
   `small_footswitch`, `rig_led` and `param_switch` (the switch and LED of a rig, bound to an on/off
   parameter), `stepper` (label tape with a chrome button at each end, for picking one of many),
@@ -171,21 +173,22 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
   lowest lit from -45 dBFS, the top one at full scale), `value_knob` and `value_switch` (a knob
   and a rig switch for a plain value that is not a parameter),
   `signal_lamp` (a small lamp with no switch, for what the sound is doing),
-  `silk_frame`, `silk_label`, and `badge` (the HØJT logo: the Ø is a knob, its slash the pointer)
+  `silk_frame`, `silk_label` (`print_label` for a caption in `INK` on metal), and `badge` (the HØJT logo: the Ø is a knob, its slash the pointer)
 - `frame.rs` - `pedal`: enclosure, screws, jack captions, tilted name band, model number, logo.
   A plugin describes itself with a `PedalStyle`. For a window with several enclosures: `rig`
   (the bare bench), `strip` (shallow enclosure with everything a pedal has printed on it, the
   name band across its middle only) and `mini_pedal` (small enclosure with only a title), each
   mini pedal described by a `MiniStyle`; `coupler` and `patch_cable` carry the signal between them
 - `raster.rs` - Per-pixel lit surfaces (signed distance field + one fixed light): `box_image`, `knob_image`
-  (a `KnobCap`: `Fluted`, the pedals' knob, `ChickenHead`, `GoldTop`, `ChromeSkirt`), `screw_image`, and for the
+  (a `KnobCap`: `Fluted`, the pedals' knob, `ChickenHead`, `CreamChickenHead`, `GoldTop`, `ChromeSkirt`), `screw_image`, and for the
   half stack `tolex_image` (`Tolex`), `grille_image` (`Grille`, cloth or mesh with the speakers behind it) and
   `plate_image` (`Plate`); `paint_*` cache them as textures. To look at them without a window:
   `RASTER_PREVIEW=out.raw cargo test -p suite_common --release preview -- --ignored`
 - `artwork.rs` - Loads the PNGs of `assets/art/`, covers the top face with one, cuts it to the corners
 - `hardware.rs` - Lit footswitch, indicator light, label tape, the paper of the name band
 - `art.rs` - `Motif`: what is painted on a mini pedal under its controls
-- `amp.rs` - The half stack of a rig: `amp_head` (handle, tolex, grille with piping, panel, jewel pilot lamp)
+- `amp.rs` - The half stack of a rig: `amp_head` (handle, tolex, grille with piping and a stripe if it has
+  them, panel with a printed line if it has one, jewel pilot lamp lit or not; `head_faces` says where its faces go)
   and `cabinet` (tolex, metal corners, control plate, grille with the `Speakers` behind it), each described by
   a `HeadStyle` or `CabStyle` and returning the faces the controls go on
 
@@ -215,7 +218,8 @@ controls, portrait) or `plugins/drums/src/editor.rs` (many controls, landscape) 
   the logo badge bottom right come from `ui::pedal` and stay there
 - **Knobs:** every continuous parameter is a `param_knob`. Radius about 48 for the one main control,
   about 30 for normal ones, about 19 for a row of secondary ones inside a `silk_frame` with a title.
-  The value is always shown on label tape under the name, formatted by the parameter itself
+  The value is always shown on label tape under the name, formatted by the parameter itself.
+  The one exception is an amp head's panel (`panel_knob`): one line of knobs, the name above, the tape under
 - **Footswitches:** every on/off or pick-one-of-few parameter is a `footswitch` with an `led` above
   it (lit = on or selected) and, when there are several, a `silk_label` below
 - **Name band:** the plugin's plain name (what it does, two short words), with an `Ornament` that
