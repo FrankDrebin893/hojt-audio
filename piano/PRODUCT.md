@@ -99,7 +99,8 @@ On 2026-10-19 the user asked for the app to look like a display on hardware, and
 **"phosphor scope"** from five concepts (`docs/design-concepts/`; the other four are kept for
 later). It is being tried in the app: the stage is a green P31 CRT behind a bezel, with
 scanlines, a graticule and a phosphor glow, a wireframe keyboard, and the held chord drawn as
-a waveform trace; the chrome is the instrument's case; amber is a second phosphor for the key
+a waveform trace, and the readout in the bundled VT323 terminal face; the chrome is the
+instrument's case; amber is a second phosphor for the key
 centre. The palette lives in `Themes/Dark.xaml`. DESIGN.md still describes piano character
 until this direction settles.
 

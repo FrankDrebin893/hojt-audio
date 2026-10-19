@@ -24,6 +24,8 @@
        without this the image fails to load silently and the title bar shows no icon. -->
   <ItemGroup>
     <Resource Include="app.png" />
+    <!-- VT323 (SIL OFL 1.1, see THIRD-PARTY-NOTICES.txt): the chord readout's CRT face. -->
+    <Resource Include="Fonts\VT323-Regular.ttf" />
   </ItemGroup>
 
 </Project>

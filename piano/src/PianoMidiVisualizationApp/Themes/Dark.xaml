@@ -95,6 +95,9 @@
          Cascadia Mono ships with Windows 11; Consolas covers Windows 10. -->
     <FontFamily x:Key="Font.Display">Cascadia Mono, Consolas</FontFamily>
     <FontFamily x:Key="Font.Data">Cascadia Mono, Consolas</FontFamily>
+    <!-- The readout: VT323, a terminal's bitmap face, bundled as a resource (Fonts/). It is
+         small for its em, so the readout sizes below are larger than they look. -->
+    <FontFamily x:Key="Font.Readout">pack://application:,,,/PianoMidiVisualizationApp;component/Fonts/#VT323</FontFamily>
 
     <!-- ================= The tube =================
          Phosphor glow: a blur of the trace's own colour around everything lit on the CRT.
@@ -611,12 +614,12 @@
     </Style>
 
     <!-- ================= Readout type scale ================= -->
-    <sys:Double x:Key="Size.Readout.Name">64</sys:Double>
-    <sys:Double x:Key="Size.Readout.Voicing">14</sys:Double>
+    <sys:Double x:Key="Size.Readout.Name">96</sys:Double>
+    <sys:Double x:Key="Size.Readout.Voicing">21</sys:Double>
     <!-- Sized to share the voicing line's 19px block line box without growing it -->
-    <sys:Double x:Key="Size.Readout.Function">18</sys:Double>
-    <sys:Double x:Key="Size.Readout.Notes">18</sys:Double>
-    <sys:Double x:Key="Size.Readout.Intervals">14</sys:Double>
+    <sys:Double x:Key="Size.Readout.Function">26</sys:Double>
+    <sys:Double x:Key="Size.Readout.Notes">26</sys:Double>
+    <sys:Double x:Key="Size.Readout.Intervals">20</sys:Double>
 
     <!-- =========================================================================
          Menu. The stock WPF MenuItem template is light-themed, and setting only
