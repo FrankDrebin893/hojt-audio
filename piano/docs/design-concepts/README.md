@@ -15,6 +15,17 @@ https://claude.ai/artifact/A1vkXJUVwwK3oD11wKC69h
 | `OLED.dc.html` | C · OLED module: pure black OLED in aluminium, geometric type, a ring dial and coloured encoders | Kept for later |
 | `Rack.dc.html` | D · LED rack unit: a black rack panel, red LED dot matrix, an LED ring around the key knob, a level-meter keyboard | Kept for later |
 
+Round 2 (2026-10-20), asked for in the spirit of B and C, all with real keys: ivory and
+ebony keys that go down when held, with the display above them.
+
+| File | Concept | Status |
+|---|---|---|
+| `FSTN.dc.html` | F · Blue FSTN workstation: a white-on-blue pixel LCD with soft keys under its tabs, faders, a jog dial and keypad, pitch and mod wheels, and a blue key light above each held key | Kept for later |
+| `Stage.dc.html` | G · Walnut stage piano: walnut cheeks, a wide OLED strip across satin black, flat touch buttons with LEDs, a full-width keyboard | Kept for later |
+| `Home.dc.html` | H · 80s home keyboard: a cream case with speaker grilles, an amber segment LCD with printed flags and a mini keyboard of held notes, a key-select dial in fifths, colourful round chord buttons | Kept for later |
+| `Memory.dc.html` | I · Reflective LCD on aluminium: an unlit grey-green memory LCD with crisp ink, an orange save button, a tempo slider, quiet round buttons | Kept for later |
+| `Synth.dc.html` | J · Colour OLED synth: wood cheeks, a colour OLED, LED-ring encoders, backlit progression pads | Kept for later |
+
 The `.dc.html` files are Design Component pages for the claude.ai design canvas. They
 need its runtime (`support.js`), so open them through the canvas link above rather than
 straight in a browser.

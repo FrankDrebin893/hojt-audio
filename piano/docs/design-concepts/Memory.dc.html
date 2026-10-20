@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Reflective LCD, aluminium</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#cfd0cd}
+a{color:#444}a:hover{color:#000}
+</style>
+</helmet>
+<div style="width: 1400px; height: 620px; box-sizing: border-box; position: relative; overflow: hidden; background: radial-gradient(rgba(0,0,0,0.04) 0.6px, transparent 0.9px) 0 0 / 3px 3px, linear-gradient(180deg, #e2e3e0 0%, #cfd0cd 100%); font-family: 'IBM Plex Sans', sans-serif; color: #2a2c2b;">
+
+<div style="position: absolute; left: 24px; right: 24px; top: 0; height: 30px; display: flex; align-items: center; gap: 14px; font-size: 12px; color: #5f625f;">
+<span style="font-weight: 600; color: #1e201f;">pmv 61</span>
+<span>harmony instrument</span>
+<span style="color: #3a3c3b; margin-left: 6px;">view</span>
+<div style="flex-grow: 1;"></div>
+<span style="display: flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #2a2c2b;"></span>digital piano</span>
+<span style="display: flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #2a2c2b;"></span>asio</span>
+<span style="margin-left: 12px; letter-spacing: 14px;">–□×</span>
+</div>
+
+<div style="position: absolute; left: 24px; top: 46px; width: 150px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; justify-items: center;">
+<sc-for list="{{grid}}" as="g" hint-placeholder-count="9">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+<div style="{{g.btn}}"></div>
+<span style="font-size: 10px; color: #4a4c4b;">{{g.lab}}</span>
+</div>
+</sc-for>
+</div>
+
+<div style="position: absolute; left: 196px; top: 40px; width: 900px; height: 244px; box-sizing: border-box; padding: 8px; border-radius: 6px; background: #b9bab7; box-shadow: inset 0 1px 3px rgba(0,0,0,0.35), 0 1px 0 #f2f3f0;">
+<div style="position: relative; height: 228px; border-radius: 2px; overflow: hidden; background: linear-gradient(180deg, #ccd1c6 0%, #c2c7bb 100%); box-shadow: inset 0 1px 4px rgba(0,0,0,0.3); color: #1b211c; display: flex; flex-direction: column; padding: 10px 18px; box-sizing: border-box;">
+<div style="position: absolute; inset: 0; background: linear-gradient(115deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 32%); pointer-events: none;"></div>
+<div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 12px; border-bottom: 1px solid rgba(27,33,28,0.5); padding-bottom: 4px;">
+<span>C major · no sharps or flats</span><span>♩ 90 · 4/4 · speed 100%</span>
+</div>
+<div style="flex-grow: 1; display: flex; align-items: center; gap: 22px;">
+<svg width="120" height="140" viewBox="0 0 170 220" aria-hidden="true">
+<g style="stroke: #1b211c; stroke-width: 1.4;">
+<line x1="6" y1="40" x2="166" y2="40"></line><line x1="6" y1="54" x2="166" y2="54"></line><line x1="6" y1="68" x2="166" y2="68"></line><line x1="6" y1="82" x2="166" y2="82"></line><line x1="6" y1="96" x2="166" y2="96"></line>
+<line x1="6" y1="138" x2="166" y2="138"></line><line x1="6" y1="152" x2="166" y2="152"></line><line x1="6" y1="166" x2="166" y2="166"></line><line x1="6" y1="180" x2="166" y2="180"></line><line x1="6" y1="194" x2="166" y2="194"></line>
+<line x1="6" y1="40" x2="6" y2="194"></line>
+</g>
+<text x="12" y="92" style="fill: #1b211c; font: 60px 'Segoe UI Symbol', 'Apple Symbols', serif;">𝄞</text>
+<text x="12" y="178" style="fill: #1b211c; font: 46px 'Segoe UI Symbol', 'Apple Symbols', serif;">𝄢</text>
+<g style="fill: #1b211c;"><ellipse cx="120" cy="103" rx="8" ry="5.8" transform="rotate(-20 120 103)"></ellipse><ellipse cx="120" cy="173" rx="8" ry="5.8" transform="rotate(-20 120 173)"></ellipse><ellipse cx="136" cy="166" rx="8" ry="5.8" transform="rotate(-20 136 166)"></ellipse><ellipse cx="120" cy="187" rx="8" ry="5.8" transform="rotate(-20 120 187)"></ellipse></g>
+</svg>
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="font-weight: 600; font-size: 96px; line-height: 0.95; letter-spacing: -3px;">G7/B</div>
+<div style="font-size: 17px;"><span style="font-weight: 600;">V65</span> · 1st inversion · drop 2</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 14px; font-family: 'IBM Plex Mono', monospace; text-align: center; border-left: 1px solid rgba(27,33,28,0.5); padding-left: 18px;">
+<sc-for list="{{notes}}" as="n" hint-placeholder-count="4">
+<span style="font-size: 22px; font-weight: 500;">{{n.note}}</span>
+</sc-for>
+<sc-for list="{{notes}}" as="n" hint-placeholder-count="4">
+<span style="font-size: 14px; opacity: 0.75;">{{n.iv}}</span>
+</sc-for>
+</div>
+<div style="flex-grow: 1;"></div>
+<svg width="140" height="140" viewBox="0 0 240 240" aria-hidden="true">
+<sc-for list="{{maj}}" as="s" hint-placeholder-count="12">
+<path d="{{s.d}}" style="{{s.ps}}"></path>
+<text x="{{s.lx}}" y="{{s.ly}}" style="{{s.ts}}">{{s.label}}</text>
+</sc-for>
+<circle cx="120" cy="120" r="54" style="fill: none; stroke: #1b211c; stroke-width: 1.2;"></circle>
+<text x="120" y="120" style="fill: #1b211c; font: 600 34px 'IBM Plex Sans', sans-serif; text-anchor: middle; dominant-baseline: central;">C</text>
+</svg>
+</div>
+<div style="display: flex; gap: 6px; border-top: 1px solid rgba(27,33,28,0.5); padding-top: 6px;">
+<sc-for list="{{slots}}" as="s" hint-placeholder-count="8">
+<div style="{{s.style}}"><span style="font-weight: 600;">{{s.name}}</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; opacity: 0.7;">{{s.num}}</span></div>
+</sc-for>
+</div>
+</div>
+</div>
+
+<div style="position: absolute; left: 1118px; top: 46px; width: 258px; height: 240px; display: flex; flex-direction: column; gap: 18px;">
+<div style="display: flex; align-items: center; gap: 16px;">
+<div style="width: 70px; height: 70px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #ff9a4a, #e8641c 70%); box-shadow: 0 3px 0 #a8450f, 0 5px 8px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.4);"></div>
+<div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 600; font-size: 14px;">save chord</span><span style="font-size: 11px; color: #5f625f;">space · 4 of 8 kept</span></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px;">
+<div style="display: flex; justify-content: space-between; font-size: 10px; color: #4a4c4b;"><span>tempo</span><span style="font-family: 'IBM Plex Mono', monospace;">90</span></div>
+<div style="position: relative; height: 22px;">
+<div style="position: absolute; left: 0; right: 0; top: 9px; height: 4px; border-radius: 2px; background: #9fa09d; box-shadow: inset 0 1px 1px rgba(0,0,0,0.4);"></div>
+<div style="position: absolute; left: 70px; top: 0; width: 14px; height: 22px; border-radius: 3px; background: linear-gradient(180deg, #f4f4f2, #cfd0cd); box-shadow: 0 2px 3px rgba(0,0,0,0.35);"></div>
+</div>
+<div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: #6a6d6a;"><span>30</span><span>90</span><span>150</span><span>240</span></div>
+</div>
+<div style="display: flex; gap: 10px;">
+<sc-for list="{{transport}}" as="b" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+<div style="{{b.btn}}"></div>
+<span style="font-size: 10px; color: #4a4c4b;">{{b.lab}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="position: absolute; left: 196px; top: 292px; width: 900px; display: flex; gap: 6px; align-items: center;">
+<sc-for list="{{strip}}" as="t" hint-placeholder-count="8">
+<div style="{{t.style}}"><span style="{{t.dot}}"></span><span style="font-weight: 600;">{{t.num}}</span><span style="color: #5f625f;">{{t.name}}</span></div>
+</sc-for>
+</div>
+
+<div style="position: absolute; left: 20px; top: 328px; width: 1360px; height: 6px; background: linear-gradient(180deg, #6a6b69, #4c4d4b);"></div>
+<div style="position: absolute; left: 20px; top: 334px; width: 1360px; height: 278px; background: #2a2b2a;">
+<sc-for list="{{whites}}" as="k" hint-placeholder-count="36">
+<div style="{{k.style}}"><span style="{{k.ls}}">{{k.label}}</span></div>
+</sc-for>
+<sc-for list="{{blacks}}" as="k" hint-placeholder-count="25">
+<div style="{{k.style}}"></div>
+</sc-for>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1400,"height":620}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const INK = '#1b211c', ORANGE = '#e8641c';
+    const WHITE = [0, 2, 4, 5, 7, 9, 11];
+    const held = [47, 53, 55, 62];
+    const W = 1360, H = 278, ww = W / 36, bw = ww * 0.56, bh = H * 0.6;
+    const whites = [], blacks = [];
+    let wi = 0;
+    for (let m = 36; m <= 96; m++) {
+      const pc = m % 12, oct = Math.floor(m / 12) - 1, h = held.includes(m);
+      if (WHITE.includes(pc)) {
+        const bg = h ? 'linear-gradient(180deg,#d3d5d2 0%,#e3e5e2 70%,#cdcfcc 100%)' : 'linear-gradient(180deg,#eceeec 0%,#fbfcfb 15%,#f5f6f5 86%,#e1e3e1 100%)';
+        whites.push({
+          label: pc === 0 ? 'C' + oct : '',
+          style: 'position:absolute;top:0;left:' + (wi * ww).toFixed(1) + 'px;width:' + (ww - 1).toFixed(1) + 'px;height:' + (h ? H - 4 : H) + 'px;background:' + bg + ';border-radius:0 0 3px 3px;box-shadow:' + (h ? 'inset 0 5px 6px rgba(0,0,0,0.28)' : 'inset 0 -6px 0 #d9dbd9,0 2px 2px rgba(0,0,0,0.4)') + ';',
+          ls: 'position:absolute;left:0;right:0;bottom:14px;text-align:center;font:500 10px "IBM Plex Sans",sans-serif;color:#9a9d9a;'
+        });
+        wi++;
+      } else {
+        const bg = h ? 'linear-gradient(180deg,#0c0d0c,#1b1c1b 90%,#272827)' : 'linear-gradient(180deg,#151615 0%,#2b2c2b 8%,#1b1c1b 82%,#383938 93%,#161716 100%)';
+        blacks.push({ style: 'position:absolute;top:0;left:' + (wi * ww - bw / 2).toFixed(1) + 'px;width:' + bw.toFixed(1) + 'px;height:' + (h ? bh - 5 : bh).toFixed(0) + 'px;background:' + bg + ';border-radius:0 0 2px 2px;box-shadow:2px 3px 4px rgba(0,0,0,0.5);' });
+      }
+    }
+    const pt = (r, a) => (120 + r * Math.cos(a * Math.PI / 180)).toFixed(2) + ' ' + (120 + r * Math.sin(a * Math.PI / 180)).toFixed(2);
+    const sector = (r1, r2, i) => { const a0 = -105 + i * 30 + 1, a1 = -75 + i * 30 - 1; return 'M ' + pt(r2, a0) + ' A ' + r2 + ' ' + r2 + ' 0 0 1 ' + pt(r2, a1) + ' L ' + pt(r1, a1) + ' A ' + r1 + ' ' + r1 + ' 0 0 0 ' + pt(r1, a0) + ' Z'; };
+    const lab = (r, i) => { const a = (-90 + i * 30) * Math.PI / 180; return { lx: (120 + r * Math.cos(a)).toFixed(1), ly: (120 + r * Math.sin(a)).toFixed(1) }; };
+    const MAJ = ['C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'D♭', 'A♭', 'E♭', 'B♭', 'F'];
+    const maj = MAJ.map((label, i) => {
+      const sel = i === 0, rel = i === 1 || i === 11, root = i === 1;
+      return Object.assign({ label, d: sector(62, 116, i), ps: 'fill:' + (sel ? INK : (rel ? 'rgba(27,33,28,0.14)' : 'transparent')) + ';stroke:' + INK + ';stroke-width:' + (root ? 4.5 : 1.2) + ';' + (root ? 'stroke-dasharray:8 4;' : ''), ts: 'fill:' + (sel ? '#ccd1c6' : INK) + ';font:500 20px "IBM Plex Sans",sans-serif;text-anchor:middle;dominant-baseline:central;' }, lab(89, i));
+    });
+    const saved = [['C', 'I'], ['Am', 'vi'], ['F', 'IV'], ['G7', 'V7']];
+    const slots = [];
+    for (let i = 0; i < 8; i++) {
+      const s = saved[i];
+      slots.push({ name: s ? s[0] : '', num: s ? s[1] : (i + 1) + '', style: 'flex:1;height:28px;padding:0 8px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;font-size:14px;' + (s ? (i === 3 ? 'background:' + INK + ';color:#ccd1c6;' : 'border:1px solid rgba(27,33,28,0.6);') : 'border:1px dashed rgba(27,33,28,0.35);color:rgba(27,33,28,0.5);') });
+    }
+    const btn = (c1, c2, sz) => 'width:' + sz + 'px;height:' + sz + 'px;border-radius:50%;background:radial-gradient(circle at 40% 35%,' + c1 + ',' + c2 + ' 72%);box-shadow:0 2px 0 rgba(0,0,0,0.35),0 3px 5px rgba(0,0,0,0.2),inset 0 1px 0 rgba(255,255,255,0.35);';
+    const dark = btn('#5a5c5b', '#2f3130', 36), light = btn('#ffffff', '#d4d5d2', 36);
+    const grid = [['key ◂', dark], ['key ▸', dark], ['scale', dark], ['metro', light], ['−', dark], ['+', dark], ['tap', dark], ['4/4', dark], ['mute', dark]].map(([lab, b]) => ({ lab, btn: b }));
+    const transport = [['rec', btn('#ff6a50', '#c8321e', 40)], ['play', btn('#5a5c5b', '#2f3130', 40)], ['loop', btn('#ffffff', '#d4d5d2', 40)], ['take', btn('#5a5c5b', '#2f3130', 40)]].map(([lab, b]) => ({ lab, btn: b }));
+    const tiles = [['I', 'Cmaj7'], ['ii', 'Dm7'], ['iii', 'Em7'], ['IV', 'Fmaj7'], ['V7', 'G7'], ['vi', 'Am7'], ['viiø', 'Bm7♭5'], ['7ths', 'on']];
+    const strip = tiles.map(([num, name], i) => ({ num, name, dot: 'width:6px;height:6px;border-radius:50%;' + (i === 4 || i === 7 ? 'background:' + ORANGE + ';box-shadow:0 0 5px ' + ORANGE + ';' : 'background:#a3a5a2;'), style: 'flex:1;height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;background:linear-gradient(180deg,#f2f3f1,#dadbd8);box-shadow:0 2px 0 #a9aaa7,inset 0 1px 0 #fff;' }));
+    return {
+      notes: [{ note: 'B2', iv: '3' }, { note: 'F3', iv: '♭7' }, { note: 'G3', iv: 'R' }, { note: 'D4', iv: '5' }],
+      whites, blacks, maj, slots, grid, transport, strip
+    };
+  }
+}
+</script>
+</body>
+</html>
