@@ -46,7 +46,7 @@ public partial class PianoKeyboardControl : UserControl
     private sealed class KeyVisual
     {
         public required Rectangle Body { get; init; }
-        public required DropShadowEffect ShadowEffect { get; init; }
+        public DropShadowEffect? ShadowEffect { get; init; }
         public Rectangle? Chamfer { get; init; }
         public Rectangle? Skirt { get; init; }
         public Line? WhiteRidgeLine { get; init; }
@@ -308,24 +308,17 @@ public partial class PianoKeyboardControl : UserControl
 
     private KeyVisual CreateBlackKey(double x)
     {
-        var shadow = new DropShadowEffect
-        {
-            Color = _palette.Shadow,
-            Direction = 305,
-            ShadowDepth = 4.5,
-            Opacity = 0.68,
-            BlurRadius = 6
-        };
-
+        // Black keys sit directly inside slots cut into the white keys rather than floating above
+        // them: a crisp dark slot seam at the base and sculpted 3D side/nose facets give height
+        // without an offset floating drop shadow.
         var body = new Rectangle
         {
             Width = BlackKeyWidth,
             Height = BlackKeyHeight,
             Stroke = _palette.BlackBorder,
-            StrokeThickness = 0.7,
-            RadiusX = 2.5,
-            RadiusY = 2.5,
-            Effect = shadow
+            StrokeThickness = 1.0,
+            RadiusX = 2.0,
+            RadiusY = 2.0
         };
         Canvas.SetLeft(body, x);
         Canvas.SetTop(body, 0);
@@ -398,7 +391,6 @@ public partial class PianoKeyboardControl : UserControl
         return new KeyVisual
         {
             Body = body,
-            ShadowEffect = shadow,
             BlackTop = top,
             BlackNose = nose,
             BlackRidgeLine = ridgeLine,
@@ -549,15 +541,11 @@ public partial class PianoKeyboardControl : UserControl
 
         if (key.IsBlack)
         {
-            // Depress the 3D ebony prism when held: tighten its shadow, shift the top plane down,
-            // and compress its sloped front nose facet.
+            // Depress the 3D ebony prism when held: shift the top plane down and compress its
+            // sloped front nose facet within the key slot.
             double topY = held ? 2.5 : 1.0;
             double noseH = held ? BlackNosePressedHeight : BlackNoseHeight;
             double topH = BlackKeyHeight - noseH - topY;
-
-            v.ShadowEffect.ShadowDepth = held ? 1.6 : 4.5;
-            v.ShadowEffect.BlurRadius = held ? 2.8 : 6.0;
-            v.ShadowEffect.Opacity = held ? 0.48 : 0.68;
 
             if (v.BlackTop is { } top)
             {
@@ -591,8 +579,11 @@ public partial class PianoKeyboardControl : UserControl
             double skirtH = held ? WhiteSkirtPressedHeight : WhiteSkirtHeight;
             double skirtTop = WhiteKeyHeight - skirtH - 0.5;
 
-            v.ShadowEffect.ShadowDepth = held ? 1.0 : 2.5;
-            v.ShadowEffect.Opacity = held ? 0.3 : 0.45;
+            if (v.ShadowEffect is { } shadow)
+            {
+                shadow.ShadowDepth = held ? 1.0 : 2.5;
+                shadow.Opacity = held ? 0.3 : 0.45;
+            }
 
             if (v.Chamfer is { } chamfer)
                 chamfer.Height = skirtTop;
