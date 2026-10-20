@@ -41,8 +41,9 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <Image Source="app.png" Width="18" Height="18" Margin="10,0,8,0"
                            RenderOptions.BitmapScalingMode="HighQuality"/>
-                    <TextBlock Text="Piano MIDI Visualization" Foreground="{StaticResource Brush.Text.Tertiary}"
-                               FontSize="12" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                    <!-- The name printed on the panel, bold white like the comp's model name. -->
+                    <TextBlock Text="Piano MIDI Visualization" Foreground="{StaticResource Brush.Text.Primary}"
+                               FontSize="14" FontWeight="ExtraBold" VerticalAlignment="Center" Margin="0,0,16,0"/>
 
                     <Menu VerticalAlignment="Center">
                         <MenuItem Header="_View">
@@ -420,13 +421,13 @@
                             <StackPanel>
                                 <Button Style="{StaticResource Style.PanelKey}" Command="{Binding SaveCurrentChordCommand}"
                                         ToolTip="Save the chord to the progression (Space)" AutomationProperties.Name="Save chord">
-                                    <!-- Amber while there is a chord waiting to be saved. -->
+                                    <!-- Green while there is a chord to save, as on the comp. -->
                                     <Rectangle>
                                         <Rectangle.Style>
                                             <Style TargetType="Rectangle" BasedOn="{StaticResource Style.PanelLed}">
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding HasChord}" Value="True">
-                                                        <Setter Property="Fill" Value="{StaticResource Brush.Attention}"/>
+                                                        <Setter Property="Fill" Value="{StaticResource Brush.Led.Green}"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
