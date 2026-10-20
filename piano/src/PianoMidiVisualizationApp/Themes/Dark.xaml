@@ -247,7 +247,9 @@
     <SolidColorBrush x:Key="Brush.Attention.Wash"      Color="{StaticResource Color.Amber.Wash}"/>   <!-- on the stage -->
     <SolidColorBrush x:Key="Brush.Attention.WashHover" Color="{StaticResource Color.Amber.WashHover}"/>
     <SolidColorBrush x:Key="Brush.Stage.Hover"         Color="{StaticResource Color.Lacquer.Hover}"/>
-    <SolidColorBrush x:Key="Brush.Status.Ok"           Color="{StaticResource Color.Ivory.Muted}"/>
+    <!-- The status chip's dot while all is well: K's green status LED, a panel light like the
+         halos', not a "you hit it". -->
+    <SolidColorBrush x:Key="Brush.Status.Ok"           Color="#5DFF7A"/>
     <SolidColorBrush x:Key="Brush.Status.Activity"     Color="{StaticResource Color.Ivory.Key}"/>   <!-- a note played -->
 
     <!-- The title bar's status chip (DataContext: MainViewModel). Never focusable: a focused
@@ -401,10 +403,13 @@
          since it follows what is being played. -->
     <SolidColorBrush x:Key="Brush.Circle.Major"      Color="{StaticResource Color.Lacquer.Raised}"/>
     <SolidColorBrush x:Key="Brush.Circle.Minor"      Color="{StaticResource Color.Lacquer.Deep}"/>
-    <SolidColorBrush x:Key="Brush.Circle.Related"    Color="{StaticResource Color.Amber.Fill}"/>
-    <SolidColorBrush x:Key="Brush.Circle.Selected"   Color="{StaticResource Color.Amber.Deep}"/>
+    <!-- As on the K comp: the selected key is the white wedge with ink, its neighbours a mid
+         grey, the chord's root a white outline. -->
+    <SolidColorBrush x:Key="Brush.Circle.Related"    Color="#555555"/>
+    <SolidColorBrush x:Key="Brush.Circle.Selected"   Color="{StaticResource Color.Ivory.Primary}"/>
+    <SolidColorBrush x:Key="Brush.Circle.SelectedText" Color="{StaticResource Color.Ink}"/>
     <SolidColorBrush x:Key="Brush.Circle.Hover"      Color="{StaticResource Color.Ivory.Muted}"/>
-    <SolidColorBrush x:Key="Brush.Circle.RootMarker" Color="{StaticResource Color.Blue}"/>
+    <SolidColorBrush x:Key="Brush.Circle.RootMarker" Color="{StaticResource Color.Ivory.Primary}"/>
 
     <!-- ================= Grand staff =================
          Lines recede, the clefs and key signature sit a step forward, and the notes you are
@@ -455,12 +460,12 @@
         <GradientStop Color="#F6F6F4" Offset="0.88"/>
         <GradientStop Color="#E2E2DF" Offset="1"/>
     </LinearGradientBrush>
-    <!-- The tonic: a faint amber blush under its thick amber lip, enough to find the key
-         centre from the bench without turning keys yellow. -->
+    <!-- The tonic: plain white like every key; its thick dark front lip marks it. -->
     <LinearGradientBrush x:Key="Brush.Key.White.Tonic" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#F4EFE6" Offset="0"/>
-        <GradientStop Color="#FDF8EE" Offset="0.14"/>
-        <GradientStop Color="#F7EAD0" Offset="1"/>
+        <GradientStop Color="#EDEDEB" Offset="0"/>
+        <GradientStop Color="{StaticResource Color.Ivory.Key}" Offset="0.14"/>
+        <GradientStop Color="#F6F6F4" Offset="0.88"/>
+        <GradientStop Color="#E2E2DF" Offset="1"/>
     </LinearGradientBrush>
     <SolidColorBrush x:Key="Brush.Key.White.Border" Color="#2A2622"/>
 
@@ -488,10 +493,10 @@
     <!-- The tonic keeps a body colour on black keys too; the other in-key black keys get only
          the edge mark, so a scale doesn't turn half the black keys into coloured slabs. -->
     <LinearGradientBrush x:Key="Brush.Key.Black.Tonic" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#725829" Offset="0"/>
-        <GradientStop Color="#54401C" Offset="0.08"/>
-        <GradientStop Color="#453418" Offset="0.5"/>
-        <GradientStop Color="#3A2C12" Offset="1"/>
+        <GradientStop Color="#4A4540" Offset="0"/>
+        <GradientStop Color="#25221F" Offset="0.08"/>
+        <GradientStop Color="#181614" Offset="0.5"/>
+        <GradientStop Color="{StaticResource Color.Lacquer.Deep}" Offset="1"/>
     </LinearGradientBrush>
     <SolidColorBrush x:Key="Brush.Key.Black.Border" Color="#050404"/>
 
@@ -499,10 +504,13 @@
          black key, and the front lip of every in-key white key. On ebony or a held key the mark
          is light; on an unheld white key it is a dark amber lip against the wash. The tonic's
          mark is stronger and thicker. -->
-    <SolidColorBrush x:Key="Brush.Key.InKey.Mark"       Color="{StaticResource Color.Amber.Pale}"/>
-    <SolidColorBrush x:Key="Brush.Key.Tonic.Mark"       Color="{StaticResource Color.Amber.Strong}"/>
-    <SolidColorBrush x:Key="Brush.Key.InKey.Mark.Ivory" Color="{StaticResource Color.Amber.Border}"/>
-    <SolidColorBrush x:Key="Brush.Key.Tonic.Mark.Ivory" Color="{StaticResource Color.Amber.Deep}"/>
+    <!-- Neutral, not amber: the keys stay black and white. Light marks on ebony and held keys,
+         dark ones on white; the tonic's mark is the strongest and thickest. The lip on a white
+         key clears 3:1 against it. -->
+    <SolidColorBrush x:Key="Brush.Key.InKey.Mark"       Color="#9A9A98"/>
+    <SolidColorBrush x:Key="Brush.Key.Tonic.Mark"       Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="Brush.Key.InKey.Mark.Ivory" Color="#8E8E8A"/>
+    <SolidColorBrush x:Key="Brush.Key.Tonic.Mark.Ivory" Color="#2E2E2E"/>
 
     <!-- Hint outline and dot, with a deep keyline inside so the outline still separates from
          a light fill (ivory, amber, held blue) whose brightness is close to the magenta's. -->
@@ -599,6 +607,46 @@
             </DataTrigger>
             <DataTrigger Binding="{Binding FunctionKind}" Value="Chromatic">
                 <Setter Property="Text" Value=" chromatic"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Function}" Value="">
+                <Setter Property="Text" Value=""/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- K's numeral pill on the readout: a white key with ink. -->
+    <SolidColorBrush x:Key="Brush.Readout.Pill"    Color="{StaticResource Color.Ivory.Primary}"/>
+    <SolidColorBrush x:Key="Brush.Readout.PillInk" Color="{StaticResource Color.Ink}"/>
+
+    <!-- The numeral in the pill (DataContext: ChordAnalysis), with the same tooltips as the run. -->
+    <Style x:Key="Style.Function.NumeralPill" TargetType="TextBlock">
+        <Setter Property="ToolTip" Value="Roman numeral in the selected key"/>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding FunctionKind}" Value="SecondaryDominant">
+                <Setter Property="ToolTip" Value="Secondary dominant: the V or vii° of the chord after the slash"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding FunctionKind}" Value="Borrowed">
+                <Setter Property="ToolTip" Value="Borrowed from the parallel major or minor"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding FunctionKind}" Value="Chromatic">
+                <Setter Property="ToolTip" Value="Chromatic: outside the key and its parallel major and minor"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Between the kind word and the voicing, only while there is a kind word. -->
+    <Style x:Key="Style.Function.TagGap" TargetType="Run">
+        <Setter Property="Text" Value=""/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Faint}"/>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding FunctionKind}" Value="SecondaryDominant">
+                <Setter Property="Text" Value=" · "/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding FunctionKind}" Value="Borrowed">
+                <Setter Property="Text" Value=" · "/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding FunctionKind}" Value="Chromatic">
+                <Setter Property="Text" Value=" · "/>
             </DataTrigger>
             <DataTrigger Binding="{Binding Function}" Value="">
                 <Setter Property="Text" Value=""/>
@@ -721,6 +769,7 @@
          while off, a white one with ink while on. -->
     <Style x:Key="Style.SoftKeyToggle" TargetType="ToggleButton">
         <Setter Property="Focusable" Value="False"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="MinWidth" Value="44"/>
         <Setter Property="Padding" Value="8,0"/>
@@ -733,6 +782,7 @@
                 <ControlTemplate TargetType="ToggleButton">
                     <StackPanel Background="Transparent">
                         <Border Height="22" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1.5"
                                 CornerRadius="4" SnapsToDevicePixels="True">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
@@ -743,8 +793,8 @@
                             <Setter Property="Background" Value="{StaticResource Brush.ChordTile.Hover}"/>
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter Property="Background" Value="{StaticResource Brush.On}"/>
-                            <Setter Property="Foreground" Value="{StaticResource Brush.On.Ink}"/>
+                            <Setter Property="BorderBrush" Value="{StaticResource Brush.Text.Primary}"/>
+                            <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Key" Property="RenderTransform">

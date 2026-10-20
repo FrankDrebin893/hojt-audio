@@ -34,9 +34,9 @@ suggests where the saved progression could go next.*
   it are the inversion, the voicing (close, open, shell or drop 2), each note, and its interval
   above the root.
 - **Keys and scales**: pick a key centre and one of 12 scales: major, natural, harmonic and
-  melodic minor, the five other modes, major and minor pentatonic, and blues. The keyboard shows
-  the key in amber: a wash on in-key keys, the tonic in full, and a small mark on in-key black
-  keys and on in-key keys you hold, so it doesn't rest on colour alone. Note names switch between sharps
+  melodic minor, the five other modes, major and minor pentatonic, and blues. The keyboard marks
+  the key with a thin lip along the front of every in-key key and a thick dark one on the tonic,
+  so the keys themselves stay black and white. Note names switch between sharps
   and flats to suit the key.
 - **Mute out-of-key**: out-of-key notes go silent but still light up and still count toward the
   chord name, so you can hear the scale and see your mistakes.

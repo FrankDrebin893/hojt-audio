@@ -238,7 +238,7 @@ public partial class CircleOfFifthsControl : UserControl
         foreach (var name in segment.Names)
         {
             name.SetResourceReference(TextBlock.ForegroundProperty,
-                isSelected ? "Brush.Text.Primary" : isMajor ? "Brush.Text.Secondary" : "Brush.Text.Tertiary");
+                isSelected ? "Brush.Circle.SelectedText" : isMajor ? "Brush.Text.Secondary" : "Brush.Text.Tertiary");
             name.FontWeight = isSelected ? FontWeights.Bold : isMajor ? FontWeights.SemiBold : FontWeights.Normal;
         }
     }

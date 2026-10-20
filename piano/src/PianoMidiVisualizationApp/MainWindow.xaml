@@ -508,69 +508,74 @@
                          chord name's top. -->
                     <Viewbox Grid.Column="1" Stretch="Uniform" StretchDirection="DownOnly"
                              VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24,12">
-                    <StackPanel>
-                        <!-- Line boxes are trimmed to pay for the voicing line: the stack has to fit
-                             the 159px row at 900x420, and the 140px MinHeight row an open recorder,
-                             log or chat squeezes it to without shaving the chord name. The name's own
-                             85px line leaves ~20px empty above the tallest glyph; at 70 a slash or
-                             parenthesis still clears the voicing text by the ~4px it used to clear
-                             the notes line by. Notes and intervals keep ~1px over their natural line. -->
+                    <!-- K's readout: the chord name with its numeral and voicing under it, and
+                         beside them the held notes as a list, each with its interval. -->
+                    <StackPanel Orientation="Horizontal">
+                    <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="{Binding Analysis.Name}" Style="{StaticResource Style.Readout.Latch}"
-                                   FontSize="{StaticResource Size.Readout.Name}" FontWeight="Black"
+                                   FontSize="{StaticResource Size.Readout.Name}" FontWeight="ExtraBold"
                                    Foreground="{StaticResource Brush.Text.Primary}"
                                    LineStackingStrategy="BlockLineHeight" LineHeight="70"
-                                   MinHeight="70" TextAlignment="Center"/>
-                        <!-- The Roman numeral leads the voicing line: "V65 · 1st inversion · close".
-                             There is no height left for a line of its own, so the numeral shares
-                             this one. The block line height pins it at 19px however large the
-                             numeral's run is, and one TextBlock keeps every run on one baseline.
-                             The runs abut with no whitespace between tags, which would render as
-                             a stray leading space and nudge the voicing off-centre with no key. -->
-                        <TextBlock DataContext="{Binding Analysis}" Style="{StaticResource Style.Readout.Latch}"
-                                   FontSize="{StaticResource Size.Readout.Voicing}"
-                                   Foreground="{StaticResource Brush.Text.Secondary}"
-                                   LineStackingStrategy="BlockLineHeight" LineHeight="19"
-                                   MinHeight="19" Margin="0,3,0,0" TextAlignment="Center"><Run
-                                       Text="{Binding Function, Mode=OneWay}"
-                                       FontSize="{StaticResource Size.Readout.Function}" FontWeight="SemiBold"
-                                       Style="{StaticResource Style.Function.Numeral}"/><Run
+                                   MinHeight="70" MinWidth="180"/>
+                        <!-- The numeral in a white pill, then its kind and the voicing:
+                             "[V65] 1st inversion · drop 2". The row keeps its height empty. -->
+                        <StackPanel Orientation="Horizontal" DataContext="{Binding Analysis}" MinHeight="22"
+                                    Margin="2,4,0,0" Style="{StaticResource Style.Readout.Latch}">
+                            <Border CornerRadius="4" Padding="7,0" Margin="0,0,8,0" VerticalAlignment="Center"
+                                    Background="{StaticResource Brush.Readout.Pill}">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Function}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock Text="{Binding Function}" FontFamily="{StaticResource Font.Data}"
+                                           FontSize="{StaticResource Size.Readout.Function}" FontWeight="Bold"
+                                           Foreground="{StaticResource Brush.Readout.PillInk}"
+                                           Style="{StaticResource Style.Function.NumeralPill}"/>
+                            </Border>
+                            <TextBlock FontSize="{StaticResource Size.Readout.Voicing}" VerticalAlignment="Center"
+                                       Foreground="{StaticResource Brush.Text.Secondary}"><Run
                                        FontSize="11" Style="{StaticResource Style.Function.Tag}"/><Run
-                                       Style="{StaticResource Style.Function.VoicingSeparator}"/><Run
+                                       Style="{StaticResource Style.Function.TagGap}"/><Run
                                        Text="{Binding Voicing, Mode=OneWay}"/></TextBlock>
-                        <!-- The notes, each with its interval above the root centred under it. One
-                             column per note rather than two padded lines: the lines are set at
-                             different sizes, so padding alone let the intervals drift off their
-                             notes. The MinHeight is the two line boxes, 22 and 18. -->
-                        <ItemsControl ItemsSource="{Binding Analysis.Columns}" Focusable="False"
-                                      Style="{StaticResource Style.Readout.Latch}"
-                                      MinHeight="40" HorizontalAlignment="Center">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Margin="6,0">
-                                        <TextBlock Text="{Binding Note}" FontFamily="{StaticResource Font.Data}"
-                                                   FontSize="{StaticResource Size.Readout.Notes}"
-                                                   Foreground="{StaticResource Brush.Text.Tertiary}"
-                                                   MinHeight="22" TextAlignment="Center"/>
-                                        <TextBlock Text="{Binding Interval}" FontFamily="{StaticResource Font.Data}"
-                                                   FontSize="{StaticResource Size.Readout.Intervals}"
-                                                   Foreground="{StaticResource Brush.Text.Muted}"
-                                                   MinHeight="18" TextAlignment="Center"/>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        </StackPanel>
                         <!-- That the chord was saved ("Saved · 3/8"), or can't be ("Progression
                              full"). How to save it shows only until the first chord is saved. -->
-                        <TextBlock Text="{Binding SaveHint}" FontSize="11" Margin="0,4,0,0"
-                                   Foreground="{StaticResource Brush.Text.Hint}"
-                                   MinHeight="18" TextAlignment="Center"
+                        <TextBlock Text="{Binding SaveHint}" FontSize="11" Margin="2,6,0,0"
+                                   Foreground="{StaticResource Brush.Text.Hint}" MinHeight="16"
                                    Visibility="{Binding Analysis.Name,
                                                 Converter={StaticResource StringToVisibilityConverter}}"/>
+                    </StackPanel>
+                    <!-- The held notes, lowest first, each with its interval above the root.
+                         Four to a column, wrapping into a second for bigger chords, so the
+                         readout's height never changes with the chord. -->
+                    <ItemsControl ItemsSource="{Binding Analysis.Columns}" Focusable="False"
+                                  Style="{StaticResource Style.Readout.Latch}"
+                                  Margin="24,6,0,0" VerticalAlignment="Center" MinWidth="64">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Vertical" Height="92"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Height="23" Margin="0,0,16,0">
+                                    <TextBlock Text="{Binding Note}" FontFamily="{StaticResource Font.Data}"
+                                               FontSize="{StaticResource Size.Readout.Notes}" FontWeight="Bold"
+                                               Foreground="{StaticResource Brush.Text.Primary}"
+                                               MinWidth="38" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Interval}" FontFamily="{StaticResource Font.Data}"
+                                               FontSize="{StaticResource Size.Readout.Intervals}"
+                                               Foreground="{StaticResource Brush.Text.Muted}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                     </StackPanel>
                     </Viewbox>
 
