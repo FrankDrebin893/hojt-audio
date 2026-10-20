@@ -30,8 +30,7 @@ Copy-Item "D:\Repos\PianoMidiVisualizationApp\src\PianoMidiVisualizationApp\bin\
 The copy fails while the app is running — close it first (`Get-Process
 PianoMidiVisualizationApp`), and verify afterwards that the target's timestamp moved.
 
-After changing `app.ico`, delete `obj\Release
-et10.0-windows\win-x64pphost.exe` (and the
+After changing `app.ico`, delete `obj\Release\net10.0-windows\win-x64\apphost.exe` (and the
 Debug one) before publishing: the SDK reuses the cached apphost and the exe keeps the old
 icon even though the dll has the new one. Then run `ie4uinit.exe -ClearIconCache` so
 Explorer stops showing the cached one.
