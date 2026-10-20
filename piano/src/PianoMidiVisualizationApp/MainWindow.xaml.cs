@@ -20,10 +20,49 @@ public partial class MainWindow : Window
     /// <summary>...settling down 6px as it arrives, so it reads as news rather than as furniture.</summary>
     private static readonly DoubleAnimation EchoSettle = CreateEchoSettle();
 
+    /// <summary>
+    /// True on a short stage, where the panel folds its soft keys away so the keyboard keeps
+    /// its height (the stage has only ~24px to spare at the 900x420 minimum).
+    /// </summary>
+    public static readonly DependencyProperty IsCompactProperty = DependencyProperty.Register(
+        nameof(IsCompact), typeof(bool), typeof(MainWindow), new PropertyMetadata(false));
+
+    public bool IsCompact
+    {
+        get => (bool)GetValue(IsCompactProperty);
+        set => SetValue(IsCompactProperty, value);
+    }
+
+    /// <summary>Below this stage height the soft keys fold away: about a 560px window with no
+    /// panels open, or a taller one with the recorder and log open.</summary>
+    private const double CompactStageHeight = 480;
+
+    /// <summary>The window's corner radius; square while maximised, as Windows draws it.</summary>
+    private const double WindowCornerRadius = 10;
+
     public MainWindow()
     {
         InitializeComponent();
         Loaded += OnLoaded;
+        WindowFrame.SizeChanged += (_, _) => UpdateWindowClip();
+        Stage.SizeChanged += (_, _) => IsCompact = Stage.ActualHeight < CompactStageHeight;
+        StateChanged += (_, _) => UpdateWindowClip();
+    }
+
+    /// <summary>
+    /// Clips the frame to its rounded shape. The border's CornerRadius rounds only its own
+    /// background; the title bar, panels and status bar inside it would paint square corners
+    /// over it without the clip.
+    /// </summary>
+    private void UpdateWindowClip()
+    {
+        bool maximised = WindowState == WindowState.Maximized;
+        double radius = maximised ? 0 : WindowCornerRadius;
+        WindowFrame.CornerRadius = new CornerRadius(radius);
+        WindowFrame.BorderThickness = new Thickness(maximised ? 0 : 1);
+        var clip = new RectangleGeometry(new Rect(WindowFrame.RenderSize), radius, radius);
+        clip.Freeze();
+        WindowFrame.Clip = clip;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)

@@ -299,6 +299,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             if (e.Action != System.Collections.Specialized.NotifyCollectionChangedAction.Add)
                 _readoutSaved = false;
             UpdateSaveHint();
+            OnPropertyChanged(nameof(ProgressionLeds));
         };
 
         PianoControls = new PianoControlsViewModel(dispatcher);
@@ -695,6 +696,37 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private void TapMetronome() => Tap(_tapClock.Elapsed);
+
+    // ----- The front panel's key buttons -----
+
+    /// <summary>One step round the circle of fifths: up a fifth, or down one. With no key, starts at C.</summary>
+    [RelayCommand]
+    private void NextKey() => Settings.KeyTonicPitchClass = Settings.KeyTonicPitchClass is { } pc ? (pc + 7) % 12 : 0;
+
+    [RelayCommand]
+    private void PreviousKey() => Settings.KeyTonicPitchClass = Settings.KeyTonicPitchClass is { } pc ? (pc + 5) % 12 : 0;
+
+    /// <summary>The next scale in picker order, wrapping round, on the same tonic.</summary>
+    [RelayCommand]
+    private void NextScale()
+    {
+        var options = SettingsViewModel.ScaleOptions;
+        int index = options.ToList().FindIndex(o => o.Scale == Settings.KeyScale);
+        Settings.KeyScale = options[(index + 1) % options.Count].Scale;
+        Settings.KeyTonicPitchClass ??= 0;
+    }
+
+    /// <summary>Mute out-of-key, from the panel. Only with a key selected, as the toolbar's checkbox.</summary>
+    [RelayCommand]
+    private void ToggleMuteOutOfKey()
+    {
+        if (Settings.IsKeyHighlightEnabled)
+            Settings.MuteOutOfKeyNotes = !Settings.MuteOutOfKeyNotes;
+    }
+
+    /// <summary>The panel's eight progression LEDs: lit for each saved chord, in order.</summary>
+    public IReadOnlyList<bool> ProgressionLeds =>
+        Enumerable.Range(0, MaxSavedChords).Select(i => i < SavedChords.Count).ToList();
 
     /// <summary>
     /// Sets the tempo from the average of the last few taps; the first tap only starts the

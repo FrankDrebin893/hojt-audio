@@ -110,7 +110,13 @@ suggests where the saved progression could go next.*
 
 ### Arrange the screen
 
-![Zen mode in F major. Only the chord readout, showing Bbmaj7 as IVmaj7, and the keyboard remain, with the key's notes tinted and the tonic F highlighted.](docs/screenshots/zen-mode.png)
+![Zen mode in F major. Only the chord readout, showing Bbmaj7 as IVmaj7, and the keyboard remain, with the key's notes marked and the tonic F highlighted.](docs/screenshots/zen-mode.png)
+
+- **The front panel**: beside the display, two knobs set the volume and the metronome click
+  (drag or scroll), and twelve keys step the key round the circle of fifths, change the scale,
+  mute out-of-key notes, run the metronome and tap tempo, record, play and loop a take, and save
+  the chord. Their lights show what's on, and eight lights count the saved chords. The chord
+  strip's tiles have a key under each one, too.
 
 - Every panel can be shown or hidden from the **View** menu or its shortcut. **Zen mode**
   (**F11**) hides everything but the chord readout and the keyboard, and F11 again brings your

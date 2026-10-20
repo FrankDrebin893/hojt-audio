@@ -57,13 +57,18 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CurrentKey))]
     [NotifyPropertyChangedFor(nameof(IsKeyHighlightEnabled))]
+    [NotifyPropertyChangedFor(nameof(KeyLabel))]
     private int? _keyTonicPitchClass;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CurrentKey))]
+    [NotifyPropertyChangedFor(nameof(KeyLabel))]
     private ScaleType _keyScale = ScaleType.Major;
 
     public bool IsKeyHighlightEnabled => KeyTonicPitchClass.HasValue;
+
+    /// <summary>The key as the OLED's header line reads it: "C Major", or "No key".</summary>
+    public string KeyLabel => CurrentKey?.DisplayName ?? "No key";
 
     /// <summary>
     /// Silence notes outside the selected key. Inert while no key is selected, which is why

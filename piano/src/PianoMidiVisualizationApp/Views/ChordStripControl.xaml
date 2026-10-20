@@ -9,7 +9,7 @@
             <!-- Only for pentatonic and blues keys, whose chords come from a parent scale. -->
             <TextBlock Text="{Binding Caption}" ToolTip="{Binding CaptionDetail}"
                        FontSize="11" Foreground="{StaticResource Brush.Text.Muted}"
-                       VerticalAlignment="Center" Margin="0,0,8,0"
+                       VerticalAlignment="Top" Margin="0,3,8,0"
                        Visibility="{Binding HasCaption, Converter={StaticResource BoolToVisConverter}}"/>
 
             <ItemsControl ItemsSource="{Binding Tiles}" Focusable="False">
@@ -48,8 +48,8 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <ToggleButton Content="7ths" Height="22" Margin="8,0,0,0" FontSize="11"
-                          Focusable="False" Style="{StaticResource Style.ToolbarToggle}"
+            <ToggleButton Content="7ths" Margin="8,0,0,0" FontSize="11"
+                          Style="{StaticResource Style.SoftKeyToggle}"
                           IsChecked="{Binding ShowSevenths}"
                           ToolTip="Seventh chords instead of triads"/>
         </StackPanel>

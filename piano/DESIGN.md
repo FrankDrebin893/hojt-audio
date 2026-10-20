@@ -11,7 +11,7 @@ colors:
   bezel: "#0C0C0C"
   felt: "#111111"
   disabled-fill: "#141414"
-  ivory-key: "#FBF8F0"
+  ivory-key: "#FCFCFB"
   legend-primary: "#FFFFFF"
   legend-pressed: "#F4F2EE"
   legend-secondary: "#F0EEEC"
@@ -44,31 +44,31 @@ colors:
   danger-text: "#F0736A"
 typography:
   display:
-    fontFamily: "Segoe UI"
+    fontFamily: "Inter Tight"
     fontSize: "72px"
-    fontWeight: 900
+    fontWeight: 800
   headline:
-    fontFamily: "Segoe UI"
+    fontFamily: "Inter Tight"
     fontSize: "18px"
     fontWeight: 600
   body:
-    fontFamily: "Segoe UI"
+    fontFamily: "Inter Tight"
     fontSize: "12px"
     fontWeight: 400
   body-readout:
-    fontFamily: "Segoe UI"
+    fontFamily: "Inter Tight"
     fontSize: "14px"
     fontWeight: 400
   legend:
-    fontFamily: "Segoe UI"
-    fontSize: "12px"
-    fontWeight: 700
+    fontFamily: "Inter Tight"
+    fontSize: "11px"
+    fontWeight: 600
   data:
-    fontFamily: "Cascadia Mono, Consolas"
+    fontFamily: "JetBrains Mono"
     fontSize: "18px"
     fontWeight: 400
   data-small:
-    fontFamily: "Cascadia Mono, Consolas"
+    fontFamily: "JetBrains Mono"
     fontSize: "11px"
     fontWeight: 400
 rounded:
@@ -77,6 +77,8 @@ rounded:
   card: "6px"
   oled-inner: "6px"
   oled-bezel: "10px"
+  window: "10px"
+  panel-key: "5px"
   pill: "11px"
 spacing:
   hairline: "2px"
@@ -117,9 +119,17 @@ components:
   halo-knob:
     width: "104px"
     height: "104px"
+  panel-key:
+    backgroundColor: "{colors.rubber-raised}"
+    rounded: "{rounded.panel-key}"
+    width: "52px"
+    height: "34px"
+  soft-key:
+    backgroundColor: "{colors.rubber-raised}"
+    height: "16px"
 ---
 
-<!-- Provenance: recorded from the shipped artifact on 2026-10-20 (commit e7ec2fd and the halo-knob commit after it, branch feature/app-design-concepts-1467dc). Direction: concept K, "Scarlet anodised", picked by the user from three rounds of hardware-display concepts (docs/design-concepts/Scarlet.dc.html; the live canvas is linked from docs/design-concepts/README.md). It replaced a phosphor-scope trial (commits 30a6ba0, 08255c7), which replaced "piano character" (shipped 2026-09-28). The Impeccable sidecar, .impeccable/design.json, still describes piano character and needs regenerating. Product truth lives in PRODUCT.md and is not repeated here. -->
+<!-- Provenance: recorded from the shipped artifact on 2026-10-20 (commits e7ec2fd, 98a1f0c and the full-panel commit after them, branch feature/app-design-concepts-1467dc). Direction: concept K, "Scarlet anodised", picked by the user from three rounds of hardware-display concepts (docs/design-concepts/Scarlet.dc.html; the live canvas is linked from docs/design-concepts/README.md). It replaced a phosphor-scope trial (commits 30a6ba0, 08255c7), which replaced "piano character" (shipped 2026-09-28). The Impeccable sidecar, .impeccable/design.json, still describes piano character and needs regenerating. Product truth lives in PRODUCT.md and is not repeated here. -->
 
 # Design System: Piano MIDI Visualization
 
@@ -131,7 +141,7 @@ Token slugs above map to `Color.*` keys, several under names kept from piano cha
 
 **Creative North Star: "The Front Panel"**
 
-The window is a piece of hardware. The chrome (title bar, sidebar, toolbar, status bar) is one sheet of brushed scarlet aluminium with white legends. Set into it is a black OLED window that holds everything you read: the grand staff, the chord name, the circle of fifths and the chord strip. Below, behind a felt strip, sit real ivory and ebony keys. Beside the window, two halo knobs set the volume and the click.
+The window is a piece of hardware with rounded corners. The chrome (title bar, sidebar, toolbar, status bar) is one sheet of brushed scarlet aluminium with white legends. Set into it is a black OLED window that holds everything you read: a status line, the grand staff, the chord name, the circle of fifths and the chord strip, whose tiles are soft keys with a physical key under each one. Beside the window, the front panel: two halo knobs for volume and click, twelve rubber keys with LEDs, and the progression's eight LEDs. Below, behind a felt strip, sit real white and black keys.
 
 The OLED is where the eye goes: true black, white type, amber for the key you're in, blue for what you're playing. The panel around it is loud in colour but quiet in content, with legends and controls only. Controls are black rubber keys on the red, and a switched-on control is a white key with black ink.
 
@@ -140,7 +150,8 @@ Density stays instrument-tight: 12px body, 22px tiles, 3px corners, a 900x420 mi
 **Key Characteristics:**
 - One scarlet panel, brushed, shared by every chrome surface without seams.
 - One black OLED window with a bezel holds the readout; song practice hides it so the lane meets the keys edge to edge.
-- Real keys: a held key goes down and lights blue along its back edge.
+- Real keys, neutral white with no ivory yellowing: a held key goes down and lights blue along its back edge.
+- A front panel of knobs and LED keys that are shortcuts to things the toolbar also does.
 - White legends that clear 4.5:1 on the scarlet, and so clear it easily on black.
 - On means white: a lit toggle, the primary action and the played chord tile are white with black ink.
 - Every other hue keeps one job (amber key, blue playing, magenta asking, teal/violet hands, green hit, red miss/record); the halo knobs are the one place a green-to-red level scale appears.
@@ -170,7 +181,7 @@ A scarlet panel, a black display, white legends, one amber, and the single-job s
 - **Bezel** (`bezel`) with a 25%-white bottom lip (`Brush.Oled.Lip`): the frame round the OLED.
 - **Felt** (`felt`): the strip behind the keys.
 - **Disabled Fill** (`disabled-fill`): a control that can't be used. Never the panel brush, which would make it read as a lit red button.
-- **Keytop Ivory** (`ivory-key`): white keytops and the playhead.
+- **Keytop White** (`ivory-key`): white keytops and the playhead. Neutral, not ivory: the in-key keys take no wash at all and the tonic only a faint blush, so the keyboard stays white in every key.
 - **Legend Primary → Muted** (`legend-*`): text from the chord name down to hints. Muted (#D0CECC) is the floor for words: 4.8:1 on the scarlet.
 - **Legend Faint** (`legend-faint`): marks only (staff lines, the metronome's dot, scroll thumbs). Never words.
 - **Ink** (`ink`): text on a white key: a switched-on toggle, the primary action, the played chord tile.
@@ -188,17 +199,19 @@ A scarlet panel, a black display, white legends, one amber, and the single-job s
 
 ## Typography
 
-**Body Font:** Segoe UI (WPF's default, never overridden at the window)
-**Data Font:** Cascadia Mono, falling back to Consolas on Windows 10 (`Font.Data`)
+**Body Font:** Inter Tight (`Font.Body`, set on the window), bundled as static Regular, Medium, SemiBold, Bold and ExtraBold TTFs in `Fonts/` (WPF does not read variable-font axes)
+**Data Font:** JetBrains Mono (`Font.Data`), Regular and Bold, bundled the same way
+Both are SIL OFL 1.1 (THIRD-PARTY-NOTICES.txt), and their pack URIs are assembly-qualified so the screenshot harness, a different entry assembly, loads them too.
 **Icon Font:** Segoe MDL2 Assets (`Font.Icon`); music glyphs come from Segoe UI Symbol
 
 ### Hierarchy
-- **Display** (Segoe UI Black 900, 72px, `Size.Readout.Name`): the chord name, white on the OLED. The only display-size text.
+- **Display** (Inter Tight ExtraBold 800, 72px, `Size.Readout.Name`): the chord name, white on the OLED. The only display-size text.
 - **Headline** (SemiBold 18px, `Size.Readout.Function`): the Roman numeral leading the voicing line.
 - **Body** (Regular 12px; 14px for the voicing, `Size.Readout.Voicing`): controls, menus, tiles, lists.
-- **Legend** (Bold 12px): the knob names, VOLUME and CLICK, printed on the panel.
+- **Legend** (Bold 12px for VOLUME, CLICK and PROGRESSION; SemiBold 11px, lowercase, under each panel key): printed on the panel.
+- **Status line** (JetBrains Mono 11px): the OLED's header, key in white, the rest Muted.
 - **Data** (Cascadia Mono 18px notes, 14px intervals, 11px knob values, the MIDI log and clocks): pitches, intervals and numbers that change.
-- **Key labels** (set in `PianoKeyboardControl`, Segoe UI): Medium at rest, SemiBold when held, as in piano character.
+- **Key labels** (set in `PianoKeyboardControl`, `Font.Body`): Medium at rest, SemiBold when held, as in piano character.
 
 ### Named Rules
 **The Data Holds Still Rule.** Monospace is for pitches, intervals, levels, the MIDI log and clocks, so digits don't shift as they change.
@@ -207,9 +220,11 @@ A scarlet panel, a black display, white legends, one amber, and the single-job s
 
 ## Layout
 
-A single fixed-structure window, minimum 900x420, default 1400x620. Rows: a 32px title bar on the panel; the stage; then the recorder, MIDI log, AI chat and status bar as collapsible rows. The stage's left column has two columns of its own: the OLED window (star width) and the halo knobs (Auto, so it takes no room when they hide). The OLED window spans the stage's first three rows (practice toolbar, readout, chord strip), inset 16px from the panel edges with a 6px bezel. The practice toolbar and the keyboard span both columns below it. The chord-progression sidebar is a fixed 220px column on the panel.
+A single fixed-structure window, minimum 900x420, default 1400x620, with 10px rounded corners: the window is transparent and `WindowFrame`, a border with the panel brush and a darker rim (`Brush.Window.Rim`), is clipped to a rounded rectangle in code-behind (square while maximised). Rows: a 32px title bar on the panel; the stage; then the recorder, MIDI log, AI chat and status bar as collapsible rows. The stage's left column has two columns of its own: the OLED window (star width) and the halo knobs (Auto, so it takes no room when they hide). The OLED window spans the stage's first three rows (practice toolbar, readout, chord strip), inset 16px from the panel edges with a 6px bezel. The practice toolbar and the keyboard span both columns below it. The chord-progression sidebar is a fixed 220px column on the panel.
 
-Song practice hides the OLED window and the knobs, and drops the felt strip, so the falling-notes lane runs edge to edge and its bottom is the keys' top edge. Zen mode keeps the window and the keys and hides the knobs.
+The OLED's status line sits at the top of the readout row, not in a row of its own, so it shrinks with the readout. While the chord strip shows, the window stops 30px short of the strip's row bottom so the soft keys sit on the panel below its bezel. On a short stage (under 480px, `MainWindow.IsCompact`) the soft keys fold away and the window runs to the strip again: the stage has only ~24px to spare at 900x420, and the keyboard clips rather than shrinks.
+
+Song practice hides the OLED window and the panel, and drops the felt strip, so the falling-notes lane runs edge to edge and its bottom is the keys' top edge. Zen mode keeps the window and the keys and hides the knobs.
 
 Spacing stays small and even, in 2 / 4 / 6 / 8 / 12 / 16px steps.
 
@@ -247,11 +262,17 @@ A `RangeBase` drawn in code: a 104px recess, 15 level LEDs on a 270° sweep from
 ### Keyboard (signature)
 Piano character's ivory keytops and beveled ebony sharps with its amber key-centre roles and edge marks, unchanged except for the held state: the key shades down and lights a blue back edge. Hints are magenta outlines and dots with a deep keyline. A black felt strip runs above the keys across the panel (hidden in song practice).
 
+### Front Panel Keys (signature, `Style.PanelKey`)
+Twelve 52x34 black rubber keys in a 4x3 grid under the knobs, in K's order: key ◂, key ▸ (a step down or up the circle of fifths), scale (the next scale on the same tonic), mute (out-of-key), metro, tap, − and + (tempo), rec, play and loop (the selected take), save. Each has a 2px black skirt, a lit top edge, an LED bar set into its top (`Style.PanelLed`) and a lowercase legend under it (`Style.PanelLegend`). An LED lights white for a state that is on (mute, metronome, playing, looping), red while recording is armed, and amber on save while there is a chord to save. Under the grid, PROGRESSION and eight LEDs lit for each saved chord. Never focusable; every key does something the toolbar, a shortcut or a menu also does.
+
 ### Diatonic Chord Strip (signature)
-Black 22px rubber tiles on the OLED's bottom edge, Legend Tertiary text with a white SemiBold numeral. The played tile turns white with Ink for both name and numeral (`Brush.ChordTile.PlayedInk`). A hovered tile takes a magenta outline. Never focusable.
+Soft keys: each tile is a 22px black rubber label on the OLED's bottom edge, Legend Tertiary text with a white SemiBold numeral, and under it, 18px lower and past the bezel, a 16px physical key (`Style.SoftKeyCap`) that dips when pressed; the whole column is one button. The played tile's label turns white with Ink for both name and numeral (`Brush.ChordTile.PlayedInk`). A hovered tile takes a magenta outline. The 7ths switch is a soft key too (`Style.SoftKeyToggle`), white with Ink while on. Never focusable.
+
+### App Icon
+`app.ico` (16 to 256px) and `app.png` (the title bar's 18px image): the panel in miniature. A scarlet tile with a black OLED window showing a white chord bar and a lit halo knob, over real white and black keys with one held key lit blue. Drawn by script, with the grain and the small text lines dropped below 32px.
 
 ### Chord Readout, Grand Staff, Circle of Fifths
-As in piano character, now white on the OLED: chord name in Segoe UI Black, numeral and voicing line, notes and intervals in columns, the save line. The staff draws Faint lines, Tertiary clefs and white notes. The circle's major ring is Rubber Raised and its minor ring Well Deep, with a Deep Amber selected wedge, Amber Fill related keys and a blue root outline.
+As in piano character, now white on the OLED: chord name in Inter Tight ExtraBold, numeral and voicing line, notes and intervals in columns, the save line. The staff draws Faint lines, Tertiary clefs and white notes. The circle's major ring is Rubber Raised and its minor ring Well Deep, with a Deep Amber selected wedge, Amber Fill related keys and a blue root outline.
 
 ### Chips, Menus, Inputs, Scrollbars
 As in piano character, recoloured by the tokens: the status chip is a pill on the panel that turns amber when something isn't ready; menus and popups are Rubber Raised with a Rubber Line border; inputs are Rubber Raised with a Rubber Line outline; scroll thumbs are Legend Faint.
@@ -276,4 +297,4 @@ As in piano character, recoloured by the tokens: the status chip is a pill on th
 - **Don't** use Unicode look-alike glyphs (✕, ↻, □) for icons; use Segoe MDL2 Assets codes or a drawn path.
 
 ### Open ideas (not shipped; not rules)
-K's button grid and progression LEDs on the panel (the sidebar does that job), and a halo knob for tempo.
+A halo knob for tempo; a beat flash on the metro key's LED.

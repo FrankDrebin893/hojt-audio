@@ -39,7 +39,7 @@
          black OLED, so it is set by the panel: Muted and brighter clear 4.5:1 on Chrome (and
          far more on black). Faint is below that, so it draws marks (staff lines, the
          metronome's dot, scroll thumbs), never words. The "Ivory" names stay for the renderers. -->
-    <Color x:Key="Color.Ivory.Key">#FBF8F0</Color>
+    <Color x:Key="Color.Ivory.Key">#FCFCFB</Color>
     <Color x:Key="Color.Ivory.Primary">#FFFFFF</Color>
     <Color x:Key="Color.Ivory.Pressed">#F4F2EE</Color>    <!-- a control that is switched on -->
     <Color x:Key="Color.Ivory.Secondary">#F0EEEC</Color>
@@ -80,15 +80,21 @@
     <Color x:Key="Color.Shadow">#000000</Color>
 
     <!-- ================= Type =================
-         Segoe UI, the system face, carries every word; numbers that change hold still in a
-         monospace. Cascadia Mono ships with Windows 11; Consolas covers Windows 10. -->
-    <FontFamily x:Key="Font.Data">Cascadia Mono, Consolas</FontFamily>
+         Inter Tight carries every word, set tight like a panel legend; JetBrains Mono holds the
+         numbers that change still. Both are bundled (Fonts/), so the look doesn't depend on
+         what Windows has installed. The URIs are assembly-qualified so the screenshot harness,
+         a different entry assembly, finds them too. -->
+    <FontFamily x:Key="Font.Body">pack://application:,,,/PianoMidiVisualizationApp;component/Fonts/#Inter Tight</FontFamily>
+    <FontFamily x:Key="Font.Data">pack://application:,,,/PianoMidiVisualizationApp;component/Fonts/#JetBrains Mono</FontFamily>
 
     <!-- ================= The panel =================
          The brushed anodising itself is Brush.Window, Brush.TitleBar and Brush.Surface below:
          hairline grain over the scarlet, tiled in absolute units so every panel shares one
          grain and the seams vanish. Three copies, because a StaticResource alias defined in
          this merged dictionary is not found from the window. -->
+
+    <!-- The window's rounded outline: a darker edge round the anodised sheet. -->
+    <SolidColorBrush x:Key="Brush.Window.Rim" Color="#5C0A10"/>
 
     <!-- The OLED window's bezel: a black frame a step proud of the panel, with a lit lip. -->
     <SolidColorBrush x:Key="Brush.Oled.Bezel" Color="#0C0C0C"/>
@@ -416,19 +422,22 @@
          Every label brush is paired with the fill it sits on: idle labels clear 4.5:1 on ivory,
          the in-key wash and the tonic's darkest edge; the held pair clears 4.5:1 on its fill. -->
 
+    <!-- Neutral white keytops, as on the front-panel concept: no ivory yellowing. -->
     <LinearGradientBrush x:Key="Brush.Key.White" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="{StaticResource Color.Ivory.Key}" Offset="0"/>
-        <GradientStop Color="#EAE5DA" Offset="1"/>
+        <GradientStop Color="#EDEDEB" Offset="0"/>
+        <GradientStop Color="{StaticResource Color.Ivory.Key}" Offset="0.14"/>
+        <GradientStop Color="#F6F6F4" Offset="0.88"/>
+        <GradientStop Color="#E2E2DF" Offset="1"/>
     </LinearGradientBrush>
-    <!-- Held: the key goes down (a darker, shaded ivory) and its back edge lights blue, the
+    <!-- Held: the key goes down (a darker, shaded white) and its back edge lights blue, the
          way a key-light strip does on hardware, so it reads from arm's length. -->
     <LinearGradientBrush x:Key="Brush.Key.White.Held" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="{StaticResource Color.Blue}" Offset="0"/>
         <GradientStop Color="{StaticResource Color.Blue}" Offset="0.045"/>
-        <GradientStop Color="#9FA6AE" Offset="0.05"/>
-        <GradientStop Color="#D3CCBE" Offset="0.16"/>
-        <GradientStop Color="#E2DBCD" Offset="0.8"/>
-        <GradientStop Color="#CBC3B3" Offset="1"/>
+        <GradientStop Color="#A3A8AE" Offset="0.05"/>
+        <GradientStop Color="#CFD0D1" Offset="0.16"/>
+        <GradientStop Color="#DEDFDF" Offset="0.8"/>
+        <GradientStop Color="#C8C9CA" Offset="1"/>
     </LinearGradientBrush>
     <!-- A key the sustain pedal holds after you let go: back up, its edge a quieter blue. Lit,
          since it is sounding, but plainly not under a finger. -->
@@ -436,18 +445,22 @@
         <GradientStop Color="#9CC8F2" Offset="0"/>
         <GradientStop Color="#9CC8F2" Offset="0.035"/>
         <GradientStop Color="{StaticResource Color.Ivory.Key}" Offset="0.04"/>
-        <GradientStop Color="#EAE5DA" Offset="1"/>
+        <GradientStop Color="#E6E6E3" Offset="1"/>
     </LinearGradientBrush>
-    <!-- In the key but not its tonic: a warm wash that separates from the ivory without
-         yellowing the keyboard (in C major every white key is in the key), well short of the
-         tonic. -->
+    <!-- In the key but not its tonic: no wash at all, so the keyboard stays white (in C major
+         every white key is in the key). The amber front lip below carries the role. -->
     <LinearGradientBrush x:Key="Brush.Key.White.InKey" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#FDF1D6" Offset="0"/>
-        <GradientStop Color="#F1DAA3" Offset="1"/>
+        <GradientStop Color="#EDEDEB" Offset="0"/>
+        <GradientStop Color="{StaticResource Color.Ivory.Key}" Offset="0.14"/>
+        <GradientStop Color="#F6F6F4" Offset="0.88"/>
+        <GradientStop Color="#E2E2DF" Offset="1"/>
     </LinearGradientBrush>
+    <!-- The tonic: a faint amber blush under its thick amber lip, enough to find the key
+         centre from the bench without turning keys yellow. -->
     <LinearGradientBrush x:Key="Brush.Key.White.Tonic" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#F7C96C" Offset="0"/>
-        <GradientStop Color="#E4A847" Offset="1"/>
+        <GradientStop Color="#F4EFE6" Offset="0"/>
+        <GradientStop Color="#FDF8EE" Offset="0.14"/>
+        <GradientStop Color="#F7EAD0" Offset="1"/>
     </LinearGradientBrush>
     <SolidColorBrush x:Key="Brush.Key.White.Border" Color="#2A2622"/>
 
@@ -621,14 +634,143 @@
     <SolidColorBrush x:Key="Brush.ChordTile.PlayedBorder" Color="{StaticResource Color.Ivory.Primary}"/>
     <SolidColorBrush x:Key="Brush.ChordTile.PlayedInk"    Color="{StaticResource Color.Ink}"/>
 
-    <!-- A chord tile (DataContext: ChordTileViewModel). One line, 22px tall: the strip has
-         only 24px to spend at the 900x420 minimum before the readout drops below its MinHeight.
-         Never focusable, or a clicked tile would take Space, the save-chord shortcut. All the
-         colours are Setters, since a local value would outrank the triggers. -->
+    <!-- ================= Front panel keys =================
+         Black rubber keys on the scarlet panel, each with an LED bar set into its top edge.
+         The LED is the key's content (Style.PanelLed and a lit variant per key in MainWindow),
+         so a key's state shows on the key. Never focusable: a focused key would take Space. -->
+    <LinearGradientBrush x:Key="Brush.PanelKey" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#2C2C2C" Offset="0"/>
+        <GradientStop Color="#121212" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.PanelKey.Hover" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#3A3A3A" Offset="0"/>
+        <GradientStop Color="#1A1A1A" Offset="1"/>
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="Brush.PanelKey.Shadow" Color="#000000"/>
+    <SolidColorBrush x:Key="Brush.PanelKey.Highlight" Color="#1FFFFFFF"/>
+    <SolidColorBrush x:Key="Brush.Led.Off"   Color="#3A3A3A"/>
+    <SolidColorBrush x:Key="Brush.Led.White" Color="#FFFFFF"/>
+
+    <Style x:Key="Style.PanelKey" TargetType="ButtonBase">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Width" Value="52"/>
+        <Setter Property="Height" Value="34"/>
+        <Setter Property="Background" Value="{StaticResource Brush.PanelKey}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ButtonBase">
+                    <Grid>
+                        <!-- The key's skirt: a 2px black edge below it, the shadow it casts. -->
+                        <Border CornerRadius="5" Background="{StaticResource Brush.PanelKey.Shadow}" Margin="0,2,0,-2"/>
+                        <Border x:Name="Cap" CornerRadius="5" Background="{TemplateBinding Background}"
+                                BorderBrush="{StaticResource Brush.PanelKey.Highlight}" BorderThickness="0,1,0,0"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,5,0,0"/>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="{StaticResource Brush.PanelKey.Hover}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Cap" Property="Margin" Value="0,1,0,-1"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Cap" Property="Opacity" Value="0.55"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- A key's LED, unlit. Each key in MainWindow lights it with its own trigger. -->
+    <Style x:Key="Style.PanelLed" TargetType="Rectangle">
+        <Setter Property="Width" Value="14"/>
+        <Setter Property="Height" Value="3"/>
+        <Setter Property="RadiusX" Value="1.5"/>
+        <Setter Property="RadiusY" Value="1.5"/>
+        <Setter Property="Fill" Value="{StaticResource Brush.Led.Off}"/>
+    </Style>
+    <DropShadowEffect x:Key="Effect.Led" x:Shared="False" ShadowDepth="0" BlurRadius="6" Opacity="0.9"
+                      Color="{StaticResource Color.Ivory.Primary}"/>
+
+    <!-- The legend printed under a panel key. -->
+    <Style x:Key="Style.PanelLegend" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0,6,0,0"/>
+    </Style>
+
+    <!-- The physical key under a soft key's label: 16px of black rubber, 18px below it. -->
+    <Style x:Key="Style.SoftKeyCap" TargetType="Border">
+        <Setter Property="Height" Value="16"/>
+        <Setter Property="Margin" Value="3,18,3,0"/>
+        <Setter Property="CornerRadius" Value="3"/>
+        <Setter Property="Background" Value="{StaticResource Brush.PanelKey}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.PanelKey.Highlight}"/>
+        <Setter Property="BorderThickness" Value="0,1,0,2"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Style.Triggers>
+            <!-- A short stage (MainWindow.IsCompact) folds the soft keys away: their 34px is
+                 what the keyboard needs at 900x420. The labels still click. -->
+            <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                <Setter Property="Visibility" Value="Collapsed"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- The 7ths switch as a soft key, to sit in the chord strip's row of keys: a black label
+         while off, a white one with ink while on. -->
+    <Style x:Key="Style.SoftKeyToggle" TargetType="ToggleButton">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="MinWidth" Value="44"/>
+        <Setter Property="Padding" Value="8,0"/>
+        <Setter Property="Margin" Value="2,0"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Background" Value="{StaticResource Brush.ChordTile}"/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <StackPanel Background="Transparent">
+                        <Border Height="22" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"
+                                CornerRadius="4" SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <Border x:Name="Key" Style="{StaticResource Style.SoftKeyCap}"/>
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="{StaticResource Brush.ChordTile.Hover}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter Property="Background" Value="{StaticResource Brush.On}"/>
+                            <Setter Property="Foreground" Value="{StaticResource Brush.On.Ink}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Key" Property="Margin" Value="3,19,3,-1"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- A chord tile (DataContext: ChordTileViewModel), drawn as a soft key: its 22px label sits
+         on the OLED's bottom edge and a black rubber key sits under it on the panel, 18px lower,
+         past the window's bezel (see Size.SoftKey.* and the OLED window's bottom margin in
+         MainWindow). The whole column is one button. Never focusable, or a clicked tile would
+         take Space, the save-chord shortcut. All the colours are Setters, since a local value
+         would outrank the triggers. -->
     <Style x:Key="Style.ChordTile" TargetType="Button">
         <Setter Property="Focusable" Value="False"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="Height" Value="22"/>
         <Setter Property="MinWidth" Value="52"/>
         <Setter Property="Padding" Value="8,0"/>
         <Setter Property="Margin" Value="2,0"/>
@@ -640,13 +782,21 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            Padding="{TemplateBinding Padding}" CornerRadius="4"
-                            SnapsToDevicePixels="True">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
+                    <StackPanel Background="Transparent">
+                        <Border Height="22" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}" CornerRadius="4"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <Border x:Name="Key" Style="{StaticResource Style.SoftKeyCap}"/>
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Key" Property="Margin" Value="3,19,3,-1"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

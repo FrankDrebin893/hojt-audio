@@ -30,7 +30,8 @@ public partial class PianoKeyboardControl : UserControl
     private const double WhiteLabelBaseline = WhiteKeyHeight - 8;
     private const double BlackLabelBaseline = BlackKeyHeight - 6;
 
-    private static readonly FontFamily LabelFont = new("Segoe UI");
+    /// <summary>The theme's body face (Font.Body), resolved when the keyboard is built.</summary>
+    private FontFamily _labelFont = new("Segoe UI");
 
     private readonly Dictionary<int, Rectangle> _keyRectangles = new();
 
@@ -83,6 +84,8 @@ public partial class PianoKeyboardControl : UserControl
         if (vm.Keys.Count == 0) return;
         Layout = new KeyboardLayout(vm.Keys[0].NoteNumber, vm.Keys[^1].NoteNumber);
         _palette = new KeyPalette(this);
+        if (TryFindResource("Font.Body") is FontFamily labelFont)
+            _labelFont = labelFont;
 
         // White keys first, with their marks, labels and hints; the black keys added after them
         // then sit on top.
@@ -201,11 +204,11 @@ public partial class PianoKeyboardControl : UserControl
     private static bool IsOctaveC(PianoKey key) => key.NoteNumber % 12 == 0;
 
     /// <summary>Text, size, weight, colour and visibility are all set by <see cref="ApplyKeyLabel"/>.</summary>
-    private static TextBlock CreateLabel(double x, PianoKey key)
+    private TextBlock CreateLabel(double x, PianoKey key)
     {
         var label = new TextBlock
         {
-            FontFamily = LabelFont,
+            FontFamily = _labelFont,
             TextAlignment = TextAlignment.Center,
             Width = KeyboardLayout.KeyWidth(key.NoteNumber),
             IsHitTestVisible = false
@@ -388,7 +391,7 @@ public partial class PianoKeyboardControl : UserControl
         }
 
         double baseline = key.IsBlack ? BlackLabelBaseline : WhiteLabelBaseline;
-        Canvas.SetTop(label, baseline - (LabelFont.Baseline * label.FontSize));
+        Canvas.SetTop(label, baseline - (_labelFont.Baseline * label.FontSize));
     }
 
     private void ApplyKeyHint(PianoKey key)
