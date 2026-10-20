@@ -155,6 +155,10 @@
                     <RowDefinition Height="Auto"/>                <!-- practice toolbar -->
                     <RowDefinition Height="Auto"/>                <!-- keyboard -->
                 </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>      <!-- the OLED window -->
+                    <ColumnDefinition Width="Auto"/>   <!-- the halo knobs beside it; zero when hidden -->
+                </Grid.ColumnDefinitions>
 
                 <!-- The OLED window set into the scarlet panel: a black bezel with a lit lip,
                      framing the readout and the chord strip. Song practice hides it: the lane
@@ -174,6 +178,48 @@
                     </Border.Style>
                     <Border CornerRadius="6" Background="{StaticResource Brush.Stage}"/>
                 </Border>
+
+                <!-- The halo knobs on the panel beside the window: master volume and the
+                     metronome click, the same settings as the sliders in Settings. Shrinks on a
+                     short window; hidden in song practice (the lane needs the full width) and in
+                     zen mode, which keeps only the window and the keys. -->
+                <Viewbox Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" Margin="0,8,18,6"
+                         Stretch="Uniform" StretchDirection="DownOnly" VerticalAlignment="Center">
+                    <Viewbox.Style>
+                        <Style TargetType="Viewbox">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsZenMode}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Viewbox.Style>
+                    <StackPanel>
+                        <StackPanel HorizontalAlignment="Center">
+                            <views:HaloKnob Value="{Binding Settings.Volume}"
+                                            ToolTip="Master volume. Drag up or down, or scroll."
+                                            AutomationProperties.Name="Volume"/>
+                            <TextBlock Text="VOLUME" FontSize="12" FontWeight="Bold" Margin="0,6,0,0"
+                                       HorizontalAlignment="Center" Foreground="{StaticResource Brush.Text.Primary}"/>
+                            <TextBlock Text="{Binding Settings.Volume, StringFormat={}{0:P0}}"
+                                       FontFamily="{StaticResource Font.Data}" FontSize="11"
+                                       HorizontalAlignment="Center" Foreground="{StaticResource Brush.Text.Muted}"/>
+                        </StackPanel>
+                        <StackPanel HorizontalAlignment="Center" Margin="0,16,0,0">
+                            <views:HaloKnob Value="{Binding Settings.MetronomeVolume}"
+                                            ToolTip="Metronome click volume, relative to the master volume. Drag up or down, or scroll."
+                                            AutomationProperties.Name="Metronome volume"/>
+                            <TextBlock Text="CLICK" FontSize="12" FontWeight="Bold" Margin="0,6,0,0"
+                                       HorizontalAlignment="Center" Foreground="{StaticResource Brush.Text.Primary}"/>
+                            <TextBlock Text="{Binding Settings.MetronomeVolume, StringFormat={}{0:P0}}"
+                                       FontFamily="{StaticResource Font.Data}" FontSize="11"
+                                       HorizontalAlignment="Center" Foreground="{StaticResource Brush.Text.Muted}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Viewbox>
 
                 <!-- Readout row, in three columns: grand staff on the left, the chord readout in
                      the centre, circle of fifths on the right. The side columns split whatever
@@ -451,7 +497,7 @@
                 <!-- Key selector. A practice control, so it lives on the stage rather than
                      behind the settings overlay. Both dropdowns write to Settings, which is
                      what persists them; picking a root turns the highlight on. -->
-                <Border CornerRadius="6">
+                <Border CornerRadius="6" Grid.ColumnSpan="2">
                     <Border.Resources>
                         <!-- Grouping by ScaleOption.Group is what draws the scale list's
                              section headers. The source is static, so no DataContext needed. -->
@@ -700,7 +746,7 @@
                      top row, so the bottom of the lane, its hit line, is the keys' top edge.
                      Declared after the toolbar, not beside the readout it replaces: tab order
                      follows the tree, and the toolbar sits above the song bar. -->
-                <views:SongPracticePanel Grid.Row="1" DataContext="{Binding SongPractice}"
+                <views:SongPracticePanel Grid.Row="1" Grid.ColumnSpan="2" DataContext="{Binding SongPractice}"
                                          KeyboardControl="{Binding ElementName=PianoKeys}"
                                          Visibility="{Binding DataContext.IsSongPracticeVisible,
                                                       RelativeSource={RelativeSource AncestorType=Window},
@@ -713,7 +759,7 @@
                      margin, the falling notes' hit line is exactly the keys' top edge. -->
                 <!-- The felt strip the keys sit behind, across the panel. Not in song practice,
                      where the lane's bottom edge has to be the keys' top edge. -->
-                <Rectangle Grid.Row="4" Height="6" VerticalAlignment="Top" Margin="12,10,12,0"
+                <Rectangle Grid.Row="4" Grid.ColumnSpan="2" Height="6" VerticalAlignment="Top" Margin="12,10,12,0"
                            Fill="{StaticResource Brush.Felt}" IsHitTestVisible="False">
                     <Rectangle.Style>
                         <Style TargetType="Rectangle">
@@ -725,7 +771,7 @@
                         </Style>
                     </Rectangle.Style>
                 </Rectangle>
-                <Viewbox Grid.Row="4" Stretch="Uniform" StretchDirection="Both"
+                <Viewbox Grid.Row="4" Grid.ColumnSpan="2" Stretch="Uniform" StretchDirection="Both"
                          MaxHeight="360" HorizontalAlignment="Center" VerticalAlignment="Bottom"
                          TextOptions.TextFormattingMode="Ideal">
                     <Viewbox.Style>

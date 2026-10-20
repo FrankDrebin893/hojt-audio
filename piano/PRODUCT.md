@@ -102,8 +102,8 @@ of concepts with real keys: the user picked **"scarlet anodised"** (concept K,
 `docs/design-concepts/Scarlet.dc.html`). The chrome is brushed scarlet aluminium with white
 legends; the readout and chord strip sit in a black OLED window with a bezel; the keys are
 real ivory and ebony, a held key pressed down with a blue-lit back edge; amber stays the key
-centre. The palette lives in `Themes/Dark.xaml`. DESIGN.md still describes piano character
-until this direction settles. The phosphor build is in git history (commits 30a6ba0 and
+centre; two halo knobs beside the window set the volume and the click. DESIGN.md holds the
+system. The phosphor build is in git history (commits 30a6ba0 and
 08255c7).
 
 ## Evidence on Hand

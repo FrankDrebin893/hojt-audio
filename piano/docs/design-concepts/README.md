@@ -31,7 +31,7 @@ generic red anodised or lacquered case; there are no brand names or logos.
 
 | File | Concept | Status |
 |---|---|---|
-| `Scarlet.dc.html` | **K · Scarlet anodised**: brushed red aluminium, a white-on-black OLED window with soft keys, two large knobs with green-to-red level halos, black rubber buttons | **Chosen**: built into the app (the halo knobs are not, since the app has no panel knobs) |
+| `Scarlet.dc.html` | **K · Scarlet anodised**: brushed red aluminium, a white-on-black OLED window with soft keys, two large knobs with green-to-red level halos, black rubber buttons | **Chosen**: built into the app, halo knobs (volume, click) included |
 | `Touch.dc.html` | L · Scarlet and black: a matte black panel between red anodised end plates, a colour touchscreen laid out in cards, a glowing red strip above the keys | Kept for later |
 | `Dot.dc.html` | M · Scarlet case, white dot LCD: a red powder-coat case, a white dot-matrix display, silver knobs, white key lights over held keys | Kept for later |
 | `Gloss.dc.html` | N · Scarlet gloss lacquer: piano-gloss red with gold trim, a champagne-on-black OLED in a gold bezel, gold knobs and gold-ringed touch buttons | Kept for later |
