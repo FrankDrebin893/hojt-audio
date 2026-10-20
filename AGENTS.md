@@ -289,7 +289,7 @@ which is read when you work there. The rules that matter elsewhere:
   (`plugins/amp/tests/rules.rs` fails on a branch on the amp outside the model, the editor and the looks)
 - Parameter ids are frozen (see Versioning); the pedal order, the preset choice, the cabinet
   file and the per-amp dials are `#[persist]` fields, never parameters
-- Run `cargo test -p amp --release` too when touching the clippers
+- The clippers are tested optimised too (`cargo test -p amp --release`, which `scripts/check.sh` runs)
 
 ## Adding a Plugin
 
@@ -369,7 +369,8 @@ none. The renders before and after are the run's `renders` artifact.
 `cargo test --workspace` and `cargo test -p amp --release`. On Linux it first names the packages the build needs
 that are missing. In Claude Code a hook (`.claude/settings.json`) runs `scripts/check.sh quick` before every
 `git commit` and stops a commit that fails it; an agent tool without hooks runs `scripts/check.sh quick` itself
-before committing. A step added to `ci.yml` is added to `scripts/check.sh` too.
+before committing. A step added to `ci.yml` is added to `scripts/check.sh` too, which
+`xtask/tests/check_mirrors_ci.rs` holds.
 Lints that clash with DSP code are allowed in the root `Cargo.toml`, each with its reason.
 
 ## Code Conventions

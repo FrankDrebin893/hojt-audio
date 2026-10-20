@@ -75,10 +75,11 @@ full() {
     echo "== All of CI's steps pass"
 }
 
-# Claude Code passes the tool call as JSON on stdin; only a `git commit` is checked. Exit 2 blocks
-# the commit and hands what failed back to the agent.
+# Claude Code passes the tool call (Bash or PowerShell) as JSON on stdin; only a `git commit`
+# (or `git -C <dir> commit`) is checked, not `git commit-tree`. Exit 2 blocks the commit and hands
+# what failed back to the agent.
 hook() {
-    grep -q '"command"[^}]*git commit' || exit 0
+    grep -Eq '"command".*git( +-C +[^ ]+)? +commit([^-a-z]|$)' || exit 0
     local out
     if ! out="$(quick 2>&1)"; then
         {
