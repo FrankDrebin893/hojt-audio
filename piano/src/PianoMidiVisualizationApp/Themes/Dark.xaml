@@ -715,16 +715,6 @@
         <Setter Property="BorderBrush" Value="{StaticResource Brush.PanelKey.Highlight}"/>
         <Setter Property="BorderThickness" Value="0,1,0,2"/>
         <Setter Property="SnapsToDevicePixels" Value="True"/>
-        <Style.Triggers>
-            <!-- A short stage (MainWindow.IsCompact) keeps the soft keys but makes them slimmer
-                 and closer: 8px keys 10px below the labels, 18px less than the full size,
-                 which is what the keyboard needs at 900x420. -->
-            <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
-                <Setter Property="Height" Value="8"/>
-                <Setter Property="Margin" Value="3,10,3,0"/>
-                <Setter Property="BorderThickness" Value="0,1,0,1"/>
-            </DataTrigger>
-        </Style.Triggers>
     </Style>
 
     <!-- The 7ths switch as a soft key, to sit in the chord strip's row of keys: a black label

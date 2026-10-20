@@ -187,18 +187,8 @@
                                     <MultiDataTrigger.Conditions>
                                         <Condition Binding="{Binding IsChordStripVisible}" Value="True"/>
                                         <Condition Binding="{Binding ChordStrip.HasChords}" Value="True"/>
-                                        <Condition Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
                                     </MultiDataTrigger.Conditions>
                                     <Setter Property="Margin" Value="16,8,16,30"/>
-                                </MultiDataTrigger>
-                                <!-- Compact: the slimmer soft keys sit 14px up from the row's foot. -->
-                                <MultiDataTrigger>
-                                    <MultiDataTrigger.Conditions>
-                                        <Condition Binding="{Binding IsChordStripVisible}" Value="True"/>
-                                        <Condition Binding="{Binding ChordStrip.HasChords}" Value="True"/>
-                                        <Condition Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=Window}}" Value="True"/>
-                                    </MultiDataTrigger.Conditions>
-                                    <Setter Property="Margin" Value="16,8,16,14"/>
                                 </MultiDataTrigger>
                                 <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
                                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -745,9 +735,6 @@
                             <Setter Property="Visibility" Value="Collapsed"/>
                             <Setter Property="Margin" Value="28,0,28,8"/>
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
-                                    <Setter Property="Margin" Value="28,0,28,4"/>
-                                </DataTrigger>
                                 <MultiDataTrigger>
                                     <MultiDataTrigger.Conditions>
                                         <Condition Binding="{Binding DataContext.IsChordStripVisible,
