@@ -45,8 +45,28 @@ public partial class MainWindow : Window
         InitializeComponent();
         Loaded += OnLoaded;
         WindowFrame.SizeChanged += (_, _) => UpdateWindowClip();
-        Stage.SizeChanged += (_, _) => IsCompact = Stage.ActualHeight < CompactStageHeight;
+        Stage.SizeChanged += (_, _) =>
+        {
+            IsCompact = Stage.ActualHeight < CompactStageHeight;
+            UpdateFrontPanelColumn();
+        };
+        FrontPanel.IsVisibleChanged += (_, _) => UpdateFrontPanelColumn();
         StateChanged += (_, _) => UpdateWindowClip();
+    }
+
+    /// <summary>The front panel's width at full size (250 plus its 18px right margin), and on a short stage.</summary>
+    private const double FrontPanelWidth = 268, CompactFrontPanelWidth = 170;
+
+    /// <summary>
+    /// Sizes the front panel's column in pixels: full width, narrower on a short stage (the
+    /// panel scales down there anyway), nothing while it is hidden. See the column's comment
+    /// in MainWindow.xaml for why it can't simply be Auto.
+    /// </summary>
+    private void UpdateFrontPanelColumn()
+    {
+        double width = FrontPanel.Visibility != Visibility.Visible ? 0
+            : IsCompact ? CompactFrontPanelWidth : FrontPanelWidth;
+        FrontPanelColumn.Width = new GridLength(width);
     }
 
     /// <summary>

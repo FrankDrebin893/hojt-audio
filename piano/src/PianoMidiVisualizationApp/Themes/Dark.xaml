@@ -716,10 +716,13 @@
         <Setter Property="BorderThickness" Value="0,1,0,2"/>
         <Setter Property="SnapsToDevicePixels" Value="True"/>
         <Style.Triggers>
-            <!-- A short stage (MainWindow.IsCompact) folds the soft keys away: their 34px is
-                 what the keyboard needs at 900x420. The labels still click. -->
+            <!-- A short stage (MainWindow.IsCompact) keeps the soft keys but makes them slimmer
+                 and closer: 8px keys 10px below the labels, 18px less than the full size,
+                 which is what the keyboard needs at 900x420. -->
             <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
-                <Setter Property="Visibility" Value="Collapsed"/>
+                <Setter Property="Height" Value="8"/>
+                <Setter Property="Margin" Value="3,10,3,0"/>
+                <Setter Property="BorderThickness" Value="0,1,0,1"/>
             </DataTrigger>
         </Style.Triggers>
     </Style>
@@ -754,7 +757,11 @@
                             <Setter Property="Foreground" Value="{StaticResource Brush.On.Ink}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Key" Property="Margin" Value="3,19,3,-1"/>
+                            <Setter TargetName="Key" Property="RenderTransform">
+                                <Setter.Value>
+                                    <TranslateTransform Y="1"/>
+                                </Setter.Value>
+                            </Setter>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -794,7 +801,11 @@
                     </StackPanel>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Key" Property="Margin" Value="3,19,3,-1"/>
+                            <Setter TargetName="Key" Property="RenderTransform">
+                                <Setter.Value>
+                                    <TranslateTransform Y="1"/>
+                                </Setter.Value>
+                            </Setter>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
