@@ -35,12 +35,14 @@ A suite of VST3/CLAP plugins built with Rust and the nih-plug framework. The bra
 - `scripts/sound-reports.sh` - The sound reports without their timings, for comparing two builds
 - `scripts/sync-labels.sh` - The backlog's labels on GitHub
 - `scripts/move-issue.sh` - Moves an issue to a state: its label and its place on the board
+- `scripts/check.sh` - What CI runs, run before a push (see Testing); `quick` is format and clippy
 - `scripts/page-check.sh` - Whether `/page` has looked at what changed since `main`, and whether
   the page's links hold. The end-of-session hook runs it
 - `.agents/skills/` - The agent's skills (`/issue`, `/spec`, `/next`, `/groom`, `/release`,
   `/page`); `.claude/commands/` mirrors them for Claude Code: a command is its `SKILL.md` without
   the `name:` line, which `xtask/tests/skills_mirror.rs` holds
-- `.claude/settings.json` - Claude Code's end-of-session hook (see End of a session)
+- `.claude/settings.json` - Claude Code's hooks: format and clippy before a commit (see Testing) and
+  the end-of-session one (see End of a session)
 - `.github/workflows/` - `ci.yml` (tests), `release.yml` (builds and publishes a release),
   `pages.yml` (publishes `site/`), `approval-guard.yml` (see How work flows), `sound.yml` (on a
   pull request that touches a plugin: what its reports say changed against `main`, as a
@@ -120,8 +122,11 @@ cargo xtask check-art
 # Quick compile check
 cargo check --workspace
 
-# Run tests (always run before committing!)
-cargo test --workspace
+# Everything CI runs: format, clippy, the tests, the amp's tests optimised (always before a push!)
+scripts/check.sh
+
+# Its quick part, format and clippy
+scripts/check.sh quick
 
 # Open a plugin's editor as a program, without a DAW (no audio: dummy backend)
 cargo run -p pitch_shifter --features standalone -- --backend dummy
@@ -284,7 +289,7 @@ which is read when you work there. The rules that matter elsewhere:
   (`plugins/amp/tests/rules.rs` fails on a branch on the amp outside the model, the editor and the looks)
 - Parameter ids are frozen (see Versioning); the pedal order, the preset choice, the cabinet
   file and the per-amp dials are `#[persist]` fields, never parameters
-- Run `cargo test -p amp --release` too when touching the clippers
+- The clippers are tested optimised too (`cargo test -p amp --release`, which `scripts/check.sh` runs)
 
 ## Adding a Plugin
 
@@ -359,13 +364,18 @@ A pull request that touches the plugins gets a comment from `sound.yml`: every r
 changed is `kind:sound` or says why it changed; one that must not change the sound shows
 none. The renders before and after are the run's `renders` artifact.
 
-**Always run `cargo test --workspace` before committing changes.** CI also runs
-`cargo fmt --all --check` and `cargo clippy --workspace --all-targets -- -D warnings` on Rust 1.93.0 (pinned in `ci.yml`); run them too.
+**Always run `scripts/check.sh` before pushing.** It runs every step of `ci.yml`: `cargo fmt --all --check`,
+`cargo clippy --workspace --all-targets -- -D warnings` (on Rust 1.93.0, pinned in `ci.yml`, when rustup has it),
+`cargo test --workspace` and `cargo test -p amp --release`. On Linux it first names the packages the build needs
+that are missing. In Claude Code a hook (`.claude/settings.json`) runs `scripts/check.sh quick` before every
+`git commit` and stops a commit that fails it; an agent tool without hooks runs `scripts/check.sh quick` itself
+before committing. A step added to `ci.yml` is added to `scripts/check.sh` too, which
+`xtask/tests/check_mirrors_ci.rs` holds.
 Lints that clash with DSP code are allowed in the root `Cargo.toml`, each with its reason.
 
 ## Code Conventions
 
-- Always run tests before committing
+- Always run `scripts/check.sh` before pushing
 - Optimize for low latency over audio quality
 - Never allocate or resize buffers on the audio thread (all buffers are fixed-size). Each plugin's
   `no_alloc` tests hold this: `suite_common::host` plays the plugin as a DAW does, with an allocator

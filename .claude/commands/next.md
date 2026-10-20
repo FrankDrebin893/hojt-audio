@@ -61,7 +61,7 @@ What every sub-session is asked to do, for issue `<n>`:
    the spec said, or needs something only a person at the machine can do, say so on the issue
    and stop the same way.
 4. **Gates**, all before the pull request:
-   - `cargo test --workspace`, and `cargo test -p amp --release` for the amp's clippers
+   - `scripts/check.sh`: every step of CI (format, clippy, the tests, the amp's tests optimised)
    - The reports named in the spec, before (on `main`) and after
    - The standalone window looked at, if an editor changed
    - `CHANGELOG.md` under `Unreleased` says what a player will notice
