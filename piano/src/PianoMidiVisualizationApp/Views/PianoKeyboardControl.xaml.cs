@@ -21,24 +21,25 @@ public partial class PianoKeyboardControl : UserControl
     /// <summary>Drawing height, leaving a little headroom below the keys for their shadows.</summary>
     public const double CanvasHeight = WhiteKeyHeight + 6;
 
-    /// <summary>Height of the 3D vertical front skirt (lip) at the bottom of each white key.</summary>
-    private const double WhiteSkirtHeight = 9.5;
-    private const double WhiteSkirtPressedHeight = 6.0;
+    /// <summary>Height of the 3D vertical front skirt and overhanging bullnose lip at the bottom of each white key.</summary>
+    private const double WhiteSkirtHeight = 13.5;
+    private const double WhiteSkirtPressedHeight = 9.5;
+    private const double WhiteBullnoseHeight = 3.0;
 
-    /// <summary>Inset and nose height for the 3D sculpted prism top of each black key.</summary>
-    private const double BlackTopInset = 1.8;
-    private const double BlackNoseHeight = 11.0;
-    private const double BlackNosePressedHeight = 8.5;
+    /// <summary>Inset and sloped nose height for the 4-plane 3D sculpted ebony prism of each black key.</summary>
+    private const double BlackTopInset = 2.2;
+    private const double BlackNoseHeight = 15.5;
+    private const double BlackNosePressedHeight = 12.0;
 
     /// <summary>Where the label glyphs sit, measured from the top of the key.</summary>
     /// <remarks>
     /// Labels are placed by baseline rather than by top, so a held key's larger label sits on
     /// the same line as the idle one. The white-key baseline sits on the keytop above the
-    /// 3D front skirt and scale mark; the black-key baseline sits on the raised top surface
-    /// above the sloped front nose ridge.
+    /// 3D bullnose overhang, vertical skirt, and scale mark; the black-key baseline sits on the
+    /// raised satin playing surface above the sloped front nose crest.
     /// </remarks>
-    private const double WhiteLabelBaseline = WhiteKeyHeight - 15;
-    private const double BlackLabelBaseline = BlackKeyHeight - 15;
+    private const double WhiteLabelBaseline = WhiteKeyHeight - 24;
+    private const double BlackLabelBaseline = BlackKeyHeight - 19;
 
     /// <summary>The theme's body face (Font.Body), resolved when the keyboard is built.</summary>
     private FontFamily _labelFont = new("Segoe UI");
@@ -49,11 +50,20 @@ public partial class PianoKeyboardControl : UserControl
         public DropShadowEffect? ShadowEffect { get; init; }
         public Rectangle? Chamfer { get; init; }
         public Rectangle? Skirt { get; init; }
+        public Rectangle? Undercut { get; init; }
+        public Rectangle? Bullnose { get; init; }
         public Line? WhiteRidgeLine { get; init; }
         public Rectangle? PressedRecess { get; init; }
+        public Polygon? BlackContactShadow { get; init; }
+        public Polygon? BlackLeftWall { get; init; }
+        public Polygon? BlackRightWall { get; init; }
         public Rectangle? BlackTop { get; init; }
         public Polygon? BlackNose { get; init; }
+        public Rectangle? BlackNoseCrest { get; init; }
         public Line? BlackRidgeLine { get; init; }
+        public Line? BlackLeftFacetLine { get; init; }
+        public Line? BlackRightFacetLine { get; init; }
+        public required Rectangle LedHousing { get; init; }
         public required Rectangle LedGlow { get; init; }
         public required Rectangle LedBar { get; init; }
     }
@@ -167,15 +177,24 @@ public partial class PianoKeyboardControl : UserControl
         var hint = CreateKeyHint(x, key);
         var mark = CreateScaleMark(x, key);
 
+        if (visual.BlackContactShadow is { } contactShadow) PianoCanvas.Children.Add(contactShadow);
         PianoCanvas.Children.Add(visual.Body);
         if (visual.Chamfer is { } chamfer) PianoCanvas.Children.Add(chamfer);
         if (visual.PressedRecess is { } recess) PianoCanvas.Children.Add(recess);
         if (visual.Skirt is { } skirt) PianoCanvas.Children.Add(skirt);
+        if (visual.Undercut is { } undercut) PianoCanvas.Children.Add(undercut);
+        if (visual.Bullnose is { } bullnose) PianoCanvas.Children.Add(bullnose);
         if (visual.WhiteRidgeLine is { } whiteRidge) PianoCanvas.Children.Add(whiteRidge);
+        if (visual.BlackLeftWall is { } leftWall) PianoCanvas.Children.Add(leftWall);
+        if (visual.BlackRightWall is { } rightWall) PianoCanvas.Children.Add(rightWall);
         if (visual.BlackNose is { } nose) PianoCanvas.Children.Add(nose);
         if (visual.BlackTop is { } top) PianoCanvas.Children.Add(top);
+        if (visual.BlackNoseCrest is { } noseCrest) PianoCanvas.Children.Add(noseCrest);
+        if (visual.BlackLeftFacetLine is { } leftFacet) PianoCanvas.Children.Add(leftFacet);
+        if (visual.BlackRightFacetLine is { } rightFacet) PianoCanvas.Children.Add(rightFacet);
         if (visual.BlackRidgeLine is { } ridge) PianoCanvas.Children.Add(ridge);
         PianoCanvas.Children.Add(visual.LedGlow);
+        PianoCanvas.Children.Add(visual.LedHousing);
         PianoCanvas.Children.Add(visual.LedBar);
         PianoCanvas.Children.Add(label);
         PianoCanvas.Children.Add(hint);
@@ -195,8 +214,8 @@ public partial class PianoKeyboardControl : UserControl
             Color = _palette.Shadow,
             Direction = 270,
             ShadowDepth = 2.5,
-            Opacity = 0.45,
-            BlurRadius = 4
+            Opacity = 0.55,
+            BlurRadius = 3.5
         };
 
         var body = new Rectangle
@@ -204,50 +223,76 @@ public partial class PianoKeyboardControl : UserControl
             Width = w,
             Height = WhiteKeyHeight,
             Stroke = _palette.WhiteBorder,
-            StrokeThickness = 0.6,
-            RadiusX = 3,
-            RadiusY = 3,
+            StrokeThickness = 0.8,
+            RadiusX = 2.5,
+            RadiusY = 2.5,
             Effect = shadow
         };
         Canvas.SetLeft(body, x);
         Canvas.SetTop(body, 0);
         Panel.SetZIndex(body, 0);
 
-        // 3D side bevel highlight/shadow so each key reads as an individual molded block.
+        // 3D cylindrical side-bevel sheen across the horizontal playing surface.
         var chamfer = new Rectangle
         {
-            Width = w - 1.2,
+            Width = w - 1.4,
             Height = WhiteKeyHeight - WhiteSkirtHeight,
             Fill = _palette.WhiteChamfer,
-            RadiusX = 2,
-            RadiusY = 2,
+            RadiusX = 1.8,
+            RadiusY = 1.8,
             IsHitTestVisible = false
         };
-        Canvas.SetLeft(chamfer, x + 0.6);
+        Canvas.SetLeft(chamfer, x + 0.7);
         Canvas.SetTop(chamfer, 0.5);
         Panel.SetZIndex(chamfer, 0);
 
-        // 3D vertical front skirt (lip) at the bottom of the white key, with a bright top ridge.
+        // Deep 3D vertical front skirt (lip) at the bottom of the white key.
         var skirt = new Rectangle
         {
-            Width = w - 1.2,
+            Width = w - 1.4,
             Height = WhiteSkirtHeight,
             Fill = _palette.WhiteSkirt,
-            RadiusX = 2.5,
-            RadiusY = 2.5,
+            RadiusX = 2.0,
+            RadiusY = 2.0,
             IsHitTestVisible = false
         };
-        Canvas.SetLeft(skirt, x + 0.6);
+        Canvas.SetLeft(skirt, x + 0.7);
         Canvas.SetTop(skirt, WhiteKeyHeight - WhiteSkirtHeight - 0.5);
         Panel.SetZIndex(skirt, 0);
 
-        // Crisp crease line where the horizontal keytop bends down into the vertical front skirt.
+        // Crisp dark undercut shadow cast by the overhanging bullnose lip onto the vertical skirt.
+        var undercut = new Rectangle
+        {
+            Width = w - 1.4,
+            Height = 3.2,
+            Fill = _palette.WhiteUndercut,
+            IsHitTestVisible = false
+        };
+        Canvas.SetLeft(undercut, x + 0.7);
+        Canvas.SetTop(undercut, WhiteKeyHeight - WhiteSkirtHeight + 1.0);
+        Panel.SetZIndex(undercut, 0);
+
+        // Rounded 3D overhanging bullnose lip where the horizontal playing surface rolls over the front.
+        var bullnose = new Rectangle
+        {
+            Width = w - 1.2,
+            Height = WhiteBullnoseHeight,
+            Fill = _palette.WhiteBullnose,
+            RadiusX = 1.2,
+            RadiusY = 1.2,
+            IsHitTestVisible = false
+        };
+        Canvas.SetLeft(bullnose, x + 0.6);
+        Canvas.SetTop(bullnose, WhiteKeyHeight - WhiteSkirtHeight - 1.5);
+        Panel.SetZIndex(bullnose, 0);
+
+        // Fine hairline seam below the bullnose overhang.
         var whiteRidge = new Line
         {
             X1 = 0.8,
             X2 = w - 0.8,
             Stroke = _palette.WhiteRidge,
-            StrokeThickness = 0.8,
+            StrokeThickness = 0.7,
             IsHitTestVisible = false
         };
         Canvas.SetLeft(whiteRidge, x);
@@ -267,30 +312,43 @@ public partial class PianoKeyboardControl : UserControl
         Canvas.SetTop(pressedRecess, 1);
         Panel.SetZIndex(pressedRecess, 0);
 
-        // Hardware key-light LED glow & bar at the top edge of the key.
+        // Hardware Light Guide LED diffuser housing, radial glow & lens bar at the top of the key.
         var ledGlow = new Rectangle
         {
-            Width = w - 1.2,
-            Height = 26,
+            Width = w - 1.4,
+            Height = 28,
             Fill = _palette.KeyLedGlow,
             IsHitTestVisible = false,
             Visibility = Visibility.Collapsed
         };
-        Canvas.SetLeft(ledGlow, x + 0.6);
+        Canvas.SetLeft(ledGlow, x + 0.7);
         Canvas.SetTop(ledGlow, 1);
         Panel.SetZIndex(ledGlow, 0);
 
+        var ledHousing = new Rectangle
+        {
+            Width = w - 4.0,
+            Height = 5.4,
+            Fill = _palette.KeyLedHousing,
+            RadiusX = 1.4,
+            RadiusY = 1.4,
+            IsHitTestVisible = false
+        };
+        Canvas.SetLeft(ledHousing, x + 2.0);
+        Canvas.SetTop(ledHousing, 2.2);
+        Panel.SetZIndex(ledHousing, 0);
+
         var ledBar = new Rectangle
         {
-            Width = w - 2.6,
-            Height = 6.0,
-            RadiusX = 1.5,
-            RadiusY = 1.5,
-            IsHitTestVisible = false,
-            Visibility = Visibility.Collapsed
+            Width = w - 5.2,
+            Height = 4.2,
+            Fill = _palette.KeyLedOff,
+            RadiusX = 1.0,
+            RadiusY = 1.0,
+            IsHitTestVisible = false
         };
-        Canvas.SetLeft(ledBar, x + 1.3);
-        Canvas.SetTop(ledBar, 1.5);
+        Canvas.SetLeft(ledBar, x + 2.6);
+        Canvas.SetTop(ledBar, 2.8);
         Panel.SetZIndex(ledBar, 0);
 
         return new KeyVisual
@@ -299,8 +357,11 @@ public partial class PianoKeyboardControl : UserControl
             ShadowEffect = shadow,
             Chamfer = chamfer,
             Skirt = skirt,
+            Undercut = undercut,
+            Bullnose = bullnose,
             WhiteRidgeLine = whiteRidge,
             PressedRecess = pressedRecess,
+            LedHousing = ledHousing,
             LedGlow = ledGlow,
             LedBar = ledBar
         };
@@ -308,15 +369,24 @@ public partial class PianoKeyboardControl : UserControl
 
     private KeyVisual CreateBlackKey(double x)
     {
-        // Black keys sit directly inside slots cut into the white keys rather than floating above
-        // them: a crisp dark slot seam at the base and sculpted 3D side/nose facets give height
-        // without an offset floating drop shadow.
+        // Tight, grounded contact shadow flush against the black key's right and front base on the
+        // white key surface (zero offset gap, so the key is 100% planted in its slot).
+        var contactShadow = new Polygon
+        {
+            Fill = _palette.BlackContactShadow,
+            IsHitTestVisible = false
+        };
+        Canvas.SetLeft(contactShadow, x);
+        Canvas.SetTop(contactShadow, 0);
+        Panel.SetZIndex(contactShadow, 1);
+
+        // Outer ebony slot frame.
         var body = new Rectangle
         {
             Width = BlackKeyWidth,
             Height = BlackKeyHeight,
             Stroke = _palette.BlackBorder,
-            StrokeThickness = 1.0,
+            StrokeThickness = 0.9,
             RadiusX = 2.0,
             RadiusY = 2.0
         };
@@ -324,7 +394,27 @@ public partial class PianoKeyboardControl : UserControl
         Canvas.SetTop(body, 0);
         Panel.SetZIndex(body, 1);
 
-        // Trapezoidal front nose facet sloping down from the raised playing surface to the front rim.
+        // Lit 3D left side-bevel wall sloping down from the narrow top surface to the base slot.
+        var leftWall = new Polygon
+        {
+            Fill = _palette.BlackLeftWall,
+            IsHitTestVisible = false
+        };
+        Canvas.SetLeft(leftWall, x);
+        Canvas.SetTop(leftWall, 0);
+        Panel.SetZIndex(leftWall, 1);
+
+        // Deep shaded 3D right side-bevel wall.
+        var rightWall = new Polygon
+        {
+            Fill = _palette.BlackRightWall,
+            IsHitTestVisible = false
+        };
+        Canvas.SetLeft(rightWall, x);
+        Canvas.SetTop(rightWall, 0);
+        Panel.SetZIndex(rightWall, 1);
+
+        // Trapezoidal front nose ramp sloping down from the raised playing surface to the front rim.
         var nose = new Polygon
         {
             Fill = _palette.BlackNose,
@@ -334,29 +424,66 @@ public partial class PianoKeyboardControl : UserControl
         Canvas.SetTop(nose, 0);
         Panel.SetZIndex(nose, 1);
 
-        // Narrow raised satin playing surface atop the 3D ebony prism.
+        // Narrow raised satin playing surface atop the 4-plane 3D ebony prism.
         var top = new Rectangle
         {
             Width = BlackKeyWidth - (2 * BlackTopInset),
             Height = BlackKeyHeight - BlackNoseHeight - 1,
             Fill = _palette.BlackTop,
-            Stroke = _palette.BlackRidge,
-            StrokeThickness = 0.4,
-            RadiusX = 1.5,
-            RadiusY = 1.5,
+            RadiusX = 1.2,
+            RadiusY = 1.2,
             IsHitTestVisible = false
         };
         Canvas.SetLeft(top, x + BlackTopInset);
         Canvas.SetTop(top, 1);
         Panel.SetZIndex(top, 1);
 
-        // Bright horizontal specular highlight ridge where the top surface angles down into the nose.
+        // Glossy curved 3D specular crest roll where the horizontal top surface bends into the nose slope.
+        var noseCrest = new Rectangle
+        {
+            Width = BlackKeyWidth - (2 * BlackTopInset),
+            Height = 2.8,
+            Fill = _palette.BlackNoseCrest,
+            RadiusX = 0.8,
+            RadiusY = 0.8,
+            IsHitTestVisible = false
+        };
+        Canvas.SetLeft(noseCrest, x + BlackTopInset);
+        Canvas.SetTop(noseCrest, BlackKeyHeight - BlackNoseHeight - 1.0);
+        Panel.SetZIndex(noseCrest, 1);
+
+        // Diagonal left and right 3D facet ridges along the sloped front nose edges.
+        var leftFacet = new Line
+        {
+            X1 = BlackTopInset,
+            X2 = 0.8,
+            Stroke = _palette.BlackRidge,
+            StrokeThickness = 0.7,
+            IsHitTestVisible = false
+        };
+        Canvas.SetLeft(leftFacet, x);
+        Canvas.SetTop(leftFacet, 0);
+        Panel.SetZIndex(leftFacet, 1);
+
+        var rightFacet = new Line
+        {
+            X1 = BlackKeyWidth - BlackTopInset,
+            X2 = BlackKeyWidth - 0.8,
+            Stroke = _palette.BlackBorder,
+            StrokeThickness = 0.7,
+            IsHitTestVisible = false
+        };
+        Canvas.SetLeft(rightFacet, x);
+        Canvas.SetTop(rightFacet, 0);
+        Panel.SetZIndex(rightFacet, 1);
+
+        // Bright horizontal specular highlight ridge along the top crest of the nose.
         var ridgeLine = new Line
         {
-            X1 = BlackTopInset + 0.5,
-            X2 = BlackKeyWidth - BlackTopInset - 0.5,
+            X1 = BlackTopInset + 0.3,
+            X2 = BlackKeyWidth - BlackTopInset - 0.3,
             Stroke = _palette.BlackRidge,
-            StrokeThickness = 1.0,
+            StrokeThickness = 0.9,
             IsHitTestVisible = false
         };
         Canvas.SetLeft(ridgeLine, x);
@@ -366,7 +493,7 @@ public partial class PianoKeyboardControl : UserControl
         var ledGlow = new Rectangle
         {
             Width = BlackKeyWidth - (2 * BlackTopInset),
-            Height = 18,
+            Height = 22,
             Fill = _palette.KeyLedGlow,
             IsHitTestVisible = false,
             Visibility = Visibility.Collapsed
@@ -375,25 +502,45 @@ public partial class PianoKeyboardControl : UserControl
         Canvas.SetTop(ledGlow, 1);
         Panel.SetZIndex(ledGlow, 1);
 
+        var ledHousing = new Rectangle
+        {
+            Width = BlackKeyWidth - (2 * BlackTopInset) - 1.2,
+            Height = 4.8,
+            Fill = _palette.KeyLedHousing,
+            RadiusX = 1.0,
+            RadiusY = 1.0,
+            IsHitTestVisible = false
+        };
+        Canvas.SetLeft(ledHousing, x + BlackTopInset + 0.6);
+        Canvas.SetTop(ledHousing, 2.0);
+        Panel.SetZIndex(ledHousing, 1);
+
         var ledBar = new Rectangle
         {
-            Width = BlackKeyWidth - (2 * BlackTopInset) - 1.0,
-            Height = 5.0,
-            RadiusX = 1.2,
-            RadiusY = 1.2,
-            IsHitTestVisible = false,
-            Visibility = Visibility.Collapsed
+            Width = BlackKeyWidth - (2 * BlackTopInset) - 2.2,
+            Height = 3.8,
+            Fill = _palette.KeyLedOff,
+            RadiusX = 0.8,
+            RadiusY = 0.8,
+            IsHitTestVisible = false
         };
-        Canvas.SetLeft(ledBar, x + BlackTopInset + 0.5);
-        Canvas.SetTop(ledBar, 1.5);
+        Canvas.SetLeft(ledBar, x + BlackTopInset + 1.1);
+        Canvas.SetTop(ledBar, 2.5);
         Panel.SetZIndex(ledBar, 1);
 
         return new KeyVisual
         {
             Body = body,
+            BlackContactShadow = contactShadow,
+            BlackLeftWall = leftWall,
+            BlackRightWall = rightWall,
             BlackTop = top,
             BlackNose = nose,
+            BlackNoseCrest = noseCrest,
+            BlackLeftFacetLine = leftFacet,
+            BlackRightFacetLine = rightFacet,
             BlackRidgeLine = ridgeLine,
+            LedHousing = ledHousing,
             LedGlow = ledGlow,
             LedBar = ledBar
         };
@@ -541,17 +688,58 @@ public partial class PianoKeyboardControl : UserControl
 
         if (key.IsBlack)
         {
-            // Depress the 3D ebony prism when held: shift the top plane down and compress its
-            // sloped front nose facet within the key slot.
-            double topY = held ? 2.5 : 1.0;
+            // Depress the 4-plane 3D ebony prism when held: shift the top plane down and compress
+            // its sloped front nose ramp within the key slot.
+            double topY = held ? 2.6 : 1.0;
             double noseH = held ? BlackNosePressedHeight : BlackNoseHeight;
             double topH = BlackKeyHeight - noseH - topY;
+            double noseTopY = topY + topH;
+            double bottomY = BlackKeyHeight - 0.7;
+
+            if (v.BlackContactShadow is { } contactShadow)
+            {
+                double shadowRight = BlackKeyWidth + (held ? 1.1 : 1.8);
+                double shadowBottom = BlackKeyHeight + (held ? 1.4 : 2.2);
+                contactShadow.Points = new PointCollection
+                {
+                    new(BlackKeyWidth - 0.5, 1.0),
+                    new(shadowRight, 2.0),
+                    new(shadowRight, shadowBottom - 0.8),
+                    new(shadowRight - 0.8, shadowBottom),
+                    new(1.5, shadowBottom),
+                    new(0.6, BlackKeyHeight - 0.5)
+                };
+            }
+
+            if (v.BlackLeftWall is { } leftWall)
+            {
+                leftWall.Fill = held ? p.BlackLeftWallHeld : p.BlackLeftWall;
+                leftWall.Points = new PointCollection
+                {
+                    new(0.6, 0.7),
+                    new(BlackTopInset, topY),
+                    new(BlackTopInset, noseTopY),
+                    new(0.6, bottomY)
+                };
+            }
+
+            if (v.BlackRightWall is { } rightWall)
+            {
+                rightWall.Fill = held ? p.BlackRightWallHeld : p.BlackRightWall;
+                rightWall.Points = new PointCollection
+                {
+                    new(BlackKeyWidth - BlackTopInset, topY),
+                    new(BlackKeyWidth - 0.6, 0.7),
+                    new(BlackKeyWidth - 0.6, bottomY),
+                    new(BlackKeyWidth - BlackTopInset, noseTopY)
+                };
+            }
 
             if (v.BlackTop is { } top)
             {
                 Canvas.SetTop(top, topY);
                 top.Height = topH;
-                top.Fill = held ? p.BlackTopHeld : p.BlackTop;
+                top.Fill = held ? p.BlackTopHeld : ringing ? p.BlackTopRinging : p.BlackTop;
             }
 
             if (v.BlackNose is { } nose)
@@ -559,30 +747,45 @@ public partial class PianoKeyboardControl : UserControl
                 nose.Fill = held ? p.BlackNoseHeld : p.BlackNose;
                 nose.Points = new PointCollection
                 {
-                    new(BlackTopInset, topY + topH),
-                    new(BlackKeyWidth - BlackTopInset, topY + topH),
-                    new(BlackKeyWidth - 0.8, BlackKeyHeight - 0.8),
-                    new(0.8, BlackKeyHeight - 0.8)
+                    new(BlackTopInset, noseTopY),
+                    new(BlackKeyWidth - BlackTopInset, noseTopY),
+                    new(BlackKeyWidth - 0.6, bottomY),
+                    new(0.6, bottomY)
                 };
+            }
+
+            if (v.BlackNoseCrest is { } noseCrest)
+                Canvas.SetTop(noseCrest, noseTopY - 0.8);
+
+            if (v.BlackLeftFacetLine is { } leftFacet)
+            {
+                leftFacet.Y1 = noseTopY;
+                leftFacet.Y2 = bottomY;
+            }
+
+            if (v.BlackRightFacetLine is { } rightFacet)
+            {
+                rightFacet.Y1 = noseTopY;
+                rightFacet.Y2 = bottomY;
             }
 
             if (v.BlackRidgeLine is { } ridge)
             {
-                ridge.Y1 = topY + topH;
-                ridge.Y2 = topY + topH;
+                ridge.Y1 = noseTopY;
+                ridge.Y2 = noseTopY;
             }
         }
         else
         {
-            // Depress the white key when held: the front chamfer ridge steps DOWN by 3.5px while
-            // the vertical front skirt compresses into the keybed well below.
+            // Depress the white key when held: the 3D bullnose overhang and undercut shadow step
+            // DOWN by 4px while the vertical front skirt compresses into the keybed well below.
             double skirtH = held ? WhiteSkirtPressedHeight : WhiteSkirtHeight;
             double skirtTop = WhiteKeyHeight - skirtH - 0.5;
 
             if (v.ShadowEffect is { } shadow)
             {
                 shadow.ShadowDepth = held ? 1.0 : 2.5;
-                shadow.Opacity = held ? 0.3 : 0.45;
+                shadow.Opacity = held ? 0.35 : 0.55;
             }
 
             if (v.Chamfer is { } chamfer)
@@ -595,26 +798,37 @@ public partial class PianoKeyboardControl : UserControl
                 Canvas.SetTop(skirt, skirtTop);
             }
 
+            if (v.Undercut is { } undercut)
+                Canvas.SetTop(undercut, skirtTop + 1.4);
+
+            if (v.Bullnose is { } bullnose)
+            {
+                bullnose.Fill = held ? p.WhiteBullnoseHeld : p.WhiteBullnose;
+                Canvas.SetTop(bullnose, skirtTop - 1.2);
+            }
+
             if (v.WhiteRidgeLine is { } whiteRidge)
             {
-                whiteRidge.Y1 = skirtTop;
-                whiteRidge.Y2 = skirtTop;
+                whiteRidge.Y1 = skirtTop + WhiteBullnoseHeight - 1.2;
+                whiteRidge.Y2 = skirtTop + WhiteBullnoseHeight - 1.2;
             }
 
             if (v.PressedRecess is { } recess)
                 recess.Visibility = held ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        // Hardware LED key-light bar at the top edge of held or pedal-sustained keys.
+        // Physical hardware Light Guide LED window at the top edge of held or pedal-sustained keys.
         if (held || ringing)
         {
             v.LedBar.Fill = held ? p.KeyLedHeld : p.KeyLedRinging;
-            v.LedBar.Height = held ? (key.IsBlack ? 5.5 : 6.0) : 3.8;
+            v.LedBar.Height = held ? (key.IsBlack ? 4.4 : 5.0) : (key.IsBlack ? 3.8 : 4.2);
+            v.LedHousing.Visibility = Visibility.Visible;
             v.LedBar.Visibility = Visibility.Visible;
             v.LedGlow.Visibility = held ? Visibility.Visible : Visibility.Collapsed;
         }
         else
         {
+            v.LedHousing.Visibility = Visibility.Collapsed;
             v.LedBar.Visibility = Visibility.Collapsed;
             v.LedGlow.Visibility = Visibility.Collapsed;
         }
@@ -629,7 +843,7 @@ public partial class PianoKeyboardControl : UserControl
     /// </summary>
     /// <remarks>
     /// The light marks sit on ebony and on the held blue; an unheld white key takes the dark
-    /// pair instead. Placing the white-key mark just above the 3D vertical skirt keeps the
+    /// pair instead. Placing the white-key mark just above the 3D bullnose overhang keeps the
     /// sculpted key front visible in every key signature.
     /// </remarks>
     private void ApplyScaleMark(PianoKey key)
@@ -742,20 +956,32 @@ public partial class PianoKeyboardControl : UserControl
         public Brush WhiteInKey { get; }
         public Brush WhiteTonic { get; }
         public Brush WhiteBorder { get; }
+        public Brush WhiteBullnose { get; }
+        public Brush WhiteBullnoseHeld { get; }
+        public Brush WhiteUndercut { get; }
         public Brush WhiteSkirt { get; }
         public Brush WhiteSkirtHeld { get; }
         public Brush WhiteRidge { get; }
         public Brush WhiteChamfer { get; }
         public Brush PressedRecess { get; }
+        public Brush KeyLedHousing { get; }
+        public Brush KeyLedOff { get; }
         public Brush KeyLedHeld { get; }
         public Brush KeyLedRinging { get; }
         public Brush KeyLedGlow { get; }
         public Brush FallboardShadow { get; }
+        public Brush BlackContactShadow { get; }
         public Brush Black { get; }
+        public Brush BlackLeftWall { get; }
+        public Brush BlackLeftWallHeld { get; }
+        public Brush BlackRightWall { get; }
+        public Brush BlackRightWallHeld { get; }
         public Brush BlackTop { get; }
         public Brush BlackTopHeld { get; }
+        public Brush BlackTopRinging { get; }
         public Brush BlackNose { get; }
         public Brush BlackNoseHeld { get; }
+        public Brush BlackNoseCrest { get; }
         public Brush BlackRidge { get; }
         public Brush BlackHeld { get; }
         public Brush BlackRinging { get; }
@@ -786,20 +1012,32 @@ public partial class PianoKeyboardControl : UserControl
             WhiteInKey = Find("Brush.Key.White.InKey");
             WhiteTonic = Find("Brush.Key.White.Tonic");
             WhiteBorder = Find("Brush.Key.White.Border");
+            WhiteBullnose = Find("Brush.Key.White.Bullnose");
+            WhiteBullnoseHeld = Find("Brush.Key.White.Bullnose.Held");
+            WhiteUndercut = Find("Brush.Key.White.Undercut");
             WhiteSkirt = Find("Brush.Key.White.Skirt");
             WhiteSkirtHeld = Find("Brush.Key.White.Skirt.Held");
             WhiteRidge = Find("Brush.Key.White.Ridge");
             WhiteChamfer = Find("Brush.Key.White.Chamfer");
             PressedRecess = Find("Brush.Key.PressedRecess");
+            KeyLedHousing = Find("Brush.Key.Led.Housing");
+            KeyLedOff = Find("Brush.Key.Led.Off");
             KeyLedHeld = Find("Brush.Key.Led.Held");
             KeyLedRinging = Find("Brush.Key.Led.Ringing");
             KeyLedGlow = Find("Brush.Key.Led.Glow");
             FallboardShadow = Find("Brush.Fallboard.Shadow");
+            BlackContactShadow = Find("Brush.Key.Black.ContactShadow");
             Black = Find("Brush.Key.Black");
+            BlackLeftWall = Find("Brush.Key.Black.LeftWall");
+            BlackLeftWallHeld = Find("Brush.Key.Black.LeftWall.Held");
+            BlackRightWall = Find("Brush.Key.Black.RightWall");
+            BlackRightWallHeld = Find("Brush.Key.Black.RightWall.Held");
             BlackTop = Find("Brush.Key.Black.Top");
             BlackTopHeld = Find("Brush.Key.Black.Top.Held");
+            BlackTopRinging = Find("Brush.Key.Black.Top.Ringing");
             BlackNose = Find("Brush.Key.Black.Nose");
             BlackNoseHeld = Find("Brush.Key.Black.Nose.Held");
+            BlackNoseCrest = Find("Brush.Key.Black.NoseCrest");
             BlackRidge = Find("Brush.Key.Black.Ridge");
             BlackHeld = Find("Brush.Key.Black.Held");
             BlackRinging = Find("Brush.Key.Black.Ringing");

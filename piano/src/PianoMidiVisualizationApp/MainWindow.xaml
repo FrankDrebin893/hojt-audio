@@ -148,6 +148,10 @@
                 <ColumnDefinition Width="Auto"/>   <!-- collapses to zero with the sidebar -->
             </Grid.ColumnDefinitions>
 
+            <!-- 3D top-to-bottom studio lighting falloff across the brushed scarlet instrument chassis -->
+            <Rectangle Grid.Column="0" Grid.ColumnSpan="2" Fill="{StaticResource Brush.Panel.Lighting}"
+                       IsHitTestVisible="False"/>
+
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
                     <!-- Song practice moves the practice toolbar up here, out of the way of the
@@ -171,16 +175,16 @@
                     <ColumnDefinition x:Name="FrontPanelColumn" Width="268"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- The OLED window set into the scarlet panel: a sculpted 3D bezel with a lit bottom
-                     lip, sunken inner shadow, subtle LED/OLED dot-matrix grid, and diagonal glass
-                     sheen framing the readout and the chord strip. Song practice hides it: the lane
-                     must line up with the keys edge to edge, and is a black well already. -->
-                <Border Grid.Row="0" Grid.RowSpan="3" Padding="6" CornerRadius="10"
-                        Background="{StaticResource Brush.Oled.Bezel}"
+                <!-- The OLED window set into the scarlet panel: a multi-stepped 3D machined gunmetal
+                     bezel with a recessed outer seam, 45-degree chamfered inner wall, lit bottom lip,
+                     dot-matrix pixel grid, internal status header hairline, and curved glass sheen.
+                     Song practice hides it: the lane must line up with the keys edge to edge. -->
+                <Border Grid.Row="0" Grid.RowSpan="3" Padding="2" CornerRadius="11"
+                        Background="{StaticResource Brush.Oled.OuterWell}"
                         BorderBrush="{StaticResource Brush.Oled.Lip}" BorderThickness="0,0,0,1.5"
                         IsHitTestVisible="False">
                     <Border.Effect>
-                        <DropShadowEffect Color="#000000" Direction="270" ShadowDepth="2" BlurRadius="8" Opacity="0.45"/>
+                        <DropShadowEffect Color="#000000" Direction="270" ShadowDepth="2.5" BlurRadius="9" Opacity="0.5"/>
                     </Border.Effect>
                     <Border.Style>
                         <Style TargetType="Border">
@@ -202,24 +206,27 @@
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
-                    <Border CornerRadius="6" Background="{StaticResource Brush.Stage}"
-                            BorderBrush="{StaticResource Brush.Oled.ScreenRim}" BorderThickness="1">
-                        <Grid>
-                            <Rectangle RadiusX="5" RadiusY="5" Fill="{StaticResource Brush.Oled.Matrix}"/>
-                            <Border CornerRadius="5" Background="{StaticResource Brush.Oled.InnerShadow}"/>
-                            <Border CornerRadius="5" Background="{StaticResource Brush.Oled.Glass}"/>
-                        </Grid>
+                    <Border CornerRadius="9.5" Padding="5"
+                            Background="{StaticResource Brush.Oled.Bezel}"
+                            BorderBrush="{StaticResource Brush.Oled.Chamfer}" BorderThickness="1">
+                        <Border CornerRadius="6" Background="{StaticResource Brush.Stage}"
+                                BorderBrush="{StaticResource Brush.Oled.ScreenRim}" BorderThickness="1">
+                            <Grid>
+                                <Rectangle RadiusX="5" RadiusY="5" Fill="{StaticResource Brush.Oled.Matrix}"/>
+                                <Border CornerRadius="5" Background="{StaticResource Brush.Oled.InnerShadow}"/>
+                                <Border CornerRadius="5" Background="{StaticResource Brush.Oled.Glass}"/>
+                            </Grid>
+                        </Border>
                     </Border>
                 </Border>
 
                 <!-- The OLED's header line: key, tempo, meter and speed on the left, the
-                     progression on the right, as a hardware display's status bar reads. It
-                     sits at the top of the readout row, which shrinks to fit, rather than in a
-                     row of its own that would take height from the keyboard at 900x420. -->
-                <DockPanel Grid.Row="1" VerticalAlignment="Top" IsHitTestVisible="False"
-                           TextElement.FontFamily="{StaticResource Font.Data}" TextElement.FontSize="11">
-                    <DockPanel.Style>
-                        <Style TargetType="DockPanel">
+                     progression on the right, as a hardware display's status bar reads, with a
+                     crisp LED display hairline divider below it. -->
+                <StackPanel Grid.Row="1" VerticalAlignment="Top" IsHitTestVisible="False"
+                            TextElement.FontFamily="{StaticResource Font.Data}" TextElement.FontSize="11">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
                             <Setter Property="Margin" Value="34,16,34,0"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
@@ -230,25 +237,28 @@
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
-                    </DockPanel.Style>
-                    <TextBlock DockPanel.Dock="Right" Foreground="{StaticResource Brush.Text.Muted}"><Run
-                        Text="progression "/><Run Text="{Binding SavedChords.Count, Mode=OneWay}"/><Run
-                        Text="/8 · "/><Run><Run.Style>
-                            <Style TargetType="Run">
-                                <Setter Property="Text" Value="once"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding ProgressionTools.IsLooping}" Value="True">
-                                        <Setter Property="Text" Value="loop"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Run.Style></Run></TextBlock>
-                    <TextBlock Foreground="{StaticResource Brush.Text.Muted}"><Run
-                        Text="{Binding Settings.KeyLabel, Mode=OneWay}" Foreground="{StaticResource Brush.Text.Primary}"/><Run
-                        Text="   ♩ "/><Run Text="{Binding Settings.MetronomeBpm, Mode=OneWay}"/><Run
-                        Text="   "/><Run Text="{Binding Settings.MetronomeBeatsPerBar, Mode=OneWay}"/><Run
-                        Text="/4   speed "/><Run Text="{Binding Recorder.Speed, Mode=OneWay, StringFormat={}{0:P0}}"/></TextBlock>
-                </DockPanel>
+                    </StackPanel.Style>
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Foreground="{StaticResource Brush.Text.Muted}"><Run
+                            Text="progression "/><Run Text="{Binding SavedChords.Count, Mode=OneWay}"/><Run
+                            Text="/8 · "/><Run><Run.Style>
+                                <Style TargetType="Run">
+                                    <Setter Property="Text" Value="once"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ProgressionTools.IsLooping}" Value="True">
+                                            <Setter Property="Text" Value="loop"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Run.Style></Run></TextBlock>
+                        <TextBlock Foreground="{StaticResource Brush.Text.Muted}"><Run
+                            Text="{Binding Settings.KeyLabel, Mode=OneWay}" Foreground="{StaticResource Brush.Text.Primary}"/><Run
+                            Text="   ♩ "/><Run Text="{Binding Settings.MetronomeBpm, Mode=OneWay}"/><Run
+                            Text="   "/><Run Text="{Binding Settings.MetronomeBeatsPerBar, Mode=OneWay}"/><Run
+                            Text="/4   speed "/><Run Text="{Binding Recorder.Speed, Mode=OneWay, StringFormat={}{0:P0}}"/></TextBlock>
+                    </DockPanel>
+                    <Rectangle Height="1" Margin="0,4,0,0" Fill="{StaticResource Brush.Oled.Divider}"/>
+                </StackPanel>
 
                 <!-- The front panel beside the window: the two halo knobs (master volume and the
                      metronome click, the same settings as the sliders in Settings), then twelve
@@ -1048,30 +1058,37 @@
                      narrow window. MaxHeight stops it from dwarfing the readout on a wide one.
                      The keys start at the top of the canvas, so in song practice, with no top
                      margin, the falling notes' hit line is exactly the keys' top edge. -->
-                <!-- The 3D recessed keybed well, machined end-cheeks, overhang shadow, and plush
-                     crimson fallboard felt strip framing the keyboard. In song practice the felt
-                     and top margin collapse so the lane's bottom hit line meets the keys' top edge. -->
+                <!-- The 3D recessed keybed well, machined end-cheeks, overhang shadow, machined
+                     fallboard lip, and plush crimson fallboard felt strip framing the keyboard.
+                     In song practice the felt and top margin collapse so the lane's bottom hit line
+                     meets the keys' top edge. -->
                 <Border Grid.Row="4" Grid.ColumnSpan="2" CornerRadius="4"
                         Background="{StaticResource Brush.Keybed}"
                         BorderBrush="{StaticResource Brush.Keybed.Rim}" BorderThickness="1,0,1,1"
                         IsHitTestVisible="False">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Margin" Value="8,6,8,0"/>
+                            <Setter Property="Margin" Value="6,4,6,0"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
-                                    <Setter Property="Margin" Value="8,1,8,0"/>
+                                    <Setter Property="Margin" Value="6,1,6,0"/>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
-                                    <Setter Property="Margin" Value="8,0,8,0"/>
+                                    <Setter Property="Margin" Value="6,0,6,0"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
                     <DockPanel>
-                        <Rectangle DockPanel.Dock="Left" Width="8" Fill="{StaticResource Brush.Keybed.Cheek}"/>
-                        <Rectangle DockPanel.Dock="Right" Width="8" Fill="{StaticResource Brush.Keybed.Cheek}"/>
-                        <Border VerticalAlignment="Top" Height="10" Background="{StaticResource Brush.Fallboard.Shadow}">
+                        <Border DockPanel.Dock="Left" Width="10" Background="{StaticResource Brush.Keybed.Cheek}"
+                                BorderBrush="{StaticResource Brush.Keybed.CheekEdge}" BorderThickness="0,1,1,0"/>
+                        <Border DockPanel.Dock="Right" Width="10" Background="{StaticResource Brush.Keybed.Cheek}"
+                                BorderBrush="{StaticResource Brush.Keybed.CheekEdge}" BorderThickness="1,1,0,0">
+                            <Border.LayoutTransform>
+                                <ScaleTransform ScaleX="-1"/>
+                            </Border.LayoutTransform>
+                        </Border>
+                        <Border VerticalAlignment="Top" Height="12" Background="{StaticResource Brush.Fallboard.Shadow}">
                             <Border.Style>
                                 <Style TargetType="Border">
                                     <Style.Triggers>
@@ -1084,14 +1101,32 @@
                         </Border>
                     </DockPanel>
                 </Border>
+                <Border Grid.Row="4" Grid.ColumnSpan="2" Height="6" VerticalAlignment="Top"
+                        Background="{StaticResource Brush.Fallboard.Lip}"
+                        BorderBrush="{StaticResource Brush.Fallboard.LipEdge}" BorderThickness="0,1,0,0"
+                        IsHitTestVisible="False">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Margin" Value="12,5,12,0"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                                    <Setter Property="Margin" Value="12,1,12,0"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                </Border>
                 <Rectangle Grid.Row="4" Grid.ColumnSpan="2" Height="6" VerticalAlignment="Top"
                            Fill="{StaticResource Brush.Felt}" IsHitTestVisible="False">
                     <Rectangle.Style>
                         <Style TargetType="Rectangle">
-                            <Setter Property="Margin" Value="12,10,12,0"/>
+                            <Setter Property="Margin" Value="14,11,14,0"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
-                                    <Setter Property="Margin" Value="12,2,12,0"/>
+                                    <Setter Property="Margin" Value="14,3,14,0"/>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
                                     <Setter Property="Visibility" Value="Collapsed"/>

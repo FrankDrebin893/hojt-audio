@@ -95,75 +95,112 @@
 
     <!-- The window's rounded outline: a darker edge round the anodised sheet. -->
     <SolidColorBrush x:Key="Brush.Window.Rim" Color="#5C0A10"/>
-    <SolidColorBrush x:Key="Brush.Panel.TopBevel" Color="#26FFFFFF"/>
-    <SolidColorBrush x:Key="Brush.Panel.BottomShadow" Color="#4D000000"/>
+    <SolidColorBrush x:Key="Brush.Panel.TopBevel" Color="#2EFFFFFF"/>
+    <SolidColorBrush x:Key="Brush.Panel.BottomShadow" Color="#59000000"/>
+
+    <!-- Top-to-bottom 3D studio lighting falloff across the brushed scarlet instrument panel. -->
+    <LinearGradientBrush x:Key="Brush.Panel.Lighting" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#1CFFFFFF" Offset="0"/>
+        <GradientStop Color="#06FFFFFF" Offset="0.16"/>
+        <GradientStop Color="#00000000" Offset="0.52"/>
+        <GradientStop Color="#1A000000" Offset="0.86"/>
+        <GradientStop Color="#38000000" Offset="1"/>
+    </LinearGradientBrush>
 
     <!-- Recessed channel on the scarlet panel for the practice toolbar strip. -->
     <LinearGradientBrush x:Key="Brush.Panel.Recess" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#750B11" Offset="0"/>
-        <GradientStop Color="#8C0F17" Offset="0.25"/>
-        <GradientStop Color="#961119" Offset="1"/>
+        <GradientStop Color="#66090F" Offset="0"/>
+        <GradientStop Color="#7E0D14" Offset="0.22"/>
+        <GradientStop Color="#8E1017" Offset="1"/>
     </LinearGradientBrush>
-    <SolidColorBrush x:Key="Brush.Panel.RecessRim" Color="#2EFFFFFF"/>
+    <SolidColorBrush x:Key="Brush.Panel.RecessRim" Color="#33FFFFFF"/>
 
-    <!-- The OLED window's bezel: a sculpted 3D frame set into the panel, with a lit bottom lip,
-         sunken inner shadow, faint dot-matrix pixel grid, and diagonal glass sheen. -->
+    <!-- The OLED window's bezel: a multi-stepped 3D machined gunmetal frame set into the scarlet
+         panel, with a recessed outer seam, 45-degree chamfered inner wall, lit bottom lip,
+         dot-matrix pixel grid, internal header hairline, and curved anti-reflective glass sheen. -->
+    <LinearGradientBrush x:Key="Brush.Oled.OuterWell" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#420509" Offset="0"/>
+        <GradientStop Color="#5C080D" Offset="0.5"/>
+        <GradientStop Color="#730B12" Offset="1"/>
+    </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Oled.Bezel" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#1B1B1B" Offset="0"/>
-        <GradientStop Color="#0B0B0B" Offset="0.18"/>
-        <GradientStop Color="#050505" Offset="1"/>
+        <GradientStop Color="#2B2B2E" Offset="0"/>
+        <GradientStop Color="#18181A" Offset="0.14"/>
+        <GradientStop Color="#0D0D0F" Offset="0.82"/>
+        <GradientStop Color="#1F1F22" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Oled.Chamfer" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#8C000000" Offset="0"/>
+        <GradientStop Color="#14FFFFFF" Offset="0.5"/>
+        <GradientStop Color="#38FFFFFF" Offset="1"/>
     </LinearGradientBrush>
     <SolidColorBrush x:Key="Brush.Oled.BezelOuter" Color="#4A070C"/>
-    <SolidColorBrush x:Key="Brush.Oled.Lip"   Color="#4DFFFFFF"/>
+    <SolidColorBrush x:Key="Brush.Oled.Lip"   Color="#48FFFFFF"/>
+    <LinearGradientBrush x:Key="Brush.Oled.Divider" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#05FFFFFF" Offset="0"/>
+        <GradientStop Color="#24FFFFFF" Offset="0.15"/>
+        <GradientStop Color="#24FFFFFF" Offset="0.85"/>
+        <GradientStop Color="#05FFFFFF" Offset="1"/>
+    </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Oled.InnerShadow" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#D9000000" Offset="0"/>
-        <GradientStop Color="#59000000" Offset="0.06"/>
+        <GradientStop Color="#E6000000" Offset="0"/>
+        <GradientStop Color="#66000000" Offset="0.06"/>
         <GradientStop Color="#00000000" Offset="0.16"/>
-        <GradientStop Color="#00000000" Offset="0.92"/>
-        <GradientStop Color="#4D000000" Offset="1"/>
+        <GradientStop Color="#00000000" Offset="0.90"/>
+        <GradientStop Color="#66000000" Offset="1"/>
     </LinearGradientBrush>
     <DrawingBrush x:Key="Brush.Oled.Matrix" TileMode="Tile" Viewport="0,0,3,3" ViewportUnits="Absolute"
                   Viewbox="0,0,3,3" ViewboxUnits="Absolute" Stretch="None">
         <DrawingBrush.Drawing>
             <DrawingGroup>
                 <GeometryDrawing Brush="#00000000" Geometry="M 0,0 H 3 V 3 H 0 Z"/>
-                <GeometryDrawing Brush="#09FFFFFF" Geometry="M 0,0 H 2 V 2 H 0 Z"/>
+                <GeometryDrawing Brush="#0AFFFFFF" Geometry="M 0,0 H 2 V 2 H 0 Z"/>
             </DrawingGroup>
         </DrawingBrush.Drawing>
     </DrawingBrush>
-    <LinearGradientBrush x:Key="Brush.Oled.Glass" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#15FFFFFF" Offset="0"/>
-        <GradientStop Color="#06FFFFFF" Offset="0.22"/>
-        <GradientStop Color="#00FFFFFF" Offset="0.36"/>
+    <LinearGradientBrush x:Key="Brush.Oled.Glass" StartPoint="0,0" EndPoint="0.85,1">
+        <GradientStop Color="#18FFFFFF" Offset="0"/>
+        <GradientStop Color="#09FFFFFF" Offset="0.24"/>
+        <GradientStop Color="#02FFFFFF" Offset="0.38"/>
+        <GradientStop Color="#00FFFFFF" Offset="0.40"/>
         <GradientStop Color="#00FFFFFF" Offset="0.82"/>
-        <GradientStop Color="#07FFFFFF" Offset="1"/>
+        <GradientStop Color="#08FFFFFF" Offset="1"/>
     </LinearGradientBrush>
-    <SolidColorBrush x:Key="Brush.Oled.ScreenRim" Color="#1FFFFFFF"/>
+    <SolidColorBrush x:Key="Brush.Oled.ScreenRim" Color="#26FFFFFF"/>
     <DropShadowEffect x:Key="Effect.Oled.Glow" x:Shared="False" ShadowDepth="0" BlurRadius="10" Opacity="0.35"
                       Color="{StaticResource Color.Ivory.Primary}"/>
 
-    <!-- The keybed housing, plush fallboard felt strip, and overhang shadow between the panel and the keys. -->
+    <!-- The keybed housing, machined metal fallboard lip, plush fallboard felt strip, sculpted
+         end-cheeks, and overhang shadow between the panel and the keys. -->
+    <LinearGradientBrush x:Key="Brush.Fallboard.Lip" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#52080D" Offset="0"/>
+        <GradientStop Color="#300407" Offset="0.45"/>
+        <GradientStop Color="#140203" Offset="1"/>
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="Brush.Fallboard.LipEdge" Color="#33FFFFFF"/>
     <LinearGradientBrush x:Key="Brush.Felt" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#050505" Offset="0"/>
-        <GradientStop Color="#52090F" Offset="0.35"/>
-        <GradientStop Color="#7C0E16" Offset="0.7"/>
-        <GradientStop Color="#1C0305" Offset="1"/>
+        <GradientStop Color="#6E0A12" Offset="0.32"/>
+        <GradientStop Color="#9E111C" Offset="0.65"/>
+        <GradientStop Color="#240306" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Keybed" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#040404" Offset="0"/>
-        <GradientStop Color="#121212" Offset="0.08"/>
-        <GradientStop Color="#090909" Offset="0.92"/>
+        <GradientStop Color="#030303" Offset="0"/>
+        <GradientStop Color="#111112" Offset="0.08"/>
+        <GradientStop Color="#080809" Offset="0.92"/>
         <GradientStop Color="#020202" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Keybed.Cheek" StartPoint="0,0" EndPoint="1,0">
-        <GradientStop Color="#262626" Offset="0"/>
-        <GradientStop Color="#151515" Offset="0.4"/>
-        <GradientStop Color="#080808" Offset="1"/>
+        <GradientStop Color="#361417" Offset="0"/>
+        <GradientStop Color="#240C0E" Offset="0.28"/>
+        <GradientStop Color="#140607" Offset="0.78"/>
+        <GradientStop Color="#070203" Offset="1"/>
     </LinearGradientBrush>
-    <SolidColorBrush x:Key="Brush.Keybed.Rim" Color="#24FFFFFF"/>
+    <SolidColorBrush x:Key="Brush.Keybed.CheekEdge" Color="#28FFFFFF"/>
+    <SolidColorBrush x:Key="Brush.Keybed.Rim" Color="#28FFFFFF"/>
     <LinearGradientBrush x:Key="Brush.Fallboard.Shadow" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#B3000000" Offset="0"/>
-        <GradientStop Color="#40000000" Offset="0.45"/>
+        <GradientStop Color="#C8000000" Offset="0"/>
+        <GradientStop Color="#52000000" Offset="0.45"/>
         <GradientStop Color="#00000000" Offset="1"/>
     </LinearGradientBrush>
 
@@ -228,47 +265,51 @@
         <GradientStop Color="#00FF4A3A" Offset="1"/>
     </RadialGradientBrush>
 
-    <!-- ================= Surfaces ================= -->
-    <DrawingBrush x:Key="Brush.Window" TileMode="Tile" Viewport="0,0,4,64" ViewportUnits="Absolute"
-                  Viewbox="0,0,4,64" ViewboxUnits="Absolute" Stretch="None">
+    <!-- ================= Surfaces =================
+         Horizontal brushed anodised scarlet aluminium grain, like a physical synthesizer chassis. -->
+    <DrawingBrush x:Key="Brush.Window" TileMode="Tile" Viewport="0,0,128,4" ViewportUnits="Absolute"
+                  Viewbox="0,0,128,4" ViewboxUnits="Absolute" Stretch="None">
         <DrawingBrush.Drawing>
             <DrawingGroup>
-                <GeometryDrawing Geometry="M 0,0 H 4 V 64 H 0 Z">
+                <GeometryDrawing Geometry="M 0,0 H 128 V 4 H 0 Z">
                     <GeometryDrawing.Brush>
                         <SolidColorBrush Color="{StaticResource Color.Lacquer.Chrome}"/>
                     </GeometryDrawing.Brush>
                 </GeometryDrawing>
-                <GeometryDrawing Brush="#0DFFFFFF" Geometry="M 0,0 H 1 V 64 H 0 Z"/>
-                <GeometryDrawing Brush="#12000000" Geometry="M 1,0 H 2 V 64 H 1 Z"/>
+                <GeometryDrawing Brush="#0EFFFFFF" Geometry="M 0,0 H 128 V 1 H 0 Z"/>
+                <GeometryDrawing Brush="#14000000" Geometry="M 0,1 H 128 V 2 H 0 Z"/>
+                <GeometryDrawing Brush="#07FFFFFF" Geometry="M 0,2 H 128 V 3 H 0 Z"/>
             </DrawingGroup>
         </DrawingBrush.Drawing>
     </DrawingBrush>
-    <DrawingBrush x:Key="Brush.TitleBar" TileMode="Tile" Viewport="0,0,4,64" ViewportUnits="Absolute"
-                  Viewbox="0,0,4,64" ViewboxUnits="Absolute" Stretch="None">
+    <DrawingBrush x:Key="Brush.TitleBar" TileMode="Tile" Viewport="0,0,128,4" ViewportUnits="Absolute"
+                  Viewbox="0,0,128,4" ViewboxUnits="Absolute" Stretch="None">
         <DrawingBrush.Drawing>
             <DrawingGroup>
-                <GeometryDrawing Geometry="M 0,0 H 4 V 64 H 0 Z">
+                <GeometryDrawing Geometry="M 0,0 H 128 V 4 H 0 Z">
                     <GeometryDrawing.Brush>
                         <SolidColorBrush Color="{StaticResource Color.Lacquer.Chrome}"/>
                     </GeometryDrawing.Brush>
                 </GeometryDrawing>
-                <GeometryDrawing Brush="#0DFFFFFF" Geometry="M 0,0 H 1 V 64 H 0 Z"/>
-                <GeometryDrawing Brush="#12000000" Geometry="M 1,0 H 2 V 64 H 1 Z"/>
+                <GeometryDrawing Brush="#0EFFFFFF" Geometry="M 0,0 H 128 V 1 H 0 Z"/>
+                <GeometryDrawing Brush="#14000000" Geometry="M 0,1 H 128 V 2 H 0 Z"/>
+                <GeometryDrawing Brush="#07FFFFFF" Geometry="M 0,2 H 128 V 3 H 0 Z"/>
             </DrawingGroup>
         </DrawingBrush.Drawing>
     </DrawingBrush>
     <!-- Panels: the sidebar, recorder, song bar, status bar and the toolbar strip on the stage. -->
-    <DrawingBrush x:Key="Brush.Surface" TileMode="Tile" Viewport="0,0,4,64" ViewportUnits="Absolute"
-                  Viewbox="0,0,4,64" ViewboxUnits="Absolute" Stretch="None">
+    <DrawingBrush x:Key="Brush.Surface" TileMode="Tile" Viewport="0,0,128,4" ViewportUnits="Absolute"
+                  Viewbox="0,0,128,4" ViewboxUnits="Absolute" Stretch="None">
         <DrawingBrush.Drawing>
             <DrawingGroup>
-                <GeometryDrawing Geometry="M 0,0 H 4 V 64 H 0 Z">
+                <GeometryDrawing Geometry="M 0,0 H 128 V 4 H 0 Z">
                     <GeometryDrawing.Brush>
                         <SolidColorBrush Color="{StaticResource Color.Lacquer.Chrome}"/>
                     </GeometryDrawing.Brush>
                 </GeometryDrawing>
-                <GeometryDrawing Brush="#0DFFFFFF" Geometry="M 0,0 H 1 V 64 H 0 Z"/>
-                <GeometryDrawing Brush="#12000000" Geometry="M 1,0 H 2 V 64 H 1 Z"/>
+                <GeometryDrawing Brush="#0EFFFFFF" Geometry="M 0,0 H 128 V 1 H 0 Z"/>
+                <GeometryDrawing Brush="#14000000" Geometry="M 0,1 H 128 V 2 H 0 Z"/>
+                <GeometryDrawing Brush="#07FFFFFF" Geometry="M 0,2 H 128 V 3 H 0 Z"/>
             </DrawingGroup>
         </DrawingBrush.Drawing>
     </DrawingBrush>
@@ -548,159 +589,215 @@
          Every label brush is paired with the fill it sits on: idle labels clear 4.5:1 on ivory,
          the in-key wash and the tonic's darkest edge; the held pair clears 4.5:1 on its fill. -->
 
-    <!-- Neutral white keytops with 3D top-to-bottom contour and subtle fallboard shading. -->
+    <!-- Neutral white keytops with 3D top-to-bottom studio gloss reflection and fallboard shading. -->
     <LinearGradientBrush x:Key="Brush.Key.White" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#CFCFCB" Offset="0"/>
-        <GradientStop Color="#F0F0EE" Offset="0.06"/>
-        <GradientStop Color="#FFFFFF" Offset="0.18"/>
-        <GradientStop Color="#FBFBF9" Offset="0.82"/>
-        <GradientStop Color="#EAEAE5" Offset="0.93"/>
-        <GradientStop Color="#D2D2CC" Offset="1"/>
+        <GradientStop Color="#C4C3BE" Offset="0"/>
+        <GradientStop Color="#F2F2EE" Offset="0.06"/>
+        <GradientStop Color="#FFFFFF" Offset="0.22"/>
+        <GradientStop Color="#FFFFFF" Offset="0.38"/>
+        <GradientStop Color="#F8F8F5" Offset="0.74"/>
+        <GradientStop Color="#EAE9E3" Offset="0.90"/>
+        <GradientStop Color="#DDDCd4" Offset="1"/>
     </LinearGradientBrush>
-    <!-- Held: the key physically depresses (a deeper shaded surface with blue LED light spill
-         from its lit top bar) and its front ridge steps down into the keybed. -->
+    <!-- Held: a white key tilted downward into the keybed light shadow, with a rich luminous blue
+         LED light wash spilling from its top Light Guide lens across the glossy keytop. -->
     <LinearGradientBrush x:Key="Brush.Key.White.Held" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="{StaticResource Color.Blue}" Offset="0"/>
-        <GradientStop Color="{StaticResource Color.Blue}" Offset="0.045"/>
-        <GradientStop Color="#8DB8E8" Offset="0.06"/>
-        <GradientStop Color="#B8C8D8" Offset="0.18"/>
-        <GradientStop Color="#CED5DC" Offset="0.50"/>
-        <GradientStop Color="#D6DADF" Offset="0.86"/>
-        <GradientStop Color="#BFC4CA" Offset="1"/>
+        <GradientStop Color="#5CA8FF" Offset="0"/>
+        <GradientStop Color="#8EC4FF" Offset="0.15"/>
+        <GradientStop Color="#B6D8FA" Offset="0.40"/>
+        <GradientStop Color="#CCE2F8" Offset="0.76"/>
+        <GradientStop Color="#B4CCE6" Offset="1"/>
     </LinearGradientBrush>
     <!-- A key the sustain pedal holds after you let go: back up, its edge a quieter blue. Lit,
          since it is sounding, but plainly not under a finger. -->
     <LinearGradientBrush x:Key="Brush.Key.White.Ringing" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#9CC8F2" Offset="0"/>
-        <GradientStop Color="#9CC8F2" Offset="0.038"/>
-        <GradientStop Color="#E2ECF7" Offset="0.05"/>
-        <GradientStop Color="{StaticResource Color.Ivory.Key}" Offset="0.15"/>
-        <GradientStop Color="#F6F6F4" Offset="0.88"/>
-        <GradientStop Color="#E2E2DF" Offset="1"/>
+        <GradientStop Color="#C6DDF7" Offset="0"/>
+        <GradientStop Color="#E6EFF9" Offset="0.14"/>
+        <GradientStop Color="#F8FAFC" Offset="0.35"/>
+        <GradientStop Color="#F4F5F6" Offset="0.82"/>
+        <GradientStop Color="#E0E2E5" Offset="1"/>
     </LinearGradientBrush>
-    <!-- In the key but not its tonic: no wash at all, so the keyboard stays white (in C major
-         every white key is in the key). The front lip mark below carries the role. -->
+    <!-- In the key: subtle warm ivory sheen; the front lip mark below carries the role. -->
     <LinearGradientBrush x:Key="Brush.Key.White.InKey" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#CFCFCB" Offset="0"/>
-        <GradientStop Color="#F0F0EE" Offset="0.06"/>
-        <GradientStop Color="#FFFFFF" Offset="0.18"/>
-        <GradientStop Color="#FBFBF9" Offset="0.82"/>
-        <GradientStop Color="#EAEAE5" Offset="0.93"/>
-        <GradientStop Color="#D2D2CC" Offset="1"/>
+        <GradientStop Color="#C4C3BE" Offset="0"/>
+        <GradientStop Color="#F2F2EE" Offset="0.06"/>
+        <GradientStop Color="#FFFFFF" Offset="0.22"/>
+        <GradientStop Color="#FFFFFF" Offset="0.38"/>
+        <GradientStop Color="#F8F8F5" Offset="0.74"/>
+        <GradientStop Color="#EAE9E3" Offset="0.90"/>
+        <GradientStop Color="#DDDCD4" Offset="1"/>
     </LinearGradientBrush>
-    <!-- The tonic: plain white like every key; its thick dark front lip marks it. -->
+    <!-- The tonic: plain glossy ivory like every key; its thick dark front lip marks it. -->
     <LinearGradientBrush x:Key="Brush.Key.White.Tonic" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#CFCFCB" Offset="0"/>
-        <GradientStop Color="#F0F0EE" Offset="0.06"/>
-        <GradientStop Color="#FFFFFF" Offset="0.18"/>
-        <GradientStop Color="#FBFBF9" Offset="0.82"/>
-        <GradientStop Color="#EAEAE5" Offset="0.93"/>
-        <GradientStop Color="#D2D2CC" Offset="1"/>
+        <GradientStop Color="#C4C3BE" Offset="0"/>
+        <GradientStop Color="#F2F2EE" Offset="0.06"/>
+        <GradientStop Color="#FFFFFF" Offset="0.22"/>
+        <GradientStop Color="#FFFFFF" Offset="0.38"/>
+        <GradientStop Color="#F8F8F5" Offset="0.74"/>
+        <GradientStop Color="#EAE9E3" Offset="0.90"/>
+        <GradientStop Color="#DDDCD4" Offset="1"/>
     </LinearGradientBrush>
-    <SolidColorBrush x:Key="Brush.Key.White.Border" Color="#1F1C19"/>
+    <SolidColorBrush x:Key="Brush.Key.White.Border" Color="#141210"/>
 
-    <!-- 3D front vertical skirt (lip), front chamfer ridge, and side specular chamfer for white keys. -->
-    <LinearGradientBrush x:Key="Brush.Key.White.Skirt" StartPoint="0,0" EndPoint="0,1">
+    <!-- 3D bullnose overhang, undercut shadow, vertical front skirt, and side cylindrical chamfer for white keys. -->
+    <LinearGradientBrush x:Key="Brush.Key.White.Bullnose" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#FFFFFF" Offset="0"/>
-        <GradientStop Color="#FFFFFF" Offset="0.14"/>
-        <GradientStop Color="#D4D3CC" Offset="0.22"/>
-        <GradientStop Color="#B8B7AF" Offset="0.72"/>
-        <GradientStop Color="#8A8982" Offset="1"/>
+        <GradientStop Color="#F4F4EE" Offset="0.55"/>
+        <GradientStop Color="#CCCBC2" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.White.Bullnose.Held" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#F0F5FA" Offset="0"/>
+        <GradientStop Color="#DCE4EE" Offset="0.55"/>
+        <GradientStop Color="#B6C0CC" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.White.Undercut" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#66000000" Offset="0"/>
+        <GradientStop Color="#24000000" Offset="0.55"/>
+        <GradientStop Color="#00000000" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.White.Skirt" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#C4C3BA" Offset="0"/>
+        <GradientStop Color="#E2E1D8" Offset="0.32"/>
+        <GradientStop Color="#C2C1B8" Offset="0.74"/>
+        <GradientStop Color="#84837A" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.White.Skirt.Held" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#E8ECF0" Offset="0"/>
-        <GradientStop Color="#A8B0B8" Offset="0.22"/>
-        <GradientStop Color="#858C94" Offset="0.75"/>
-        <GradientStop Color="#5E646B" Offset="1"/>
+        <GradientStop Color="#B0BAC6" Offset="0"/>
+        <GradientStop Color="#C6D0DC" Offset="0.35"/>
+        <GradientStop Color="#9BA4B0" Offset="0.75"/>
+        <GradientStop Color="#6C747E" Offset="1"/>
     </LinearGradientBrush>
-    <SolidColorBrush x:Key="Brush.Key.White.Ridge" Color="#B8B7B0"/>
+    <SolidColorBrush x:Key="Brush.Key.White.Ridge" Color="#A8A79E"/>
     <LinearGradientBrush x:Key="Brush.Key.White.Chamfer" StartPoint="0,0" EndPoint="1,0">
-        <GradientStop Color="#B3FFFFFF" Offset="0"/>
-        <GradientStop Color="#00FFFFFF" Offset="0.16"/>
-        <GradientStop Color="#00000000" Offset="0.82"/>
-        <GradientStop Color="#33000000" Offset="1"/>
+        <GradientStop Color="#E6FFFFFF" Offset="0"/>
+        <GradientStop Color="#00FFFFFF" Offset="0.14"/>
+        <GradientStop Color="#00000000" Offset="0.84"/>
+        <GradientStop Color="#3B000000" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.PressedRecess" StartPoint="0,0" EndPoint="1,0">
-        <GradientStop Color="#59000000" Offset="0"/>
-        <GradientStop Color="#14000000" Offset="0.18"/>
-        <GradientStop Color="#0D000000" Offset="0.5"/>
-        <GradientStop Color="#14000000" Offset="0.82"/>
-        <GradientStop Color="#59000000" Offset="1"/>
+        <GradientStop Color="#80000000" Offset="0"/>
+        <GradientStop Color="#24000000" Offset="0.11"/>
+        <GradientStop Color="#05000000" Offset="0.22"/>
+        <GradientStop Color="#05000000" Offset="0.78"/>
+        <GradientStop Color="#24000000" Offset="0.89"/>
+        <GradientStop Color="#70000000" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- Hardware key-light LED strip at the top of a held or sustained key. -->
+    <!-- Hardware Light Guide LED diffuser window at the top of every key (visible unlit as a dark lens,
+         glowing vivid blue when held or pedal-sustained). -->
+    <SolidColorBrush x:Key="Brush.Key.Led.Housing" Color="#1A1A1D"/>
+    <LinearGradientBrush x:Key="Brush.Key.Led.Off" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#323236" Offset="0"/>
+        <GradientStop Color="#202024" Offset="0.5"/>
+        <GradientStop Color="#151518" Offset="1"/>
+    </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.Led.Held" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#F0F8FF" Offset="0"/>
-        <GradientStop Color="#80C0FF" Offset="0.35"/>
-        <GradientStop Color="{StaticResource Color.Blue}" Offset="0.75"/>
+        <GradientStop Color="#FFFFFF" Offset="0"/>
+        <GradientStop Color="#8AC6FF" Offset="0.32"/>
+        <GradientStop Color="{StaticResource Color.Blue}" Offset="0.72"/>
         <GradientStop Color="#1B75D0" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.Led.Ringing" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#D6EBFF" Offset="0"/>
-        <GradientStop Color="#8CC0F0" Offset="0.6"/>
-        <GradientStop Color="#5B9BD5" Offset="1"/>
+        <GradientStop Color="#DCF0FF" Offset="0"/>
+        <GradientStop Color="#88C0F4" Offset="0.55"/>
+        <GradientStop Color="#4C8FD6" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.Led.Glow" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#994FA3FF" Offset="0"/>
-        <GradientStop Color="#384FA3FF" Offset="0.45"/>
+        <GradientStop Color="#A64FA3FF" Offset="0"/>
+        <GradientStop Color="#424FA3FF" Offset="0.42"/>
         <GradientStop Color="#004FA3FF" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- Ebony sharps: 3D sculpted prism body with side bevels, satin playing top, and sloped front nose. -->
+    <!-- Ebony sharps: 4-plane 3D sculpted prism (grounded contact shadow on white keys, lit left bevel wall,
+         shaded right bevel wall, sloped front nose ramp with curved specular crest roll, and satin top). -->
+    <LinearGradientBrush x:Key="Brush.Key.Black.ContactShadow" StartPoint="0,0" EndPoint="1,0.3">
+        <GradientStop Color="#78000000" Offset="0"/>
+        <GradientStop Color="#38000000" Offset="0.55"/>
+        <GradientStop Color="#08000000" Offset="1"/>
+    </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.Black" StartPoint="0,0" EndPoint="1,0">
-        <GradientStop Color="#484440" Offset="0"/>
-        <GradientStop Color="#282522" Offset="0.18"/>
-        <GradientStop Color="#171513" Offset="0.82"/>
-        <GradientStop Color="#070606" Offset="1"/>
-    </LinearGradientBrush>
-    <LinearGradientBrush x:Key="Brush.Key.Black.Top" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#3D3935" Offset="0"/>
-        <GradientStop Color="#292623" Offset="0.12"/>
-        <GradientStop Color="#1E1C19" Offset="0.72"/>
-        <GradientStop Color="#2B2825" Offset="0.95"/>
-        <GradientStop Color="#524D47" Offset="1"/>
-    </LinearGradientBrush>
-    <LinearGradientBrush x:Key="Brush.Key.Black.Top.Held" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#284A6E" Offset="0"/>
-        <GradientStop Color="#1E2833" Offset="0.22"/>
-        <GradientStop Color="#17191C" Offset="0.78"/>
-        <GradientStop Color="#262A2E" Offset="0.95"/>
-        <GradientStop Color="#464E57" Offset="1"/>
-    </LinearGradientBrush>
-    <LinearGradientBrush x:Key="Brush.Key.Black.Nose" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#66605A" Offset="0"/>
-        <GradientStop Color="#2E2B28" Offset="0.16"/>
-        <GradientStop Color="#141210" Offset="0.65"/>
+        <GradientStop Color="#524E49" Offset="0"/>
+        <GradientStop Color="#282522" Offset="0.22"/>
+        <GradientStop Color="#141210" Offset="0.80"/>
         <GradientStop Color="#050404" Offset="1"/>
     </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.LeftWall" StartPoint="0,0" EndPoint="1,0.1">
+        <GradientStop Color="#66605A" Offset="0"/>
+        <GradientStop Color="#4A4540" Offset="0.45"/>
+        <GradientStop Color="#2D2A27" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.LeftWall.Held" StartPoint="0,0" EndPoint="1,0.1">
+        <GradientStop Color="#5896E0" Offset="0"/>
+        <GradientStop Color="#3666A8" Offset="0.5"/>
+        <GradientStop Color="#1F3E6B" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.RightWall" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#1C1A18" Offset="0"/>
+        <GradientStop Color="#0E0D0C" Offset="0.55"/>
+        <GradientStop Color="#040303" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.RightWall.Held" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#1B365C" Offset="0"/>
+        <GradientStop Color="#0E1E36" Offset="0.55"/>
+        <GradientStop Color="#060D1A" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.Top" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#22201E" Offset="0"/>
+        <GradientStop Color="#3E3B37" Offset="0.16"/>
+        <GradientStop Color="#262421" Offset="0.48"/>
+        <GradientStop Color="#1C1A18" Offset="0.82"/>
+        <GradientStop Color="#33302C" Offset="0.96"/>
+        <GradientStop Color="#58534D" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.Top.Held" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#62ACF8" Offset="0"/>
+        <GradientStop Color="#3678C8" Offset="0.22"/>
+        <GradientStop Color="#224C84" Offset="0.68"/>
+        <GradientStop Color="#2B5B9C" Offset="0.94"/>
+        <GradientStop Color="#5892D4" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.Top.Ringing" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#487EC2" Offset="0"/>
+        <GradientStop Color="#284368" Offset="0.18"/>
+        <GradientStop Color="#1D2633" Offset="0.75"/>
+        <GradientStop Color="#354458" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.Nose" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#7C756E" Offset="0"/>
+        <GradientStop Color="#3E3A36" Offset="0.18"/>
+        <GradientStop Color="#1C1A18" Offset="0.58"/>
+        <GradientStop Color="#0B0A09" Offset="0.88"/>
+        <GradientStop Color="#040303" Offset="1"/>
+    </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.Black.Nose.Held" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#5A6673" Offset="0"/>
-        <GradientStop Color="#22272C" Offset="0.2"/>
-        <GradientStop Color="#101214" Offset="0.7"/>
-        <GradientStop Color="#050607" Offset="1"/>
+        <GradientStop Color="#72B4FA" Offset="0"/>
+        <GradientStop Color="#3266A8" Offset="0.22"/>
+        <GradientStop Color="#18345C" Offset="0.65"/>
+        <GradientStop Color="#091526" Offset="1"/>
     </LinearGradientBrush>
-    <SolidColorBrush x:Key="Brush.Key.Black.Ridge" Color="#66FFFFFF"/>
-    <LinearGradientBrush x:Key="Brush.Key.Black.Held" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="{StaticResource Color.Blue}" Offset="0"/>
-        <GradientStop Color="{StaticResource Color.Blue}" Offset="0.06"/>
-        <GradientStop Color="#121D29" Offset="0.08"/>
-        <GradientStop Color="#141416" Offset="0.6"/>
-        <GradientStop Color="#201E1C" Offset="1"/>
+    <LinearGradientBrush x:Key="Brush.Key.Black.NoseCrest" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#66FFFFFF" Offset="0"/>
+        <GradientStop Color="#20FFFFFF" Offset="0.5"/>
+        <GradientStop Color="#00FFFFFF" Offset="1"/>
     </LinearGradientBrush>
-    <LinearGradientBrush x:Key="Brush.Key.Black.Ringing" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#6E9CCB" Offset="0"/>
-        <GradientStop Color="#6E9CCB" Offset="0.05"/>
-        <GradientStop Color="#25221F" Offset="0.06"/>
-        <GradientStop Color="#181614" Offset="0.5"/>
-        <GradientStop Color="{StaticResource Color.Lacquer.Deep}" Offset="1"/>
+    <SolidColorBrush x:Key="Brush.Key.Black.Ridge" Color="#48FFFFFF"/>
+    <LinearGradientBrush x:Key="Brush.Key.Black.Held" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#3868A6" Offset="0"/>
+        <GradientStop Color="#1E3A60" Offset="0.5"/>
+        <GradientStop Color="#0A1628" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.Ringing" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#385478" Offset="0"/>
+        <GradientStop Color="#1E2C40" Offset="0.5"/>
+        <GradientStop Color="#0C121C" Offset="1"/>
     </LinearGradientBrush>
     <!-- The tonic keeps a body colour on black keys too; the other in-key black keys get only
          the edge mark, so a scale doesn't turn half the black keys into coloured slabs. -->
     <LinearGradientBrush x:Key="Brush.Key.Black.Tonic" StartPoint="0,0" EndPoint="1,0">
-        <GradientStop Color="#484440" Offset="0"/>
-        <GradientStop Color="#282522" Offset="0.18"/>
-        <GradientStop Color="#171513" Offset="0.82"/>
-        <GradientStop Color="#070606" Offset="1"/>
+        <GradientStop Color="#524E49" Offset="0"/>
+        <GradientStop Color="#282522" Offset="0.22"/>
+        <GradientStop Color="#141210" Offset="0.80"/>
+        <GradientStop Color="#050404" Offset="1"/>
     </LinearGradientBrush>
     <SolidColorBrush x:Key="Brush.Key.Black.Border" Color="#040303"/>
 
@@ -1303,12 +1400,37 @@
          Note: a local <Button.Style> without BasedOn replaces these outright.
          ========================================================================= -->
 
-    <!-- Ink, not boxes: a lacquer key with no border at rest. The border stays 1px and
-         transparent so a style that does draw one keeps the same size. -->
+    <!-- 3D hardware control cap and recessed LCD well brushes for toolbar/panel controls. -->
+    <LinearGradientBrush x:Key="Brush.Control.Cap" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#2C2C30" Offset="0"/>
+        <GradientStop Color="#1F1F22" Offset="0.45"/>
+        <GradientStop Color="#141416" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Control.CapHover" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#38383D" Offset="0"/>
+        <GradientStop Color="#28282C" Offset="0.45"/>
+        <GradientStop Color="#1B1B1E" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Control.Bevel" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#30FFFFFF" Offset="0"/>
+        <GradientStop Color="#0DFFFFFF" Offset="0.5"/>
+        <GradientStop Color="#66000000" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Input.Well" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#08080A" Offset="0"/>
+        <GradientStop Color="#121215" Offset="0.22"/>
+        <GradientStop Color="#151518" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Input.WellRim" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#80000000" Offset="0"/>
+        <GradientStop Color="#28FFFFFF" Offset="1"/>
+    </LinearGradientBrush>
+
+    <!-- Ink, not boxes: a sculpted lacquer keycap with a subtle top specular bevel. -->
     <Style TargetType="Button">
-        <Setter Property="Background" Value="{StaticResource Brush.SurfaceRaised}"/>
+        <Setter Property="Background" Value="{StaticResource Brush.Control.Cap}"/>
         <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}"/>
-        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Control.Bevel}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="10,3"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -1318,13 +1440,13 @@
                     <Border x:Name="Bd" Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            Padding="{TemplateBinding Padding}" CornerRadius="3"
+                            Padding="{TemplateBinding Padding}" CornerRadius="3.5"
                             SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Hover}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Control.CapHover}"/>
                             <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
@@ -1471,9 +1593,9 @@
     </Style>
 
     <Style TargetType="TextBox">
-        <Setter Property="Background" Value="{StaticResource Brush.Input}"/>
+        <Setter Property="Background" Value="{StaticResource Brush.Input.Well}"/>
         <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Input.WellRim}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="6,3"/>
         <Setter Property="CaretBrush" Value="{StaticResource Brush.Text.Primary}"/>
@@ -1484,7 +1606,7 @@
                     <Border Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="3" SnapsToDevicePixels="True">
+                            CornerRadius="3.5" SnapsToDevicePixels="True">
                         <ScrollViewer x:Name="PART_ContentHost" Padding="{TemplateBinding Padding}"
                                       VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                     </Border>
@@ -1494,9 +1616,9 @@
     </Style>
 
     <Style TargetType="PasswordBox">
-        <Setter Property="Background" Value="{StaticResource Brush.Input}"/>
+        <Setter Property="Background" Value="{StaticResource Brush.Input.Well}"/>
         <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Input.WellRim}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="6,3"/>
         <Setter Property="CaretBrush" Value="{StaticResource Brush.Text.Primary}"/>
@@ -1507,7 +1629,7 @@
                     <Border Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="3" SnapsToDevicePixels="True">
+                            CornerRadius="3.5" SnapsToDevicePixels="True">
                         <ScrollViewer x:Name="PART_ContentHost" Padding="{TemplateBinding Padding}"
                                       VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                     </Border>
@@ -1537,9 +1659,9 @@
     </Style>
 
     <Style TargetType="ComboBox">
-        <Setter Property="Background" Value="{StaticResource Brush.Input}"/>
+        <Setter Property="Background" Value="{StaticResource Brush.Input.Well}"/>
         <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Input.WellRim}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="8,3"/>
         <Setter Property="Template">
@@ -1553,9 +1675,9 @@
                                                   RelativeSource={RelativeSource TemplatedParent}}">
                             <ToggleButton.Template>
                                 <ControlTemplate TargetType="ToggleButton">
-                                    <Border x:Name="Bd" Background="{StaticResource Brush.Input}"
-                                            BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
-                                            CornerRadius="3" SnapsToDevicePixels="True">
+                                    <Border x:Name="Bd" Background="{StaticResource Brush.Input.Well}"
+                                            BorderBrush="{StaticResource Brush.Input.WellRim}" BorderThickness="1"
+                                            CornerRadius="3.5" SnapsToDevicePixels="True">
                                         <Path HorizontalAlignment="Right" VerticalAlignment="Center"
                                               Margin="0,0,9,0" Data="M 0,0 L 4,4 L 8,0"
                                               Stroke="{StaticResource Brush.Text.Muted}" StrokeThickness="1.4"/>
@@ -1694,9 +1816,9 @@
          at rest, an ivory one while on. Keyed rather than implicit so the ComboBox's internal
          ToggleButton is unaffected. -->
     <Style x:Key="Style.ToolbarToggle" TargetType="ToggleButton">
-        <Setter Property="Background" Value="{StaticResource Brush.SurfaceRaised}"/>
+        <Setter Property="Background" Value="{StaticResource Brush.Control.Cap}"/>
         <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}"/>
-        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Control.Bevel}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="7,0"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -1706,13 +1828,13 @@
                     <Border x:Name="Bd" Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            Padding="{TemplateBinding Padding}" CornerRadius="3"
+                            Padding="{TemplateBinding Padding}" CornerRadius="3.5"
                             SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Hover}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Control.CapHover}"/>
                             <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
