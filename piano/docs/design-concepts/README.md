@@ -26,6 +26,16 @@ ebony keys that go down when held, with the display above them.
 | `Memory.dc.html` | I · Reflective LCD on aluminium: an unlit grey-green memory LCD with crisp ink, an orange save button, a tempo slider, quiet round buttons | Kept for later |
 | `Synth.dc.html` | J · Colour OLED synth: wood cheeks, a colour OLED, LED-ring encoders, backlit progression pads | Kept for later |
 
+Round 3 (2026-10-20): a scarlet-red colour scheme, still with real keys. The finish is a
+generic red anodised or lacquered case; there are no brand names or logos.
+
+| File | Concept | Status |
+|---|---|---|
+| `Scarlet.dc.html` | K · Scarlet anodised: brushed red aluminium, a white-on-black OLED window with soft keys, two large knobs with green-to-red level halos, black rubber buttons | Kept for later |
+| `Touch.dc.html` | L · Scarlet and black: a matte black panel between red anodised end plates, a colour touchscreen laid out in cards, a glowing red strip above the keys | Kept for later |
+| `Dot.dc.html` | M · Scarlet case, white dot LCD: a red powder-coat case, a white dot-matrix display, silver knobs, white key lights over held keys | Kept for later |
+| `Gloss.dc.html` | N · Scarlet gloss lacquer: piano-gloss red with gold trim, a champagne-on-black OLED in a gold bezel, gold knobs and gold-ringed touch buttons | Kept for later |
+
 The `.dc.html` files are Design Component pages for the claude.ai design canvas. They
 need its runtime (`support.js`), so open them through the canvas link above rather than
 straight in a browser.
