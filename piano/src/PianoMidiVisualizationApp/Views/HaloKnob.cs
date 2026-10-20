@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Automation.Peers;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -43,6 +44,15 @@ public sealed class HaloKnob : RangeBase
     }
 
     private double Fraction => Maximum > Minimum ? (Value - Minimum) / (Maximum - Minimum) : 0;
+
+    /// <summary>A slider to assistive tech, so the knob's name and level are announced and settable.</summary>
+    protected override AutomationPeer OnCreateAutomationPeer() => new HaloKnobAutomationPeer(this);
+
+    private sealed class HaloKnobAutomationPeer(HaloKnob owner) : RangeBaseAutomationPeer(owner)
+    {
+        protected override string GetClassNameCore() => nameof(HaloKnob);
+        protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.Slider;
+    }
 
     protected override void OnRender(DrawingContext dc)
     {
