@@ -23,8 +23,7 @@ protected, so a release goes in through a pull request like any other change.
    whose look changed, and new ones: `scripts/screenshots.ps1 <plugin>` retakes their screenshot in
    `site/img/`; look at each.
    Then `/page release $ARGUMENTS`: the page describes exactly this version.
-5. **Gates.** `cargo test --workspace`, `cargo test -p amp --release`, `cargo fmt --all --check`,
-   `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo xtask bundle -p pitch_shifter
+5. **Gates.** `scripts/check.sh` (every step of CI), and `cargo xtask bundle -p pitch_shifter
    -p drums -p amp -p bass -p bells -p pad --release` followed by `cargo xtask check-art`: every
    bundle carries its plugin's artwork.
 6. **Stop.** Show the changelog section, the changed sound examples and the commit you would
