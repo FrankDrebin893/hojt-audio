@@ -94,6 +94,9 @@ and where; `from:user` marks issues from outside the project.
   `Sound` is not required: it only runs when a plugin changed
 - A large piece of work is a parent issue with one sub-issue per milestone
 - A decision the spec did not cover is asked on the issue, not guessed
+- A `/next` session that ends without a pull request leaves a "Progress" comment on the issue:
+  what is done, what was verified and how, what is next, what is blocked. The next session on
+  that issue reads the latest one first (`.agents/skills/next/SKILL.md`, "The builder")
 
 ### End of a session
 
