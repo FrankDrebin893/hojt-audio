@@ -8,7 +8,6 @@
         MinWidth="900" MinHeight="420"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource Brush.Window}"
-        FontFamily="{StaticResource Font.Display}"
         WindowStyle="None"
         AllowsTransparency="True"
         ResizeMode="CanResizeWithGrip"
@@ -136,16 +135,11 @@
         </Border>
 
         <!-- ===================== Stage ===================== -->
-        <Grid Grid.Row="1" Background="{StaticResource Brush.Surface}">
+        <Grid Grid.Row="1" Background="Transparent">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>   <!-- collapses to zero with the sidebar -->
             </Grid.ColumnDefinitions>
-
-            <!-- The tube: green-black glass with an etched graticule. The sidebar beside it
-                 stays on the case. -->
-            <Rectangle Grid.Column="0" Fill="{StaticResource Brush.Crt.Screen}" IsHitTestVisible="False"/>
-            <Rectangle Grid.Column="0" Fill="{StaticResource Brush.Crt.Graticule}" IsHitTestVisible="False"/>
 
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
@@ -162,12 +156,31 @@
                     <RowDefinition Height="Auto"/>                <!-- keyboard -->
                 </Grid.RowDefinitions>
 
+                <!-- The OLED window set into the scarlet panel: a black bezel with a lit lip,
+                     framing the readout and the chord strip. Song practice hides it: the lane
+                     must line up with the keys edge to edge, and is a black well already. -->
+                <Border Grid.Row="0" Grid.RowSpan="3" Margin="16,8,16,6" Padding="6" CornerRadius="10"
+                        Background="{StaticResource Brush.Oled.Bezel}"
+                        BorderBrush="{StaticResource Brush.Oled.Lip}" BorderThickness="0,0,0,1"
+                        IsHitTestVisible="False">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Border CornerRadius="6" Background="{StaticResource Brush.Stage}"/>
+                </Border>
+
                 <!-- Readout row, in three columns: grand staff on the left, the chord readout in
                      the centre, circle of fifths on the right. The side columns split whatever
                      the readout leaves, so it stays centred whichever side panels are shown. Each
                      side panel should hug its outer edge: its column's width changes with the
                      chord name's length, and a panel centred in it would slide as you played. -->
-                <Grid Grid.Row="1" Effect="{StaticResource Effect.Glow}">
+                <Grid Grid.Row="1" Margin="10,14,10,0">
                     <!-- Song practice takes this row over, hiding all three columns together. -->
                     <Grid.Style>
                         <Style TargetType="Grid">
@@ -184,26 +197,17 @@
                         <ColumnDefinition Width="*"/>      <!-- circle of fifths -->
                     </Grid.ColumnDefinitions>
 
-                    <!-- Channel 1: the held chord as a waveform, running behind the readout
-                         across the whole row. Dimmed so the chord name stays the brightest
-                         thing on the tube; it latches and fades with the readout. -->
-                    <views:ScopeTraceControl Grid.ColumnSpan="3" Margin="0,8" Opacity="0.25"
-                                             Style="{StaticResource Style.Readout.Latch}"
-                                             Notes="{Binding TraceNotes}"
-                                             TraceBrush="{StaticResource Brush.Crt.Trace}"
-                                             IdleBrush="{StaticResource Brush.Crt.TraceIdle}"/>
-
                     <!-- Chord readout. Every line has a MinHeight so releasing the keys empties the
                          text without collapsing the line box and shifting the layout. After the
                          keys come up it holds the last chord for 2 s, its four lines dimming
                          (Style.Readout.Latch) while the save line stays put, since saving is
                          exactly what the held-over chord is for. -->
-                    <!-- Scales down, never up: VT323 needs larger sizes than the row has room for at
-                         the 900x420 minimum, so a short row shrinks the whole readout rather than
-                         clipping the chord name's top. -->
+                    <!-- Scales down, never up: at the 900x420 minimum, inside the OLED window's
+                         frame, a short row shrinks the whole readout rather than clipping the
+                         chord name's top. -->
                     <Viewbox Grid.Column="1" Stretch="Uniform" StretchDirection="DownOnly"
                              VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24,12">
-                    <StackPanel TextElement.FontFamily="{StaticResource Font.Readout}">
+                    <StackPanel>
                         <!-- Line boxes are trimmed to pay for the voicing line: the stack has to fit
                              the 159px row at 900x420, and the 140px MinHeight row an open recorder,
                              log or chat squeezes it to without shaving the chord name. The name's own
@@ -211,7 +215,7 @@
                              parenthesis still clears the voicing text by the ~4px it used to clear
                              the notes line by. Notes and intervals keep ~1px over their natural line. -->
                         <TextBlock Text="{Binding Analysis.Name}" Style="{StaticResource Style.Readout.Latch}"
-                                   FontSize="{StaticResource Size.Readout.Name}" FontWeight="Bold"
+                                   FontSize="{StaticResource Size.Readout.Name}" FontWeight="Black"
                                    Foreground="{StaticResource Brush.Text.Primary}"
                                    LineStackingStrategy="BlockLineHeight" LineHeight="70"
                                    MinHeight="70" TextAlignment="Center"/>
@@ -224,8 +228,8 @@
                         <TextBlock DataContext="{Binding Analysis}" Style="{StaticResource Style.Readout.Latch}"
                                    FontSize="{StaticResource Size.Readout.Voicing}"
                                    Foreground="{StaticResource Brush.Text.Secondary}"
-                                   LineStackingStrategy="BlockLineHeight" LineHeight="22"
-                                   MinHeight="22" Margin="0,3,0,0" TextAlignment="Center"><Run
+                                   LineStackingStrategy="BlockLineHeight" LineHeight="19"
+                                   MinHeight="19" Margin="0,3,0,0" TextAlignment="Center"><Run
                                        Text="{Binding Function, Mode=OneWay}"
                                        FontSize="{StaticResource Size.Readout.Function}" FontWeight="SemiBold"
                                        Style="{StaticResource Style.Function.Numeral}"/><Run
@@ -247,11 +251,11 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Margin="6,0">
-                                        <TextBlock Text="{Binding Note}"
+                                        <TextBlock Text="{Binding Note}" FontFamily="{StaticResource Font.Data}"
                                                    FontSize="{StaticResource Size.Readout.Notes}"
                                                    Foreground="{StaticResource Brush.Text.Tertiary}"
                                                    MinHeight="22" TextAlignment="Center"/>
-                                        <TextBlock Text="{Binding Interval}"
+                                        <TextBlock Text="{Binding Interval}" FontFamily="{StaticResource Font.Data}"
                                                    FontSize="{StaticResource Size.Readout.Intervals}"
                                                    Foreground="{StaticResource Brush.Text.Muted}"
                                                    MinHeight="18" TextAlignment="Center"/>
@@ -261,7 +265,7 @@
                         </ItemsControl>
                         <!-- That the chord was saved ("Saved · 3/8"), or can't be ("Progression
                              full"). How to save it shows only until the first chord is saved. -->
-                        <TextBlock Text="{Binding SaveHint}" FontSize="16" Margin="0,2,0,0"
+                        <TextBlock Text="{Binding SaveHint}" FontSize="11" Margin="0,4,0,0"
                                    Foreground="{StaticResource Brush.Text.Hint}"
                                    MinHeight="18" TextAlignment="Center"
                                    Visibility="{Binding Analysis.Name,
@@ -423,7 +427,7 @@
                      164px at 900x420 against a 140px MinHeight, so the keyboard keeps its full
                      size at the minimum window. Hidden with no key selected, and during song
                      practice, whose falling notes need the keyboard's hint markers to themselves. -->
-                <views:ChordStripControl Grid.Row="2" HorizontalAlignment="Center" Margin="16,0,16,2"
+                <views:ChordStripControl Grid.Row="2" HorizontalAlignment="Center" Margin="28,0,28,16"
                                          DataContext="{Binding ChordStrip}">
                     <views:ChordStripControl.Style>
                         <Style TargetType="views:ChordStripControl">
@@ -707,17 +711,29 @@
                      narrow window. MaxHeight stops it from dwarfing the readout on a wide one.
                      The keys start at the top of the canvas, so in song practice, with no top
                      margin, the falling notes' hit line is exactly the keys' top edge. -->
-                <!-- The bottom margin keeps the keys clear of the CRT bezel (CrtOverlay). -->
-                <Viewbox Grid.Row="4" Stretch="Uniform" StretchDirection="Both"
-                         MaxHeight="360" HorizontalAlignment="Center" VerticalAlignment="Bottom"
-                         TextOptions.TextFormattingMode="Ideal"
-                         Effect="{StaticResource Effect.Glow.Soft}">
-                    <Viewbox.Style>
-                        <Style TargetType="Viewbox">
-                            <Setter Property="Margin" Value="22,16,22,8"/>
+                <!-- The felt strip the keys sit behind, across the panel. Not in song practice,
+                     where the lane's bottom edge has to be the keys' top edge. -->
+                <Rectangle Grid.Row="4" Height="6" VerticalAlignment="Top" Margin="12,10,12,0"
+                           Fill="{StaticResource Brush.Felt}" IsHitTestVisible="False">
+                    <Rectangle.Style>
+                        <Style TargetType="Rectangle">
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
-                                    <Setter Property="Margin" Value="22,0,22,8"/>
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Rectangle.Style>
+                </Rectangle>
+                <Viewbox Grid.Row="4" Stretch="Uniform" StretchDirection="Both"
+                         MaxHeight="360" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                         TextOptions.TextFormattingMode="Ideal">
+                    <Viewbox.Style>
+                        <Style TargetType="Viewbox">
+                            <Setter Property="Margin" Value="16,16,16,0"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
+                                    <Setter Property="Margin" Value="16,0"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -725,9 +741,6 @@
                     <views:PianoKeyboardControl x:Name="PianoKeys" DataContext="{Binding PianoKeyboard}"/>
                 </Viewbox>
             </Grid>
-
-            <!-- The glass over the tube: scanlines, vignette and the bezel round its corners. -->
-            <views:CrtOverlay Grid.Column="0"/>
 
             <!-- Chord progression sidebar, with its playback, transpose and next-chord tools.
                  Widened from 200 to fit the tool rows; hidden by Shift+F4 and zen with the rest. -->

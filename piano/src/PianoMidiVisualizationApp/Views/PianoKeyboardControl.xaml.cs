@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using PianoMidiVisualizationApp.Models;
 using PianoMidiVisualizationApp.ViewModels;
@@ -17,7 +18,7 @@ public partial class PianoKeyboardControl : UserControl
     private const double BlackKeyWidth = KeyboardLayout.BlackKeyWidth;
     private const double BlackKeyHeight = KeyboardLayout.BlackKeyHeight;
 
-    /// <summary>Drawing height, leaving a little headroom below the keys for their glow.</summary>
+    /// <summary>Drawing height, leaving a little headroom below the keys for their shadows.</summary>
     public const double CanvasHeight = WhiteKeyHeight + 6;
 
     /// <summary>Where the label glyphs sit, measured from the top of the key.</summary>
@@ -29,8 +30,7 @@ public partial class PianoKeyboardControl : UserControl
     private const double WhiteLabelBaseline = WhiteKeyHeight - 8;
     private const double BlackLabelBaseline = BlackKeyHeight - 6;
 
-    /// <summary>The theme's data face (Font.Data), resolved when the keyboard is built.</summary>
-    private FontFamily _labelFont = new("Segoe UI");
+    private static readonly FontFamily LabelFont = new("Segoe UI");
 
     private readonly Dictionary<int, Rectangle> _keyRectangles = new();
 
@@ -83,8 +83,6 @@ public partial class PianoKeyboardControl : UserControl
         if (vm.Keys.Count == 0) return;
         Layout = new KeyboardLayout(vm.Keys[0].NoteNumber, vm.Keys[^1].NoteNumber);
         _palette = new KeyPalette(this);
-        if (TryFindResource("Font.Data") is FontFamily labelFont)
-            _labelFont = labelFont;
 
         // White keys first, with their marks, labels and hints; the black keys added after them
         // then sit on top.
@@ -148,9 +146,17 @@ public partial class PianoKeyboardControl : UserControl
             Width = KeyboardLayout.WhiteKeyDrawnWidth,
             Height = WhiteKeyHeight,
             Stroke = _palette.WhiteBorder,
-            StrokeThickness = 1,
+            StrokeThickness = 0.5,
             RadiusX = 0,
-            RadiusY = 4
+            RadiusY = 4,
+            Effect = new DropShadowEffect
+            {
+                Color = _palette.Shadow,
+                Direction = 270,
+                ShadowDepth = 1,
+                Opacity = 0.15,
+                BlurRadius = 2
+            }
         };
         Canvas.SetLeft(rect, x);
         Canvas.SetTop(rect, 0);
@@ -165,9 +171,17 @@ public partial class PianoKeyboardControl : UserControl
             Width = BlackKeyWidth,
             Height = BlackKeyHeight,
             Stroke = _palette.BlackBorder,
-            StrokeThickness = 1,
+            StrokeThickness = 0.5,
             RadiusX = 2,
-            RadiusY = 2
+            RadiusY = 2,
+            Effect = new DropShadowEffect
+            {
+                Color = _palette.Shadow,
+                Direction = 315,
+                ShadowDepth = 3,
+                Opacity = 0.5,
+                BlurRadius = 5
+            }
         };
         Canvas.SetLeft(rect, x);
         Canvas.SetTop(rect, 0);
@@ -187,11 +201,11 @@ public partial class PianoKeyboardControl : UserControl
     private static bool IsOctaveC(PianoKey key) => key.NoteNumber % 12 == 0;
 
     /// <summary>Text, size, weight, colour and visibility are all set by <see cref="ApplyKeyLabel"/>.</summary>
-    private TextBlock CreateLabel(double x, PianoKey key)
+    private static TextBlock CreateLabel(double x, PianoKey key)
     {
         var label = new TextBlock
         {
-            FontFamily = _labelFont,
+            FontFamily = LabelFont,
             TextAlignment = TextAlignment.Center,
             Width = KeyboardLayout.KeyWidth(key.NoteNumber),
             IsHitTestVisible = false
@@ -374,7 +388,7 @@ public partial class PianoKeyboardControl : UserControl
         }
 
         double baseline = key.IsBlack ? BlackLabelBaseline : WhiteLabelBaseline;
-        Canvas.SetTop(label, baseline - (_labelFont.Baseline * label.FontSize));
+        Canvas.SetTop(label, baseline - (LabelFont.Baseline * label.FontSize));
     }
 
     private void ApplyKeyHint(PianoKey key)
@@ -447,11 +461,14 @@ public partial class PianoKeyboardControl : UserControl
         public Brush LabelHeld { get; }
         public Brush BlackLabel { get; }
         public Brush BlackLabelHeld { get; }
+        public Color Shadow { get; }
 
         public KeyPalette(FrameworkElement owner)
         {
             // Magenta for a missing key is loud on purpose: a mistyped name shows at once.
             Brush Find(string key) => owner.TryFindResource(key) as Brush ?? Brushes.Magenta;
+
+            Shadow = owner.TryFindResource("Color.Shadow") as Color? ?? Colors.Magenta;
 
             White = Find("Brush.Key.White");
             WhiteHeld = Find("Brush.Key.White.Held");

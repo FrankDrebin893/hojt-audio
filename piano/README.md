@@ -17,11 +17,11 @@ suggests where the saved progression could go next.*
 
 ### Hear and see what you play
 
-- **Any MIDI keyboard**: USB or through a MIDI interface. Held keys burn in bright on a 61-key
+- **Any MIDI keyboard**: USB or through a MIDI interface. Held keys go down and light blue along their back edge on a 61-key
   keyboard (C2–C7) that scales with the window, each labelled with its note spelled for the key
   (Bb in F, not A#). The other keys label only the Cs; **View → All Note Names** labels every key.
 - **Sustain pedal**: holds the sound in both SoundFont and SFZ pianos. A key the pedal is holding
-  stays lit at half brightness and still counts toward the chord name.
+  keeps a paler blue edge and still counts toward the chord name.
 - **SoundFont and SFZ pianos**: `.sf2` files play through the MeltySynth synthesizer. `.sfz`
   instruments such as [Salamander Grand Piano](https://sfzinstruments.github.io/pianos/salamander)
   play through a built-in sample player with velocity layers.

@@ -97,12 +97,14 @@ recedes so the chord readout and the keys lead. DESIGN.md holds that system.
 
 On 2026-10-19 the user asked for the app to look like a display on hardware, and picked
 **"phosphor scope"** from five concepts (`docs/design-concepts/`; the other four are kept for
-later). It is being tried in the app: the stage is a green P31 CRT behind a bezel, with
-scanlines, a graticule and a phosphor glow, a wireframe keyboard, and the held chord drawn as
-a waveform trace, and the readout in the bundled VT323 terminal face; the chrome is the
-instrument's case; amber is a second phosphor for the key
+later). It was tried in the app first, then replaced on 2026-10-20 after two more rounds
+of concepts with real keys: the user picked **"scarlet anodised"** (concept K,
+`docs/design-concepts/Scarlet.dc.html`). The chrome is brushed scarlet aluminium with white
+legends; the readout and chord strip sit in a black OLED window with a bezel; the keys are
+real ivory and ebony, a held key pressed down with a blue-lit back edge; amber stays the key
 centre. The palette lives in `Themes/Dark.xaml`. DESIGN.md still describes piano character
-until this direction settles.
+until this direction settles. The phosphor build is in git history (commits 30a6ba0 and
+08255c7).
 
 ## Evidence on Hand
 

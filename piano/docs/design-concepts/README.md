@@ -9,7 +9,7 @@ https://claude.ai/artifact/A1vkXJUVwwK3oD11wKC69h
 
 | File | Concept | Status |
 |---|---|---|
-| `Scope.dc.html` | **E · Phosphor scope**: a curved CRT with a graticule, scanlines and green phosphor glow; the chord drawn as a live waveform trace; a wireframe keyboard; instrument knobs and tape-labelled memory buttons | **Chosen**: being built into the app |
+| `Scope.dc.html` | **E · Phosphor scope**: a curved CRT with a graticule, scanlines and green phosphor glow; the chord drawn as a live waveform trace; a wireframe keyboard; instrument knobs and tape-labelled memory buttons | Tried in the app 2026-10-19, replaced by K (git history: 30a6ba0, 08255c7) |
 | `VFD.dc.html` | A · VFD workstation: smoked glass with cyan phosphor, an amber key centre, rubber buttons and a data wheel | Kept for later |
 | `LCD.dc.html` | B · Backlit LCD with real keys: a yellow-green pixel LCD, soft keys under on-screen tabs, real ivory keys with an LED above each | Kept for later |
 | `OLED.dc.html` | C · OLED module: pure black OLED in aluminium, geometric type, a ring dial and coloured encoders | Kept for later |
@@ -31,7 +31,7 @@ generic red anodised or lacquered case; there are no brand names or logos.
 
 | File | Concept | Status |
 |---|---|---|
-| `Scarlet.dc.html` | K · Scarlet anodised: brushed red aluminium, a white-on-black OLED window with soft keys, two large knobs with green-to-red level halos, black rubber buttons | Kept for later |
+| `Scarlet.dc.html` | **K · Scarlet anodised**: brushed red aluminium, a white-on-black OLED window with soft keys, two large knobs with green-to-red level halos, black rubber buttons | **Chosen**: built into the app (the halo knobs are not, since the app has no panel knobs) |
 | `Touch.dc.html` | L · Scarlet and black: a matte black panel between red anodised end plates, a colour touchscreen laid out in cards, a glowing red strip above the keys | Kept for later |
 | `Dot.dc.html` | M · Scarlet case, white dot LCD: a red powder-coat case, a white dot-matrix display, silver knobs, white key lights over held keys | Kept for later |
 | `Gloss.dc.html` | N · Scarlet gloss lacquer: piano-gloss red with gold trim, a champagne-on-black OLED in a gold bezel, gold knobs and gold-ringed touch buttons | Kept for later |
