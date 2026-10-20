@@ -109,6 +109,15 @@ public partial class CircleOfFifthsControl : UserControl
 
     private readonly List<Segment> _segments = new();
 
+    /// <summary>Recessed centre hub disc and active key symbol readout inside the circle.</summary>
+    private readonly Ellipse _hubDisc = new() { IsHitTestVisible = false };
+    private readonly TextBlock _hubLabel = new()
+    {
+        IsHitTestVisible = false,
+        TextAlignment = TextAlignment.Center,
+        FontWeight = FontWeights.ExtraBold
+    };
+
     /// <summary>Outline laid over the root's segment. Not hit-testable, so clicks pass through.</summary>
     private readonly Path _rootMarker = new() { IsHitTestVisible = false, Visibility = Visibility.Collapsed };
 
@@ -162,8 +171,19 @@ public partial class CircleOfFifthsControl : UserControl
             }
         }
 
+        _hubDisc.SetResourceReference(Shape.FillProperty, "Brush.Circle.Hub");
+        _hubDisc.SetResourceReference(Shape.StrokeProperty, "Brush.Circle.HubRim");
+        _hubDisc.StrokeThickness = 1;
+        Panel.SetZIndex(_hubDisc, 1);
+        CircleCanvas.Children.Add(_hubDisc);
+
+        _hubLabel.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Text.Primary");
+        Panel.SetZIndex(_hubLabel, 2);
+        CircleCanvas.Children.Add(_hubLabel);
+
         _rootMarker.StrokeLineJoin = PenLineJoin.Round;
         _rootMarker.SetResourceReference(Shape.StrokeProperty, "Brush.Circle.RootMarker");
+        _rootMarker.SetResourceReference(UIElement.EffectProperty, "Effect.Oled.Glow");
         Panel.SetZIndex(_rootMarker, 2);
         CircleCanvas.Children.Add(_rootMarker);
     }
@@ -212,6 +232,20 @@ public partial class CircleOfFifthsControl : UserControl
             segment.Shape.ToolTip = CircleOfFifths.TooltipAt(segment.Ring, segment.Index, key);
             ApplyStyle(segment);
         }
+
+        if (key is { } k)
+        {
+            string tonic = CircleOfFifths.Typeset(k.DisplayName.Split(' ')[0]);
+            bool isMinor = CircleOfFifths.RingOf(k) == CircleRing.Minor;
+            _hubLabel.Text = isMinor ? $"{tonic}m" : tonic;
+        }
+        else
+        {
+            _hubLabel.Text = "";
+        }
+
+        if (_diameter > 0)
+            PlaceHub(_diameter);
     }
 
     /// <summary>
@@ -231,9 +265,15 @@ public partial class CircleOfFifthsControl : UserControl
         });
 
         if (segment.Shape.IsMouseOver)
+        {
             segment.Shape.SetResourceReference(Shape.StrokeProperty, "Brush.Circle.Hover");
+            segment.Shape.StrokeThickness = 1.2;
+        }
         else
-            segment.Shape.ClearValue(Shape.StrokeProperty);
+        {
+            segment.Shape.SetResourceReference(Shape.StrokeProperty, "Brush.Circle.SegmentRim");
+            segment.Shape.StrokeThickness = 0.6;
+        }
 
         foreach (var name in segment.Names)
         {
@@ -313,7 +353,30 @@ public partial class CircleOfFifthsControl : UserControl
             PlaceStack(centre, radius, segment.Index, outer, gap, blocks);
         }
 
+        PlaceHub(diameter);
         UpdateRootMarker();
+    }
+
+    private void PlaceHub(double diameter)
+    {
+        double markerThickness = Math.Clamp(diameter * 0.012, 1.75, 3);
+        double outer = diameter / 2 - markerThickness / 2;
+        double hubRadius = Math.Max(4, (outer * HubFraction) - SegmentGap);
+        var centre = new Point(diameter / 2, diameter / 2);
+
+        _hubDisc.Width = _hubDisc.Height = hubRadius * 2;
+        Canvas.SetLeft(_hubDisc, centre.X - hubRadius);
+        Canvas.SetTop(_hubDisc, centre.Y - hubRadius);
+
+        if (!string.IsNullOrEmpty(_hubLabel.Text))
+        {
+            _hubLabel.FontSize = Math.Clamp(hubRadius * 0.62, 8.5, 15);
+            _hubLabel.FontSize = FitBold(_hubLabel, (hubRadius * 1.75));
+            var ink = InkSpan(_hubLabel);
+            _hubLabel.Width = hubRadius * 2;
+            Canvas.SetLeft(_hubLabel, centre.X - hubRadius);
+            Canvas.SetTop(_hubLabel, centre.Y - (ink.Height / 2) - ink.Top);
+        }
     }
 
     /// <summary>

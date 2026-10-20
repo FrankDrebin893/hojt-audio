@@ -30,6 +30,7 @@
 
         <!-- ===================== Title bar ===================== -->
         <Border Grid.Row="0" Background="{StaticResource Brush.TitleBar}" Height="32"
+                BorderBrush="{StaticResource Brush.Panel.BottomShadow}" BorderThickness="0,0,0,1"
                 MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -170,13 +171,17 @@
                     <ColumnDefinition x:Name="FrontPanelColumn" Width="268"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- The OLED window set into the scarlet panel: a black bezel with a lit lip,
-                     framing the readout and the chord strip. Song practice hides it: the lane
+                <!-- The OLED window set into the scarlet panel: a sculpted 3D bezel with a lit bottom
+                     lip, sunken inner shadow, subtle LED/OLED dot-matrix grid, and diagonal glass
+                     sheen framing the readout and the chord strip. Song practice hides it: the lane
                      must line up with the keys edge to edge, and is a black well already. -->
                 <Border Grid.Row="0" Grid.RowSpan="3" Padding="6" CornerRadius="10"
                         Background="{StaticResource Brush.Oled.Bezel}"
-                        BorderBrush="{StaticResource Brush.Oled.Lip}" BorderThickness="0,0,0,1"
+                        BorderBrush="{StaticResource Brush.Oled.Lip}" BorderThickness="0,0,0,1.5"
                         IsHitTestVisible="False">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#000000" Direction="270" ShadowDepth="2" BlurRadius="8" Opacity="0.45"/>
+                    </Border.Effect>
                     <Border.Style>
                         <Style TargetType="Border">
                             <!-- While the chord strip shows, the bottom margin leaves its soft keys
@@ -197,7 +202,14 @@
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
-                    <Border CornerRadius="6" Background="{StaticResource Brush.Stage}"/>
+                    <Border CornerRadius="6" Background="{StaticResource Brush.Stage}"
+                            BorderBrush="{StaticResource Brush.Oled.ScreenRim}" BorderThickness="1">
+                        <Grid>
+                            <Rectangle RadiusX="5" RadiusY="5" Fill="{StaticResource Brush.Oled.Matrix}"/>
+                            <Border CornerRadius="5" Background="{StaticResource Brush.Oled.InnerShadow}"/>
+                            <Border CornerRadius="5" Background="{StaticResource Brush.Oled.Glass}"/>
+                        </Grid>
+                    </Border>
                 </Border>
 
                 <!-- The OLED's header line: key, tempo, meter and speed on the left, the
@@ -374,6 +386,7 @@
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding Recorder.IsRecordArmed}" Value="True">
                                                         <Setter Property="Fill" Value="{StaticResource Brush.Record.Active}"/>
+                                                        <Setter Property="Effect" Value="{StaticResource Effect.Led.Red}"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
@@ -428,6 +441,7 @@
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding HasChord}" Value="True">
                                                         <Setter Property="Fill" Value="{StaticResource Brush.Led.Green}"/>
+                                                        <Setter Property="Effect" Value="{StaticResource Effect.Led.Green}"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
@@ -451,19 +465,23 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Ellipse Width="8" Height="8" Margin="3,0,3,0">
-                                            <Ellipse.Style>
-                                                <Style TargetType="Ellipse">
-                                                    <Setter Property="Fill" Value="{StaticResource Brush.Led.Off}"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding}" Value="True">
-                                                            <Setter Property="Fill" Value="{StaticResource Brush.Led.White}"/>
-                                                            <Setter Property="Effect" Value="{StaticResource Effect.Led}"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Ellipse.Style>
-                                        </Ellipse>
+                                        <Border Width="10" Height="10" Margin="2,0,2,0" CornerRadius="5"
+                                                Background="{StaticResource Brush.Led.Housing}"
+                                                BorderBrush="{StaticResource Brush.PanelKey.WellRim}" BorderThickness="0,0,0,1">
+                                            <Ellipse Width="7" Height="7" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Ellipse.Style>
+                                                    <Style TargetType="Ellipse">
+                                                        <Setter Property="Fill" Value="{StaticResource Brush.Led.Off}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding}" Value="True">
+                                                                <Setter Property="Fill" Value="{StaticResource Brush.Led.White}"/>
+                                                                <Setter Property="Effect" Value="{StaticResource Effect.Led}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Ellipse.Style>
+                                            </Ellipse>
+                                        </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
@@ -516,6 +534,7 @@
                         <TextBlock Text="{Binding Analysis.Name}" Style="{StaticResource Style.Readout.Latch}"
                                    FontSize="{StaticResource Size.Readout.Name}" FontWeight="ExtraBold"
                                    Foreground="{StaticResource Brush.Text.Primary}"
+                                   Effect="{StaticResource Effect.Oled.Glow}"
                                    LineStackingStrategy="BlockLineHeight" LineHeight="70"
                                    MinHeight="70" MinWidth="180"/>
                         <!-- The numeral in a white pill, then its kind and the voicing:
@@ -523,7 +542,8 @@
                         <StackPanel Orientation="Horizontal" DataContext="{Binding Analysis}" MinHeight="22"
                                     Margin="2,4,0,0" Style="{StaticResource Style.Readout.Latch}">
                             <Border CornerRadius="4" Padding="7,0" Margin="0,0,8,0" VerticalAlignment="Center"
-                                    Background="{StaticResource Brush.Readout.Pill}">
+                                    Background="{StaticResource Brush.Readout.Pill}"
+                                    Effect="{StaticResource Effect.Oled.Glow}">
                                 <Border.Style>
                                     <Style TargetType="Border">
                                         <Style.Triggers>
@@ -780,8 +800,10 @@
                             <Setter Property="Grid.Row" Value="3"/>
                             <Setter Property="HorizontalAlignment" Value="Center"/>
                             <Setter Property="Margin" Value="0,0,0,6"/>
-                            <Setter Property="Padding" Value="10,5"/>
-                            <Setter Property="Background" Value="{StaticResource Brush.Surface}"/>
+                            <Setter Property="Padding" Value="12,5"/>
+                            <Setter Property="Background" Value="{StaticResource Brush.Panel.Recess}"/>
+                            <Setter Property="BorderBrush" Value="{StaticResource Brush.Panel.RecessRim}"/>
+                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
                             <Style.Triggers>
                                 <!-- A short stage tightens the spacing so the soft keys fit. Before
                                      the song-practice trigger, which wins when both apply. -->
@@ -798,6 +820,7 @@
                                     <Setter Property="Margin" Value="16,6,16,0"/>
                                     <Setter Property="Padding" Value="12,0"/>
                                     <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -1025,8 +1048,42 @@
                      narrow window. MaxHeight stops it from dwarfing the readout on a wide one.
                      The keys start at the top of the canvas, so in song practice, with no top
                      margin, the falling notes' hit line is exactly the keys' top edge. -->
-                <!-- The felt strip the keys sit behind, across the panel. Not in song practice,
-                     where the lane's bottom edge has to be the keys' top edge. -->
+                <!-- The 3D recessed keybed well, machined end-cheeks, overhang shadow, and plush
+                     crimson fallboard felt strip framing the keyboard. In song practice the felt
+                     and top margin collapse so the lane's bottom hit line meets the keys' top edge. -->
+                <Border Grid.Row="4" Grid.ColumnSpan="2" CornerRadius="4"
+                        Background="{StaticResource Brush.Keybed}"
+                        BorderBrush="{StaticResource Brush.Keybed.Rim}" BorderThickness="1,0,1,1"
+                        IsHitTestVisible="False">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Margin" Value="8,6,8,0"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                                    <Setter Property="Margin" Value="8,1,8,0"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
+                                    <Setter Property="Margin" Value="8,0,8,0"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <DockPanel>
+                        <Rectangle DockPanel.Dock="Left" Width="8" Fill="{StaticResource Brush.Keybed.Cheek}"/>
+                        <Rectangle DockPanel.Dock="Right" Width="8" Fill="{StaticResource Brush.Keybed.Cheek}"/>
+                        <Border VerticalAlignment="Top" Height="10" Background="{StaticResource Brush.Fallboard.Shadow}">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                    </DockPanel>
+                </Border>
                 <Rectangle Grid.Row="4" Grid.ColumnSpan="2" Height="6" VerticalAlignment="Top"
                            Fill="{StaticResource Brush.Felt}" IsHitTestVisible="False">
                     <Rectangle.Style>
