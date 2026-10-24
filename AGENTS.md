@@ -2,6 +2,9 @@
 
 A suite of VST3/CLAP plugins built with Rust and the nih-plug framework. The brand is **HØJT** (Danish for "loud" and "high"). The vendor string is the ASCII form `Hojt Audio` and lives in one place (`crates/suite_common/src/lib.rs`).
 
+This file is the router: the layout, the commands, the rules that hold everywhere and where the
+detail lives. Each detail is next to what it governs.
+
 ## Layout
 
 - `plugins/pitch_shifter/` - Real-time guitar pitch shifter (effect)
@@ -9,47 +12,69 @@ A suite of VST3/CLAP plugins built with Rust and the nih-plug framework. The bra
 - `plugins/bass/` - Plucked string bass (instrument), picked or played with a finger
 - `plugins/pad/` - Slow ambient pad with a chorus and a shimmering hall (instrument)
 - `plugins/bells/` - Soft glassy bells with a ping-pong delay and a hall (instrument)
-- `plugins/amp/` - Guitar amp simulator (effect). Its own notes are in `plugins/amp/AGENTS.md` and `plugins/amp/DESIGN.md`
-- `crates/suite_common/` - Shared code: `VENDOR` and `BRAND` constants, `ui` module (the pedal look, see Look below),
-  `dsp` (filter, noise and the `Hall` reverb of the newer instruments), `measure` (what their tests measure with),
-  `host` (a host for tests, and the allocator of the `no_alloc` tests)
-- `prototypes/jsfx/` - The REAPER scripts that Metal, Groove, bass, pad and bells were written as
-  first: the reference for those ports, not built or shipped. Its `README.md` says where a port differs
-- `crates/suite_common/assets/art/` - Bespoke artwork: one RGBA PNG per pedal, printed on its top face under the controls
-  (`ui/artwork.rs`, `PedalStyle.art`). Made by `scripts/make-art.py` (a two-ink screen print: halftone, misregistration,
-  paper dropout) or replaced by a painted or generated PNG at the same path. Keep the middle clear for the controls.
-  The pictures are compiled into each plugin. Each editor has a test that its pedal is drawn with its own picture,
-  and `cargo xtask check-art` fails on a bundle that does not carry its pictures (see Install): a plugin without
-  its art was built from other sources than this checkout's
+- `plugins/amp/` - Guitar amp simulator (effect). Its notes are in `plugins/amp/AGENTS.md` and `plugins/amp/DESIGN.md`
+- `crates/suite_common/` - Shared code: `VENDOR` and `BRAND`, `ui` (the look: `ui/STYLE.md`), `dsp`
+  (filter, noise and the `Hall` reverb), `measure` (what the tests measure with), `host` (a host for
+  tests, and the allocator of the `no_alloc` tests)
+- `crates/suite_common/assets/art/` - One RGBA PNG per pedal, printed on its top face (`ui/artwork.rs`).
+  Made by `scripts/make-art.py` or replaced at the same path. Each editor has a test that its pedal is
+  drawn with its own picture, and `cargo xtask check-art` fails a bundle without its pictures
 - `crates/suite_common/assets/fonts/` - Embedded fonts (SIL OFL) with their licence files
-- `xtask/` - The bundler (nih-plug's, run from this workspace's own root) and `check-art`
-- `bundler.toml` - Bundle name per plugin package
-- `site/` - The public page (plain HTML and CSS, no build step), published by GitHub Pages
-- `site-sources/` - What is played in a sound example of the page when it is our own playing
-  (DI recordings, MIDI drum parts); not published. See its `README.md`
-- `scripts/install.ps1` - Builds the VST3 bundles from this checkout and installs them on Windows (see Install)
-- `scripts/make-art.py` - Makes the pedals' artwork in `crates/suite_common/assets/art/`
-- `scripts/screenshots.ps1` - Takes the page's screenshots (`site/img/`) of the standalone windows, on Windows
-- `scripts/package.sh` - Packs the bundles into the zips of a release
-- `scripts/site-audio.sh` - Makes the page's sound examples from the render tests
-- `scripts/sound-reports.sh` - The sound reports without their timings, for comparing two builds
-- `scripts/sync-labels.sh` - The backlog's labels on GitHub
-- `scripts/move-issue.sh` - Moves an issue to a state: its label and its place on the board
-- `scripts/check.sh` - What CI runs, run before a push (see Testing); `quick` is format and clippy
-- `scripts/page-check.sh` - Whether `/page` has looked at what changed since `main`, and whether
-  the page's links hold. The end-of-session hook runs it
-- `.agents/skills/` - The agent's skills (`/issue`, `/spec`, `/next`, `/groom`, `/release`,
-  `/page`); `.claude/commands/` mirrors them for Claude Code: a command is its `SKILL.md` without
-  the `name:` line, which `xtask/tests/skills_mirror.rs` holds
-- `.claude/settings.json` - Claude Code's hooks: format and clippy before a commit (see Testing) and
-  the end-of-session one (see End of a session)
-- `.github/workflows/` - `ci.yml` (tests), `release.yml` (builds and publishes a release),
-  `pages.yml` (publishes `site/`), `approval-guard.yml` (see How work flows), `sound.yml` (on a
-  pull request that touches a plugin: what its reports say changed against `main`, as a
-  comment, and renders before and after)
-- `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md` - What an issue and a pull request ask for
+- `prototypes/jsfx/` - The REAPER scripts Metal, Groove, bass, pad and bells were written as first:
+  the reference for those ports, not built or shipped. Its `README.md` says where a port differs
+- `xtask/` - The bundler (nih-plug's, run from this workspace's own root) and `check-art`;
+  `bundler.toml` - bundle name per plugin package
+- `site/` - The public page (plain HTML and CSS, no build step), published by GitHub Pages.
+  `site-sources/` - what is played in a sound example when it is our own playing; not published
+- `scripts/` - Build, install, check, page and release tools; see `scripts/README.md`
+- `.agents/skills/` - The agent's skills (`/issue`, `/spec`, `/next`, `/groom`, `/release`, `/page`).
+  `.claude/commands/` mirrors them for Claude Code (`xtask/tests/skills_mirror.rs` holds it);
+  `.claude/settings.json` has the hooks
+- `.github/workflows/` - `ci.yml` (tests), `release.yml`, `pages.yml`, `approval-guard.yml`, `sound.yml`
+  (what a plugin's reports say changed against `main`). `.github/ISSUE_TEMPLATE/` and
+  `pull_request_template.md` say what an issue and a pull request ask for
 
-Each plugin keeps DSP in its own module(s), separate from `lib.rs` (plugin entry point, parameters, nih-plug integration) and `editor.rs` (egui GUI).
+## Build Commands
+
+```bash
+# Build release VST3 and CLAP bundles (one plugin at a time)
+cargo xtask bundle pitch_shifter --release
+cargo xtask bundle drums --release
+cargo xtask bundle amp --release
+cargo xtask bundle bass --release
+cargo xtask bundle pad --release
+cargo xtask bundle bells --release
+
+# Every bundle in target/bundled carries its plugin's artwork (or name some: check-art amp drums)
+cargo xtask check-art
+
+# Quick compile check
+cargo check --workspace
+
+# Everything CI runs: format, clippy, the tests, the amp's tests optimised (always before a push!)
+scripts/check.sh
+
+# Its quick part, format and clippy
+scripts/check.sh quick
+
+# Open a plugin's editor as a program, without a DAW (no audio: dummy backend)
+cargo run -p pitch_shifter --features standalone -- --backend dummy
+cargo run -p drums --features standalone -- --backend dummy
+cargo run -p amp --features standalone -- --backend dummy
+cargo run -p bass --features standalone -- --backend dummy
+cargo run -p pad --features standalone -- --backend dummy
+cargo run -p bells --features standalone -- --backend dummy
+```
+
+Output location: `target/bundled/<BundleName>.vst3`. Install: `scripts/install.ps1` on Windows, which
+refuses a bundle without its artwork and closes the DAW first (see `scripts/README.md`, Install).
+
+## Look
+
+Every plugin is a painted stompbox, one enclosure per window. Paint, print, fonts, knobs and the
+rest of the style guide are in `crates/suite_common/src/ui/STYLE.md`; new shared pieces go in
+`suite_common::ui`, not in a plugin's editor. After changing an editor, run it standalone and look at
+it before bundling.
 
 ## How work flows
 
@@ -108,199 +133,24 @@ session's work. In Claude Code a Stop hook (`.claude/settings.json`) asks for it
 `scripts/page-check.sh` says the changes since `main` have not been looked at; an agent tool
 without hooks runs `scripts/page-check.sh` itself before it ends
 
-## Build Commands
+## Releasing
 
-```bash
-# Build release VST3 and CLAP bundles (one plugin at a time)
-cargo xtask bundle pitch_shifter --release
-cargo xtask bundle drums --release
-cargo xtask bundle amp --release
-cargo xtask bundle bass --release
-cargo xtask bundle pad --release
-cargo xtask bundle bells --release
-
-# Every bundle in target/bundled carries its plugin's artwork (or name some: check-art amp drums)
-cargo xtask check-art
-
-# Quick compile check
-cargo check --workspace
-
-# Everything CI runs: format, clippy, the tests, the amp's tests optimised (always before a push!)
-scripts/check.sh
-
-# Its quick part, format and clippy
-scripts/check.sh quick
-
-# Open a plugin's editor as a program, without a DAW (no audio: dummy backend)
-cargo run -p pitch_shifter --features standalone -- --backend dummy
-cargo run -p drums --features standalone -- --backend dummy
-cargo run -p amp --features standalone -- --backend dummy
-cargo run -p bass --features standalone -- --backend dummy
-cargo run -p pad --features standalone -- --backend dummy
-cargo run -p bells --features standalone -- --backend dummy
-```
-
-Output location: `target/bundled/<BundleName>.vst3`
-
-## Install
-
-On Windows run `scripts/install.ps1` (all six, or name some: `scripts/install.ps1 amp drums`). It builds from
-this checkout with the build folder pinned to it, refuses a bundle that `cargo xtask check-art` does not pass,
-installs, and checks every installed file against the build. Close the DAW first.
-
-Plugins in a DAW once lost their artwork this way: nih-plug's own bundler takes the outermost folder with a
-`Cargo.toml` for the workspace, which for a worktree under `.claude/worktrees` is the main checkout, so worktrees
-built and installed the main checkout's old sources. `xtask/src/main.rs` now bundles the workspace it belongs to,
-and `check-art` stops a build like that before it is installed or released. Install with the script, or run
-`cargo xtask check-art` before copying by hand:
-
-Copy VST3 to system folder:
-```
-xcopy /E /I /Y "target\bundled\HojtPitchShifter.vst3" "C:\Program Files\Common Files\VST3\HojtPitchShifter.vst3"
-xcopy /E /I /Y "target\bundled\HojtDrumSynth.vst3" "C:\Program Files\Common Files\VST3\HojtDrumSynth.vst3"
-xcopy /E /I /Y "target\bundled\HojtGuitarAmp.vst3" "C:\Program Files\Common Files\VST3\HojtGuitarAmp.vst3"
-xcopy /E /I /Y "target\bundled\HojtBassSynth.vst3" "C:\Program Files\Common Files\VST3\HojtBassSynth.vst3"
-xcopy /E /I /Y "target\bundled\HojtShimmerPad.vst3" "C:\Program Files\Common Files\VST3\HojtShimmerPad.vst3"
-xcopy /E /I /Y "target\bundled\HojtGlassBells.vst3" "C:\Program Files\Common Files\VST3\HojtGlassBells.vst3"
-```
-
-## Look
-
-Every plugin is drawn as a painted stompbox. Shapes, print and art are vector, drawn with egui's painter in
-`crates/suite_common/src/ui/`. Lit surfaces (enclosure, knobs, screws) are rendered per pixel by a small
-software renderer, `raster.rs`, and cached as textures; there are no image files.
-
-- `theme.rs` - Colours, the three embedded fonts (`install`), text helpers. One paint colour per plugin,
-  one per mini pedal of a rig (`PEDAL_PAINTS`), and `shade` for darker tones of a paint
-- `widgets.rs` - `param_knob` (fluted knob, name, value on label tape; `param_knob_with` for another
-  `KnobCap` and print colour), `panel_knob` (a knob on an amp head's panel: name above, value tape under,
-  where there is room for one line of controls; `panel_knob_rect` is the room it takes),
-  `nameplate_stepper` (a name on a plate with a chrome step button each side),
-  `footswitch`, `led`,
-  `small_footswitch`, `rig_led` and `param_switch` (the switch and LED of a rig, bound to an on/off
-  parameter), `stepper` (label tape with a chrome button at each end, for picking one of many),
-  `menu_stepper` (one whose tape drops a list open instead of stepping on) with `drop_panel`
-  (the plate of tape rows that list, the amp's preset banks, is picked from) and `type_into`
-  (a name typed on a row of it, the one place in the suite that takes typed text),
-  `chrome_button` (one such button alone, for an action such as Save),
-  `tuner_display` (note name and a row of lamps on one strip of label tape) and `cents_meter`
-  (the lamps alone), `level_meter` (a column of ten lamps on label tape for a signal level, the
-  lowest lit from -45 dBFS, the top one at full scale), `value_knob` and `value_switch` (a knob
-  and a rig switch for a plain value that is not a parameter),
-  `signal_lamp` (a small lamp with no switch, for what the sound is doing),
-  `silk_frame`, `silk_label` (`print_label` for a caption in `INK` on metal), and `badge` (the HØJT logo: the Ø is a knob, its slash the pointer)
-- `frame.rs` - `pedal`: enclosure, screws, jack captions, tilted name band, model number, logo.
-  A plugin describes itself with a `PedalStyle`. For a window with several enclosures: `rig`
-  (the bare bench), `strip` (shallow enclosure with everything a pedal has printed on it, the
-  name band across its middle only) and `mini_pedal` (small enclosure with only a title), each
-  mini pedal described by a `MiniStyle`; `coupler` and `patch_cable` carry the signal between them
-- `raster.rs` - Per-pixel lit surfaces (signed distance field + one fixed light): `box_image`, `knob_image`
-  (a `KnobCap`: `Fluted`, the pedals' knob, `ChickenHead`, `CreamChickenHead`, `GoldTop`, `ChromeSkirt`), `screw_image`, and for the
-  half stack `tolex_image` (`Tolex`), `grille_image` (`Grille`, cloth or mesh with the speakers behind it) and
-  `plate_image` (`Plate`); `paint_*` cache them as textures. To look at them without a window:
-  `RASTER_PREVIEW=out.raw cargo test -p suite_common --release preview -- --ignored`
-- `artwork.rs` - Loads the PNGs of `assets/art/`, covers the top face with one, cuts it to the corners
-- `hardware.rs` - Lit footswitch, indicator light, label tape, the paper of the name band
-- `art.rs` - `Motif`: what is painted on a mini pedal under its controls
-- `amp.rs` - The half stack of a rig: `amp_head` (handle, tolex, grille with piping and a stripe if it has
-  them, panel with a printed line if it has one, jewel pilot lamp lit or not; `head_faces` says where its faces go)
-  and `cabinet` (tolex, chrome or steel `Corners` if it has them, piping if it has it, control plate, grille
-  with the `Speakers` behind it, set high or in the middle; `cab_faces` says where its faces go), each described
-  by a `HeadStyle` or `CabStyle` and returning the faces the controls go on. `mounted_plate` is a plate with a
-  screw in each corner, for a small plate of the caller's (the cabinet's jack plate)
-
-Controls are placed at fixed positions relative to the window's top left corner. Knobs: drag up and
-down, Shift for fine steps, double-click for the default.
-
-### Style guide
-
-Every plugin, existing and new, follows these. Copy `plugins/pitch_shifter/src/editor.rs` (few
-controls, portrait) or `plugins/drums/src/editor.rs` (many controls, landscape) as the starting point.
-
-- **One pedal per plugin.** The whole window is one enclosure from `ui::pedal`. No panels, tabs,
-  menus or default egui widgets on top of it
-- **Paint:** each plugin has its own saturated paint colour, a `PAINT_*` constant in `theme.rs`.
-  Taken: orange (Pitch Shifter), teal (Drum Synth), oxblood red (Guitar Amp), cobalt (Bass Synth),
-  plum (Shimmer Pad), pine green (Glass Bells). A new one must be clearly different from those
-  and dark enough for cream print to read on it; it goes in `PLUGIN_PAINTS`, where a test holds it to both
-- **Print on the paint is always `SILK` (cream).** Black is only for knobs, label tape and the logo plate.
-  The one exception is the half stack of a rig (`amp.rs`): head and cabinet are covered, not painted (tolex,
-  grille cloth or mesh, plates instead of powder coat), and print on a plate is the `print` of its style:
-  `SILK` on a dark plate, `INK` on metal. Each amp has a head of its own and the cabinet looks as the
-  cabinet that plays, all from `plugins/amp/src/looks.rs`
-  The one other thing on paint is the second coat of a mini pedal's art, in `shade`s of its own paint.
-  `BRAND_ORANGE` is only the pointer in the logo
-- **Fonts, by role:** `display` (Bebas Neue) for every caption, in capitals; `model` (Bowlby One SC)
-  only for the name on the band; `mono` (IBM Plex Mono) only for values on label tape
-- **Top to bottom:** jack captions, knobs, name band, footswitches. Model number bottom left and
-  the logo badge bottom right come from `ui::pedal` and stay there
-- **Knobs:** every continuous parameter is a `param_knob`. Radius about 48 for the one main control,
-  about 30 for normal ones, about 19 for a row of secondary ones inside a `silk_frame` with a title.
-  The value is always shown on label tape under the name, formatted by the parameter itself.
-  The one exception is an amp head's panel (`panel_knob`): one line of knobs, the name above, the tape under
-- **Footswitches:** every on/off or pick-one-of-few parameter is a `footswitch` with an `led` above
-  it (lit = on or selected) and, when there are several, a `silk_label` below
-- **Name band:** the plugin's plain name (what it does, two short words), with an `Ornament` that
-  hints at it. Add a new `Ornament` variant in `frame.rs` for a new plugin
-- **Model number:** two letters from the name and a number, like `PS-10`, `DS-2` and `BA-1`.
-  It is print, not the version, and does not change with releases
-- **Jack captions** say what really goes in and out (`In`, `MIDI In`, `Stereo Out`)
-- **Window size:** fixed, sized to the controls. Portrait about 400 wide for up to four controls,
-  landscape about 660 wide for more
-- **Clean factory paint:** no wear or dirt. Surfaces are lit, not flat: powder-coat flake, bevels, brushed and knurled metal come from `ui/raster.rs`, never from image files
-- **New shared pieces go in `suite_common::ui`,** not in a plugin's editor, so every plugin gets them
-
-- **Rigs** (a window of several pedals, as the Guitar Amp has): the rules for the strip, the stack, mini pedals, pedal art, slim pedals, a rearrangeable board, signal lamps, presets, file choices and the tuner are in `plugins/amp/AGENTS.md`, "Look: the rig". Read them before drawing a second rig
-
-After changing an editor, run it standalone (see Build Commands) and look at it before bundling.
+Run by `/release`; the steps and the rules of the page are in `.agents/skills/release/RELEASING.md`.
+The short version: the version is set in `Cargo.toml`, the changelog gets a `## <version>` section,
+the page is brought up to the release with `/page release <version>`, and the release goes in through
+a `release/<version>` pull request, then a tag `v<version>`, which `release.yml` builds and publishes.
+The page's sound and look (`site/audio/`, `site/img/`) change only in a release commit.
 
 ## Plugins
 
-### Pitch Shifter (`plugins/pitch_shifter`)
-
-Real-time guitar pitch shifter (effect): semitones -12 to +12 by variable-rate playback with waveform-matched splices. Bypass is a shift of 0 semitones. Its CLAP ID and VST3 class ID predate the suite and are kept as they were. Details, algorithm and tools: `plugins/pitch_shifter/AGENTS.md`.
-
-### Drum Synth (`plugins/drums`)
-
-Fully synthesized drums (no sample files), MIDI in, stereo out, General MIDI map; kits Rock, Jazz, Metal, Groove (new kits go at the end: a project remembers its kit by its number). Details, note map, parameters and tools: `plugins/drums/AGENTS.md`.
-
-### Bass Synth (`plugins/bass`)
-
-Plucked string bass, one note at a time, voices Metal (picked) and Groove (finger). Details: `plugins/bass/AGENTS.md`.
-
-### Shimmer Pad (`plugins/pad`)
-
-Slow ambient pad, twelve voices, with a chorus and a shimmering hall. Details: `plugins/pad/AGENTS.md`.
-
-### Glass Bells (`plugins/bells`)
-
-Soft glassy bells with a ping-pong delay and a hall, twelve voices; note-off does nothing. Details: `plugins/bells/AGENTS.md`.
-
-### Guitar Amp (`plugins/amp`)
-
-A guitar amp with a full signal chain, all our own designs: own names, no real makers' names,
-trademarks or circuit names anywhere (code, comments, docs, commit messages; `plugins/amp/tests/rules.rs`
-holds this for the amp's folder, against a list kept as hashes). Four amps
-(Klar clean, Brøl crunch, Torden high gain, Glød edge of breakup), a gate, compressor, overdrive, fuzz, four modulation
-pedals, delay and reverb, a cabinet (built-in or the player's own WAV), a tuner, factory
-presets and a pedal order the player sets.
-
-Its signal flow, behaviour, parameter table and report tools are in `plugins/amp/AGENTS.md`,
-which is read when you work there. The rules that matter elsewhere:
-
-- Amps differ only by constants in `amp/model.rs`. Tune there, never with `match amp` in the DSP
-  (`plugins/amp/tests/rules.rs` fails on a branch on the amp outside the model, the editor and the looks)
-- Parameter ids are frozen (see Versioning); the pedal order, the preset choice, the cabinet
-  file and the per-amp dials are `#[persist]` fields, never parameters
-- The clippers are tested optimised too (`cargo test -p amp --release`, which `scripts/check.sh` runs)
+Each plugin's paragraph (what it is, its voices and kits, its details file) is in `plugins/README.md`.
+The amp's rules that matter elsewhere: amps differ only by constants in `amp/model.rs`, never a
+`match amp` in the DSP (`plugins/amp/tests/rules.rs` holds it); its `#[persist]` fields are never
+parameters; its clippers are tested optimised too.
 
 ## Adding a Plugin
 
-1. Create `plugins/<name>/` with a `Cargo.toml` that uses the workspace dependencies (copy `plugins/drums/Cargo.toml`)
-2. Add a `[<name>]` entry to `bundler.toml`
-3. Use `suite_common::VENDOR`. In the editor, call `ui::install` in the build closure and draw with
-   `ui::pedal` and a `PedalStyle` (own paint colour in `ui/theme.rs`, model number, ornament)
-4. Pick a unique `VST3_CLASS_ID` (16 bytes) and `CLAP_ID`; DAW projects reference plugins by these
+See `plugins/README.md`.
 
 ## Versioning
 
@@ -321,60 +171,11 @@ The version number lives in `Cargo.toml` (`[workspace.package]`) and is what hos
 Only to compare two builds side by side in the DAW: temporarily give one of them another bundle
 name, `NAME`, `VST3_CLASS_ID` and `CLAP_ID`, and do not commit that.
 
-## Releasing
-
-The page is https://hojte.net/hojt-audio/ and the downloads are GitHub releases.
-The code is GPL-3.0-or-later, which the VST3 bindings require of a VST3 binary that is handed
-out; the HØJT name and logo are kept out of it (`NOTICE.md`).
-
-1. Set the version in `Cargo.toml` (`[workspace.package]`) and run `cargo check --workspace` so
-   `Cargo.lock` follows
-2. Add a `## <version>` section to `CHANGELOG.md`: it becomes the text of the release
-3. For every plugin whose sound changed in that section, run `scripts/site-audio.sh <plugin>`
-   (`drums`, `amp`, `pitch_shifter`, `bass`, `pad`, `bells`) and listen to what changed in `site/audio/`. If a plugin's
-   look changed, or it is new, run `scripts/screenshots.ps1 <plugin>` and look at what it took
-4. Run `/page release <version>` so the page describes exactly that version: new plugins,
-   controls tables, sound examples
-5. Commit on a branch `release/<version>` and merge it through a pull request (`main` is
-   protected). Then tag the merge commit `v<version>` and push the tag. `release.yml` tests,
-   builds for Windows, macOS (Intel and Apple Silicon in one binary, signed ad hoc) and Linux,
-   refuses a bundle without its artwork (`cargo xtask check-art`), and publishes the zips
-
-- The zips are named `<BundleName>-<windows|macos|linux>.zip`, without a version: the page
-  links to `releases/latest/download/<name>`, so these names never change
-- To see the zips without releasing, run the Release workflow by hand (Actions tab) and take
-  them from the run's artifacts
-- `Cargo.lock` is committed so a release is built from the crates that were tested
-- The page uses the plugins' colours (`ui/theme.rs`) and fonts (copies in `site/fonts/`). Body
-  text never sits on the paint: cream on orange or teal is too weak at that size
-- The page is published from `main` and the downloads are the latest release, so
-  `site/audio/` and `site/img/` only change in the commit of a release, or to catch up with the
-  release that is out: a branch that changes a sound or a look leaves them alone, or the page
-  shows what nobody can download yet
-- Sound examples in `site/audio/` are MP3s (`ffmpeg -codec:a libmp3lame -q:a 4`) of files from
-  the `render_*` tests, never made by hand. The table in `scripts/site-audio.sh` says which
-  render each one is. An example that has not changed comes out the same to the byte
-- An example can be our own playing through the plugin: the recording or MIDI file goes in
-  `site-sources/` and its name in that table. The sound is still made by the script
-- Screenshots in `site/img/` are the standalone windows at their own size, taken by
-  `scripts/screenshots.ps1` (it builds each one, opens it and captures its inside), never drawn
-  or generated. It needs a display at 100 % scaling and stops otherwise
-
 ## Testing
 
-A pull request that touches the plugins gets a comment from `sound.yml`: every report of
-`scripts/sound-reports.sh` before and after, or that nothing changed. A pull request whose sound
-changed is `kind:sound` or says why it changed; one that must not change the sound shows
-none. The renders before and after are the run's `renders` artifact.
-
-**Always run `scripts/check.sh` before pushing.** It runs every step of `ci.yml`: `cargo fmt --all --check`,
-`cargo clippy --workspace --all-targets -- -D warnings` (on Rust 1.93.0, pinned in `ci.yml`, when rustup has it),
-`cargo test --workspace` and `cargo test -p amp --release`. On Linux it first names the packages the build needs
-that are missing. In Claude Code a hook (`.claude/settings.json`) runs `scripts/check.sh quick` before every
-`git commit` and stops a commit that fails it; an agent tool without hooks runs `scripts/check.sh quick` itself
-before committing. A step added to `ci.yml` is added to `scripts/check.sh` too, which
-`xtask/tests/check_mirrors_ci.rs` holds.
-Lints that clash with DSP code are allowed in the root `Cargo.toml`, each with its reason.
+**Always run `scripts/check.sh` before pushing.** It runs every step of `ci.yml`, and a hook runs
+its quick part before each commit. The details, and the sound reports of a pull request, are in
+`scripts/README.md`, Testing.
 
 ## Code Conventions
 
@@ -387,14 +188,12 @@ Lints that clash with DSP code are allowed in the root `Cargo.toml`, each with i
 - The workspace names `egui-baseview` as a dependency it never uses, at the revision nih-plug
   pins, only to turn its `windows_keyboard_workaround` on: without it a plugin's editor, which
   is a child window of the host's, never takes the keyboard focus on Windows and hears no
-  letters. Features are added together, so nih_plug_egui's own copy gets it. See "Asking for
-  the keyboard" in `plugins/amp/AGENTS.md`
+  letters. Features are added together, so nih_plug_egui's own copy gets it. The reason is in the
+  comment above it in the root `Cargo.toml`. See "Asking for the keyboard" in `plugins/amp/AGENTS.md`
 - nih-plug is pinned to one revision in the root `Cargo.toml` (`[workspace.dependencies]`); bump it there for all plugins at once.
   The pin is our fork `FrankDrebin893/nih-plug`: upstream plus two commits on branch `hojt-vst3-infinite-tail`
   (`Vst3Plugin::VST3_INFINITE_TAIL`, and nih_plug_egui painting a frame only when asked, #23). To move to a
   newer upstream, rebase those commits onto it and pin the result
-- An editor's update runs with every frame, but the window is painted only on input, when the host
-  changes a parameter, in the first second after it opens, and when the editor asks with
-  `request_repaint` (or `request_repaint_after`). Anything an editor shows that changes on its own
-  (meters, lamps, the tuner, a gliding pedal, a file read in the background) asks for a repaint when
-  it changes, in the frame that draws it, and only then: painting every frame costs a good part of a core
+- An editor paints only when something asks for it, not every frame: anything an editor shows
+  that changes on its own asks for a repaint in the frame that draws the change. The rule is in
+  `crates/suite_common/src/ui/STYLE.md`
