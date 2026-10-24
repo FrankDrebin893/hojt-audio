@@ -154,22 +154,10 @@ See `plugins/README.md`.
 
 ## Versioning
 
-A new build replaces the old one in place: install it over the old bundle and every DAW project
-picks it up, with its settings. For that to hold, these never change once a plugin is in use:
-
-- the bundle name in `bundler.toml`
-- `NAME`, `VST3_CLASS_ID` and `CLAP_ID` in `plugins/<name>/src/lib.rs`
-- the `#[id = "..."]` of every existing parameter (adding parameters is fine; removing or renaming
-  an id loses that setting in saved projects)
-
-Each plugin's `ids` test holds these, with the keys of its `#[persist]` fields, against its
-`ids.txt` (`suite_common::ids`). A plugin that gains a parameter: run
-`UPDATE_IDS=1 cargo test -p <name> ids` and commit `ids.txt`. Never do that for an id that changed.
-
-The version number lives in `Cargo.toml` (`[workspace.package]`) and is what hosts show.
-
-Only to compare two builds side by side in the DAW: temporarily give one of them another bundle
-name, `NAME`, `VST3_CLASS_ID` and `CLAP_ID`, and do not commit that.
+A new build replaces the old one in place, so these never change once a plugin is in use: the bundle
+name in `bundler.toml`, `NAME`, `VST3_CLASS_ID` and `CLAP_ID`, and the `#[id]` of every existing
+parameter. Each plugin's `ids` test holds them. The reasons, the `UPDATE_IDS` procedure and the
+two-build comparison are in `plugins/README.md`, Versioning.
 
 ## Testing
 
