@@ -159,7 +159,7 @@ public partial class MainWindow : Window
         {
             case Key.Enter:
                 CommitBpm();
-                // Hand the keyboard back, so Space and Ctrl+M work again without a click.
+                // Hand the keyboard back, so Ctrl+M works again without a click.
                 Keyboard.Focus(this);
                 break;
             case Key.Escape:
@@ -230,9 +230,6 @@ public partial class MainWindow : Window
 
         switch (e.Key)
         {
-            case Key.Space when !IsTextEntryFocused():
-                vm.SaveCurrentChordCommand.Execute(null);
-                break;
             case Key.OemComma when ctrl:
                 vm.ToggleSettingsOverlayCommand.Execute(null);
                 break;
@@ -255,9 +252,6 @@ public partial class MainWindow : Window
                 break;
             case Key.F3 when shift:
                 vm.ToggleMidiLogCommand.Execute(null);
-                break;
-            case Key.F4 when shift:
-                vm.ToggleProgressionCommand.Execute(null);
                 break;
             case Key.R when ctrl && !IsTextEntryFocused():
                 vm.Recorder.ToggleRecordCommand.Execute(null);
@@ -286,9 +280,6 @@ public partial class MainWindow : Window
             case Key.F9 when shift && !IsTextEntryFocused():
                 vm.ToggleSongPracticeCommand.Execute(null);
                 break;
-            case Key.P when ctrl && !IsTextEntryFocused():
-                vm.ProgressionTools.TogglePlaybackCommand.Execute(null);
-                break;
             default:
                 return;
         }
@@ -296,7 +287,7 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    /// <summary>Space is a text character, so it must not trigger shortcuts while typing.</summary>
+    /// <summary>True when a text box has focus, so global shortcuts do not interfere while typing.</summary>
     private static bool IsTextEntryFocused() =>
         Keyboard.FocusedElement is TextBoxBase or PasswordBox;
 

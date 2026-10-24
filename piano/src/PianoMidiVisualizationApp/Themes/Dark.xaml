@@ -637,6 +637,15 @@
         <GradientStop Color="#EAE9E3" Offset="0.90"/>
         <GradientStop Color="#DDDCD4" Offset="1"/>
     </LinearGradientBrush>
+    <!-- Outside the selected key: clearly dimmed warm-charcoal/slate keytop so in-key keys stand out immediately. -->
+    <LinearGradientBrush x:Key="Brush.Key.White.OutOfKey" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#787772" Offset="0"/>
+        <GradientStop Color="#9A9994" Offset="0.08"/>
+        <GradientStop Color="#A6A59F" Offset="0.30"/>
+        <GradientStop Color="#9E9D97" Offset="0.74"/>
+        <GradientStop Color="#8E8D87" Offset="0.90"/>
+        <GradientStop Color="#7E7D78" Offset="1"/>
+    </LinearGradientBrush>
     <SolidColorBrush x:Key="Brush.Key.White.Border" Color="#141210"/>
 
     <!-- 3D bullnose overhang, undercut shadow, vertical front skirt, and side cylindrical chamfer for white keys. -->
@@ -644,6 +653,11 @@
         <GradientStop Color="#FFFFFF" Offset="0"/>
         <GradientStop Color="#F4F4EE" Offset="0.55"/>
         <GradientStop Color="#CCCBC2" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.White.Bullnose.OutOfKey" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#B0AFA8" Offset="0"/>
+        <GradientStop Color="#9E9D96" Offset="0.55"/>
+        <GradientStop Color="#7A7972" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.White.Bullnose.Held" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#F0F5FA" Offset="0"/>
@@ -660,6 +674,12 @@
         <GradientStop Color="#E2E1D8" Offset="0.32"/>
         <GradientStop Color="#C2C1B8" Offset="0.74"/>
         <GradientStop Color="#84837A" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.White.Skirt.OutOfKey" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#787770" Offset="0"/>
+        <GradientStop Color="#8C8B84" Offset="0.32"/>
+        <GradientStop Color="#74736C" Offset="0.74"/>
+        <GradientStop Color="#4E4D48" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.White.Skirt.Held" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#B0BAC6" Offset="0"/>
@@ -721,10 +741,27 @@
         <GradientStop Color="#141210" Offset="0.80"/>
         <GradientStop Color="#050404" Offset="1"/>
     </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.InKey" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#625D57" Offset="0"/>
+        <GradientStop Color="#34302C" Offset="0.22"/>
+        <GradientStop Color="#1A1816" Offset="0.80"/>
+        <GradientStop Color="#080706" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.OutOfKey" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#22201E" Offset="0"/>
+        <GradientStop Color="#141312" Offset="0.22"/>
+        <GradientStop Color="#0B0A09" Offset="0.80"/>
+        <GradientStop Color="#040303" Offset="1"/>
+    </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.Black.LeftWall" StartPoint="0,0" EndPoint="1,0.1">
         <GradientStop Color="#66605A" Offset="0"/>
         <GradientStop Color="#4A4540" Offset="0.45"/>
         <GradientStop Color="#2D2A27" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.LeftWall.OutOfKey" StartPoint="0,0" EndPoint="1,0.1">
+        <GradientStop Color="#242220" Offset="0"/>
+        <GradientStop Color="#1A1816" Offset="0.45"/>
+        <GradientStop Color="#100F0E" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.Black.LeftWall.Held" StartPoint="0,0" EndPoint="1,0.1">
         <GradientStop Color="#5896E0" Offset="0"/>
@@ -735,6 +772,11 @@
         <GradientStop Color="#1C1A18" Offset="0"/>
         <GradientStop Color="#0E0D0C" Offset="0.55"/>
         <GradientStop Color="#040303" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.RightWall.OutOfKey" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#0E0D0C" Offset="0"/>
+        <GradientStop Color="#080707" Offset="0.55"/>
+        <GradientStop Color="#030202" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.Black.RightWall.Held" StartPoint="0,0" EndPoint="1,0">
         <GradientStop Color="#1B365C" Offset="0"/>
@@ -748,6 +790,29 @@
         <GradientStop Color="#1C1A18" Offset="0.82"/>
         <GradientStop Color="#33302C" Offset="0.96"/>
         <GradientStop Color="#58534D" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.Top.InKey" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#363330" Offset="0"/>
+        <GradientStop Color="#524E48" Offset="0.16"/>
+        <GradientStop Color="#383532" Offset="0.48"/>
+        <GradientStop Color="#2E2B28" Offset="0.82"/>
+        <GradientStop Color="#48443E" Offset="0.96"/>
+        <GradientStop Color="#68625B" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.Top.Tonic" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#3E3A37" Offset="0"/>
+        <GradientStop Color="#5A554F" Offset="0.16"/>
+        <GradientStop Color="#403C38" Offset="0.48"/>
+        <GradientStop Color="#34312D" Offset="0.82"/>
+        <GradientStop Color="#504B45" Offset="0.96"/>
+        <GradientStop Color="#726C64" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.Top.OutOfKey" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#0E0D0C" Offset="0"/>
+        <GradientStop Color="#161514" Offset="0.16"/>
+        <GradientStop Color="#11100F" Offset="0.55"/>
+        <GradientStop Color="#0D0C0B" Offset="0.85"/>
+        <GradientStop Color="#141312" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.Black.Top.Held" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#62ACF8" Offset="0"/>
@@ -769,6 +834,19 @@
         <GradientStop Color="#0B0A09" Offset="0.88"/>
         <GradientStop Color="#040303" Offset="1"/>
     </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.Nose.InKey" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#8C857D" Offset="0"/>
+        <GradientStop Color="#4A4540" Offset="0.18"/>
+        <GradientStop Color="#24211E" Offset="0.58"/>
+        <GradientStop Color="#0F0E0C" Offset="0.88"/>
+        <GradientStop Color="#060504" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.Nose.OutOfKey" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#282624" Offset="0"/>
+        <GradientStop Color="#181615" Offset="0.22"/>
+        <GradientStop Color="#0D0C0B" Offset="0.60"/>
+        <GradientStop Color="#050404" Offset="1"/>
+    </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.Black.Nose.Held" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#72B4FA" Offset="0"/>
         <GradientStop Color="#3266A8" Offset="0.22"/>
@@ -780,7 +858,13 @@
         <GradientStop Color="#20FFFFFF" Offset="0.5"/>
         <GradientStop Color="#00FFFFFF" Offset="1"/>
     </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Black.NoseCrest.OutOfKey" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#14FFFFFF" Offset="0"/>
+        <GradientStop Color="#06FFFFFF" Offset="0.5"/>
+        <GradientStop Color="#00FFFFFF" Offset="1"/>
+    </LinearGradientBrush>
     <SolidColorBrush x:Key="Brush.Key.Black.Ridge" Color="#48FFFFFF"/>
+    <SolidColorBrush x:Key="Brush.Key.Black.Ridge.OutOfKey" Color="#18FFFFFF"/>
     <LinearGradientBrush x:Key="Brush.Key.Black.Held" StartPoint="0,0" EndPoint="1,0">
         <GradientStop Color="#3868A6" Offset="0"/>
         <GradientStop Color="#1E3A60" Offset="0.5"/>
@@ -794,10 +878,10 @@
     <!-- The tonic keeps a body colour on black keys too; the other in-key black keys get only
          the edge mark, so a scale doesn't turn half the black keys into coloured slabs. -->
     <LinearGradientBrush x:Key="Brush.Key.Black.Tonic" StartPoint="0,0" EndPoint="1,0">
-        <GradientStop Color="#524E49" Offset="0"/>
-        <GradientStop Color="#282522" Offset="0.22"/>
-        <GradientStop Color="#141210" Offset="0.80"/>
-        <GradientStop Color="#050404" Offset="1"/>
+        <GradientStop Color="#6A655E" Offset="0"/>
+        <GradientStop Color="#383430" Offset="0.22"/>
+        <GradientStop Color="#1E1B19" Offset="0.80"/>
+        <GradientStop Color="#0A0908" Offset="1"/>
     </LinearGradientBrush>
     <SolidColorBrush x:Key="Brush.Key.Black.Border" Color="#040303"/>
 
@@ -808,10 +892,10 @@
     <!-- Neutral, not amber: the keys stay black and white. Light marks on ebony and held keys,
          dark ones on white; the tonic's mark is the strongest and thickest. The lip on a white
          key clears 3:1 against it. -->
-    <SolidColorBrush x:Key="Brush.Key.InKey.Mark"       Color="#9A9A98"/>
+    <SolidColorBrush x:Key="Brush.Key.InKey.Mark"       Color="#B8B8B4"/>
     <SolidColorBrush x:Key="Brush.Key.Tonic.Mark"       Color="#FFFFFF"/>
-    <SolidColorBrush x:Key="Brush.Key.InKey.Mark.Ivory" Color="#8E8E8A"/>
-    <SolidColorBrush x:Key="Brush.Key.Tonic.Mark.Ivory" Color="#2E2E2E"/>
+    <SolidColorBrush x:Key="Brush.Key.InKey.Mark.Ivory" Color="#70706C"/>
+    <SolidColorBrush x:Key="Brush.Key.Tonic.Mark.Ivory" Color="#1E1E1C"/>
 
     <!-- Hint outline and dot, with a deep keyline inside so the outline still separates from
          a light fill (ivory, amber, held blue) whose brightness is close to the magenta's. -->
@@ -820,10 +904,12 @@
 
     <!-- Labels. Idle keys show only the Cs (every key with "All note names"); a held key's
          label switches to the held pair, spelled for the selected key. -->
-    <SolidColorBrush x:Key="Brush.Key.Label"            Color="#47423B"/>
-    <SolidColorBrush x:Key="Brush.Key.Label.Held"       Color="#2A2620"/>
-    <SolidColorBrush x:Key="Brush.Key.Black.Label"      Color="#9A948A"/>
-    <SolidColorBrush x:Key="Brush.Key.Black.Label.Held" Color="#C8D9EC"/>
+    <SolidColorBrush x:Key="Brush.Key.Label"              Color="#47423B"/>
+    <SolidColorBrush x:Key="Brush.Key.Label.OutOfKey"     Color="#383530"/>
+    <SolidColorBrush x:Key="Brush.Key.Label.Held"         Color="#2A2620"/>
+    <SolidColorBrush x:Key="Brush.Key.Black.Label"        Color="#9A948A"/>
+    <SolidColorBrush x:Key="Brush.Key.Black.Label.OutOfKey" Color="#5C5852"/>
+    <SolidColorBrush x:Key="Brush.Key.Black.Label.Held"   Color="#C8D9EC"/>
 
     <!-- ================= Song practice (falling notes) =================
          The lane is a piano roll: notes are flat slots cut in a deep lacquer well, bar numbers
@@ -877,7 +963,7 @@
          outside the key names its kind in a small muted tag on the readout, and in the
          numeral's tooltip everywhere. -->
 
-    <!-- For a Run whose DataContext has Function and FunctionKind: ChordAnalysis, SavedChord. -->
+    <!-- For a Run whose DataContext has Function and FunctionKind: ChordAnalysis. -->
     <Style x:Key="Style.Function.Numeral" TargetType="Run">
         <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
         <Setter Property="ToolTip" Value="Roman numeral in the selected key"/>

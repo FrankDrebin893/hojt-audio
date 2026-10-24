@@ -76,11 +76,6 @@ public class ChatService : IChatService
         else
             sb.AppendLine("- No chord currently playing");
 
-        if (context.SavedChords.Count > 0)
-            sb.AppendLine($"- Saved chord progression: {string.Join(" -> ", context.SavedChords)}");
-        else
-            sb.AppendLine("- No saved chord progression yet");
-
         if (context.RecentMidiActivity.Count > 0)
         {
             sb.AppendLine("- Recent MIDI activity:");

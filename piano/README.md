@@ -4,14 +4,14 @@ A Windows desktop app for practising piano with a MIDI keyboard. It plays your k
 any SoundFont (`.sf2`) or SFZ piano with low-latency audio. As you play, it shows the keys you're
 holding, the chord's name and Roman numeral, the notes on a grand staff and where the chord sits
 on the circle of fifths. You can also practise MIDI songs with falling notes, record takes, and
-build and play back chord progressions, and teach the pedals and pads on your keyboard to run
-the app so your hands can stay on the keys.
+teach the pedals and pads on your keyboard to run the app so your hands can stay on the keys.
 
-![The main window in C major. A G7 chord over B is held; the readout names it G7/B, V65, first inversion, drop 2 voicing. The grand staff, circle of fifths and chord strip follow it, and the sidebar holds a saved C–Am–F–G7 progression with next-chord suggestions.](docs/screenshots/main-window.png)
+![The main window in C major. A G7 chord over B is held; the recessed OLED display spanning the 61-key keyboard names it G7/B, V65, first inversion, drop 2 voicing. The grand staff, circle of fifths and chord strip follow it, out-of-key keys are dimmed on the keyboard, and the right-hand hardware panel holds the volume and click knobs and twelve rubber panel keys.](docs/screenshots/main-window.png)
 
-*Holding G7/B in C major. The readout gives the chord's figured-bass numeral (V65), inversion
-and voicing. The staff, circle of fifths and chord strip all follow it, and the sidebar
-suggests where the saved progression could go next.*
+*Holding G7/B in C major. The recessed OLED display spans the full width of the 61-key keyboard and
+gives the chord's figured-bass numeral (V65), inversion and voicing. The staff, circle of fifths
+and chord strip all follow it, out-of-key keys are dimmed so scale degrees stand out, and the
+right-hand hardware deck holds the rotary volume and click knobs and panel keys.*
 
 ## Features
 
@@ -30,14 +30,14 @@ suggests where the saved progression could go next.*
 
 ### Understand what you play
 
-- **Chord readout**: the chord's name, including slash chords, sevenths and extensions. Below
-  it are the inversion, the voicing (close, open, shell or drop 2), each note, and its interval
-  above the root.
+- **Chord readout**: set into a recessed OLED display that spans the full width of the 61-key
+  keyboard, showing the chord's name (including slash chords, sevenths and extensions), its
+  inversion, voicing (close, open, shell or drop 2), each note, and its interval above the root.
 - **Keys and scales**: pick a key centre and one of 12 scales: major, natural, harmonic and
-  melodic minor, the five other modes, major and minor pentatonic, and blues. The keyboard marks
-  the key with a thin lip along the front of every in-key key and a thick dark one on the tonic,
-  so the keys themselves stay black and white. Note names switch between sharps
-  and flats to suit the key.
+  melodic minor, the five other modes, major and minor pentatonic, and blues. When a key is
+  selected, out-of-key white and black keys are visually dimmed, while in-key keys carry a crisp
+  edge marker and the tonic stands out with a thick border, so scale degrees are clear at a glance.
+  Note names switch between sharps and flats to suit the key.
 - **Mute out-of-key**: out-of-key notes go silent but still light up and still count toward the
   chord name, so you can hear the scale and see your mistakes.
 - **Roman numerals**: the held chord's function in the key, with figured-bass inversions (V65,
@@ -49,28 +49,14 @@ suggests where the saved progression could go next.*
 - **Diatonic chord strip**: every chord in the key as triads or sevenths. The one you're
   playing lights up, and clicking a tile plays it.
 
-### Build chord progressions
-
-- Press **Space** to save the chord to the **Chord Progression** sidebar, up to eight chords,
-  each with its numeral and notes. You don't have to keep holding it: after you let go, the
-  readout keeps the chord for two seconds, fading, and Space still saves it. That way a
-  two-handed chord can be saved too.
-- **Play it back** at the metronome's tempo, looped if you like, giving each chord one bar or
-  one to eight beats (**Ctrl+P**).
-- **Transpose** the whole progression by semitones. Tick **Move key** and the key moves with
-  it, so the numerals stay the same.
-- **Next chord suggestions** use common functional-harmony moves from the last chord (V to I or
-  vi, ii to V, and so on), each voiced to lead smoothly from it. Hover a suggestion to see it on
-  the keyboard, and click it to add it.
-
 ### Play from the piano
 
-![Settings, with Piano controls below the keyboard and sound settings. The soft pedal is learned for Save chord and a pad sending C2 on channel 10 for Record; the other actions are not set.](docs/screenshots/settings.png)
+![Settings, with Piano controls below the keyboard and sound settings. The soft pedal is learned for Metronome and a pad sending C2 on channel 10 for Record; the other four actions are not set.](docs/screenshots/settings.png)
 
 - **Piano controls**, in **View → Settings…**: teach a key, pad, button or pedal on your
-  keyboard to save the chord, play the progression, record, play the latest take, turn the
-  metronome on or off, tap the tempo, or play and restart a song. Click **Learn** next to the
-  action, then press the control.
+  keyboard to run any of six actions: record, play the latest take, turn the metronome on or off,
+  tap the tempo, play or pause a song, or restart a song. Click **Learn** next to the action,
+  then press the control.
 - A key you map stops playing its note. **Clear** gives it back. Mappings are saved with your
   other settings.
 - Each time a control fires, a short note over the stage says what it did, e.g. "Recording
@@ -110,13 +96,14 @@ suggests where the saved progression could go next.*
 
 ### Arrange the screen
 
-![Zen mode in F major. Only the chord readout, showing Bbmaj7 as IVmaj7, and the keyboard remain, with the key's notes marked and the tonic F highlighted.](docs/screenshots/zen-mode.png)
+![Zen mode in F major. Only the chord readout, showing Bbmaj7 as IVmaj7, and the keyboard remain, with out-of-key keys dimmed, in-key notes marked and the tonic F highlighted.](docs/screenshots/zen-mode.png)
 
-- **The front panel**: beside the display, two knobs set the volume and the metronome click
-  (drag or scroll), and twelve keys step the key round the circle of fifths, change the scale,
-  mute out-of-key notes, run the metronome and tap tempo, record, play and loop a take, and save
-  the chord. Their lights show what's on, and eight lights count the saved chords. The chord
-  strip's tiles have a key under each one, too.
+- **The front panel**: the recessed OLED display spans the full width of the 61-key keyboard on
+  the left, while the right-hand hardware deck houses two rotary halo knobs for master **Volume**
+  and metronome **Click** (drag or scroll) and twelve rubber panel keys with LEDs that step the key
+  round the circle of fifths, change the scale, mute out-of-key notes, run the metronome and tap
+  tempo, record, play and loop a take, and toggle all note names. The chord strip's tiles have a
+  physical soft key under each one, too.
 
 - Every panel can be shown or hidden from the **View** menu or its shortcut. **Zen mode**
   (**F11**) hides everything but the chord readout and the keyboard, and F11 again brings your
@@ -126,7 +113,7 @@ suggests where the saved progression could go next.*
   opens Settings.
 - **MIDI log**: a scrolling list of every raw MIDI message, handy when a keyboard misbehaves.
 - **AI Music Assistant** (optional): a chat panel for music theory and practice questions. It
-  knows the chord you're holding, the selected key and your saved progression. It uses Google
+  knows the chord you're holding and the selected key. It uses Google
   Gemini (`gemini-2.5-flash-lite`) and needs your own Gemini API key. Your messages and that
   context are sent to Google.
 - **Everything is remembered**: devices, sound, key, metronome, panel layout, window position
@@ -137,18 +124,15 @@ suggests where the saved progression could go next.*
 
 | Shortcut | Action |
 |---|---|
-| **Space** | Save the held chord to the progression |
 | **Ctrl+,** | Settings (**Esc** closes them, or cancels **Learn**) |
 | **F11** | Zen mode |
 | **Ctrl+M** | Metronome on/off |
 | **Ctrl+R** | Record / stop recording |
 | **Ctrl+Shift+R** | Play / stop the selected take |
-| **Ctrl+P** | Play / stop the chord progression |
 | **Ctrl+O** | Open a MIDI song |
 | **Shift+F1** | Status bar |
 | **Shift+F2** | AI Music Assistant |
 | **Shift+F3** | MIDI log |
-| **Shift+F4** | Chord progression sidebar |
 | **Shift+F5** | Recorder |
 | **Shift+F6** | Circle of fifths |
 | **Shift+F7** | Chord strip |
@@ -157,7 +141,7 @@ suggests where the saved progression could go next.*
 
 ## Download
 
-Get the latest `win-x64.zip` from [Releases](https://github.com/FrankDrebin893/PianoVisualization/releases), unzip it and run `PianoMidiVisualizationApp.exe`. It's self-contained, so no .NET install is needed. The app isn't code-signed yet, so Windows may show "Windows protected your PC" — click **More info → Run anyway**.
+Get the latest `win-x64.zip` from the [project website](https://frankdrebin893.github.io/PianoVisualization/) or [GitHub Releases](https://github.com/FrankDrebin893/PianoVisualization/releases/latest), unzip it and run `PianoMidiVisualizationApp.exe`. It's self-contained, so no .NET install is needed. The app isn't code-signed yet, so Windows may show "Windows protected your PC" — click **More info → Run anyway**.
 
 ## Requirements
 
@@ -183,7 +167,7 @@ Everything is also in **View → Settings…** (**Ctrl+,**):
 4. Click **Start audio**.
 
 Then play. You'll hear sound and see the keys light up. Pick a **Key** in the toolbar to turn on
-the Roman numerals, chord strip and key tinting.
+the Roman numerals, chord strip and key highlighting.
 
 The dot next to **Connect** turns green once the keyboard is connected and flashes when MIDI
 data arrives. **Volume** sets the master volume and **Click** the metronome. To use the AI

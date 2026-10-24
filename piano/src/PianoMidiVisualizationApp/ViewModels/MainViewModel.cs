@@ -74,7 +74,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public RecorderViewModel Recorder { get; }
     public SongPracticeViewModel SongPractice { get; }
     public ChordStripViewModel ChordStrip { get; }
-    public ProgressionToolsViewModel ProgressionTools { get; }
     public PianoControlsViewModel PianoControls { get; }
 
     [ObservableProperty]
@@ -94,14 +93,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>
     /// The chord readout: what is sounding, or for a moment after, the last chord that did
-    /// (see <see cref="IsReadoutLatched"/>). It is what Space saves.
+    /// (see <see cref="IsReadoutLatched"/>).
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CurrentChord))]
     [NotifyPropertyChangedFor(nameof(HasChord))]
     private ChordAnalysis _analysis = ChordAnalysis.Empty;
 
-    /// <summary>The chord name alone — what gets saved to the progression and sent to the AI.</summary>
+    /// <summary>The chord name alone — what gets sent to the AI.</summary>
     public string CurrentChord => Analysis.Name;
 
     public bool HasChord => !Analysis.IsEmpty;
@@ -125,27 +124,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>The notes the readout is showing, live or latched, lowest first.</summary>
     private IReadOnlyList<int> _readoutNotes = Array.Empty<int>();
 
-    /// <summary>Whether the readout's chord was saved already, so a second press does not save it twice.</summary>
-    private bool _readoutSaved;
-
     /// <summary>
     /// Nothing is sounding, and the readout is holding the last chord for
-    /// <see cref="LatchDuration"/>, dimming as it goes, so it can still be saved.
+    /// <see cref="LatchDuration"/>, dimming as it goes.
     /// </summary>
     [ObservableProperty]
     private bool _isReadoutLatched;
-
-    /// <summary>
-    /// The line under the readout: that the chord was saved, or that the progression is full.
-    /// How to save shows only while the progression is empty; after the first save the line
-    /// stays blank until there is something to report.
-    /// </summary>
-    [ObservableProperty]
-    private string _saveHint = "Space to save";
-
-    /// <summary>The empty progression sidebar's line: how a chord gets there, with any learned control.</summary>
-    [ObservableProperty]
-    private string _progressionEmptyHint = "Hold a chord and press Space to add it here.";
 
     /// <summary>
     /// The root of what is sounding right now, for the circle of fifths' root outline. Unlike
@@ -199,10 +183,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsZenMode))]
-    private bool _isProgressionVisible = true;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsZenMode))]
     private bool _isStatusBarVisible = true;
 
     [ObservableProperty]
@@ -248,15 +228,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// manually leaves zen mode with no extra bookkeeping.
     /// </summary>
     public bool IsZenMode => !IsChatPanelVisible && !IsMidiLogVisible
-                          && !IsProgressionVisible && !IsStatusBarVisible
+                          && !IsStatusBarVisible
                           && !IsRecorderVisible && !IsCircleOfFifthsVisible
                           && !IsGrandStaffVisible && !IsSongPracticeVisible
                           && !IsChordStripVisible;
 
     private const int MaxLogLines = 100;
-    private const int MaxSavedChords = 8;
     public ObservableCollection<string> MidiLog { get; } = new();
-    public ObservableCollection<SavedChord> SavedChords { get; } = new();
 
     public MainViewModel(IMidiInputService midiInput, IAudioEngine audioEngine, Dispatcher dispatcher)
     {
@@ -289,24 +267,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _graceTimer = new DispatcherTimer(ReleaseGrace, DispatcherPriority.Normal, (_, _) => OnReleaseGraceEnded(), dispatcher);
         _graceTimer.Stop();
 
-        ProgressionTools = new ProgressionToolsViewModel(SavedChords, MaxSavedChords, CreateSavedChord,
-                                                         Settings, PianoKeyboard, dispatcher,
-                                                         PlayNoteOn, PlayNoteOff, status => StatusText = status);
-
-        // Taking a chord out of the progression makes the readout's chord savable again.
-        SavedChords.CollectionChanged += (_, e) =>
-        {
-            if (e.Action != System.Collections.Specialized.NotifyCollectionChangedAction.Add)
-                _readoutSaved = false;
-            UpdateSaveHint();
-            OnPropertyChanged(nameof(ProgressionLeds));
-        };
-
         PianoControls = new PianoControlsViewModel(dispatcher);
         PianoControls.ActionFired += OnPianoActionFired;
         PianoControls.TriggerLearned += (_, e) =>
             AppendLog($"Learned {e.Trigger.DisplayName} for {PianoActionInfo.For(e.Action).Label}");
-        PianoControls.MappingsChanged += (_, _) => UpdateSaveHint();
 
         // Closing Settings, by any route, stops Learn listening.
         PropertyChanged += (_, e) =>
@@ -337,7 +301,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 PianoKeyboard.SetKey(Settings.CurrentKey);
                 UpdateAudiblePitchClasses();
                 RenderReadout();   // the readout re-spells with the new key, latched or not
-                RefreshSavedChordFunctions();
             }
             else if (e.PropertyName == nameof(Settings.MuteOutOfKeyNotes))
                 UpdateAudiblePitchClasses();
@@ -354,7 +317,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         return new MusicContext(
             WithFunction(CurrentChord, Analysis.Function),
-            SavedChords.Select(c => WithFunction(c.ChordName, c.Function)).ToList(),
             MidiLog.TakeLast(10).ToList(),
             Settings.CurrentKey?.DisplayName);
 
@@ -461,7 +423,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (notes.SequenceEqual(_readoutNotes)) return;
 
         _readoutNotes = notes;
-        _readoutSaved = false;
         RenderReadout();
     }
 
@@ -470,7 +431,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         _latchTimer.Stop();
         _readoutNotes = Array.Empty<int>();
-        _readoutSaved = false;
         RenderReadout();
         IsReadoutLatched = false;
     }
@@ -484,31 +444,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Analysis = _analyzer.Analyze(_readoutNotes, UseFlats, Settings.CurrentKey);
         StaffSignature = KeySignature.For(Settings.CurrentKey);
         StaffNotes = NoteSpeller.SpellChord(_readoutNotes, Settings.CurrentKey);
-        UpdateSaveHint();
-    }
-
-    private void UpdateSaveHint()
-    {
-        string saveKeys = PianoControls.TriggerFor(PianoAction.SaveChord) is { } trigger
-            ? $"Space or {trigger.DisplayName}"
-            : "Space";
-
-        SaveHint = _readoutSaved ? $"Saved · {SavedChords.Count}/{MaxSavedChords}"
-                 : SavedChords.Count >= MaxSavedChords ? $"Progression full · {MaxSavedChords}/{MaxSavedChords}"
-                 : SavedChords.Count == 0 ? $"{saveKeys} to save"
-                 : "";
-        ProgressionEmptyHint = $"Hold a chord and press {saveKeys} to add it here.";
-    }
-
-    /// <summary>Re-reads every saved chord's numeral in the current key. At most eight chords, all cached.</summary>
-    private void RefreshSavedChordFunctions()
-    {
-        foreach (var chord in SavedChords)
-        {
-            var analysis = _analyzer.Analyze(chord.NoteNumbers, UseFlats, Settings.CurrentKey);
-            chord.Function = analysis.Function;
-            chord.FunctionKind = analysis.FunctionKind;
-        }
     }
 
     public void RefreshDevices()
@@ -609,78 +544,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         StatusText = "Devices refreshed";
     }
 
-    /// <summary>
-    /// Saves the readout's chord: the one sounding, or the one it is still holding after the
-    /// keys came up. A miss is echoed on the stage, since the status bar may be hidden.
-    /// </summary>
-    [RelayCommand]
-    private void SaveCurrentChord()
-    {
-        if (!TrySaveReadoutChord(out string result))
-            ShowEcho(result);
-    }
-
-    /// <param name="result">What happened, in a few words, for the stage echo.</param>
-    private bool TrySaveReadoutChord(out string result)
-    {
-        if (Analysis.IsEmpty || _readoutNotes.Count == 0)
-        {
-            StatusText = "No chord to save - play one first";
-            result = "Play a chord first";
-            return false;
-        }
-
-        if (_readoutSaved)
-        {
-            StatusText = result = $"{CurrentChord} is already saved";
-            return false;
-        }
-
-        if (SavedChords.Count >= MaxSavedChords)
-        {
-            StatusText = "Maximum 8 chords saved - remove one first";
-            result = "Progression full · remove a chord first";
-            return false;
-        }
-
-        var savedChord = CreateSavedChord(_readoutNotes);
-        _readoutSaved = true;
-        SavedChords.Add(savedChord);
-        StatusText = $"Saved chord: {savedChord.ChordName}";
-        result = $"Saved {savedChord.ChordName} · {SavedChords.Count}/{MaxSavedChords}";
-        return true;
-    }
-
-    /// <summary>
-    /// A saved chord for these notes: named, spelled and given its numeral in the current key.
-    /// The one way chords enter the progression, whether saved from the keyboard, transposed or
-    /// picked from the suggestions, so they all read alike.
-    /// </summary>
-    private SavedChord CreateSavedChord(IEnumerable<int> notes)
-    {
-        var sorted = notes.Distinct().OrderBy(n => n).ToList();
-        var analysis = _analyzer.Analyze(sorted, UseFlats, Settings.CurrentKey);
-
-        return new SavedChord
-        {
-            ChordName = analysis.Name,
-            NoteNumbers = sorted,
-            NoteNames = sorted.Select(n => MusicNaming.WithOctave(n, UseFlats)).ToList(),
-            Function = analysis.Function,
-            FunctionKind = analysis.FunctionKind,
-        };
-    }
-
-    [RelayCommand]
-    private void RemoveChord(SavedChord? chord)
-    {
-        if (chord != null && SavedChords.Contains(chord))
-        {
-            SavedChords.Remove(chord);
-            StatusText = $"Removed chord: {chord.ChordName}";
-        }
-    }
-
     /// <summary>Turns the key highlight off. Picking from either dropdown turns it back on.</summary>
     [RelayCommand]
     private void ClearKey() => Settings.KeyTonicPitchClass = null;
@@ -724,10 +587,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
             Settings.MuteOutOfKeyNotes = !Settings.MuteOutOfKeyNotes;
     }
 
-    /// <summary>The panel's eight progression LEDs: lit for each saved chord, in order.</summary>
-    public IReadOnlyList<bool> ProgressionLeds =>
-        Enumerable.Range(0, MaxSavedChords).Select(i => i < SavedChords.Count).ToList();
-
     /// <summary>
     /// Sets the tempo from the average of the last few taps; the first tap only starts the
     /// count. Returns the tempo set, after clamping, or null for a first tap.
@@ -752,9 +611,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private void ToggleChatPanel() => IsChatPanelVisible = !IsChatPanelVisible;
 
     [RelayCommand]
-    private void ToggleProgression() => IsProgressionVisible = !IsProgressionVisible;
-
-    [RelayCommand]
     private void ToggleStatusBar() => IsStatusBarVisible = !IsStatusBarVisible;
 
     [RelayCommand]
@@ -775,7 +631,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Hiding the practice view pauses the song rather than letting it play on unseen.</summary>
     partial void OnIsSongPracticeVisibleChanged(bool value) => SongPractice.IsActive = value;
 
-    private readonly record struct PanelLayout(bool Chat, bool MidiLog, bool Progression, bool StatusBar,
+    private readonly record struct PanelLayout(bool Chat, bool MidiLog, bool StatusBar,
                                                bool Recorder, bool CircleOfFifths, bool GrandStaff,
                                                bool SongPractice, bool ChordStrip);
 
@@ -787,10 +643,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (IsZenMode)
         {
             // Nothing was saved if the app started in zen — restore a sensible layout instead.
-            var restore = _preZenLayout ?? new PanelLayout(false, false, true, true, false, true, true, false, true);
+            var restore = _preZenLayout ?? new PanelLayout(false, false, true, false, true, true, false, true);
             IsChatPanelVisible = restore.Chat;
             IsMidiLogVisible = restore.MidiLog;
-            IsProgressionVisible = restore.Progression;
             IsStatusBarVisible = restore.StatusBar;
             IsRecorderVisible = restore.Recorder;
             IsCircleOfFifthsVisible = restore.CircleOfFifths;
@@ -801,10 +656,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         else
         {
             _preZenLayout = new PanelLayout(
-                IsChatPanelVisible, IsMidiLogVisible, IsProgressionVisible, IsStatusBarVisible,
+                IsChatPanelVisible, IsMidiLogVisible, IsStatusBarVisible,
                 IsRecorderVisible, IsCircleOfFifthsVisible, IsGrandStaffVisible, IsSongPracticeVisible,
                 IsChordStripVisible);
-            IsChatPanelVisible = IsMidiLogVisible = IsProgressionVisible = IsStatusBarVisible = false;
+            IsChatPanelVisible = IsMidiLogVisible = IsStatusBarVisible = false;
             IsRecorderVisible = IsCircleOfFifthsVisible = IsGrandStaffVisible = false;
             IsSongPracticeVisible = IsChordStripVisible = false;
             IsSettingsOverlayVisible = false;
@@ -820,7 +675,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Settings.ApplyFrom(saved);
         IsMidiLogVisible = saved.ShowMidiLog;
         IsChatPanelVisible = saved.ShowChatPanel;
-        IsProgressionVisible = saved.ShowProgression;
         IsStatusBarVisible = saved.ShowStatusBar;
         IsRecorderVisible = saved.ShowRecorder;
         IsCircleOfFifthsVisible = saved.ShowCircleOfFifths;
@@ -839,9 +693,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (saved.ShowSongPractice && !string.IsNullOrEmpty(saved.SongPath) && System.IO.File.Exists(saved.SongPath))
             SongPractice.LoadSong(saved.SongPath, showTrackList: false);
         IsSongPracticeVisible = saved.ShowSongPractice;
-        ProgressionTools.ApplyFrom(saved);
         PianoControls.ApplyFrom(saved);
-        UpdateSaveHint();
         PianoKeyboard.SetKey(Settings.CurrentKey);
         UpdateAudiblePitchClasses();
         ApplyMetronomeSettings();
@@ -852,7 +704,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var saved = Settings.ToAppSettings();
         saved.ShowMidiLog = IsMidiLogVisible;
         saved.ShowChatPanel = IsChatPanelVisible;
-        saved.ShowProgression = IsProgressionVisible;
         saved.ShowStatusBar = IsStatusBarVisible;
         saved.ShowRecorder = IsRecorderVisible;
         saved.ShowCircleOfFifths = IsCircleOfFifthsVisible;
@@ -865,7 +716,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         saved.SongPath = SongPractice.SongPath;
         saved.SongSpeed = SongPractice.Speed;
         saved.SongMode = SongPractice.Mode.ToString();
-        ProgressionTools.CaptureInto(saved);
         PianoControls.CaptureInto(saved);
         return saved;
     }
@@ -1144,15 +994,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         switch (action)
         {
-            case PianoAction.SaveChord:
-                TrySaveReadoutChord(out string saved);
-                return saved;
-
-            case PianoAction.ToggleProgressionPlayback:
-                if (SavedChords.Count == 0) return "No chords saved yet";
-                ProgressionTools.TogglePlaybackCommand.Execute(null);
-                return ProgressionTools.IsPlaying ? "Progression playing" : "Progression stopped";
-
             case PianoAction.ToggleRecord:
             {
                 var newest = Recorder.Takes.FirstOrDefault();
@@ -1219,7 +1060,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Recorder.Dispose();
         SongPractice.Dispose();
         ChordStrip.Dispose();
-        ProgressionTools.Dispose();
         _activityTimer?.Dispose();
         DisposeSetupStatus();
         _midiInput.NoteOn -= OnMidiNoteOn;

@@ -13,8 +13,8 @@ internal sealed record Scene(string Name, int Width, int Height, Action<Host> Se
 
 /// <summary>
 /// Every README screenshot. Each starts from a fresh window with default settings (the
-/// first-launch panel layout: progression sidebar, circle of fifths, grand staff, chord strip
-/// and status bar on), the keyboard connected and audio on, and sets up only what it shows.
+/// first-launch panel layout: circle of fifths, grand staff, chord strip and status bar on),
+/// the keyboard connected and audio on, and sets up only what it shows.
 /// </summary>
 internal static class Scenes
 {
@@ -34,9 +34,9 @@ internal static class Scenes
     ];
 
     /// <summary>
-    /// The hero shot: a progression saved in C major, and a G7 held over its third, so the
-    /// readout shows a figured-bass numeral, the staff and circle follow it, and the chord
-    /// strip, switched to sevenths, lights V7.
+    /// The hero shot: C major selected, and a G7 held over its third, so the readout shows a
+    /// figured-bass numeral, the staff and circle follow it, and the chord strip, switched to
+    /// sevenths, lights V7.
     /// </summary>
     private static void Overview(Host host)
     {
@@ -46,20 +46,12 @@ internal static class Scenes
         vm.IsMetronomeOn = true;
         vm.ChordStrip.ShowSevenths = true;
 
-        host.SaveChord(C3, G3, C4, E4);
-        host.SaveChord(A2, E3, A3, C4, E4);
-        host.SaveChord(F2, A3, C4, F4);
-        host.SaveChord(G2, B3, D4, F4);
-
         host.Press(B2, F3, G3, D4);
     }
 
     /// <summary>Wait mode part-way through a song: a few chords played, one fluffed, the next one hinted.</summary>
     private static void SongPractice(Host host)
     {
-        // The sidebar would sit empty beside the song; the falling notes get its width instead.
-        host.Vm.IsProgressionVisible = false;
-
         var song = host.Vm.SongPractice;
         string path = DemoSong.Write(Path.Combine(Path.GetTempPath(), "ReadmeScreenshots"));
         if (!song.LoadSong(path, showTrackList: false))
@@ -133,8 +125,8 @@ internal static class Scenes
 
     /// <summary>
     /// The settings overlay, connected and running, with a SoundFont picked (see <see cref="Host"/>),
-    /// and two piano controls learned the way a player would: the soft pedal saves the chord, and
-    /// a drum pad on channel 10 arms the recorder.
+    /// and two piano controls learned the way a player would: the soft pedal toggles the metronome,
+    /// and a drum pad on channel 10 arms the recorder.
     /// </summary>
     private static void Settings(Host host)
     {
@@ -142,7 +134,7 @@ internal static class Scenes
         vm.IsSettingsOverlayVisible = true;
 
         var controls = vm.PianoControls;
-        controls.LearnCommand.Execute(controls.Rows.Single(r => r.Action == PianoAction.SaveChord));
+        controls.LearnCommand.Execute(controls.Rows.Single(r => r.Action == PianoAction.ToggleMetronome));
         host.Midi.MoveControl(67, 127);   // the soft pedal, down
         host.Midi.MoveControl(67, 0);
         Host.PumpUntil(() => !controls.IsLearning, TimeSpan.FromSeconds(5), "the soft pedal to be learned");

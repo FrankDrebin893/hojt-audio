@@ -3,7 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace PianoMidiVisualizationApp.Models;
 
 /// <summary>Where a key sits in the selected key signature, if one is selected at all.</summary>
-public enum KeyRole { None, InKey, Tonic }
+public enum KeyRole { None, InKey, Tonic, OutOfKey }
 
 public partial class PianoKey : ObservableObject
 {

@@ -141,7 +141,7 @@ Token slugs above map to `Color.*` keys, several under names kept from piano cha
 
 **Creative North Star: "The Front Panel"**
 
-The window is a piece of hardware with rounded corners. The chrome (title bar, sidebar, toolbar, status bar) is one sheet of brushed scarlet aluminium with white legends. Set into it is a black OLED window that holds everything you read: a status line, the grand staff, the chord name, the circle of fifths and the chord strip, whose tiles are soft keys with a physical key under each one. Beside the window, the front panel: two halo knobs for volume and click, twelve rubber keys with LEDs, and the progression's eight LEDs. Below, behind a felt strip, sit real white and black keys.
+The window is a piece of hardware with rounded corners. The chrome (title bar, front panel, toolbar, status bar) is one sheet of brushed scarlet aluminium with white legends. Set into it on the left is a black OLED window that spans the full width of the 61-key keyboard and holds everything you read: a status line, the grand staff, the chord name, the circle of fifths and the chord strip, whose tiles are soft keys with a physical key under each one. Below the OLED window and practice toolbar, behind a felt strip, sit real white and black keys. In the right-hand hardware column (`FrontPanelColumn`) beside the OLED display and keys sit two halo knobs for volume and click and twelve rubber panel keys with LEDs.
 
 The OLED is where the eye goes: true black and white, as on the comp, with blue only where you are playing (a held key's lit edge, your recorded notes) and amber only for what is waiting on you. The panel around it is loud in colour but quiet in content, with legends and controls only. Controls are black rubber keys on the red, and a switched-on control is a white key with black ink.
 
@@ -149,13 +149,13 @@ Density stays instrument-tight: 12px body, 22px tiles, 3px corners, a 900x420 mi
 
 **Key Characteristics:**
 - One scarlet panel, brushed, shared by every chrome surface without seams.
-- One black OLED window with a bezel holds the readout; song practice hides it so the lane meets the keys edge to edge.
-- Real keys, neutral white with no ivory yellowing: a held key goes down and lights blue along its back edge.
-- A front panel of knobs and LED keys that are shortcuts to things the toolbar also does.
+- One black OLED window with a bezel spans the full width of the 61-key keyboard and holds the readout; song practice hides it so the lane meets the keys edge to edge.
+- Real keys, neutral white with no ivory yellowing: a held key goes down and lights blue along its back edge. When a key signature is active, out-of-key keys are dimmed across both white and black keys so in-key keys and the tonic stand out immediately.
+- A right-hand hardware front panel of rotary halo knobs and twelve LED rubber keys that are shortcuts to things the toolbar and View menu also do.
 - White legends that clear 4.5:1 on the scarlet, and so clear it easily on black.
 - On means white: a lit toggle, the primary action and the played chord tile are white with black ink.
-- The keys and the circle are black, white and grey: the key centre is shown by shape and tone (the white wedge, the tonic's thick dark lip), never by a tint.
-- Every other hue keeps one job (blue playing, amber waiting on you, magenta asking, teal/violet hands, green hit, red miss/record); the panel's lights (the halo knobs' green-to-red levels, the green status LED and the save key's green LED) are the one exception, as hardware lights.
+- The keys and the circle are black, white and grey: the key centre is shown by shape and tone (the white wedge, dimmed out-of-key keys, the in-key edge marker, and the tonic's thick dark lip), never by a tint.
+- Every other hue keeps one job (blue playing, amber waiting on you, magenta asking, teal/violet hands, green hit, red miss/record); the panel's lights (the halo knobs' green-to-red levels and the green status LED) are the one exception, as hardware lights.
 
 ## Colors
 
@@ -166,7 +166,7 @@ A scarlet panel, a black display, white legends, one amber, and the single-job s
 - **OLED Black** (`oled-black`): the display. The readout window, the settings drawer, cards laid over the stage, the keyboard's backing.
 
 ### Secondary
-- **Attention Amber** (`amber` family): whatever is waiting on you: the status chip and the first-run step while something isn't ready, the save key's LED while there is a chord to save. Not on the keys or the circle any more: K shows the key centre in black and white.
+- **Attention Amber** (`amber` family): whatever is waiting on you: the status chip and the first-run step while something isn't ready. Not on the keys or the circle any more: K shows the key centre in black, white and grey.
 - **Held-Key Blue** (`held-blue`): you are playing. The back edge of a held key, the circle's chord-root outline, your recorded notes, a learned piano control firing.
 - **Asking Magenta** (`target-magenta`): the app asking for a key: hint outlines and dots, the hovered chord tile's outline, the chord wait mode holds for.
 
@@ -182,7 +182,7 @@ A scarlet panel, a black display, white legends, one amber, and the single-job s
 - **Bezel** (`bezel`) with a 25%-white bottom lip (`Brush.Oled.Lip`): the frame round the OLED.
 - **Felt** (`felt`): the strip behind the keys.
 - **Disabled Fill** (`disabled-fill`): a control that can't be used. Never the panel brush, which would make it read as a lit red button.
-- **Keytop White** (`ivory-key`): white keytops and the playhead. Neutral, not ivory: the in-key keys take no wash at all and the tonic only a faint blush, so the keyboard stays white in every key.
+- **Keytop White** (`ivory-key`): white keytops and the playhead. Neutral, not ivory: in-key and tonic keys stay crisp neutral white while out-of-key keys are dimmed (`Brush.Key.White.OutOfKey` and `Brush.Key.Black.OutOfKey`), so the active scale stands out in every key.
 - **Legend Primary → Muted** (`legend-*`): text from the chord name down to hints. Muted (#D0CECC) is the floor for words: 4.8:1 on the scarlet.
 - **Legend Faint** (`legend-faint`): marks only (staff lines, the metronome's dot, scroll thumbs). Never words.
 - **Ink** (`ink`): text on a white key: a switched-on toggle, the primary action, the played chord tile.
@@ -194,7 +194,7 @@ A scarlet panel, a black display, white legends, one amber, and the single-job s
 
 **The On Means White Rule.** A switched-on toggle, the one primary action and the played chord tile are white keys with black ink. Amber never means "on"; blue never means "on".
 
-**The One Job Per Hue Rule.** Amber is the key centre and what waits on you; blue is you playing; magenta is the app asking; teal and violet are your hands; green is hit; red is miss and recording. The halo knobs' green-to-red scale is the single exception, a level meter, and stays on the halos.
+**The One Job Per Hue Rule.** Amber is what waits on you; blue is you playing; magenta is the app asking; teal and violet are your hands; green is hit; red is miss and recording. The halo knobs' green-to-red scale is the single exception, a level meter, and stays on the halos.
 
 **The Dead Key Rule.** Disabled controls are a near-black fill with grey legends. Red on this panel always reads as live.
 
@@ -209,7 +209,7 @@ Both are SIL OFL 1.1 (THIRD-PARTY-NOTICES.txt), and their pack URIs are assembly
 - **Display** (Inter Tight ExtraBold 800, 72px, `Size.Readout.Name`): the chord name, white on the OLED. The only display-size text.
 - **Headline** (SemiBold 18px, `Size.Readout.Function`): the Roman numeral leading the voicing line.
 - **Body** (Regular 12px; 14px for the voicing, `Size.Readout.Voicing`): controls, menus, tiles, lists.
-- **Legend** (Bold 12px for VOLUME, CLICK and PROGRESSION; SemiBold 11px, lowercase, under each panel key): printed on the panel.
+- **Legend** (Bold 12px for VOLUME and CLICK; SemiBold 11px, lowercase, under each panel key): printed on the panel.
 - **Status line** (JetBrains Mono 11px): the OLED's header, key in white, the rest Muted.
 - **Data** (Cascadia Mono 18px notes, 14px intervals, 11px knob values, the MIDI log and clocks): pitches, intervals and numbers that change.
 - **Key labels** (set in `PianoKeyboardControl`, `Font.Body`): Medium at rest, SemiBold when held, as in piano character.
@@ -221,13 +221,13 @@ Both are SIL OFL 1.1 (THIRD-PARTY-NOTICES.txt), and their pack URIs are assembly
 
 ## Layout
 
-A single fixed-structure window, minimum 900x420, default 1400x620, with 10px rounded corners: the window is transparent and `WindowFrame`, a border with the panel brush and a darker rim (`Brush.Window.Rim`), is clipped to a rounded rectangle in code-behind (square while maximised). Rows: a 32px title bar on the panel; the stage; then the recorder, MIDI log, AI chat and status bar as collapsible rows. The stage's left column has two columns of its own: the OLED window (star width) and the halo knobs (Auto, so it takes no room when they hide). The OLED window spans the stage's first three rows (practice toolbar, readout, chord strip), inset 16px from the panel edges with a 6px bezel. The practice toolbar and the keyboard span both columns below it. The chord-progression sidebar is a fixed 220px column on the panel.
+A single fixed-structure window, minimum 900x420, default 1400x620, with 10px rounded corners: the window is transparent and `WindowFrame`, a border with the panel brush and a darker rim (`Brush.Window.Rim`), is clipped to a rounded rectangle in code-behind (square while maximised). Rows: a 32px title bar on the panel; the stage; then the recorder, MIDI log, AI chat and status bar as collapsible rows. The stage has two columns: `Grid.Column="0"` (star width) holds the OLED window, the practice toolbar and the 61-key keyboard stacked to the same full width; `Grid.Column="1"` (`FrontPanelColumn`) is the right-hand hardware panel holding the two halo knobs and twelve panel keys beside the OLED display and keyboard. The OLED window spans the first three rows of `Grid.Column="0"` (song-practice toolbar slot, readout, chord strip), inset 16px from the edges with a machined bezel, followed by the practice toolbar (row 3) and the keyboard (row 4).
 
-The OLED's status line sits at the top of the readout row, not in a row of its own, so it shrinks with the readout. While the chord strip shows, the window stops 30px short of the strip's row bottom so the soft keys sit on the panel below its bezel. On a short stage (under 480px, `MainWindow.IsCompact`) everything stays at full size, soft keys included; only the spacing tightens: the status line, the readout's top margin, the toolbar's and the keyboard's margins close up. The stage has only ~24px to spare at 900x420, and the keyboard clips rather than shrinks.
+The OLED's status line sits at the top of the readout row, not in a row of its own, so it shrinks with the readout. While the chord strip shows, the window stops 30px short of the strip's row bottom so the soft keys sit on the panel below its bezel. On a short stage (under 480px, `MainWindow.IsCompact`) everything stays at full size, soft keys included; only the spacing tightens: the status line, the readout's top margin, the toolbar's and the keyboard's margins close up. The stage has only ~24px to spare at 900x420, and the keyboard scales inside its Viewbox.
 
-The front panel's column is a pixel width set in code-behind (268, 170 when compact, 0 while hidden), never Auto: a cell in an Auto column that spans the star row, alongside cells in Auto rows of the star column, makes WPF's Grid size that star row to its content, which pushed the keyboard off the bottom.
+The front panel's column (`FrontPanelColumn`) is a pixel width set in code-behind (268, 170 when compact, 0 while hidden), never Auto: an Auto column makes WPF's Grid size rows inconsistently at the 900x420 minimum.
 
-Song practice hides the OLED window and the panel, and drops the felt strip, so the falling-notes lane runs edge to edge and its bottom is the keys' top edge. Zen mode keeps the window and the keys and hides the knobs.
+Song practice hides the OLED window and the front panel, and drops the felt strip, so the falling-notes lane runs edge to edge and its bottom is the keys' top edge. Zen mode keeps the OLED window and the keys and hides the front panel.
 
 Spacing stays small and even, in 2 / 4 / 6 / 8 / 12 / 16px steps.
 
@@ -235,7 +235,7 @@ Spacing stays small and even, in 2 / 4 / 6 / 8 / 12 / 16px steps.
 
 The panel is flat aluminium. Depth comes from objects set into it or standing proud of it:
 - **The OLED window**: a black bezel (10px corners) holding the black screen (6px corners), with a light lip along its bottom edge.
-- **The keys**: piano character's ivory gradients and ebony bevel with their drop shadows (keytop: direction 270, depth 1, blur 2, 15%; ebony: direction 315, depth 3, blur 5, 50%). A held key shades darker from its top and lights a blue back edge (the first ~5% of its gradient), the way a key-light strip does; a pedal-held key keeps a paler blue edge.
+- **The keys**: piano character's ivory gradients and ebony bevel with their drop shadows (keytop: direction 270, depth 1, blur 2, 15%; ebony: direction 315, depth 3, blur 5, 50%). Out-of-key keys use dimmed slate/ebony gradients (`Brush.Key.White.OutOfKey`, `Brush.Key.Black.OutOfKey`) when a key signature is active. A held key shades darker from its top and lights a blue back edge (the first ~5% of its gradient), the way a key-light strip does; a pedal-held key keeps a paler blue edge.
 - **The halo knobs**: a dark recess with a faint rim, the LED ring inside it, and a black cap with a white pointer.
 - **Piano echo**: the transient pill over the stage, the only floating chrome.
 
@@ -257,16 +257,16 @@ Black rubber keys with white legends.
 - **Focus:** a 1.5px Legend Secondary ring, 2px outside the control.
 
 ### OLED Window (signature)
-A `Border` in the stage grid behind the readout and chord strip: Bezel fill, 6px padding, 10px corners, a lit bottom lip, and an inner OLED Black screen with 6px corners. Not hit-testable, so everything drawn over it still takes clicks. Hidden during song practice.
+A `Border` in the left column of the stage grid behind the readout and chord strip, spanning the full width of the 61-key keyboard: Bezel fill, 6px padding, 10px corners, a lit bottom lip, and an inner OLED Black screen with 6px corners. Not hit-testable, so everything drawn over it still takes clicks. Hidden during song practice.
 
 ### Halo Knob (signature, `HaloKnob`)
-A `RangeBase` drawn in code: a 104px recess, 15 level LEDs on a 270° sweep from the bottom left, and a black cap whose white pointer follows the value. LEDs light from the start up to the value, the first nine green, the next three amber, the last three red. Drag up or down (200 DIPs is the full range) or scroll (5% a notch). Never focusable, so Space stays "save chord"; the sliders in Settings set the same values from the keyboard. Two instances beside the OLED: **VOLUME** (`Settings.Volume`) and **CLICK** (`Settings.MetronomeVolume`), each with a bold legend and its value as a percentage below.
+A `RangeBase` drawn in code: a 104px recess, 15 level LEDs on a 270° sweep from the bottom left, and a black cap whose white pointer follows the value. LEDs light from the start up to the value, the first nine green, the next three amber, the last three red. Drag up or down (200 DIPs is the full range) or scroll (5% a notch). Never focusable; the sliders in Settings set the same values from the keyboard. Two instances in the right-hand hardware panel (`FrontPanel`): **VOLUME** (`Settings.Volume`) and **CLICK** (`Settings.MetronomeVolume`), each with a bold legend and its value as a percentage below.
 
 ### Keyboard (signature)
-Neutral white keytops and beveled ebony sharps. No key is ever tinted: an in-key white key carries a thin mid-grey front lip (#8E8E8A, 3.3:1 on the white), the tonic a thicker near-black one (#2E2E2E); in-key and tonic black keys carry a light grey or white top edge. A held key shades down and lights a blue back edge. Hints are magenta outlines and dots with a deep keyline. A black felt strip runs above the keys across the panel (hidden in song practice).
+Neutral white keytops and beveled ebony sharps. When a key signature is active, out-of-key white and black keys are visually dimmed (`KeyRole.OutOfKey`), while in-key white keys carry a thin mid-grey front lip (#70706C), the tonic a thicker near-black one (#1E1E1C), and in-key and tonic black keys carry a light grey or white top edge. A held key shades down and lights a blue back edge. Hints are magenta outlines and dots with a deep keyline. A crimson felt strip runs above the keys across the keybed well (hidden in song practice).
 
 ### Front Panel Keys (signature, `Style.PanelKey`)
-Twelve 52x34 black rubber keys in a 4x3 grid under the knobs, in K's order: key ◂, key ▸ (a step down or up the circle of fifths), scale (the next scale on the same tonic), mute (out-of-key), metro, tap, − and + (tempo), rec, play and loop (the selected take), save. Each has a 2px black skirt, a lit top edge, an LED bar set into its top (`Style.PanelLed`) and a lowercase legend under it (`Style.PanelLegend`). An LED lights white for a state that is on (mute, metronome, playing, looping), red while recording is armed, and green on save while there is a chord to save (`Brush.Led.Green`), as on the comp. Under the grid, PROGRESSION and eight LEDs lit for each saved chord. Never focusable; every key does something the toolbar, a shortcut or a menu also does.
+Twelve 52x34 black rubber keys in a 4x3 grid under the knobs in the right-hand hardware panel: `key ◂`, `key ▸` (a step down or up the circle of fifths), `scale` (the next scale on the same tonic), `mute` (out-of-key), `metro`, `tap`, `−` and `+` (tempo), `rec`, `play` and `loop` (the selected take), and `notes` (All Note Names). Each has a 2px black skirt, a lit top edge, an LED bar set into its top (`Style.PanelLed`) and a lowercase legend under it (`Style.PanelLegend`). An LED lights white for a state that is on (mute, metronome, playing, looping, all note names), and red while recording is armed. Never focusable; every key does something the toolbar, a shortcut or a menu also does.
 
 ### Diatonic Chord Strip (signature)
 Soft keys: each tile is a 22px black rubber label on the OLED's bottom edge, Legend Tertiary text with a white SemiBold numeral, and under it, 18px lower and past the bezel, a 16px physical key (`Style.SoftKeyCap`) that dips 1px when pressed; the whole column is one button. The played tile's label turns white with Ink for both name and numeral (`Brush.ChordTile.PlayedInk`). A hovered tile takes a magenta outline. The 7ths switch is a soft key too (`Style.SoftKeyToggle`), outlined in white while on, as on the comp. Never focusable.
@@ -275,7 +275,7 @@ Soft keys: each tile is a 22px black rubber label on the OLED's bottom edge, Leg
 `app.ico` (16 to 256px) and `app.png` (the title bar's 18px image): the panel in miniature. A scarlet tile with a black OLED window showing a white chord bar and a lit halo knob, over real white and black keys with one held key lit blue. Drawn by script, with the grain and the small text lines dropped below 32px.
 
 ### Chord Readout, Grand Staff, Circle of Fifths
-Laid out as on the K comp, white on the OLED. The chord name in Inter Tight ExtraBold; under it the Roman numeral in a white pill with ink (JetBrains Mono Bold, `Brush.Readout.Pill`, `Style.Function.NumeralPill`), the kind word and the voicing; then the save line. Beside them the held notes as a list, each note in JetBrains Mono Bold with its interval in Muted after it, four to a column and wrapping into a second for bigger chords, so the readout's height never changes with the chord. The staff draws Faint lines, Tertiary clefs and white notes. The circle's major ring is Rubber Raised and its minor ring Well Deep, with the selected key as a white wedge with ink (`Brush.Circle.SelectedText`), its related keys mid grey (#555) and the chord's root as a white outline.
+Laid out as on the K comp, white on the OLED. The chord name in Inter Tight ExtraBold; under it the Roman numeral in a white pill with ink (JetBrains Mono Bold, `Brush.Readout.Pill`, `Style.Function.NumeralPill`), the kind word and the voicing. Beside them the held notes as a list, each note in JetBrains Mono Bold with its interval in Muted after it, four to a column and wrapping into a second for bigger chords, so the readout's height never changes with the chord. The staff draws Faint lines, Tertiary clefs and white notes. The circle's major ring is Rubber Raised and its minor ring Well Deep, with the selected key as a white wedge with ink (`Brush.Circle.SelectedText`), its related keys mid grey (#555) and the chord's root as a white outline.
 
 ### Chips, Menus, Inputs, Scrollbars
 As in piano character, recoloured by the tokens: the status chip reads as a printed status light on the panel (no outline at rest), its dot K's green LED while all is well, filling and outlining in amber when something isn't ready; the app's name beside the icon is set bold white like the comp's model name; menus and popups are Rubber Raised with a Rubber Line border; inputs are Rubber Raised with a Rubber Line outline; scroll thumbs are Legend Faint.
@@ -288,7 +288,7 @@ As in piano character, recoloured by the tokens: the status chip reads as a prin
 - **Do** mark "on" and the single primary action with a white key and Ink.
 - **Do** give disabled controls the Disabled Fill, never the panel brush.
 - **Do** keep words at Legend Muted or brighter on the scarlet; Legend Faint draws marks only.
-- **Do** make stage controls (chord tiles, setup steps, metronome buttons, the halo knobs) non-focusable so Space stays "save chord", and keep a keyboard route to the same setting elsewhere.
+- **Do** make stage controls (chord tiles, setup steps, metronome buttons, the halo knobs, panel keys) non-focusable, and keep a keyboard route to the same setting elsewhere.
 - **Do** put colours for stateful controls in Style setters, never local attributes, so triggers can paint.
 
 ### Don't:

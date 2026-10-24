@@ -68,9 +68,10 @@ public class PianoKeyboardViewModel : ObservableObject
             pianoKey.NoteName = MusicNaming.WithOctave(pianoKey.NoteNumber, useFlats);
             pianoKey.ScaleRole = key switch
             {
+                null => KeyRole.None,
                 { } k when k.IsTonic(pitchClass) => KeyRole.Tonic,
                 { } k when k.Contains(pitchClass) => KeyRole.InKey,
-                _ => KeyRole.None
+                _ => KeyRole.OutOfKey
             };
         }
     }

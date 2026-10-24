@@ -57,7 +57,6 @@ public class AppSettings
     // parameterless constructor and only overwrites keys actually present in the file.
     public bool ShowMidiLog { get; set; } = false;
     public bool ShowChatPanel { get; set; } = false;
-    public bool ShowProgression { get; set; } = true;
     public bool ShowStatusBar { get; set; } = true;
     public bool ShowRecorder { get; set; } = false;
     public bool ShowCircleOfFifths { get; set; } = true;
@@ -79,11 +78,6 @@ public class AppSettings
     public string? SongPath { get; set; }
     public double SongSpeed { get; set; } = 1.0;
     public string SongMode { get; set; } = "Wait";
-
-    // Chord progression tools. Beats per chord 0 means one bar at the metronome's bar length.
-    public bool ProgressionLoop { get; set; } = true;
-    public int ProgressionBeatsPerChord { get; set; } = 0;
-    public bool TransposeMovesKey { get; set; } = true;
 
     // Controls on the MIDI keyboard learned for app actions (Settings > Piano controls).
     public List<MidiMappingSetting> MidiMappings { get; set; } = new();

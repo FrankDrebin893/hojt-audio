@@ -76,14 +76,6 @@ internal sealed class Host : IDisposable
         Pump(TimeSpan.FromMilliseconds(40));
     }
 
-    /// <summary>Holds a chord and saves it to the progression, as Space does.</summary>
-    public void SaveChord(params int[] notes)
-    {
-        Press(notes);
-        Vm.SaveCurrentChordCommand.Execute(null);
-        Release(notes);
-    }
-
     // ------------------------------------------------------------------ time
 
     /// <summary>

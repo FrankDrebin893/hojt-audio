@@ -675,6 +675,7 @@ public partial class PianoKeyboardControl : UserControl
         var p = _palette;
         bool held = key.IsPressed;
         bool ringing = !held && key.IsSustained;
+        bool outOfKey = !held && !ringing && key.ScaleRole == KeyRole.OutOfKey;
 
         v.Body.Fill = held
             ? (key.IsBlack ? p.BlackHeld : p.WhiteHeld)
@@ -682,7 +683,8 @@ public partial class PianoKeyboardControl : UserControl
             : key.ScaleRole switch
             {
                 KeyRole.Tonic => key.IsBlack ? p.BlackTonic : p.WhiteTonic,
-                KeyRole.InKey => key.IsBlack ? p.Black : p.WhiteInKey,
+                KeyRole.InKey => key.IsBlack ? p.BlackInKey : p.WhiteInKey,
+                KeyRole.OutOfKey => key.IsBlack ? p.BlackOutOfKey : p.WhiteOutOfKey,
                 _ => key.IsBlack ? p.Black : p.White
             };
 
@@ -713,7 +715,7 @@ public partial class PianoKeyboardControl : UserControl
 
             if (v.BlackLeftWall is { } leftWall)
             {
-                leftWall.Fill = held ? p.BlackLeftWallHeld : p.BlackLeftWall;
+                leftWall.Fill = held ? p.BlackLeftWallHeld : outOfKey ? p.BlackLeftWallOutOfKey : p.BlackLeftWall;
                 leftWall.Points = new PointCollection
                 {
                     new(0.6, 0.7),
@@ -725,7 +727,7 @@ public partial class PianoKeyboardControl : UserControl
 
             if (v.BlackRightWall is { } rightWall)
             {
-                rightWall.Fill = held ? p.BlackRightWallHeld : p.BlackRightWall;
+                rightWall.Fill = held ? p.BlackRightWallHeld : outOfKey ? p.BlackRightWallOutOfKey : p.BlackRightWall;
                 rightWall.Points = new PointCollection
                 {
                     new(BlackKeyWidth - BlackTopInset, topY),
@@ -739,12 +741,28 @@ public partial class PianoKeyboardControl : UserControl
             {
                 Canvas.SetTop(top, topY);
                 top.Height = topH;
-                top.Fill = held ? p.BlackTopHeld : ringing ? p.BlackTopRinging : p.BlackTop;
+                top.Fill = held
+                    ? p.BlackTopHeld
+                    : ringing
+                        ? p.BlackTopRinging
+                        : key.ScaleRole switch
+                        {
+                            KeyRole.Tonic => p.BlackTopTonic,
+                            KeyRole.InKey => p.BlackTopInKey,
+                            KeyRole.OutOfKey => p.BlackTopOutOfKey,
+                            _ => p.BlackTop
+                        };
             }
 
             if (v.BlackNose is { } nose)
             {
-                nose.Fill = held ? p.BlackNoseHeld : p.BlackNose;
+                nose.Fill = held
+                    ? p.BlackNoseHeld
+                    : outOfKey
+                        ? p.BlackNoseOutOfKey
+                        : key.ScaleRole is KeyRole.InKey or KeyRole.Tonic
+                            ? p.BlackNoseInKey
+                            : p.BlackNose;
                 nose.Points = new PointCollection
                 {
                     new(BlackTopInset, noseTopY),
@@ -755,10 +773,14 @@ public partial class PianoKeyboardControl : UserControl
             }
 
             if (v.BlackNoseCrest is { } noseCrest)
+            {
+                noseCrest.Fill = outOfKey ? p.BlackNoseCrestOutOfKey : p.BlackNoseCrest;
                 Canvas.SetTop(noseCrest, noseTopY - 0.8);
+            }
 
             if (v.BlackLeftFacetLine is { } leftFacet)
             {
+                leftFacet.Stroke = outOfKey ? p.BlackRidgeOutOfKey : p.BlackRidge;
                 leftFacet.Y1 = noseTopY;
                 leftFacet.Y2 = bottomY;
             }
@@ -771,6 +793,7 @@ public partial class PianoKeyboardControl : UserControl
 
             if (v.BlackRidgeLine is { } ridge)
             {
+                ridge.Stroke = outOfKey ? p.BlackRidgeOutOfKey : p.BlackRidge;
                 ridge.Y1 = noseTopY;
                 ridge.Y2 = noseTopY;
             }
@@ -789,12 +812,15 @@ public partial class PianoKeyboardControl : UserControl
             }
 
             if (v.Chamfer is { } chamfer)
+            {
                 chamfer.Height = skirtTop;
+                chamfer.Opacity = outOfKey ? 0.25 : 1.0;
+            }
 
             if (v.Skirt is { } skirt)
             {
                 skirt.Height = skirtH;
-                skirt.Fill = held ? p.WhiteSkirtHeld : p.WhiteSkirt;
+                skirt.Fill = held ? p.WhiteSkirtHeld : outOfKey ? p.WhiteSkirtOutOfKey : p.WhiteSkirt;
                 Canvas.SetTop(skirt, skirtTop);
             }
 
@@ -803,7 +829,7 @@ public partial class PianoKeyboardControl : UserControl
 
             if (v.Bullnose is { } bullnose)
             {
-                bullnose.Fill = held ? p.WhiteBullnoseHeld : p.WhiteBullnose;
+                bullnose.Fill = held ? p.WhiteBullnoseHeld : outOfKey ? p.WhiteBullnoseOutOfKey : p.WhiteBullnose;
                 Canvas.SetTop(bullnose, skirtTop - 1.2);
             }
 
@@ -851,7 +877,7 @@ public partial class PianoKeyboardControl : UserControl
         if (!_keyMarks.TryGetValue(key.NoteNumber, out var mark))
             return;
 
-        bool show = key.ScaleRole != KeyRole.None;
+        bool show = key.ScaleRole is KeyRole.InKey or KeyRole.Tonic;
         mark.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         if (!show) return;
 
@@ -860,7 +886,7 @@ public partial class PianoKeyboardControl : UserControl
         mark.Fill = onIvory
             ? (tonic ? _palette.TonicMarkIvory : _palette.InKeyMarkIvory)
             : (tonic ? _palette.TonicMark : _palette.InKeyMark);
-        mark.Height = tonic ? 3.5 : 2.0;
+        mark.Height = tonic ? 4.0 : 2.5;
         double inset = HintInset(key);
         double skirtH = key.IsPressed ? WhiteSkirtPressedHeight : WhiteSkirtHeight;
         Canvas.SetTop(mark, key.IsBlack ? inset : WhiteKeyHeight - skirtH - mark.Height - 1.5);
@@ -884,16 +910,17 @@ public partial class PianoKeyboardControl : UserControl
         if (!show) return;
 
         var p = _palette;
+        bool outOfKey = !sounding && key.ScaleRole == KeyRole.OutOfKey;
         label.Text = LabelTextFor(key);
         label.FontWeight = held ? FontWeights.SemiBold : FontWeights.Medium;
         if (key.IsBlack)
         {
-            label.Foreground = sounding ? p.BlackLabelHeld : p.BlackLabel;
+            label.Foreground = sounding ? p.BlackLabelHeld : outOfKey ? p.BlackLabelOutOfKey : p.BlackLabel;
             label.FontSize = held ? 9 : 8;
         }
         else
         {
-            label.Foreground = sounding ? p.LabelHeld : p.Label;
+            label.Foreground = sounding ? p.LabelHeld : outOfKey ? p.LabelOutOfKey : p.Label;
             label.FontSize = held ? 11 : IsOctaveC(key) ? 10 : 9;
         }
 
@@ -923,6 +950,7 @@ public partial class PianoKeyboardControl : UserControl
             case nameof(PianoKey.ScaleRole):
                 ApplyKeyFill(key);
                 ApplyScaleMark(key);
+                ApplyKeyLabel(key);
                 break;
 
             case nameof(PianoKey.IsHinted):
@@ -955,11 +983,14 @@ public partial class PianoKeyboardControl : UserControl
         public Brush WhiteRinging { get; }
         public Brush WhiteInKey { get; }
         public Brush WhiteTonic { get; }
+        public Brush WhiteOutOfKey { get; }
         public Brush WhiteBorder { get; }
         public Brush WhiteBullnose { get; }
+        public Brush WhiteBullnoseOutOfKey { get; }
         public Brush WhiteBullnoseHeld { get; }
         public Brush WhiteUndercut { get; }
         public Brush WhiteSkirt { get; }
+        public Brush WhiteSkirtOutOfKey { get; }
         public Brush WhiteSkirtHeld { get; }
         public Brush WhiteRidge { get; }
         public Brush WhiteChamfer { get; }
@@ -972,17 +1003,28 @@ public partial class PianoKeyboardControl : UserControl
         public Brush FallboardShadow { get; }
         public Brush BlackContactShadow { get; }
         public Brush Black { get; }
+        public Brush BlackInKey { get; }
+        public Brush BlackOutOfKey { get; }
         public Brush BlackLeftWall { get; }
+        public Brush BlackLeftWallOutOfKey { get; }
         public Brush BlackLeftWallHeld { get; }
         public Brush BlackRightWall { get; }
+        public Brush BlackRightWallOutOfKey { get; }
         public Brush BlackRightWallHeld { get; }
         public Brush BlackTop { get; }
+        public Brush BlackTopInKey { get; }
+        public Brush BlackTopTonic { get; }
+        public Brush BlackTopOutOfKey { get; }
         public Brush BlackTopHeld { get; }
         public Brush BlackTopRinging { get; }
         public Brush BlackNose { get; }
+        public Brush BlackNoseInKey { get; }
+        public Brush BlackNoseOutOfKey { get; }
         public Brush BlackNoseHeld { get; }
         public Brush BlackNoseCrest { get; }
+        public Brush BlackNoseCrestOutOfKey { get; }
         public Brush BlackRidge { get; }
+        public Brush BlackRidgeOutOfKey { get; }
         public Brush BlackHeld { get; }
         public Brush BlackRinging { get; }
         public Brush BlackTonic { get; }
@@ -994,8 +1036,10 @@ public partial class PianoKeyboardControl : UserControl
         public Brush Hint { get; }
         public Brush HintKeyline { get; }
         public Brush Label { get; }
+        public Brush LabelOutOfKey { get; }
         public Brush LabelHeld { get; }
         public Brush BlackLabel { get; }
+        public Brush BlackLabelOutOfKey { get; }
         public Brush BlackLabelHeld { get; }
         public Color Shadow { get; }
 
@@ -1011,11 +1055,14 @@ public partial class PianoKeyboardControl : UserControl
             WhiteRinging = Find("Brush.Key.White.Ringing");
             WhiteInKey = Find("Brush.Key.White.InKey");
             WhiteTonic = Find("Brush.Key.White.Tonic");
+            WhiteOutOfKey = Find("Brush.Key.White.OutOfKey");
             WhiteBorder = Find("Brush.Key.White.Border");
             WhiteBullnose = Find("Brush.Key.White.Bullnose");
+            WhiteBullnoseOutOfKey = Find("Brush.Key.White.Bullnose.OutOfKey");
             WhiteBullnoseHeld = Find("Brush.Key.White.Bullnose.Held");
             WhiteUndercut = Find("Brush.Key.White.Undercut");
             WhiteSkirt = Find("Brush.Key.White.Skirt");
+            WhiteSkirtOutOfKey = Find("Brush.Key.White.Skirt.OutOfKey");
             WhiteSkirtHeld = Find("Brush.Key.White.Skirt.Held");
             WhiteRidge = Find("Brush.Key.White.Ridge");
             WhiteChamfer = Find("Brush.Key.White.Chamfer");
@@ -1028,17 +1075,28 @@ public partial class PianoKeyboardControl : UserControl
             FallboardShadow = Find("Brush.Fallboard.Shadow");
             BlackContactShadow = Find("Brush.Key.Black.ContactShadow");
             Black = Find("Brush.Key.Black");
+            BlackInKey = Find("Brush.Key.Black.InKey");
+            BlackOutOfKey = Find("Brush.Key.Black.OutOfKey");
             BlackLeftWall = Find("Brush.Key.Black.LeftWall");
+            BlackLeftWallOutOfKey = Find("Brush.Key.Black.LeftWall.OutOfKey");
             BlackLeftWallHeld = Find("Brush.Key.Black.LeftWall.Held");
             BlackRightWall = Find("Brush.Key.Black.RightWall");
+            BlackRightWallOutOfKey = Find("Brush.Key.Black.RightWall.OutOfKey");
             BlackRightWallHeld = Find("Brush.Key.Black.RightWall.Held");
             BlackTop = Find("Brush.Key.Black.Top");
+            BlackTopInKey = Find("Brush.Key.Black.Top.InKey");
+            BlackTopTonic = Find("Brush.Key.Black.Top.Tonic");
+            BlackTopOutOfKey = Find("Brush.Key.Black.Top.OutOfKey");
             BlackTopHeld = Find("Brush.Key.Black.Top.Held");
             BlackTopRinging = Find("Brush.Key.Black.Top.Ringing");
             BlackNose = Find("Brush.Key.Black.Nose");
+            BlackNoseInKey = Find("Brush.Key.Black.Nose.InKey");
+            BlackNoseOutOfKey = Find("Brush.Key.Black.Nose.OutOfKey");
             BlackNoseHeld = Find("Brush.Key.Black.Nose.Held");
             BlackNoseCrest = Find("Brush.Key.Black.NoseCrest");
+            BlackNoseCrestOutOfKey = Find("Brush.Key.Black.NoseCrest.OutOfKey");
             BlackRidge = Find("Brush.Key.Black.Ridge");
+            BlackRidgeOutOfKey = Find("Brush.Key.Black.Ridge.OutOfKey");
             BlackHeld = Find("Brush.Key.Black.Held");
             BlackRinging = Find("Brush.Key.Black.Ringing");
             BlackTonic = Find("Brush.Key.Black.Tonic");
@@ -1050,8 +1108,10 @@ public partial class PianoKeyboardControl : UserControl
             Hint = Find("Brush.Key.Hint");
             HintKeyline = Find("Brush.Key.Hint.Keyline");
             Label = Find("Brush.Key.Label");
+            LabelOutOfKey = Find("Brush.Key.Label.OutOfKey");
             LabelHeld = Find("Brush.Key.Label.Held");
             BlackLabel = Find("Brush.Key.Black.Label");
+            BlackLabelOutOfKey = Find("Brush.Key.Black.Label.OutOfKey");
             BlackLabelHeld = Find("Brush.Key.Black.Label.Held");
         }
     }

@@ -6,8 +6,6 @@ namespace PianoMidiVisualizationApp.Midi;
 /// </summary>
 public enum PianoAction
 {
-    SaveChord,
-    ToggleProgressionPlayback,
     ToggleRecord,
     ToggleTakePlayback,
     ToggleMetronome,
@@ -21,10 +19,6 @@ public sealed record PianoActionInfo(PianoAction Action, string Label, string Sh
 {
     public static readonly IReadOnlyList<PianoActionInfo> All =
     [
-        new(PianoAction.SaveChord, "Save chord", "Space",
-            "saves the chord to the progression"),
-        new(PianoAction.ToggleProgressionPlayback, "Play progression", "Ctrl+P",
-            "plays and stops the progression"),
         new(PianoAction.ToggleRecord, "Record", "Ctrl+R",
             "arms and stops recording"),
         new(PianoAction.ToggleTakePlayback, "Play take", "Ctrl+Shift+R",

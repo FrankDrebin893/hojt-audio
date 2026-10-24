@@ -54,8 +54,6 @@
                             <MenuItem Header="_Settings…" InputGestureText="Ctrl+,"
                                       Command="{Binding ToggleSettingsOverlayCommand}"/>
                             <Separator/>
-                            <MenuItem Header="Chord _Progression" InputGestureText="Shift+F4"
-                                      IsCheckable="True" IsChecked="{Binding IsProgressionVisible}"/>
                             <MenuItem Header="_AI Music Assistant" InputGestureText="Shift+F2"
                                       IsCheckable="True" IsChecked="{Binding IsChatPanelVisible}"/>
                             <MenuItem Header="_MIDI Log" InputGestureText="Shift+F3"
@@ -145,7 +143,10 @@
         <Grid x:Name="Stage" Grid.Row="1" Background="Transparent">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>   <!-- collapses to zero with the sidebar -->
+                <!-- The front panel beside the OLED display and keys. A pixel width set from
+                     code-behind (zero while the panel is hidden), never Auto: an Auto column
+                     makes WPF size rows inconsistently at the 900x420 minimum. -->
+                <ColumnDefinition x:Name="FrontPanelColumn" Width="268"/>
             </Grid.ColumnDefinitions>
 
             <!-- 3D top-to-bottom studio lighting falloff across the brushed scarlet instrument chassis -->
@@ -166,14 +167,6 @@
                     <RowDefinition Height="Auto"/>                <!-- practice toolbar -->
                     <RowDefinition Height="Auto"/>                <!-- keyboard -->
                 </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>      <!-- the OLED window -->
-                    <!-- The front panel beside it. A pixel width set from code-behind (zero while
-                         the panel is hidden), never Auto: an Auto column under a cell that spans
-                         the star row makes WPF size that row to its content, and the keyboard
-                         then clips at 900x420. -->
-                    <ColumnDefinition x:Name="FrontPanelColumn" Width="268"/>
-                </Grid.ColumnDefinitions>
 
                 <!-- The OLED window set into the scarlet panel: a multi-stepped 3D machined gunmetal
                      bezel with a recessed outer seam, 45-degree chamfered inner wall, lit bottom lip,
@@ -220,9 +213,9 @@
                     </Border>
                 </Border>
 
-                <!-- The OLED's header line: key, tempo, meter and speed on the left, the
-                     progression on the right, as a hardware display's status bar reads, with a
-                     crisp LED display hairline divider below it. -->
+                <!-- The OLED's header line: key, tempo, meter and speed on the left, as a
+                     hardware display's status bar reads, with a crisp LED display hairline divider
+                     below it. -->
                 <StackPanel Grid.Row="1" VerticalAlignment="Top" IsHitTestVisible="False"
                             TextElement.FontFamily="{StaticResource Font.Data}" TextElement.FontSize="11">
                     <StackPanel.Style>
@@ -239,18 +232,6 @@
                         </Style>
                     </StackPanel.Style>
                     <DockPanel>
-                        <TextBlock DockPanel.Dock="Right" Foreground="{StaticResource Brush.Text.Muted}"><Run
-                            Text="progression "/><Run Text="{Binding SavedChords.Count, Mode=OneWay}"/><Run
-                            Text="/8 · "/><Run><Run.Style>
-                                <Style TargetType="Run">
-                                    <Setter Property="Text" Value="once"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding ProgressionTools.IsLooping}" Value="True">
-                                            <Setter Property="Text" Value="loop"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Run.Style></Run></TextBlock>
                         <TextBlock Foreground="{StaticResource Brush.Text.Muted}"><Run
                             Text="{Binding Settings.KeyLabel, Mode=OneWay}" Foreground="{StaticResource Brush.Text.Primary}"/><Run
                             Text="   ♩ "/><Run Text="{Binding Settings.MetronomeBpm, Mode=OneWay}"/><Run
@@ -259,245 +240,6 @@
                     </DockPanel>
                     <Rectangle Height="1" Margin="0,4,0,0" Fill="{StaticResource Brush.Oled.Divider}"/>
                 </StackPanel>
-
-                <!-- The front panel beside the window: the two halo knobs (master volume and the
-                     metronome click, the same settings as the sliders in Settings), then twelve
-                     rubber keys with LEDs and the progression's eight LEDs. Every key is a
-                     shortcut for something the toolbar or a shortcut also does. Shrinks on a
-                     short window; hidden in song practice (the lane needs the full width) and in
-                     zen mode, which keeps only the window and the keys. -->
-                <Viewbox x:Name="FrontPanel" Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" Margin="0,8,18,6"
-                         Stretch="Uniform" StretchDirection="DownOnly" VerticalAlignment="Center">
-                    <Viewbox.Style>
-                        <Style TargetType="Viewbox">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding IsZenMode}" Value="True">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Viewbox.Style>
-                    <StackPanel Width="250">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <StackPanel Margin="0,0,10,0">
-                                <views:HaloKnob Value="{Binding Settings.Volume}"
-                                                ToolTip="Master volume. Drag up or down, or scroll."
-                                                AutomationProperties.Name="Volume"/>
-                                <TextBlock Text="VOLUME" FontSize="12" FontWeight="Bold" Margin="0,6,0,0"
-                                           HorizontalAlignment="Center" Foreground="{StaticResource Brush.Text.Primary}"/>
-                                <TextBlock Text="{Binding Settings.Volume, StringFormat={}{0:P0}}"
-                                           FontFamily="{StaticResource Font.Data}" FontSize="11"
-                                           HorizontalAlignment="Center" Foreground="{StaticResource Brush.Text.Muted}"/>
-                            </StackPanel>
-                            <StackPanel Margin="10,0,0,0">
-                                <views:HaloKnob Value="{Binding Settings.MetronomeVolume}"
-                                                ToolTip="Metronome click volume, relative to the master volume. Drag up or down, or scroll."
-                                                AutomationProperties.Name="Metronome volume"/>
-                                <TextBlock Text="CLICK" FontSize="12" FontWeight="Bold" Margin="0,6,0,0"
-                                           HorizontalAlignment="Center" Foreground="{StaticResource Brush.Text.Primary}"/>
-                                <TextBlock Text="{Binding Settings.MetronomeVolume, StringFormat={}{0:P0}}"
-                                           FontFamily="{StaticResource Font.Data}" FontSize="11"
-                                           HorizontalAlignment="Center" Foreground="{StaticResource Brush.Text.Muted}"/>
-                            </StackPanel>
-                        </StackPanel>
-
-                        <!-- Twelve keys in K's order: key and scale, metronome, recorder and save. -->
-                        <UniformGrid Columns="4" Margin="0,18,0,0">
-                            <StackPanel Margin="0,0,0,10">
-                                <Button Style="{StaticResource Style.PanelKey}" Command="{Binding PreviousKeyCommand}"
-                                        ToolTip="Key down a fifth" AutomationProperties.Name="Key down a fifth">
-                                    <Rectangle Style="{StaticResource Style.PanelLed}"/>
-                                </Button>
-                                <TextBlock Text="key ◂" Style="{StaticResource Style.PanelLegend}"/>
-                            </StackPanel>
-                            <StackPanel Margin="0,0,0,10">
-                                <Button Style="{StaticResource Style.PanelKey}" Command="{Binding NextKeyCommand}"
-                                        ToolTip="Key up a fifth" AutomationProperties.Name="Key up a fifth">
-                                    <Rectangle Style="{StaticResource Style.PanelLed}"/>
-                                </Button>
-                                <TextBlock Text="key ▸" Style="{StaticResource Style.PanelLegend}"/>
-                            </StackPanel>
-                            <StackPanel Margin="0,0,0,10">
-                                <Button Style="{StaticResource Style.PanelKey}" Command="{Binding NextScaleCommand}"
-                                        ToolTip="Next scale on the same tonic" AutomationProperties.Name="Next scale">
-                                    <Rectangle Style="{StaticResource Style.PanelLed}"/>
-                                </Button>
-                                <TextBlock Text="scale" Style="{StaticResource Style.PanelLegend}"/>
-                            </StackPanel>
-                            <StackPanel Margin="0,0,0,10">
-                                <Button Style="{StaticResource Style.PanelKey}" Command="{Binding ToggleMuteOutOfKeyCommand}"
-                                        IsEnabled="{Binding Settings.IsKeyHighlightEnabled}"
-                                        ToolTip="Mute out-of-key notes" AutomationProperties.Name="Mute out-of-key">
-                                    <Rectangle>
-                                        <Rectangle.Style>
-                                            <Style TargetType="Rectangle" BasedOn="{StaticResource Style.PanelLed}">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Settings.MuteOutOfKeyNotes}" Value="True">
-                                                        <Setter Property="Fill" Value="{StaticResource Brush.Led.White}"/>
-                                                        <Setter Property="Effect" Value="{StaticResource Effect.Led}"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Rectangle.Style>
-                                    </Rectangle>
-                                </Button>
-                                <TextBlock Text="mute" Style="{StaticResource Style.PanelLegend}"/>
-                            </StackPanel>
-
-                            <StackPanel Margin="0,0,0,10">
-                                <Button Style="{StaticResource Style.PanelKey}" Command="{Binding ToggleMetronomeCommand}"
-                                        ToolTip="Metronome on/off (Ctrl+M)" AutomationProperties.Name="Metronome">
-                                    <Rectangle>
-                                        <Rectangle.Style>
-                                            <Style TargetType="Rectangle" BasedOn="{StaticResource Style.PanelLed}">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsMetronomeOn}" Value="True">
-                                                        <Setter Property="Fill" Value="{StaticResource Brush.Led.White}"/>
-                                                        <Setter Property="Effect" Value="{StaticResource Effect.Led}"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Rectangle.Style>
-                                    </Rectangle>
-                                </Button>
-                                <TextBlock Text="metro" Style="{StaticResource Style.PanelLegend}"/>
-                            </StackPanel>
-                            <StackPanel Margin="0,0,0,10">
-                                <Button Style="{StaticResource Style.PanelKey}" Command="{Binding TapMetronomeCommand}" ClickMode="Press"
-                                        ToolTip="Tap the beat to set the tempo" AutomationProperties.Name="Tap tempo">
-                                    <Rectangle Style="{StaticResource Style.PanelLed}"/>
-                                </Button>
-                                <TextBlock Text="tap" Style="{StaticResource Style.PanelLegend}"/>
-                            </StackPanel>
-                            <StackPanel Margin="0,0,0,10">
-                                <Button Style="{StaticResource Style.PanelKey}" Command="{Binding DecreaseMetronomeBpmCommand}"
-                                        ToolTip="Slower" AutomationProperties.Name="Slower">
-                                    <Rectangle Style="{StaticResource Style.PanelLed}"/>
-                                </Button>
-                                <TextBlock Text="−" Style="{StaticResource Style.PanelLegend}"/>
-                            </StackPanel>
-                            <StackPanel Margin="0,0,0,10">
-                                <Button Style="{StaticResource Style.PanelKey}" Command="{Binding IncreaseMetronomeBpmCommand}"
-                                        ToolTip="Faster" AutomationProperties.Name="Faster">
-                                    <Rectangle Style="{StaticResource Style.PanelLed}"/>
-                                </Button>
-                                <TextBlock Text="+" Style="{StaticResource Style.PanelLegend}"/>
-                            </StackPanel>
-
-                            <StackPanel>
-                                <Button Style="{StaticResource Style.PanelKey}" Command="{Binding Recorder.ToggleRecordCommand}"
-                                        ToolTip="Record (Ctrl+R). Recording starts at your first note." AutomationProperties.Name="Record">
-                                    <Rectangle>
-                                        <Rectangle.Style>
-                                            <Style TargetType="Rectangle" BasedOn="{StaticResource Style.PanelLed}">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Recorder.IsRecordArmed}" Value="True">
-                                                        <Setter Property="Fill" Value="{StaticResource Brush.Record.Active}"/>
-                                                        <Setter Property="Effect" Value="{StaticResource Effect.Led.Red}"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Rectangle.Style>
-                                    </Rectangle>
-                                </Button>
-                                <TextBlock Text="rec" Style="{StaticResource Style.PanelLegend}"/>
-                            </StackPanel>
-                            <StackPanel>
-                                <Button Style="{StaticResource Style.PanelKey}" Command="{Binding Recorder.TogglePlaybackCommand}"
-                                        ToolTip="Play or stop the selected take" AutomationProperties.Name="Play take">
-                                    <Rectangle>
-                                        <Rectangle.Style>
-                                            <Style TargetType="Rectangle" BasedOn="{StaticResource Style.PanelLed}">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Recorder.IsPlaying}" Value="True">
-                                                        <Setter Property="Fill" Value="{StaticResource Brush.Led.White}"/>
-                                                        <Setter Property="Effect" Value="{StaticResource Effect.Led}"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Rectangle.Style>
-                                    </Rectangle>
-                                </Button>
-                                <TextBlock Text="play" Style="{StaticResource Style.PanelLegend}"/>
-                            </StackPanel>
-                            <StackPanel>
-                                <ToggleButton Style="{StaticResource Style.PanelKey}" IsChecked="{Binding Recorder.IsLooping}"
-                                              ToolTip="Loop the take" AutomationProperties.Name="Loop take">
-                                    <Rectangle>
-                                        <Rectangle.Style>
-                                            <Style TargetType="Rectangle" BasedOn="{StaticResource Style.PanelLed}">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Recorder.IsLooping}" Value="True">
-                                                        <Setter Property="Fill" Value="{StaticResource Brush.Led.White}"/>
-                                                        <Setter Property="Effect" Value="{StaticResource Effect.Led}"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Rectangle.Style>
-                                    </Rectangle>
-                                </ToggleButton>
-                                <TextBlock Text="loop" Style="{StaticResource Style.PanelLegend}"/>
-                            </StackPanel>
-                            <StackPanel>
-                                <Button Style="{StaticResource Style.PanelKey}" Command="{Binding SaveCurrentChordCommand}"
-                                        ToolTip="Save the chord to the progression (Space)" AutomationProperties.Name="Save chord">
-                                    <!-- Green while there is a chord to save, as on the comp. -->
-                                    <Rectangle>
-                                        <Rectangle.Style>
-                                            <Style TargetType="Rectangle" BasedOn="{StaticResource Style.PanelLed}">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding HasChord}" Value="True">
-                                                        <Setter Property="Fill" Value="{StaticResource Brush.Led.Green}"/>
-                                                        <Setter Property="Effect" Value="{StaticResource Effect.Led.Green}"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Rectangle.Style>
-                                    </Rectangle>
-                                </Button>
-                                <TextBlock Text="save" Style="{StaticResource Style.PanelLegend}"/>
-                            </StackPanel>
-                        </UniformGrid>
-
-                        <!-- The progression's eight slots, lit for each saved chord. -->
-                        <DockPanel Margin="4,16,4,0">
-                            <TextBlock Text="PROGRESSION" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"
-                                       Foreground="{StaticResource Brush.Text.Primary}"/>
-                            <ItemsControl ItemsSource="{Binding ProgressionLeds}" Focusable="False"
-                                          HorizontalAlignment="Right" VerticalAlignment="Center">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel Orientation="Horizontal"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Width="10" Height="10" Margin="2,0,2,0" CornerRadius="5"
-                                                Background="{StaticResource Brush.Led.Housing}"
-                                                BorderBrush="{StaticResource Brush.PanelKey.WellRim}" BorderThickness="0,0,0,1">
-                                            <Ellipse Width="7" Height="7" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                <Ellipse.Style>
-                                                    <Style TargetType="Ellipse">
-                                                        <Setter Property="Fill" Value="{StaticResource Brush.Led.Off}"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding}" Value="True">
-                                                                <Setter Property="Fill" Value="{StaticResource Brush.Led.White}"/>
-                                                                <Setter Property="Effect" Value="{StaticResource Effect.Led}"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Ellipse.Style>
-                                            </Ellipse>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </DockPanel>
-                    </StackPanel>
-                </Viewbox>
 
                 <!-- Readout row, in three columns: grand staff on the left, the chord readout in
                      the centre, circle of fifths on the right. The side columns split whatever
@@ -529,9 +271,8 @@
 
                     <!-- Chord readout. Every line has a MinHeight so releasing the keys empties the
                          text without collapsing the line box and shifting the layout. After the
-                         keys come up it holds the last chord for 2 s, its four lines dimming
-                         (Style.Readout.Latch) while the save line stays put, since saving is
-                         exactly what the held-over chord is for. -->
+                         keys come up it holds the last chord for 2 s, its lines dimming
+                         (Style.Readout.Latch). -->
                     <!-- Scales down, never up: at the 900x420 minimum, inside the OLED window's
                          frame, a short row shrinks the whole readout rather than clipping the
                          chord name's top. -->
@@ -574,12 +315,6 @@
                                        Style="{StaticResource Style.Function.TagGap}"/><Run
                                        Text="{Binding Voicing, Mode=OneWay}"/></TextBlock>
                         </StackPanel>
-                        <!-- That the chord was saved ("Saved · 3/8"), or can't be ("Progression
-                             full"). How to save it shows only until the first chord is saved. -->
-                        <TextBlock Text="{Binding SaveHint}" FontSize="11" Margin="2,6,0,0"
-                                   Foreground="{StaticResource Brush.Text.Hint}" MinHeight="16"
-                                   Visibility="{Binding Analysis.Name,
-                                                Converter={StaticResource StringToVisibilityConverter}}"/>
                     </StackPanel>
                     <!-- The held notes, lowest first, each with its interval above the root.
                          Four to a column, wrapping into a second for bigger chords, so the
@@ -789,7 +524,7 @@
                 <!-- Key selector. A practice control, so it lives on the stage rather than
                      behind the settings overlay. Both dropdowns write to Settings, which is
                      what persists them; picking a root turns the highlight on. -->
-                <Border CornerRadius="6" Grid.ColumnSpan="2">
+                <Border CornerRadius="6">
                     <Border.Resources>
                         <!-- Grouping by ScaleOption.Group is what draws the scale list's
                              section headers. The source is static, so no DataContext needed. -->
@@ -932,8 +667,7 @@
                         </CheckBox>
                     </StackPanel>
 
-                    <!-- Metronome. None of its buttons take focus: a focused button would claim
-                         Space, the save-chord shortcut, for itself. -->
+                    <!-- Metronome. None of its buttons take focus. -->
                     <StackPanel Orientation="Horizontal">
                         <Rectangle Width="1" Margin="12,3" Fill="{StaticResource Brush.Separator}"/>
 
@@ -1047,7 +781,7 @@
                      top row, so the bottom of the lane, its hit line, is the keys' top edge.
                      Declared after the toolbar, not beside the readout it replaces: tab order
                      follows the tree, and the toolbar sits above the song bar. -->
-                <views:SongPracticePanel Grid.Row="1" Grid.ColumnSpan="2" DataContext="{Binding SongPractice}"
+                <views:SongPracticePanel Grid.Row="1" DataContext="{Binding SongPractice}"
                                          KeyboardControl="{Binding ElementName=PianoKeys}"
                                          Visibility="{Binding DataContext.IsSongPracticeVisible,
                                                       RelativeSource={RelativeSource AncestorType=Window},
@@ -1062,7 +796,7 @@
                      fallboard lip, and plush crimson fallboard felt strip framing the keyboard.
                      In song practice the felt and top margin collapse so the lane's bottom hit line
                      meets the keys' top edge. -->
-                <Border Grid.Row="4" Grid.ColumnSpan="2" CornerRadius="4"
+                <Border Grid.Row="4" CornerRadius="4"
                         Background="{StaticResource Brush.Keybed}"
                         BorderBrush="{StaticResource Brush.Keybed.Rim}" BorderThickness="1,0,1,1"
                         IsHitTestVisible="False">
@@ -1101,7 +835,7 @@
                         </Border>
                     </DockPanel>
                 </Border>
-                <Border Grid.Row="4" Grid.ColumnSpan="2" Height="6" VerticalAlignment="Top"
+                <Border Grid.Row="4" Height="6" VerticalAlignment="Top"
                         Background="{StaticResource Brush.Fallboard.Lip}"
                         BorderBrush="{StaticResource Brush.Fallboard.LipEdge}" BorderThickness="0,1,0,0"
                         IsHitTestVisible="False">
@@ -1119,7 +853,7 @@
                         </Style>
                     </Border.Style>
                 </Border>
-                <Rectangle Grid.Row="4" Grid.ColumnSpan="2" Height="6" VerticalAlignment="Top"
+                <Rectangle Grid.Row="4" Height="6" VerticalAlignment="Top"
                            Fill="{StaticResource Brush.Felt}" IsHitTestVisible="False">
                     <Rectangle.Style>
                         <Style TargetType="Rectangle">
@@ -1135,7 +869,7 @@
                         </Style>
                     </Rectangle.Style>
                 </Rectangle>
-                <Viewbox Grid.Row="4" Grid.ColumnSpan="2" Stretch="Uniform" StretchDirection="Both"
+                <Viewbox Grid.Row="4" Stretch="Uniform" StretchDirection="Both"
                          MaxHeight="360" HorizontalAlignment="Center" VerticalAlignment="Bottom"
                          TextOptions.TextFormattingMode="Ideal">
                     <Viewbox.Style>
@@ -1155,10 +889,207 @@
                 </Viewbox>
             </Grid>
 
-            <!-- Chord progression sidebar, with its playback, transpose and next-chord tools.
-                 Widened from 200 to fit the tool rows; hidden by Shift+F4 and zen with the rest. -->
-            <views:ProgressionPanel Grid.Column="1" Width="220"
-                                    Visibility="{Binding IsProgressionVisible, Converter={StaticResource BoolToVisConverter}}"/>
+            <!-- The front panel on the right of the stage: the two halo knobs (master volume and
+                 the metronome click, the same settings as the sliders in Settings), then twelve
+                 rubber keys with LEDs. Every key is a shortcut for something the toolbar or a
+                 menu item also does. Shrinks on a short window; hidden in song practice (the lane
+                 needs the full width) and in zen mode, which keeps only the window and the keys. -->
+            <Viewbox x:Name="FrontPanel" Grid.Column="1" Margin="2,8,18,8"
+                     Stretch="Uniform" StretchDirection="DownOnly" VerticalAlignment="Center">
+                <Viewbox.Style>
+                    <Style TargetType="Viewbox">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsZenMode}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Viewbox.Style>
+                <StackPanel Width="250">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <StackPanel Margin="0,0,10,0">
+                            <views:HaloKnob Value="{Binding Settings.Volume}"
+                                            ToolTip="Master volume. Drag up or down, or scroll."
+                                            AutomationProperties.Name="Volume"/>
+                            <TextBlock Text="VOLUME" FontSize="12" FontWeight="Bold" Margin="0,6,0,0"
+                                       HorizontalAlignment="Center" Foreground="{StaticResource Brush.Text.Primary}"/>
+                            <TextBlock Text="{Binding Settings.Volume, StringFormat={}{0:P0}}"
+                                       FontFamily="{StaticResource Font.Data}" FontSize="11"
+                                       HorizontalAlignment="Center" Foreground="{StaticResource Brush.Text.Muted}"/>
+                        </StackPanel>
+                        <StackPanel Margin="10,0,0,0">
+                            <views:HaloKnob Value="{Binding Settings.MetronomeVolume}"
+                                            ToolTip="Metronome click volume, relative to the master volume. Drag up or down, or scroll."
+                                            AutomationProperties.Name="Metronome volume"/>
+                            <TextBlock Text="CLICK" FontSize="12" FontWeight="Bold" Margin="0,6,0,0"
+                                       HorizontalAlignment="Center" Foreground="{StaticResource Brush.Text.Primary}"/>
+                            <TextBlock Text="{Binding Settings.MetronomeVolume, StringFormat={}{0:P0}}"
+                                       FontFamily="{StaticResource Font.Data}" FontSize="11"
+                                       HorizontalAlignment="Center" Foreground="{StaticResource Brush.Text.Muted}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Twelve keys: key and scale, metronome, recorder and note labels. -->
+                    <UniformGrid Columns="4" Margin="0,18,0,0">
+                        <StackPanel Margin="0,0,0,10">
+                            <Button Style="{StaticResource Style.PanelKey}" Command="{Binding PreviousKeyCommand}"
+                                    ToolTip="Key down a fifth" AutomationProperties.Name="Key down a fifth">
+                                <Rectangle Style="{StaticResource Style.PanelLed}"/>
+                            </Button>
+                            <TextBlock Text="key ◂" Style="{StaticResource Style.PanelLegend}"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,10">
+                            <Button Style="{StaticResource Style.PanelKey}" Command="{Binding NextKeyCommand}"
+                                    ToolTip="Key up a fifth" AutomationProperties.Name="Key up a fifth">
+                                <Rectangle Style="{StaticResource Style.PanelLed}"/>
+                            </Button>
+                            <TextBlock Text="key ▸" Style="{StaticResource Style.PanelLegend}"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,10">
+                            <Button Style="{StaticResource Style.PanelKey}" Command="{Binding NextScaleCommand}"
+                                    ToolTip="Next scale on the same tonic" AutomationProperties.Name="Next scale">
+                                <Rectangle Style="{StaticResource Style.PanelLed}"/>
+                            </Button>
+                            <TextBlock Text="scale" Style="{StaticResource Style.PanelLegend}"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,10">
+                            <Button Style="{StaticResource Style.PanelKey}" Command="{Binding ToggleMuteOutOfKeyCommand}"
+                                    IsEnabled="{Binding Settings.IsKeyHighlightEnabled}"
+                                    ToolTip="Mute out-of-key notes" AutomationProperties.Name="Mute out-of-key">
+                                <Rectangle>
+                                    <Rectangle.Style>
+                                        <Style TargetType="Rectangle" BasedOn="{StaticResource Style.PanelLed}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Settings.MuteOutOfKeyNotes}" Value="True">
+                                                    <Setter Property="Fill" Value="{StaticResource Brush.Led.White}"/>
+                                                    <Setter Property="Effect" Value="{StaticResource Effect.Led}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Rectangle.Style>
+                                </Rectangle>
+                            </Button>
+                            <TextBlock Text="mute" Style="{StaticResource Style.PanelLegend}"/>
+                        </StackPanel>
+
+                        <StackPanel Margin="0,0,0,10">
+                            <Button Style="{StaticResource Style.PanelKey}" Command="{Binding ToggleMetronomeCommand}"
+                                    ToolTip="Metronome on/off (Ctrl+M)" AutomationProperties.Name="Metronome">
+                                <Rectangle>
+                                    <Rectangle.Style>
+                                        <Style TargetType="Rectangle" BasedOn="{StaticResource Style.PanelLed}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsMetronomeOn}" Value="True">
+                                                    <Setter Property="Fill" Value="{StaticResource Brush.Led.White}"/>
+                                                    <Setter Property="Effect" Value="{StaticResource Effect.Led}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Rectangle.Style>
+                                </Rectangle>
+                            </Button>
+                            <TextBlock Text="metro" Style="{StaticResource Style.PanelLegend}"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,10">
+                            <Button Style="{StaticResource Style.PanelKey}" Command="{Binding TapMetronomeCommand}" ClickMode="Press"
+                                    ToolTip="Tap the beat to set the tempo" AutomationProperties.Name="Tap tempo">
+                                <Rectangle Style="{StaticResource Style.PanelLed}"/>
+                            </Button>
+                            <TextBlock Text="tap" Style="{StaticResource Style.PanelLegend}"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,10">
+                            <Button Style="{StaticResource Style.PanelKey}" Command="{Binding DecreaseMetronomeBpmCommand}"
+                                    ToolTip="Slower" AutomationProperties.Name="Slower">
+                                <Rectangle Style="{StaticResource Style.PanelLed}"/>
+                            </Button>
+                            <TextBlock Text="−" Style="{StaticResource Style.PanelLegend}"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,10">
+                            <Button Style="{StaticResource Style.PanelKey}" Command="{Binding IncreaseMetronomeBpmCommand}"
+                                    ToolTip="Faster" AutomationProperties.Name="Faster">
+                                <Rectangle Style="{StaticResource Style.PanelLed}"/>
+                            </Button>
+                            <TextBlock Text="+" Style="{StaticResource Style.PanelLegend}"/>
+                        </StackPanel>
+
+                        <StackPanel>
+                            <Button Style="{StaticResource Style.PanelKey}" Command="{Binding Recorder.ToggleRecordCommand}"
+                                    ToolTip="Record (Ctrl+R). Recording starts at your first note." AutomationProperties.Name="Record">
+                                <Rectangle>
+                                    <Rectangle.Style>
+                                        <Style TargetType="Rectangle" BasedOn="{StaticResource Style.PanelLed}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Recorder.IsRecordArmed}" Value="True">
+                                                    <Setter Property="Fill" Value="{StaticResource Brush.Record.Active}"/>
+                                                    <Setter Property="Effect" Value="{StaticResource Effect.Led.Red}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Rectangle.Style>
+                                </Rectangle>
+                            </Button>
+                            <TextBlock Text="rec" Style="{StaticResource Style.PanelLegend}"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <Button Style="{StaticResource Style.PanelKey}" Command="{Binding Recorder.TogglePlaybackCommand}"
+                                    ToolTip="Play or stop the selected take" AutomationProperties.Name="Play take">
+                                <Rectangle>
+                                    <Rectangle.Style>
+                                        <Style TargetType="Rectangle" BasedOn="{StaticResource Style.PanelLed}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Recorder.IsPlaying}" Value="True">
+                                                    <Setter Property="Fill" Value="{StaticResource Brush.Led.White}"/>
+                                                    <Setter Property="Effect" Value="{StaticResource Effect.Led}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Rectangle.Style>
+                                </Rectangle>
+                            </Button>
+                            <TextBlock Text="play" Style="{StaticResource Style.PanelLegend}"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <ToggleButton Style="{StaticResource Style.PanelKey}" IsChecked="{Binding Recorder.IsLooping}"
+                                          ToolTip="Loop the take" AutomationProperties.Name="Loop take">
+                                <Rectangle>
+                                    <Rectangle.Style>
+                                        <Style TargetType="Rectangle" BasedOn="{StaticResource Style.PanelLed}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Recorder.IsLooping}" Value="True">
+                                                    <Setter Property="Fill" Value="{StaticResource Brush.Led.White}"/>
+                                                    <Setter Property="Effect" Value="{StaticResource Effect.Led}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Rectangle.Style>
+                                </Rectangle>
+                            </ToggleButton>
+                            <TextBlock Text="loop" Style="{StaticResource Style.PanelLegend}"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <ToggleButton Style="{StaticResource Style.PanelKey}" IsChecked="{Binding PianoKeyboard.ShowAllNoteNames}"
+                                          ToolTip="Label every key (All Note Names)" AutomationProperties.Name="All note names">
+                                <Rectangle>
+                                    <Rectangle.Style>
+                                        <Style TargetType="Rectangle" BasedOn="{StaticResource Style.PanelLed}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PianoKeyboard.ShowAllNoteNames}" Value="True">
+                                                    <Setter Property="Fill" Value="{StaticResource Brush.Led.White}"/>
+                                                    <Setter Property="Effect" Value="{StaticResource Effect.Led}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Rectangle.Style>
+                                </Rectangle>
+                            </ToggleButton>
+                            <TextBlock Text="notes" Style="{StaticResource Style.PanelLegend}"/>
+                        </StackPanel>
+                    </UniformGrid>
+                </StackPanel>
+            </Viewbox>
 
             <!-- Echo: what a control on the piano just did ("Recording armed"), faded in and out
                  by MainWindow.OnEchoShown. Under the settings overlay, whose rows light up instead. -->
