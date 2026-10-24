@@ -179,7 +179,6 @@ its quick part before each commit. The details, and the sound reports of a pull 
 
 ## Code Conventions
 
-- Always run `scripts/check.sh` before pushing
 - Optimize for low latency over audio quality
 - Never allocate or resize buffers on the audio thread (all buffers are fixed-size). Each plugin's
   `no_alloc` tests hold this: `suite_common::host` plays the plugin as a DAW does, with an allocator

@@ -33,7 +33,11 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
   half stack `tolex_image` (`Tolex`), `grille_image` (`Grille`, cloth or mesh with the speakers behind it) and
   `plate_image` (`Plate`); `paint_*` cache them as textures. To look at them without a window:
   `RASTER_PREVIEW=out.raw cargo test -p suite_common --release preview -- --ignored`
-- `artwork.rs` - Loads the PNGs of `assets/art/`, covers the top face with one, cuts it to the corners
+- `artwork.rs` - Loads the PNGs of `assets/art/`, covers the top face with one, cuts it to the corners.
+  Keep the middle of each picture clear for the controls. The pictures are compiled into each plugin, and
+  `cargo xtask check-art` fails a bundle that does not carry its pictures: a plugin without its art was
+  built from other sources than this checkout's. Made by `scripts/make-art.py`, a two-ink screen print
+  (halftone, misregistration, paper dropout), or replaced by a painted or generated PNG at the same path
 - `hardware.rs` - Lit footswitch, indicator light, label tape, the paper of the name band
 - `art.rs` - `Motif`: what is painted on a mini pedal under its controls
 - `amp.rs` - The half stack of a rig: `amp_head` (handle, tolex, grille with piping and a stripe if it has
