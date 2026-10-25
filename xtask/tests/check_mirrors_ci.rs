@@ -1,4 +1,4 @@
-//! `scripts/check.sh` runs what CI runs (Testing in AGENTS.md): every `cargo` step of
+//! `scripts/check.sh` runs what CI runs (Testing in scripts/README.md): every `cargo` step of
 //! `.github/workflows/ci.yml` is a step of the script, and the Linux packages it checks for, which
 //! it reads from the first `apt-get install` of `ci.yml`, are those of every job
 

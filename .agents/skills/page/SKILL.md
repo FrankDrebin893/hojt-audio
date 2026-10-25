@@ -7,7 +7,7 @@ argument-hint: [release <version>]
 # /page
 
 Keep https://hojte.net/hojt-audio/ (`site/index.html`, published from `main` by `pages.yml`)
-true to what a player can download. The rules are "Releasing" in AGENTS.md; the ones that
+true to what a player can download. The rules are in `.agents/skills/release/RELEASING.md`; the ones that
 decide this skill:
 
 - **The page describes the latest release.** It is published the moment a branch merges, and

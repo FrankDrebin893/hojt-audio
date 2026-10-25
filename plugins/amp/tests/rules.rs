@@ -1,4 +1,4 @@
-//! Rules of the Guitar Amp in AGENTS.md that a test can hold: it is all our own designs, with
+//! Rules of the Guitar Amp in plugins/README.md that a test can hold: it is all our own designs, with
 //! no real makers' names, trademarks or circuit names anywhere, and the amps differ only by
 //! the constants in `amp/model.rs`
 
@@ -166,7 +166,7 @@ fn test_the_amp_names_no_maker() {
     assert!(
         found.is_empty(),
         "real makers' names, trademarks or circuit names in the amp:\n{}\n\nThe Guitar Amp is all \
-         our own designs, with our own names (Guitar Amp in AGENTS.md): say what the part does, \
+         our own designs, with our own names (Guitar Amp in plugins/README.md): say what the part does, \
          or give it a name of our own",
         found.join("\n")
     );
@@ -194,7 +194,7 @@ fn test_no_dsp_branches_on_the_amp() {
     assert!(
         found.is_empty(),
         "the amp's DSP branches on which amp it is:\n{}\n\nAmps differ only by constants in \
-         `amp/model.rs` (Guitar Amp in AGENTS.md): give `AmpModel` a field for the difference, set \
+         `amp/model.rs` (Guitar Amp in plugins/README.md): give `AmpModel` a field for the difference, set \
          it for each amp there, and read it from `amp.model()`",
         found.join("\n")
     );

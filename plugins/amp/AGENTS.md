@@ -324,7 +324,7 @@ cargo test -p amp --release render_mods -- --ignored
 
 ## Look: the rig
 
-The style guide of the root `AGENTS.md` applies; these are the rules for a window of several pedals, which only the amp has.
+The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the rules for a window of several pedals, which only the amp has.
 
 - **Rigs:** a plugin made of several components (the Guitar Amp) is the one exception to one
   pedal per plugin. Its window is a `rig`: a `strip` across the top, a shallow enclosure in the

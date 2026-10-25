@@ -5,7 +5,7 @@ argument-hint: <version, e.g. 0.4.0>
 
 # /release
 
-Prepare release $ARGUMENTS by "Releasing" in AGENTS.md. Start from `main`, up to date, with a
+Prepare release $ARGUMENTS by `.agents/skills/release/RELEASING.md`. Start from `main`, up to date, with a
 clean tree (if it is not, stop and say so), on a branch `release/$ARGUMENTS`: `main` is
 protected, so a release goes in through a pull request like any other change.
 
