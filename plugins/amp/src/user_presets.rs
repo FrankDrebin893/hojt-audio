@@ -545,6 +545,22 @@ pub fn save_file_name(
     }
 }
 
+/// The name Save puts on the tape: that of the preset `loaded` out of the bank showing, cut
+/// to `max_chars`, or nothing when none is loaded out of it
+pub fn name_to_keep(loaded: Option<&str>, max_chars: usize) -> String {
+    loaded.map(|file| file_stem(file).chars().take(max_chars).collect()).unwrap_or_default()
+}
+
+/// Whether the `name` kept on the tape is that of the preset `loaded`, which is then written
+/// over instead of a new preset being made
+pub fn keeps_name(loaded: Option<&str>, name: &str, max_chars: usize) -> bool {
+    loaded.is_some_and(|_| name_to_keep(loaded, max_chars).eq_ignore_ascii_case(name.trim()))
+}
+
+fn file_stem(file: &str) -> &str {
+    file.strip_suffix(&format!(".{EXTENSION}")).unwrap_or(file)
+}
+
 /// Writes the sound as it stands to `file` in `dir`, making the folder if it is not there
 pub fn save(params: &GuitarAmpParams, dir: &Path, file: &str) -> std::io::Result<()> {
     if !user_cab::is_file_name(file) {
@@ -869,6 +885,18 @@ pub(crate) mod tests {
         assert_eq!(save_file_name(Some("Lead"), "", "Clean", &taken), "Lead 2.preset");
         // No name typed is today's behaviour
         assert_eq!(save_file_name(Some(""), "", "Clean", &taken), "Clean 2.preset");
+    }
+
+    #[test]
+    fn test_save_starts_from_the_name_of_the_preset_loaded_and_keeping_it_writes_over_it() {
+        assert_eq!(name_to_keep(Some("Crunch.preset"), 24), "Crunch");
+        assert_eq!(name_to_keep(Some("A very long name of a preset.preset"), 10), "A very lon");
+        assert_eq!(name_to_keep(None, 24), "");
+        assert!(keeps_name(Some("Crunch.preset"), "Crunch", 24));
+        assert!(keeps_name(Some("Crunch.preset"), "crunch ", 24));
+        assert!(!keeps_name(Some("Crunch.preset"), "Crunch 2", 24));
+        assert!(!keeps_name(Some("Crunch.preset"), "", 24));
+        assert!(!keeps_name(None, "", 24));
     }
 
     #[test]

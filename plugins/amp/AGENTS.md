@@ -187,13 +187,14 @@ How it behaves:
   made with the mouse alone. A bank nobody named is `Bank 1`, `Bank 2` and so on, the first
   that is free, renamed in the folder afterwards. A name is filtered like a file name, and one
   that already stands as a folder is simply that bank, with everything still in it
-- Save writes into the bank showing: over the preset loaded out of it, or, with none loaded out
-  of it, as a new preset the player names: Save makes the Preset display's tape take a name
-  (enter or a second press of Save keeps it, escape drops it and writes nothing, stepping or
-  opening a list drops it too), and the name is the file name, `<name>.preset`, with a number
-  added when it is taken. A name with nothing left once the characters a file name cannot
-  hold are taken out is one nobody gave, and is `<name> 2.preset` (the next free number)
-  named after the preset the sound came from, as before. Nothing is written into `FACTORY`: a sound saved there goes into `MINE`, which is the
+- Save writes into the bank showing and always asks for a name: it makes the Preset display's
+  tape take one, which starts as the name of the preset loaded out of the bank showing (empty
+  with none loaded). Enter or a second press of Save keeps it, escape drops it and writes
+  nothing, stepping or opening a list drops it too. The name kept as it stands writes over the
+  preset loaded; any other is the file name, `<name>.preset`, with a number added when it is
+  taken. A name with nothing left once the characters a file name cannot hold are taken out is
+  one nobody gave, and is `<name> 2.preset` (the next free number) named after the preset the
+  sound came from, as before. Nothing is written into `FACTORY`: a sound saved there goes into `MINE`, which is the
   bank showing from then on. The file name of the one loaded last is persisted as `user-preset`
   (empty after a factory preset, and after the bank changed); renaming, moving from one bank to
   another, copying and deleting is done in the folder, which a double-click on the Preset
@@ -453,7 +454,8 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   and an empty name is one the player did not give, so the mouse alone is enough
 - **Asking for the keyboard.** An editor is a child window of the host's, and on Windows
   nothing gives it the keyboard focus by itself: a window that never asks hears no letters at
-  all. The row or tape that takes a name asks egui for the keyboard (`ask_for_keyboard`:
+  all. The row or tape that takes a name asks egui for the keyboard (`ask_for_keyboard`, on a widget
+  that is focusable, or egui takes the focus back in the same frame:
   `request_focus` and a `widget_info` that says it is a field with text), which is what
   egui-baseview's `windows_keyboard_workaround` watches for before it takes the focus for the
   window; the workspace turns that feature on (see the root `Cargo.toml`). Nothing else in the
@@ -465,8 +467,9 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
 - **Save (a preset):** a `chrome_button` (a stepper's push button with a dot in its cap) right
   of the preset stepper, its `silk_label` caption on the stepper's caption line. It writes the
   sound into the bank showing and the stepper's tape says `SAVED` (or `NOT SAVED`) for 1.5 s.
-  A new preset (none loaded out of the bank showing) takes its name on the stepper's tape first;
-  one loaded out of the bank is written over at once. Renaming later is done in the folder
+  Every save takes its name on the stepper's tape first, which starts as the name of the preset
+  loaded out of the bank showing: kept as it is, that preset is written over. Renaming later is
+  also done in the folder
 - **A preset choice is never a parameter.** The editor sets the real parameters through the
   `ParamSetter` and keeps only the index in a `#[persist]` field
 - **Pick a file (cabinets):** files are never picked in a dialog. They live in one folder and are

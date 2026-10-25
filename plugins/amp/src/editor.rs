@@ -616,12 +616,12 @@ impl PresetDisplay<'_> {
             if view.saving.is_some() {
                 // Pressed again, the name stands as it is: the mouse alone is enough
                 self.finish_save(&dir, factory, &user, view, now);
-            } else if dir.is_some() && !user.is_empty() {
-                // The preset loaded out of this bank is written over
-                self.finish_save_as(&dir, factory, &user, view, now, None);
             } else {
-                // A new preset takes a name on the tape; nothing is written until it is kept
-                view.saving = Some(String::new());
+                // Every save asks for a name on the tape, which starts as the name of the
+                // preset loaded out of this bank, so enter keeps it and writes over it;
+                // nothing is written until the name is kept
+                let loaded = dir.is_some().then_some(user.as_str()).filter(|user| !user.is_empty());
+                view.saving = Some(user_presets::name_to_keep(loaded, NEW_PRESET_CHARS));
                 view.note = None;
             }
         }
@@ -641,7 +641,10 @@ impl PresetDisplay<'_> {
         now: f64,
     ) {
         let name = view.saving.take().unwrap_or_default();
-        self.finish_save_as(dir, factory, user, view, now, Some(&name));
+        // The name of the preset loaded out of this bank, kept as it is, writes over it
+        let loaded = dir.is_some().then_some(user).filter(|user| !user.is_empty());
+        let named = (!user_presets::keeps_name(loaded, &name, NEW_PRESET_CHARS)).then_some(name);
+        self.finish_save_as(dir, factory, user, view, now, named.as_deref());
     }
 
     /// Saves the sound into the bank showing and says how it went. `named` is the name typed
