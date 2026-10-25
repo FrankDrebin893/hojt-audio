@@ -44,7 +44,7 @@ gain), Glød (warm edge of breakup, between Klar and Brøl). They share the six 
   chain tells the editor, and how long the editor shows it
 - `src/tuner.rs` - Tuner: pitch detector on the mono input, `TunerReading` (one atomic shared
   with the editor), `Note`
-- `src/editor.rs` - egui GUI (1950 x 650 window): the oxblood strip across the top with the
+- `src/editor.rs` - egui GUI (2535 x 650 window): the oxblood strip across the top with the
   Bank and Preset displays, the list they drop open, or the tuner display in its left wing and
   Output, meters, Clip, On and Tuner in its right; the stack (the head of the amp that is
   picked, with its nameplate and dials, the cabinet with its control plate); each of the ten
