@@ -85,10 +85,20 @@ pub enum MicType {
     #[id = "condenser"]
     #[name = "Condenser"]
     Condenser,
+    /// Dark and close: the low end pushed up as at the grille, the top shut, a bite left at
+    /// the upper mids
+    #[id = "close"]
+    #[name = "Close"]
+    Close,
+    /// Bright and thin: the top opened wide and the lows let go, as a small condenser hears it
+    #[id = "air"]
+    #[name = "Air"]
+    Air,
 }
 
 impl MicType {
-    pub const ALL: [MicType; 3] = [MicType::Dynamic, MicType::Ribbon, MicType::Condenser];
+    pub const ALL: [MicType; 5] =
+        [MicType::Dynamic, MicType::Ribbon, MicType::Condenser, MicType::Close, MicType::Air];
 
     /// Three letters for the display
     pub fn short_name(self) -> &'static str {
@@ -96,6 +106,8 @@ impl MicType {
             MicType::Dynamic => "DYN",
             MicType::Ribbon => "RIB",
             MicType::Condenser => "CON",
+            MicType::Close => "CLO",
+            MicType::Air => "AIR",
         }
     }
 
@@ -114,6 +126,16 @@ impl MicType {
                 BiquadCoeffs::high_shelf(6000.0, 0.7, 4.5, sample_rate),
                 BiquadCoeffs::peak(450.0, 0.8, -3.0, sample_rate),
                 BiquadCoeffs::peak(3600.0, 1.0, 1.5, sample_rate),
+            ],
+            MicType::Close => [
+                BiquadCoeffs::low_shelf(300.0, 0.7, 5.0, sample_rate),
+                BiquadCoeffs::high_shelf(4000.0, 0.7, -11.0, sample_rate),
+                BiquadCoeffs::peak(2400.0, 1.2, 3.5, sample_rate),
+            ],
+            MicType::Air => [
+                BiquadCoeffs::low_shelf(220.0, 0.7, -5.0, sample_rate),
+                BiquadCoeffs::high_shelf(7000.0, 0.7, 8.0, sample_rate),
+                BiquadCoeffs::peak(5000.0, 1.0, 3.0, sample_rate),
             ],
         }
     }
@@ -1723,6 +1745,15 @@ pub mod tests {
     }
 
     #[test]
+    fn test_microphone_ids_and_order_are_frozen() {
+        let ids = MicType::ids().expect("a mic has ids");
+        assert_eq!(ids, ["dynamic", "ribbon", "condenser", "close", "air"].as_slice());
+        for (index, mic) in MicType::ALL.iter().enumerate() {
+            assert_eq!(mic.to_index(), index);
+        }
+    }
+
+    #[test]
     fn test_microphones_have_their_own_voices() {
         let at = |mic: MicType, freq_hz: f32| mic.response_db(freq_hz, 48000.0);
         // The dynamic is the cabinet as it is
@@ -1737,9 +1768,52 @@ pub mod tests {
         assert!(at(MicType::Condenser, 9000.0) > 3.5, "{}", at(MicType::Condenser, 9000.0));
         assert!(at(MicType::Condenser, 450.0) < -2.0, "{}", at(MicType::Condenser, 450.0));
         assert!(at(MicType::Condenser, 80.0).abs() < 1.0);
-        // Apart where it counts: the three are at least 6 dB from each other at 6 kHz
+        // The close one is dark with its lows pushed up and a bite in the upper mids
+        assert!(at(MicType::Close, 150.0) > 3.0, "{}", at(MicType::Close, 150.0));
+        assert!(at(MicType::Close, 8000.0) < -8.0, "{}", at(MicType::Close, 8000.0));
+        assert!(at(MicType::Close, 2400.0) > 1.5, "{}", at(MicType::Close, 2400.0));
+        // The air one is wide open on top with its lows let go
+        assert!(at(MicType::Air, 10000.0) > 7.0, "{}", at(MicType::Air, 10000.0));
+        assert!(at(MicType::Air, 80.0) < -4.0, "{}", at(MicType::Air, 80.0));
+        // Apart where it counts: the three first are at least 6 dB from each other at 6 kHz
         let top = MicType::ALL.map(|mic| at(mic, 6000.0));
         assert!(top[2] - top[1] > 6.0 && top[2] - top[0] > 2.0, "{:?}", top);
+        // And no two of the five sound alike: each pair is 3 dB apart somewhere
+        for (one, first) in MicType::ALL.iter().enumerate() {
+            for second in &MicType::ALL[one + 1..] {
+                let apart = MIC_PROBES_HZ
+                    .iter()
+                    .map(|&freq| (at(*first, freq) - at(*second, freq)).abs())
+                    .fold(0.0, f32::max);
+                assert!(apart > 3.0, "{first:?} and {second:?} are {apart} dB apart at most");
+            }
+        }
+    }
+
+    /// Frequencies the microphones are compared at
+    const MIC_PROBES_HZ: [f32; 10] =
+        [60.0, 100.0, 150.0, 250.0, 500.0, 1000.0, 2200.0, 4000.0, 6000.0, 10000.0];
+
+    /// Prints what each microphone does to the level in dB, and how far the dial leaves the
+    /// loudness of the guitar (a pink-ish band, 100 Hz to 4 kHz) from the dynamic's:
+    ///   cargo test -p amp --release mic_report -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn mic_report() {
+        println!("Level of each microphone at 48 kHz in dB");
+        print!("{:<12}", "");
+        for freq_hz in MIC_PROBES_HZ {
+            print!("{:>7}", freq_hz);
+        }
+        println!("{:>9}", "100-4k");
+        for mic in MicType::ALL {
+            print!("{:<12}", mic.short_name());
+            for freq_hz in MIC_PROBES_HZ {
+                print!("{:>7.1}", mic.response_db(freq_hz, 48000.0));
+            }
+            let power = level_gain(|freq| 10f32.powf(mic.response_db(freq, 48000.0) / 20.0));
+            println!("{:>9.1}", to_db(power));
+        }
     }
 
     #[test]

@@ -15,6 +15,10 @@ GitHub release.
 
 ### Guitar Amp
 
+- Two more microphones join Dynamic, Ribbon and Condenser at the end of the Mic Type stepper:
+  Close (CLO), dark and close, with the low end pushed up, the top shut and a bite left in the
+  upper mids, and Air (AIR), bright and thin, with the top opened wide and the lows let go. A
+  project keeps the microphone it had
 - The big cream GUITAR AMP banner across the middle of the amp head is gone; the dials and the
   Amp and Mic row stand where they did, on the bare paint
 - A Fuzz pedal joins the board, in ember red with a geyser on it: thick, saturated fuzz that

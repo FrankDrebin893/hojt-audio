@@ -12,6 +12,7 @@ mkdir -p "$out"
 reports='
 amp fingerprint_report
 amp loudness_report
+amp mic_report
 amp preset_report
 amp preset_gate_report
 amp effects_report

@@ -1294,7 +1294,9 @@ mod tests {
     #[test]
     fn test_mic_stepper_goes_round_the_list_both_ways() {
         let mut mic = MicType::ALL[0];
-        for expected in [MicType::Ribbon, MicType::Condenser, MicType::Dynamic] {
+        for expected in
+            [MicType::Ribbon, MicType::Condenser, MicType::Close, MicType::Air, MicType::Dynamic]
+        {
             mic = neighbour_mic(mic, Step::Next);
             assert_eq!(mic, expected);
         }
