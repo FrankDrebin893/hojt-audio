@@ -59,12 +59,12 @@ _Written by \`approve-specs.yml\` on $(date -u +%Y-%m-%d)._"
     fi
     n="$(list_issue)"
     if [[ -z "$n" ]]; then
-        gh issue create --repo "$repo" --title "Specs to approve" --label approval-list --body "$body"
-        n="$(list_issue)"
-        gh issue pin "$n" --repo "$repo" > /dev/null 2>&1 || true
+        # The number from the new issue's URL: a search right after the create does not find it yet
+        n="$(gh issue create --repo "$repo" --title "Specs to approve" --label approval-list --body "$body" | grep -oE '[0-9]+$')"
     else
         gh issue edit "$n" --repo "$repo" --body "$body" > /dev/null
     fi
+    gh issue pin "$n" --repo "$repo" > /dev/null 2>&1 || true
     echo "the list is #$n"
 }
 

@@ -83,8 +83,9 @@ jobs:
           gh label create health --repo "$REPO" --color 333333 --description "The weekly health digest (health.yml)" --force > /dev/null
           n="$(gh issue list --repo "$REPO" --state open --label health --limit 1 --json number --jq '.[0].number // empty')"
           if [ -z "$n" ]; then
-            gh issue create --repo "$REPO" --title "Project health" --label health \
-              --body "Every Monday \`health.yml\` measures the project and comments here. The history is \`health/history.jsonl\` on the \`metrics\` branch; what each number means is in \`scripts/README.md\`, Health."
-            n="$(gh issue list --repo "$REPO" --state open --label health --limit 1 --json number --jq '.[0].number')"
+            # The number from the new issue's URL: a search right after the create does not find it yet
+            n="$(gh issue create --repo "$REPO" --title "Project health" --label health \
+              --body "Every Monday \`health.yml\` measures the project and comments here. The history is \`health/history.jsonl\` on the \`metrics\` branch; what each number means is in \`scripts/README.md\`, Health." \
+              | grep -oE '[0-9]+$')"
           fi
           gh issue comment "$n" --repo "$REPO" --body-file "$RUNNER_TEMP/digest.md"
