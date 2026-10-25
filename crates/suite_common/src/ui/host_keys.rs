@@ -1,0 +1,214 @@
+//! Keeps a host from taking the letters of the window that has the keyboard (Windows).
+//!
+//! An editor is a child window of the host's. Giving it the keyboard focus (egui-baseview does,
+//! see `ask_for_keyboard`) is not enough in REAPER: its message loop takes a key press for a
+//! shortcut of its own and the window never hears it, unless the window says it wants every key
+//! the way a text field does. `WM_GETDLGCODE` is that question, and baseview's window procedure
+//! never answers it. `want_all_keys` puts a thin procedure in front of the focused window that
+//! does (#132).
+
+#[cfg(windows)]
+mod imp {
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+
+    type Hwnd = isize;
+    type WndProc = unsafe extern "system" fn(Hwnd, u32, usize, isize) -> isize;
+
+    const GWLP_WNDPROC: i32 = -4;
+    const WM_GETDLGCODE: u32 = 0x0087;
+    const WM_NCDESTROY: u32 = 0x0082;
+    const DLGC_WANTALLKEYS: isize = 0x0004;
+    const DLGC_WANTCHARS: isize = 0x0080;
+
+    #[link(name = "user32")]
+    extern "system" {
+        fn GetFocus() -> Hwnd;
+        fn GetClassNameW(hwnd: Hwnd, text: *mut u16, max: i32) -> i32;
+        fn GetWindowLongPtrW(hwnd: Hwnd, index: i32) -> isize;
+        fn SetWindowLongPtrW(hwnd: Hwnd, index: i32, value: isize) -> isize;
+        fn DefWindowProcW(hwnd: Hwnd, msg: u32, w: usize, l: isize) -> isize;
+        fn CallWindowProcW(prev: isize, hwnd: Hwnd, msg: u32, w: usize, l: isize) -> isize;
+    }
+
+    /// The procedure each window had before ours, by window
+    static PREVIOUS: Mutex<Option<HashMap<Hwnd, isize>>> = Mutex::new(None);
+
+    unsafe extern "system" fn proc_(hwnd: Hwnd, msg: u32, w: usize, l: isize) -> isize {
+        let previous = PREVIOUS
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .as_ref()
+            .and_then(|map| map.get(&hwnd).copied())
+            .unwrap_or(0);
+        if msg == WM_GETDLGCODE {
+            let asked = if previous != 0 { CallWindowProcW(previous, hwnd, msg, w, l) } else { 0 };
+            return asked | DLGC_WANTALLKEYS | DLGC_WANTCHARS;
+        }
+        if msg == WM_NCDESTROY {
+            if let Some(map) =
+                PREVIOUS.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).as_mut()
+            {
+                map.remove(&hwnd);
+            }
+        }
+        if previous == 0 {
+            return DefWindowProcW(hwnd, msg, w, l);
+        }
+        CallWindowProcW(previous, hwnd, msg, w, l)
+    }
+
+    #[cfg(test)]
+    #[derive(Clone, Copy, PartialEq)]
+    pub enum How {
+        Plain,
+        Installed,
+        /// Given the keyboard, then `want_all_keys` as `ask_for_keyboard` calls it
+        Focused,
+    }
+
+    /// Makes a window of the kind baseview makes, optionally puts our procedure on it, and
+    /// returns it with what `WM_GETDLGCODE` answers
+    #[cfg(test)]
+    pub fn answers_dlg_code(how: How) -> Option<(Hwnd, isize)> {
+        #[repr(C)]
+        struct WndClass {
+            style: u32,
+            proc_: unsafe extern "system" fn(Hwnd, u32, usize, isize) -> isize,
+            extra: i32,
+            window_extra: i32,
+            instance: isize,
+            icon: isize,
+            cursor: isize,
+            background: isize,
+            menu: *const u16,
+            class: *const u16,
+        }
+        #[link(name = "user32")]
+        extern "system" {
+            fn DefWindowProcW(hwnd: Hwnd, msg: u32, w: usize, l: isize) -> isize;
+            fn RegisterClassW(class: *const WndClass) -> u16;
+            fn CreateWindowExW(
+                ex: u32,
+                class: *const u16,
+                name: *const u16,
+                style: u32,
+                x: i32,
+                y: i32,
+                w: i32,
+                h: i32,
+                parent: Hwnd,
+                menu: isize,
+                instance: isize,
+                param: isize,
+            ) -> Hwnd;
+            fn SendMessageW(hwnd: Hwnd, msg: u32, w: usize, l: isize) -> isize;
+            fn DestroyWindow(hwnd: Hwnd) -> i32;
+            fn ShowWindow(hwnd: Hwnd, show: i32) -> i32;
+            fn SetFocus(hwnd: Hwnd) -> Hwnd;
+        }
+        let class: Vec<u16> = "Baseview-test-132".encode_utf16().chain([0]).collect();
+        let registered = WndClass {
+            style: 0,
+            proc_: DefWindowProcW,
+            extra: 0,
+            window_extra: 0,
+            instance: 0,
+            icon: 0,
+            cursor: 0,
+            background: 0,
+            menu: std::ptr::null(),
+            class: class.as_ptr(),
+        };
+        unsafe {
+            // Registered twice is refused, which is fine: the class is there
+            RegisterClassW(&registered);
+            // A message-only window (parent HWND_MESSAGE) needs no desktop and no message loop
+            let hwnd =
+                CreateWindowExW(0, class.as_ptr(), class.as_ptr(), 0, 0, 0, 0, 0, -3, 0, 0, 0);
+            assert_ne!(hwnd, 0, "the test window");
+            match how {
+                How::Plain => {}
+                How::Installed => install(hwnd),
+                How::Focused => {
+                    ShowWindow(hwnd, 5);
+                    SetFocus(hwnd);
+                    if GetFocus() != hwnd {
+                        // A session that cannot give a window the keyboard (a CI runner
+                        // without a desktop): nothing to ask
+                        DestroyWindow(hwnd);
+                        return None;
+                    }
+                    want_all_keys();
+                }
+            }
+            let code = SendMessageW(hwnd, WM_GETDLGCODE, 0, 0);
+            DestroyWindow(hwnd);
+            Some((hwnd, code))
+        }
+    }
+
+    fn is_baseview(hwnd: Hwnd) -> bool {
+        let mut name = [0u16; 16];
+        let len = unsafe { GetClassNameW(hwnd, name.as_mut_ptr(), name.len() as i32) };
+        String::from_utf16_lossy(&name[..len.max(0) as usize]).starts_with("Baseview-")
+    }
+
+    pub fn want_all_keys() {
+        // Only the window of the calling thread that holds the keyboard, and only our own kind
+        let hwnd = unsafe { GetFocus() };
+        if hwnd != 0 && is_baseview(hwnd) {
+            install(hwnd);
+        }
+    }
+
+    fn install(hwnd: Hwnd) {
+        let Ok(mut map) = PREVIOUS.lock() else { return };
+        let map = map.get_or_insert_with(HashMap::new);
+        if map.contains_key(&hwnd) {
+            return;
+        }
+        let ours = proc_ as WndProc as usize as isize;
+        let previous = unsafe { GetWindowLongPtrW(hwnd, GWLP_WNDPROC) };
+        if previous == ours {
+            return;
+        }
+        map.insert(hwnd, previous);
+        unsafe { SetWindowLongPtrW(hwnd, GWLP_WNDPROC, ours) };
+    }
+}
+
+/// Tells the host, on Windows, that the window which has the keyboard wants every key (see the
+/// module). Does nothing elsewhere, or when no editor window has the keyboard.
+pub fn want_all_keys() {
+    #[cfg(windows)]
+    imp::want_all_keys();
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::imp::{answers_dlg_code, How};
+
+    const WANTS_KEYS: isize = 0x0084;
+
+    /// What a host asks of the window that has the keyboard before it takes a key for its own
+    /// shortcut: a plain baseview window leaves it to the default, which wants none of them
+    /// (#132, found in REAPER, where nothing typed on the amp's tape got to it)
+    #[test]
+    fn a_window_that_is_given_the_keyboard_says_it_wants_every_key() {
+        let (_, plain) = answers_dlg_code(How::Plain).unwrap();
+        assert_eq!(plain & WANTS_KEYS, 0, "a plain window wants no key by itself");
+        let (_, answered) = answers_dlg_code(How::Installed).unwrap();
+        assert_eq!(answered & WANTS_KEYS, WANTS_KEYS);
+    }
+
+    /// The path `ask_for_keyboard` takes: the window that holds the keyboard, found by its class
+    #[test]
+    fn the_window_that_holds_the_keyboard_is_found_and_answers() {
+        let Some((_, answered)) = answers_dlg_code(How::Focused) else {
+            eprintln!("no window could be given the keyboard here");
+            return;
+        };
+        assert_eq!(answered & WANTS_KEYS, WANTS_KEYS);
+    }
+}
