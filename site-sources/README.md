@@ -26,4 +26,6 @@ This folder is not part of the page: only `site/` is published.
 
 ## Files
 
-None yet: every example on the page is played by its render test.
+None yet: every example the script makes is played by its render test. The Pitch Shifter's
+examples are not made by the script at all: they are recordings of the plugin in a DAW, kept
+in `site/audio/` as they are.
