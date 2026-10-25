@@ -30,7 +30,9 @@ out; the HØJT name and logo are kept out of it (`NOTICE.md`).
   shows what nobody can download yet
 - Sound examples in `site/audio/` are MP3s (`ffmpeg -codec:a libmp3lame -q:a 4`) of files from
   the `render_*` tests, never made by hand. The table in `scripts/site-audio.sh` says which
-  render each one is. An example that has not changed comes out the same to the byte
+  render each one is. An example that has not changed comes out the same to the byte. The one
+  exception is the Pitch Shifter's four (`pitch-riff*.mp3`): recordings of the plugin in a DAW,
+  as played and shifted down, which `scripts/site-audio.sh` leaves alone
 - An example can be our own playing through the plugin: the recording or MIDI file goes in
   `site-sources/` and its name in that table. The sound is still made by the script
 - Screenshots in `site/img/` are the standalone windows at their own size, taken by

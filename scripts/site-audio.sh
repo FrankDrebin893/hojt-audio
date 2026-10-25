@@ -11,7 +11,8 @@ renders="$root/target/renders"
 audio="$root/site/audio"
 sources="$root/site-sources"
 
-# Every example on the page: what it is made from.
+# Every example on the page that a test renders: what it is made from. The pitch shifter's four
+# (site/audio/pitch-riff*.mp3) are recordings made in a DAW with the plugin and are not made here.
 #
 #   file in site/audio | plugin | render test | file in target/renders | performance
 #
@@ -32,11 +33,6 @@ amp-glod.mp3|amp|render_wavs|amp_glod_gain7.wav|-
 amp-torden.mp3|amp|render_wavs|amp_torden_gain7.wav|-
 amp-torden-lead.mp3|amp|render_wavs|amp_torden_gain7_lead_delay.wav|-
 amp-preset-taage.mp3|amp|render_presets|amp_preset_03_*.wav|-
-pitch-notes-original.mp3|pitch_shifter|render_wavs|notes_original.wav|-
-pitch-notes-down2.mp3|pitch_shifter|render_wavs|notes_-2.wav|-
-pitch-notes-up7.mp3|pitch_shifter|render_wavs|notes_+7.wav|-
-pitch-chord-original.mp3|pitch_shifter|render_wavs|chord_original.wav|-
-pitch-chord-down2.mp3|pitch_shifter|render_wavs|chord_-2.wav|-
 bass-metal.mp3|bass|render_wavs|bass_metal.wav|-
 bass-groove.mp3|bass|render_wavs|bass_groove.wav|-
 bells.mp3|bells|render_wavs|bells.wav|-
