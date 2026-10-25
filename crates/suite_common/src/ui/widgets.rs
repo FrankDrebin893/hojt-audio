@@ -745,7 +745,8 @@ pub fn type_on_tape(
     max_chars: usize,
 ) -> Option<Typed> {
     let tape = Rect::from_center_size(center, vec2(width, STEPPER_TAPE_HEIGHT));
-    let response = ui.interact(tape, Id::new("typed-tape"), Sense::hover());
+    // Focusable, or egui takes the focus back in the same frame and nothing is ever typed
+    let response = ui.interact(tape, Id::new("typed-tape"), Sense::focusable_noninteractive());
     ask_for_keyboard(&response, text);
     type_into(ui, text, max_chars)
 }
@@ -1187,6 +1188,57 @@ mod tests {
         let mut empty = String::new();
         assert_eq!(typing(&mut empty, vec![key(Key::Backspace)]), None);
         assert!(empty.is_empty());
+    }
+
+    /// Plays `type_on_tape` as a DAW does: one context across frames, the first frame asking
+    /// for the keyboard and the next ones carrying the events. Gives back the name, what the
+    /// last frame made of it, and whether the first frame told the window to take the focus
+    fn typing_on_tape(frames: Vec<Vec<Event>>) -> (String, Option<Typed>, bool) {
+        let ctx = Context::default();
+        let (mut name, mut end, mut asked) = (String::new(), None, false);
+        for (frame, events) in std::iter::once(Vec::new()).chain(frames).enumerate() {
+            let input = RawInput { events, ..RawInput::default() };
+            let output = ctx.run(input, |ctx| {
+                CentralPanel::default().show(ctx, |ui| {
+                    end = type_on_tape(ui, Pos2::new(100.0, 40.0), 120.0, &mut name, 6);
+                });
+            });
+            // egui-baseview's windows_keyboard_workaround takes the focus on these
+            if frame == 0 {
+                asked = !output.platform_output.events.is_empty();
+            }
+        }
+        (name, end, asked)
+    }
+
+    #[test]
+    fn test_a_name_is_typed_on_the_tape_once_it_has_asked_for_the_keyboard() {
+        let (name, end, asked) = typing_on_tape(vec![
+            vec![Event::Text("Jazz".into())],
+            vec![Event::Text(" T".into()), key(Key::Backspace)],
+            vec![key(Key::Enter)],
+        ]);
+        assert_eq!(name, "Jazz ");
+        assert_eq!(end, Some(Typed::Done));
+        assert!(asked, "the tape must tell the window it is a field, or no letter reaches it");
+        let (_, end, _) = typing_on_tape(vec![vec![key(Key::Escape)]]);
+        assert_eq!(end, Some(Typed::Cancelled));
+    }
+
+    #[test]
+    fn test_the_tape_keeps_the_keyboard_from_one_frame_to_the_next() {
+        let ctx = Context::default();
+        let mut held = Vec::new();
+        for _ in 0..3 {
+            let _ = ctx.run(RawInput::default(), |ctx| {
+                CentralPanel::default().show(ctx, |ui| {
+                    let mut name = String::new();
+                    type_on_tape(ui, Pos2::new(100.0, 40.0), 120.0, &mut name, 6);
+                });
+            });
+            held.push(ctx.memory(|memory| memory.focused()).is_some());
+        }
+        assert_eq!(held, [true, true, true]);
     }
 
     #[test]
