@@ -479,7 +479,13 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   egui-baseview's `windows_keyboard_workaround` watches for before it takes the focus for the
   window; the workspace turns that feature on (see the root `Cargo.toml`). Nothing else in the
   suite asks, so a knob or a footswitch never takes the keyboard from the host. The window
-  keeps it until the player clicks the host again, which is the price of typing there
+  keeps it until the player clicks the host again, which is the price of typing there.
+  That is still not enough in REAPER, which takes a key press for a shortcut of its own unless
+  the focused window answers `WM_GETDLGCODE` with `DLGC_WANTALLKEYS` (baseview's never does,
+  and nih-plug's `IPlugView::on_key_down` says not implemented): `ask_for_keyboard` also calls
+  `ui::host_keys::want_all_keys`, which puts that answer in front of the window (#132). The
+  standalone does not show the difference, only a host does; try it in REAPER with "Send all
+  keyboard input to plug-in" off (its default)
 - **Steppers on the cabinet** (the speaker and the microphone): the `silk_label` caption
   above the tape, and the buttons clear of the next knob, caption or LED. The amp's is the
   nameplate on its head, which needs no caption: it says the amp's name

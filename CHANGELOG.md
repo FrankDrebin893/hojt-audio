@@ -15,6 +15,10 @@ GitHub release.
 
 ### Guitar Amp
 
+- Typing a preset name after Save now works in REAPER (and in any host that takes the keys of a
+  plug-in window for its own shortcuts): the letters never reached the amp before, while the
+  same window worked on its own. It now tells the host that it wants every key while a name is
+  being typed
 - The window's look follows its new width. Every pedal in the row is now the same size, so the
   row fills the window with an even gap between pedals and the cables between them, and the
   narrow pedals (Comp, Chorus, Phaser, Flanger, Tremolo, Fuzz) are as wide as the rest, their

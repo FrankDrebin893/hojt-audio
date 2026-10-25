@@ -18,6 +18,7 @@ pub mod art;
 pub mod artwork;
 pub mod frame;
 pub mod hardware;
+pub mod host_keys;
 pub mod led;
 pub mod raster;
 pub mod theme;

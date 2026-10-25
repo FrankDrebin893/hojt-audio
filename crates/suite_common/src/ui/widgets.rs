@@ -739,6 +739,7 @@ fn ask_for_keyboard(response: &Response, text: &str) {
         response.request_focus();
     }
     response.widget_info(|| WidgetInfo::text_edit(true, text, text));
+    super::host_keys::want_all_keys();
 }
 
 /// What came of a name being typed
