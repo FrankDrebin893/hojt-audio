@@ -11,6 +11,10 @@ What each script in this folder does, and the detail behind the rules in `AGENTS
 - `sound-reports.sh` - The sound reports without their timings, for comparing two builds
 - `sync-labels.sh` - The backlog's labels on GitHub
 - `move-issue.sh` - Moves an issue to a state: its label and its place on the board
+- `weekly-checks.sh` - The weekly run of `weekly.yml`: files `state:idea` issues for stale
+  `state:building`/`state:review`, newer dependencies, the nih-plug pin and the pinned Rust, and
+  instructions that name missing files, and one summary of the new ideas for `/groom`; tidies the
+  state label of a closed issue. `--dry-run` prints what it would do. It needs no model or key
 - `page-check.sh` - Whether `/page` has looked at what changed since `main`, and whether
   the page's links hold. The end-of-session hook runs it
 

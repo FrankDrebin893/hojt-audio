@@ -31,7 +31,8 @@ detail lives. Each detail is next to what it governs.
   `.claude/commands/` mirrors them for Claude Code (`xtask/tests/skills_mirror.rs` holds it);
   `.claude/settings.json` has the hooks
 - `.github/workflows/` - `ci.yml` (tests), `release.yml`, `pages.yml`, `approval-guard.yml`, `sound.yml`
-  (what a plugin's reports say changed against `main`). `.github/ISSUE_TEMPLATE/` and
+  (what a plugin's reports say changed against `main`), `weekly.yml` (a weekly run that only files
+  `state:idea` issues, `scripts/weekly-checks.sh`). `.github/ISSUE_TEMPLATE/` and
   `pull_request_template.md` say what an issue and a pull request ask for
 
 ## Build Commands
