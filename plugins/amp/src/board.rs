@@ -18,8 +18,14 @@ use crate::order::{self, ChainOrder};
 const PEDALS: usize = 11;
 /// The head and the cabinet it stands on
 pub const STACK_WIDTH: f32 = 450.0;
-// Four pedals of 180, six of 110, the stack, and a margin on both sides of each
-pub const WINDOW_WIDTH: u32 = 1950;
+// The strip has the room: the row below it keeps its sizes and spreads its gaps to fill it
+pub const WINDOW_WIDTH: u32 = 2535;
+/// The space between two neighbours of the row: what is left of the window, after a margin at
+/// each end, four pedals of 180, six of 110 and the stack, shared by the ten gaps
+const GAP: f32 = (WINDOW_WIDTH as f32
+    - 2.0 * BENCH_MARGIN
+    - (4.0 * PEDAL_WIDTH + 6.0 * SLIM_PEDAL_WIDTH + STACK_WIDTH))
+    / (PEDALS - 1) as f32;
 
 // Share of its way to its place that a pedal making room goes in a second, were it to keep its speed
 const GLIDE_PER_SECOND: f32 = 18.0;
@@ -178,7 +184,7 @@ impl Order {
         let mut x = BENCH_MARGIN;
         for &pedal in &self.pedals {
             lefts[pedal as usize] = x;
-            x += pedal.width() + BENCH_MARGIN;
+            x += pedal.width() + GAP;
         }
         lefts
     }
@@ -322,7 +328,7 @@ pub fn board(ui: &mut Ui, window: Pos2, pedals: &Pedals, chain: &order::StoredOr
         }
         if let (Some(held), Some(pointer)) = (&mut board.held, grip.interact_pointer_pos()) {
             // Not over the gate and not out of the window
-            let leftmost = BENCH_MARGIN + PEDAL_WIDTH + BENCH_MARGIN;
+            let leftmost = BENCH_MARGIN + PEDAL_WIDTH + GAP;
             let rightmost = WINDOW_WIDTH as f32 - BENCH_MARGIN - pedal.width();
             held.left = (pointer.x - window.x - held.grip).clamp(leftmost, rightmost);
             board.lefts[pedal as usize] = held.left;
@@ -362,7 +368,7 @@ fn signal(
         }
         // Not while one of them glides past: only once they stand side by side
         let (from, to) = (right_of(a), left_of(b));
-        if (to - from - BENCH_MARGIN).abs() < 1.0 {
+        if (to - from - GAP).abs() < 1.0 {
             ui::coupler(painter, from, to, plug_y);
         }
     }
@@ -399,13 +405,11 @@ mod tests {
         let lefts = order.places();
         let last = order.pedals[PEDALS - 1];
         assert_eq!(lefts[last as usize] + last.width() + BENCH_MARGIN, WINDOW_WIDTH as f32);
+        const { assert!(GAP > BENCH_MARGIN) };
         assert_eq!(lefts[Pedal::Gate as usize], BENCH_MARGIN);
-        // A margin between every two pieces, the stack among them
+        // The same gap between every two pieces, the stack among them
         for pair in order.pedals.windows(2) {
-            assert_eq!(
-                lefts[pair[0] as usize] + pair[0].width() + BENCH_MARGIN,
-                lefts[pair[1] as usize]
-            );
+            assert_eq!(lefts[pair[0] as usize] + pair[0].width() + GAP, lefts[pair[1] as usize]);
         }
         assert_eq!(Pedal::Stack.width(), STACK_WIDTH);
     }
