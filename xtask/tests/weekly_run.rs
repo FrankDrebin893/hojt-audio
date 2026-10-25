@@ -40,8 +40,10 @@ fn test_the_run_never_approves_builds_or_merges() {
             .lines()
             .filter(|line| !line.trim_start().starts_with('#'))
             .collect::<Vec<_>>()
-            .join("
-");
+            .join(
+                "
+",
+            );
         for forbidden in ["state:approved", "gh pr merge", "gh pr create", "git push", "--auto"] {
             assert!(!text.contains(forbidden), "{path} contains `{forbidden}`");
         }
