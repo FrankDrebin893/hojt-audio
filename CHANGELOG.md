@@ -15,6 +15,8 @@ GitHub release.
 
 ### Guitar Amp
 
+- The big cream GUITAR AMP banner across the middle of the amp head is gone; the dials and the
+  Amp and Mic row stand where they did, on the bare paint
 - A Fuzz pedal joins the board, in ember red with a geyser on it: thick, saturated fuzz that
   sustains and breaks up as a note dies. Fuzz (0 to 10) sets how hard it clips, Tone (0 to 10)
   goes from dark and woolly through scooped mids to thin and biting. It has no Level knob: it

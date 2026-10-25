@@ -21,9 +21,7 @@ const SCREW_INSET: f32 = 17.0;
 
 const BAND_HEIGHT: f32 = 46.0;
 const BAND_ANGLE_DEG: f32 = -4.0;
-// Over the width of a strip's band the pedal's tilt would rise by more than the band is tall
-const STRIP_BAND_ANGLE_DEG: f32 = -1.5;
-/// How much of a `strip` the name band runs across, in its middle: the rest are its wings
+/// How much of a `strip`'s middle is left to the rig's own controls: the rest are its wings
 pub const STRIP_BAND_WIDTH: f32 = 500.0;
 
 // Mini pedals are small boxes: tighter corners, smaller screws
@@ -114,7 +112,8 @@ pub fn pedal(ctx: &Context, style: &PedalStyle, add_controls: impl FnOnce(&mut U
         let top = enclosure(painter, window.shrink(BENCH_MARGIN), style.paint);
         art_under_print(painter, top, style);
         let band = Band { left: top.left(), right: top.right(), angle_deg: BAND_ANGLE_DEG };
-        print(painter, top, window.top() + style.band_y, band, Flow::RightToLeft, style);
+        let band_y = window.top() + style.band_y;
+        print(painter, top, Some((band_y, band)), Flow::RightToLeft, style);
         add_controls(ui, origin);
     });
 }
@@ -137,22 +136,16 @@ fn art_under_print(painter: &Painter, top: Rect, style: &PedalStyle) {
     }
 }
 
-/// The strip across the top of a rig: a shallow enclosure filling `rect` with everything a
-/// pedal has printed on it. The name band runs only across its middle, `STRIP_BAND_WIDTH`
-/// wide and tilted less than on a pedal, which leaves a wing at each end for controls. The
+/// The strip across the top of a rig: a shallow enclosure filling `rect` with the jack
+/// captions, model number, logo and art of a pedal. It has no name band: the middle of it is
+/// left to the rig's own controls, with a wing at each end, `STRIP_BAND_WIDTH` apart. The
 /// signal runs from left to right on it: the input's caption is the left one. Returns the
 /// top face.
 pub fn strip(ui: &Ui, rect: Rect, style: &PedalStyle) -> Rect {
     let painter = ui.painter();
     let top = enclosure(painter, rect, style.paint);
     art_under_print(painter, top, style);
-    let middle = top.center().x;
-    let band = Band {
-        left: middle - STRIP_BAND_WIDTH / 2.0,
-        right: middle + STRIP_BAND_WIDTH / 2.0,
-        angle_deg: STRIP_BAND_ANGLE_DEG,
-    };
-    print(painter, top, rect.top() + style.band_y, band, Flow::LeftToRight, style);
+    print(painter, top, None, Flow::LeftToRight, style);
     top
 }
 
@@ -331,15 +324,9 @@ enum Flow {
     LeftToRight,
 }
 
-/// Everything printed on the top face `top`: jack captions, name band, model number, logo
-fn print(
-    painter: &Painter,
-    top: Rect,
-    band_center_y: f32,
-    band: Band,
-    flow: Flow,
-    style: &PedalStyle,
-) {
+/// Everything printed on the top face `top`: jack captions, the name band if it has one, model
+/// number, logo
+fn print(painter: &Painter, top: Rect, band: Option<(f32, Band)>, flow: Flow, style: &PedalStyle) {
     let jack_y = top.top() + 29.0;
     let [left_jack, right_jack] = style.jacks;
     jack_label(
@@ -357,8 +344,10 @@ fn print(
         flow,
     );
 
-    let across = Rect::from_x_y_ranges(band.left..=band.right, top.y_range());
-    name_band(painter, across, band_center_y, band.angle_deg, style);
+    if let Some((band_center_y, band)) = band {
+        let across = Rect::from_x_y_ranges(band.left..=band.right, top.y_range());
+        name_band(painter, across, band_center_y, band.angle_deg, style);
+    }
 
     let print_bottom = top.bottom() - 24.0;
     spaced_text(
@@ -571,4 +560,63 @@ fn bolt(painter: &Painter, center: Pos2, lean: f32) {
     }
     // Covers the seam left by the soft edges of the two halves
     painter.line_segment([upper_inner, lower_inner], Stroke::new(1.5, INK));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nih_plug_egui::egui::{CentralPanel, RawInput};
+
+    const TEST_STYLE: PedalStyle = PedalStyle {
+        name: "Test",
+        model: "TS-1",
+        paint: PAINT_OXBLOOD,
+        ornament: Ornament::Bolts,
+        jacks: ["In", "Out"],
+        band_y: 62.0,
+        art: None,
+    };
+
+    /// How many shapes `draw` paints on a rectangle of the size of a strip
+    fn shapes(draw: impl FnOnce(&Ui, Rect)) -> usize {
+        let mut draw = Some(draw);
+        let ctx = Context::default();
+        install(&ctx);
+        // The fonts take effect from the next frame on
+        let _ = ctx.run(RawInput::default(), |_| {});
+        let output = ctx.run(RawInput::default(), |ctx| {
+            CentralPanel::default().show(ctx, |ui| {
+                let rect = Rect::from_min_size(Pos2::new(10.0, 10.0), vec2(1000.0, 130.0));
+                (draw.take().unwrap())(ui, rect);
+            });
+        });
+        output.shapes.len()
+    }
+
+    #[test]
+    fn test_a_strip_prints_no_name_band() {
+        let with_band = shapes(|ui, rect| {
+            let top = enclosure(ui.painter(), rect, TEST_STYLE.paint);
+            let middle = top.center().x;
+            let band = Band {
+                left: middle - STRIP_BAND_WIDTH / 2.0,
+                right: middle + STRIP_BAND_WIDTH / 2.0,
+                angle_deg: BAND_ANGLE_DEG,
+            };
+            print(
+                ui.painter(),
+                top,
+                Some((rect.top() + TEST_STYLE.band_y, band)),
+                Flow::LeftToRight,
+                &TEST_STYLE,
+            );
+        });
+        let strip_shapes = shapes(|ui, rect| {
+            strip(ui, rect, &TEST_STYLE);
+        });
+        assert!(
+            strip_shapes < with_band,
+            "a strip paints as many shapes as the same face with a name band"
+        );
+    }
 }

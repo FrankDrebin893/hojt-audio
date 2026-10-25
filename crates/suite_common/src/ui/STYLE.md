@@ -25,8 +25,8 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
   `silk_frame`, `silk_label` (`print_label` for a caption in `INK` on metal), and `badge` (the HØJT logo: the Ø is a knob, its slash the pointer)
 - `frame.rs` - `pedal`: enclosure, screws, jack captions, tilted name band, model number, logo.
   A plugin describes itself with a `PedalStyle`. For a window with several enclosures: `rig`
-  (the bare bench), `strip` (shallow enclosure with everything a pedal has printed on it, the
-  name band across its middle only) and `mini_pedal` (small enclosure with only a title), each
+  (the bare bench), `strip` (shallow enclosure with the jack captions, model number and logo of a pedal,
+  and no name band) and `mini_pedal` (small enclosure with only a title), each
   mini pedal described by a `MiniStyle`; `coupler` and `patch_cable` carry the signal between them
 - `raster.rs` - Per-pixel lit surfaces (signed distance field + one fixed light): `box_image`, `knob_image`
   (a `KnobCap`: `Fluted`, the pedals' knob, `ChickenHead`, `CreamChickenHead`, `GoldTop`, `ChromeSkirt`), `screw_image`, and for the
