@@ -561,3 +561,62 @@ fn bolt(painter: &Painter, center: Pos2, lean: f32) {
     // Covers the seam left by the soft edges of the two halves
     painter.line_segment([upper_inner, lower_inner], Stroke::new(1.5, INK));
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nih_plug_egui::egui::{CentralPanel, RawInput};
+
+    const TEST_STYLE: PedalStyle = PedalStyle {
+        name: "Test",
+        model: "TS-1",
+        paint: PAINT_OXBLOOD,
+        ornament: Ornament::Bolts,
+        jacks: ["In", "Out"],
+        band_y: 62.0,
+        art: None,
+    };
+
+    /// How many shapes `draw` paints on a rectangle of the size of a strip
+    fn shapes(draw: impl FnOnce(&Ui, Rect)) -> usize {
+        let mut draw = Some(draw);
+        let ctx = Context::default();
+        install(&ctx);
+        // The fonts take effect from the next frame on
+        let _ = ctx.run(RawInput::default(), |_| {});
+        let output = ctx.run(RawInput::default(), |ctx| {
+            CentralPanel::default().show(ctx, |ui| {
+                let rect = Rect::from_min_size(Pos2::new(10.0, 10.0), vec2(1000.0, 130.0));
+                (draw.take().unwrap())(ui, rect);
+            });
+        });
+        output.shapes.len()
+    }
+
+    #[test]
+    fn test_a_strip_prints_no_name_band() {
+        let with_band = shapes(|ui, rect| {
+            let top = enclosure(ui.painter(), rect, TEST_STYLE.paint);
+            let middle = top.center().x;
+            let band = Band {
+                left: middle - STRIP_BAND_WIDTH / 2.0,
+                right: middle + STRIP_BAND_WIDTH / 2.0,
+                angle_deg: BAND_ANGLE_DEG,
+            };
+            print(
+                ui.painter(),
+                top,
+                Some((rect.top() + TEST_STYLE.band_y, band)),
+                Flow::LeftToRight,
+                &TEST_STYLE,
+            );
+        });
+        let strip_shapes = shapes(|ui, rect| {
+            strip(ui, rect, &TEST_STYLE);
+        });
+        assert!(
+            strip_shapes < with_band,
+            "a strip paints as many shapes as the same face with a name band"
+        );
+    }
+}
