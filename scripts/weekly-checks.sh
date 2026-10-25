@@ -192,7 +192,7 @@ summarize_ideas() {
     week="$(date -u +%G-W%V)"
     since="$(date -u -d "7 days ago" +%Y-%m-%d 2> /dev/null || date -u -v-7d +%Y-%m-%d)"
     list="$(gh issue list --repo "$repo" --state open --label state:idea --limit 200 \
-        --search "created:>=$since" --json number,title --jq '.[] | select(.title | startswith("Weekly "+"'"$week"'") | not) | "- #\(.number) \(.title)"')"
+        --search "created:>=$since" --json number,title --jq '.[] | select(.title | startswith("Weekly 2") | not) | "- #\(.number) \(.title)"')"
     local planned=""
     local t
     for t in "${filed[@]:-}"; do

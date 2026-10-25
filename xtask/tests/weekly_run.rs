@@ -35,7 +35,13 @@ fn test_the_workflow_holds_the_least_rights_and_no_key() {
 #[test]
 fn test_the_run_never_approves_builds_or_merges() {
     for path in [".github/workflows/weekly.yml", "scripts/weekly-checks.sh"] {
-        let text = read(path);
+        // comments may say what the run does not do
+        let text: String = read(path)
+            .lines()
+            .filter(|line| !line.trim_start().starts_with('#'))
+            .collect::<Vec<_>>()
+            .join("
+");
         for forbidden in ["state:approved", "gh pr merge", "gh pr create", "git push", "--auto"] {
             assert!(!text.contains(forbidden), "{path} contains `{forbidden}`");
         }
