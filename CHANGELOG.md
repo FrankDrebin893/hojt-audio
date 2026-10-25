@@ -15,6 +15,10 @@ GitHub release.
 
 ### Guitar Amp
 
+- Two more microphones join Dynamic, Ribbon and Condenser at the end of the Mic Type stepper:
+  Close (CLO), dark and close, with the low end pushed up, the top shut and a bite left in the
+  upper mids, and Air (AIR), bright and thin, with the top opened wide and the lows let go. A
+  project keeps the microphone it had
 - The window is about 30% wider (2535 x 650, from 1950 x 650). The strip across the top has the
   room: its left controls stay where they were, the right ones stay at the right edge, and the
   space opens between them. The pedals and the amp keep their size, with wider gaps between
