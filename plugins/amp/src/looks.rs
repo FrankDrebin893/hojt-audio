@@ -165,7 +165,7 @@ const OWN_CABS: [CabStyle; 4] = [
 ];
 
 /// The built-in cabinets' looks, by the id of each in `SPEAKERS`
-const SPEAKER_CABS: [(&str, CabStyle); 7] = [
+const SPEAKER_CABS: [(&str, CabStyle); 10] = [
     // Tan, a wheat cloth, the one small speaker high in the box
     (
         "1x10-small",
@@ -201,6 +201,21 @@ const SPEAKER_CABS: [(&str, CabStyle); 7] = [
         "1x15-deep",
         cab(Tolex::Levant, rgb(30, 38, 64), Grille::Felt, rgb(26, 26, 28), Speakers::One15),
     ),
+    // Walnut-brown, a faded brown cloth, the one small speaker high in the box
+    (
+        "1x8-tiny",
+        CabStyle {
+            set_high: true,
+            ..cab(Tolex::Tweed, rgb(120, 84, 56), Grille::Wheat, rgb(150, 120, 86), Speakers::One8)
+        },
+    ),
+    // Dark green bronco with a basketweave cloth
+    (
+        "2x12-punch",
+        cab(Tolex::Bronco, rgb(30, 58, 44), Grille::Basketweave, BASKETWEAVE, Speakers::Two12),
+    ),
+    // Black and smooth with a dark felt, the biggest box
+    ("4x12-heavy", cab(Tolex::Smooth, BLACK, Grille::Felt, rgb(34, 34, 36), Speakers::Four12)),
 ];
 
 /// A file from the cabinets folder: a plain studio cabinet in grey felt, the one speaker
@@ -289,12 +304,16 @@ mod tests {
             ("4x12-mid", Tolex::Levant, Grille::Basketweave, Speakers::Four12),
             ("4x12-tight", Tolex::Bronco, Grille::Mesh, Speakers::Four12),
             ("1x15-deep", Tolex::Levant, Grille::Felt, Speakers::One15),
+            ("1x8-tiny", Tolex::Tweed, Grille::Wheat, Speakers::One8),
+            ("2x12-punch", Tolex::Bronco, Grille::Basketweave, Speakers::Two12),
+            ("4x12-heavy", Tolex::Smooth, Grille::Felt, Speakers::Four12),
         ];
         for (id, tolex, grille, speakers) in expected {
             let look = speaker_look(id).unwrap();
             assert_eq!((look.tolex, look.grille, look.speakers), (tolex, grille, speakers), "{id}");
         }
         assert!(speaker_look("1x10-small").unwrap().set_high);
+        assert!(speaker_look("1x8-tiny").unwrap().set_high);
         assert_eq!(speaker_look("4x12-mid").unwrap().piping, Some(WHITE_PIPING));
     }
 

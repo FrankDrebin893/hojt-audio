@@ -90,6 +90,7 @@ pub struct HeadFaces {
 /// The speakers in a cabinet: how many, and how large
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Speakers {
+    One8,
     One10,
     One12,
     Two12,
@@ -99,7 +100,8 @@ pub enum Speakers {
 }
 
 /// Every layout of speakers
-pub const SPEAKER_LAYOUTS: [Speakers; 6] = [
+pub const SPEAKER_LAYOUTS: [Speakers; 7] = [
+    Speakers::One8,
     Speakers::One10,
     Speakers::One12,
     Speakers::Two12,
@@ -113,6 +115,7 @@ impl Speakers {
     /// each, a smaller speaker taking less of its share
     pub fn cones(self, size: Vec2) -> Vec<Cone> {
         let (columns, rows, share) = match self {
+            Speakers::One8 => (1, 1, 0.5),
             Speakers::One10 => (1, 1, 0.62),
             Speakers::One12 => (1, 1, 0.78),
             Speakers::One15 => (1, 1, 0.94),

@@ -93,9 +93,9 @@ How it behaves:
   of the detector, which pull a string within 2 Hz of them by a few cents; without hum they
   are off and the readings are unchanged. A loaded
   project never opens with the tuner on
-- Besides its own cabinet an amp can play through any of the seven built-in cabinets
+- Besides its own cabinet an amp can play through any of the ten built-in cabinets
   (`SPEAKERS` in `amp/model.rs`: `1X10 SMALL`, `1X12 OPEN`, `2X12 OPEN`, `4X10 CRISP`,
-  `4X12 MID`, `4X12 TIGHT`, `1X15 DEEP`; designs of their own, not the amps'), picked on the
+  `4X12 MID`, `4X12 TIGHT`, `1X15 DEEP`, `1X8 TINY`, `2X12 PUNCH`, `4X12 HEAVY`; designs of their own, not the amps'), picked on the
   cabinet's control plate after `OWN`. A built-in cabinet is stored as `speaker:<id>` in the cabinet choice;
   the ids are frozen (a test holds them), the order may change. One this build does not have
   plays the amp's own and is shown with `?`. Picking the cabinet that already plays changes
@@ -301,13 +301,13 @@ cargo test -p amp --release user_cab_report -- --ignored --nocapture
 # Long cabinets: direct FIR against the tail, per length and rate; error, evenness, swaps.
 cargo test -p amp --release convolver_report -- --ignored --nocapture
 
-# How far apart the seven built-in cabinets are: octave bands of a guitar through Klar and
+# How far apart the ten built-in cabinets are: octave bands of a guitar through Klar and
 # Torden and each one, and the difference of every pair. render_speakers writes the same
 # as WAV files in target/renders (amp_cab_*.wav), to hear them side by side.
 cargo test -p amp --release speaker_report -- --ignored --nocapture
 cargo test -p amp --release render_speakers -- --ignored
 
-# The amps' own and the seven built-in cabinets as 48 kHz WAV files in
+# The amps' own and the ten built-in cabinets as 48 kHz WAV files in
 # target/renders/cabinets (cab_report prints their levels per frequency).
 cargo test -p amp --release export_cabinets -- --ignored --nocapture
 
@@ -374,6 +374,9 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   | `4X12 MID` | black levant | basketweave | four 12" | white piping |
   | `4X12 TIGHT` | black bronco | perforated steel | four 12" | none |
   | `1X15 DEEP` | navy levant | black felt | one 15" | none |
+  | `1X8 TINY` | walnut tweed | faded brown cloth | one 8", set high | none |
+  | `2X12 PUNCH` | green bronco | basketweave | two 12" | none |
+  | `4X12 HEAVY` | black, smooth | dark felt | four 12" | none |
   | a WAV file | charcoal, smooth | grey felt | one 12", a shadow behind the felt | none |
 
   A choice shown with `?` (missing, or a built-in cabinet of another build) or a file shown
