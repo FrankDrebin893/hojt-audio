@@ -5,11 +5,11 @@ use std::path::Path;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, PoisonError};
 use suite_common::ui::{
-    self, chrome_button, drop_panel, level_meter, menu_stepper, nameplate_stepper, panel_knob,
-    param_knob, param_switch, print_label, rig_led, signal_lamp, silk_label, small_footswitch,
-    stepper, theme, tuner_display, type_into, type_on_tape, Column, HeadFaces, MiniStyle, Motif,
-    Ornament, PedalStyle, Pick, Row, Step, Typed, BENCH_MARGIN, SLIM_KNOBS, SLIM_KNOB_RADIUS,
-    SLIM_LED, SLIM_SWITCH,
+    self, chrome_button, drop_panel, led_stepper, led_width, level_meter, nameplate_stepper,
+    panel_knob, param_knob, param_switch, print_label, rig_led, signal_lamp, silk_label,
+    small_footswitch, stepper, theme, tuner_display, type_into, type_on_tape, Column, HeadFaces,
+    MiniStyle, Motif, Ornament, PedalStyle, Pick, Row, Step, Typed, BENCH_MARGIN, LED_HEIGHT,
+    SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED, SLIM_SWITCH,
 };
 
 use crate::board::STACK_WIDTH;
@@ -46,37 +46,36 @@ pub(crate) const STYLE: PedalStyle = PedalStyle {
     art: Some(ui::artwork::AMP),
 };
 
-// Everything on the strip is placed from the window's top left corner. Its left wing holds
-// what comes in and what is picked: the input meter, then the bank and preset displays and
-// the Save button. Its right wing what goes out: the output knob, the output meter, the clip
-// lamp, and the On and Tuner switches
+// Everything on the strip is placed from the window's top left corner, in one row across it
+// with the same gap between neighbours and the same margin at both ends. What comes in and what
+// is picked is on the left: the input meter, then the bank and preset displays and the Save
+// button. What goes out is on the right: the output knob, the output meter, the clip lamp, and
+// the On and Tuner switches. Each one's place is the end of the one before it and the gap
+const STRIP_GAP: f32 = 107.5;
 
-// The preset display: its caption, and under it the tape with a button at each end. Wide
-// enough for the longest name and the edited mark. While the tuner is on, its display is
-// there instead, under its own caption
-const PRESET_X: f32 = 470.0;
-const PRESET_CAPTION_Y: f32 = 52.0;
-const PRESET_Y: f32 = 74.0;
-const PRESET_WIDTH: f32 = 156.0;
-// The Save button right of the preset display, its caption on the line of the display's
-const SAVE_X: f32 = PRESET_X + 150.0;
+// The bank display and the preset display, each an LED display with a button at each end and
+// its caption over it: what set of presets the preset display picks from, and the preset.
+// Wide enough for the longest name and the edited mark. While the tuner is on, its display is
+// where the preset display is, under its own caption
+const PRESET_CAPTION_Y: f32 = 38.0;
+const PRESET_Y: f32 = 72.0;
+const PRESET_CHARS: usize = 16;
+const PRESET_WIDTH: f32 = led_width(PRESET_CHARS);
 // The longest name of a player's preset the display shows, with room for the edited mark
-const USER_NAME_CHARS: usize = 13;
+const USER_NAME_CHARS: usize = PRESET_CHARS - 1;
 // How long the display says what Save did
 const SAVE_NOTE_S: f64 = 1.5;
-// Room for the note and seventeen lamps
-const TUNER_WIDTH: f32 = 286.0;
 
-// The bank display left of the preset display: which set of presets the preset display
-// picks from. Its caption is on the preset caption's line and its tape on the preset
-// tape's line; its buttons go round the banks and its tape drops the whole list open
-const BANK_X: f32 = PRESET_X - 210.0;
-const BANK_WIDTH: f32 = 120.0;
-const BANK_NAME_CHARS: usize = 10;
+// The bank display left of the preset display. Its caption is on the preset caption's line and
+// its window on the preset window's line; its buttons go round the banks and its window drops
+// the whole list open
+const BANK_CHARS: usize = 10;
+const BANK_WIDTH: f32 = led_width(BANK_CHARS);
+const BANK_NAME_CHARS: usize = BANK_CHARS;
 
-// The list that drops out of either display, under the preset tape, over the line below:
+// The list that drops out of either display, under the preset window, over the line below:
 // the banks in the first column and the presets of the bank that is listed in the second
-const DROP_Y: f32 = PRESET_Y + 17.0;
+const DROP_Y: f32 = PRESET_Y + LED_HEIGHT / 2.0 + 6.0;
 const BANK_COLUMN: usize = 0;
 const DROP_BANK_WIDTH: f32 = 132.0;
 const DROP_PRESET_WIDTH: f32 = 186.0;
@@ -85,36 +84,51 @@ const DROP_PRESET_CHARS: usize = 17;
 // The row at the end of the banks that makes one, and how long a name typed on it may be
 const NEW_BANK_ROW: &str = "+ New Bank";
 const NEW_BANK_CHARS: usize = 14;
-// How long a name typed for a new preset may be, and how much of it the tape has room for
+// How long a name typed for a new preset may be, and how much of it the display has room for
+// (the caret takes one place)
 const NEW_PRESET_CHARS: usize = 24;
-const NEW_PRESET_SHOWN: usize = 12;
+const NEW_PRESET_SHOWN: usize = PRESET_CHARS - 1;
 
-// The right wing is placed from the window's right edge, so it stays at the end of the strip
-const RIGHT: f32 = WINDOW_WIDTH as f32;
-
-// The output level, the plugin's own and not the amp's
-const OUTPUT_KNOB: Vec2 = vec2(RIGHT - 580.0, 56.0);
-const OUTPUT_RADIUS: f32 = 22.0;
-
-// The clip lamp, right of the output meter: lit while the output is rounded off by the
-// safety clip. A signal lamp has its caption this far under it
-const CLIP_LAMP: Vec2 = vec2(RIGHT - 445.0, 58.0);
-const LAMP_CAPTION: Vec2 = vec2(0.0, 18.0);
-const LAMP_CAPTION_SIZE: f32 = 13.0;
+// What each control of the strip takes across, from its middle: a level meter with its caption,
+// the Save button, the output knob with its ticks, a signal lamp with its caption, and a small
+// switch with the LED and caption left of it. A stepper's buttons reach this far past its window
+const METER_REACH: f32 = 28.0;
+const SAVE_REACH: f32 = 25.0;
+const KNOB_REACH: f32 = OUTPUT_RADIUS + 13.0;
+const LAMP_REACH: f32 = 20.0;
+const SWITCH_REACH: f32 = 25.0;
+const SWITCH_GROUP: f32 = SWITCH_REACH + 86.0;
+const STEPPER_REACH: f32 = 33.0;
 
 // The level meters, one in each wing: the input's under the jack it comes in at, the
 // output's between the output knob and the clip lamp. A column of lamps on label tape,
 // with its caption under it
-const INPUT_METER: Vec2 = vec2(120.0, 66.0);
-const OUTPUT_METER: Vec2 = vec2(RIGHT - 500.0, 66.0);
+const INPUT_METER: Vec2 = vec2(135.0, 66.0);
 const METER_HEIGHT: f32 = 80.0;
 const METER_CAPTION: Vec2 = vec2(0.0, 52.0);
 
+const BANK_X: f32 = INPUT_METER.x + METER_REACH + STRIP_GAP + BANK_WIDTH / 2.0 + STEPPER_REACH;
+const PRESET_X: f32 =
+    BANK_X + BANK_WIDTH / 2.0 + STEPPER_REACH + STRIP_GAP + PRESET_WIDTH / 2.0 + STEPPER_REACH;
+// The Save button right of the preset display, its caption on the line of the display's
+const SAVE_X: f32 = PRESET_X + PRESET_WIDTH / 2.0 + STEPPER_REACH + STRIP_GAP + SAVE_REACH;
+
+// The output level, the plugin's own and not the amp's
+const OUTPUT_KNOB: Vec2 = vec2(SAVE_X + SAVE_REACH + STRIP_GAP + KNOB_REACH, 56.0);
+const OUTPUT_RADIUS: f32 = 22.0;
+const OUTPUT_METER: Vec2 = vec2(OUTPUT_KNOB.x + KNOB_REACH + STRIP_GAP + METER_REACH, 66.0);
+
+// The clip lamp, right of the output meter: lit while the output is rounded off by the
+// safety clip. A signal lamp has its caption this far under it
+const CLIP_LAMP: Vec2 = vec2(OUTPUT_METER.x + METER_REACH + STRIP_GAP + LAMP_REACH, 58.0);
+const LAMP_CAPTION: Vec2 = vec2(0.0, 18.0);
+const LAMP_CAPTION_SIZE: f32 = 13.0;
+
 // Small switches, left of each its LED above its caption: the bypass, and the tuner beside
-// it at the end of the wing
+// it at the end of the strip
 const SWITCH_Y: f32 = 72.0;
-const BYPASS_X: f32 = RIGHT - 330.0;
-const TUNER_X: f32 = RIGHT - 190.0;
+const BYPASS_X: f32 = CLIP_LAMP.x + LAMP_REACH + STRIP_GAP + SWITCH_GROUP - SWITCH_REACH;
+const TUNER_X: f32 = BYPASS_X + SWITCH_REACH + STRIP_GAP + SWITCH_GROUP - SWITCH_REACH;
 const CAPTION_OFFSET: f32 = -58.0;
 const LED_Y: f32 = 61.0;
 const CAPTION_Y: f32 = 87.0;
@@ -158,7 +172,8 @@ const CAB_JACK_CAPTION: Vec2 = vec2(425.0, 182.0);
 // caption reads on every cloth
 const CAB_JACK_PLATE: Rect = Rect::from_min_max(Pos2::new(400.0, 150.0), Pos2::new(448.0, 196.0));
 
-// The pedals: four wide ones and six slim ones
+// The pedals, all as wide as each other: four with a trio or a pair of knobs side by side and
+// six with two knobs on a diagonal
 const WIDE_PEDALS: usize = 4;
 const PEDAL_SLOTS: usize = 10;
 
@@ -277,7 +292,7 @@ impl Pedals<'_> {
         ];
         let (style, on, knobs) = pedals[slot];
         if Self::is_slim(slot) {
-            let face = ui::slim_pedal(ui, rect, &style);
+            let face = ui::mini_pedal(ui, rect, &style);
             let top = face.center_top();
             for (&(param, caption), offset) in knobs.iter().zip(SLIM_KNOBS) {
                 param_knob(ui, setter, param, top + offset, SLIM_KNOB_RADIUS, caption, None);
@@ -554,7 +569,7 @@ impl PresetDisplay<'_> {
 
         silk_label(ui.painter(), origin + vec2(BANK_X, PRESET_CAPTION_Y), "Bank", 13.0);
         let bank_shown = user_presets::bank_name(&bank, BANK_NAME_CHARS);
-        match menu_stepper(ui, origin + vec2(BANK_X, PRESET_Y), BANK_WIDTH, &bank_shown, "bank") {
+        match led_stepper(ui, origin + vec2(BANK_X, PRESET_Y), BANK_CHARS, &bank_shown, "bank") {
             Some(Pick::Open) => {
                 view.saving = None;
                 self.toggle_menu(view, &bank);
@@ -597,7 +612,7 @@ impl PresetDisplay<'_> {
                 self.shown_name(factory, &user, &view.bank)
             }
         };
-        match menu_stepper(ui, origin + vec2(PRESET_X, PRESET_Y), PRESET_WIDTH, &shown, "preset") {
+        match led_stepper(ui, origin + vec2(PRESET_X, PRESET_Y), PRESET_CHARS, &shown, "preset") {
             // The tape clicked while a name is typed keeps it as it stands
             Some(Pick::Open) if view.saving.is_some() => {
                 self.finish_save(&dir, factory, &user, view, now);
@@ -1035,7 +1050,7 @@ pub fn create(
                     tuner_display(
                         ui.painter(),
                         origin + vec2(PRESET_X, PRESET_Y),
-                        TUNER_WIDTH,
+                        PRESET_CHARS,
                         name.as_deref(),
                         note.map(|note| note.cents),
                     );
@@ -1133,9 +1148,14 @@ mod tests {
         width / 2.0 + 22.0
     }
 
-    /// The bottom edge of a display's tape, from the top of the window
+    /// The bottom edge of a stepper's tape, from the top of the window
     fn tape_bottom(y: f32) -> f32 {
         y + 11.0
+    }
+
+    /// The bottom edge of an LED display's window, from the top of the window
+    fn display_bottom(y: f32) -> f32 {
+        y + LED_HEIGHT / 2.0
     }
 
     // A stepper's button and a small footswitch, half across; how far a knob's ticks reach
@@ -1154,42 +1174,42 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_the_strip_controls_stand_clear_of_the_band_and_of_each_other() {
-        let middle = WINDOW_WIDTH as f32 / 2.0;
-        let (band_left, band_right) =
-            (middle - ui::STRIP_BAND_WIDTH / 2.0, middle + ui::STRIP_BAND_WIDTH / 2.0);
+    /// What each control of the strip takes across, from the window's left edge: the left end
+    /// and the right end, in the order of the strip
+    fn strip_controls() -> Vec<(&'static str, f32, f32)> {
         let display = |x: f32, width: f32| (x - reach(width) - BUTTON, x + reach(width) + BUTTON);
         let (bank, preset) = (display(BANK_X, BANK_WIDTH), display(PRESET_X, PRESET_WIDTH));
-        let left = [
-            ("the input meter", INPUT_METER.x - LAMP, INPUT_METER.x + LAMP),
+        let knob = OUTPUT_RADIUS + TICKS;
+        vec![
+            ("the input meter", INPUT_METER.x - METER_REACH, INPUT_METER.x + METER_REACH),
             ("the bank display", bank.0, bank.1),
             ("the preset display", preset.0, preset.1),
-            ("Save", SAVE_X - BUTTON, SAVE_X + BUTTON),
-            ("the band", band_left, band_right),
-        ];
-        in_a_row(&left);
-        // The tuner's display takes the place of all three, between the meter and the band
-        let tuner = (PRESET_X - TUNER_WIDTH / 2.0, PRESET_X + TUNER_WIDTH / 2.0);
-        in_a_row(&[left[0], ("the tuner display", tuner.0, tuner.1), left[4]]);
-
-        let knob = OUTPUT_RADIUS + TICKS;
-        in_a_row(&[
-            ("the band", band_left, band_right),
+            ("Save", SAVE_X - SAVE_REACH, SAVE_X + SAVE_REACH),
             ("the output knob", OUTPUT_KNOB.x - knob, OUTPUT_KNOB.x + knob),
-            ("the output meter", OUTPUT_METER.x - LAMP, OUTPUT_METER.x + LAMP),
-            ("the clip lamp", CLIP_LAMP.x - LAMP, CLIP_LAMP.x + LAMP),
-            ("the On LED", BYPASS_X + CAPTION_OFFSET - LAMP, BYPASS_X + CAPTION_OFFSET + LAMP),
-            ("the On switch", BYPASS_X - SWITCH, BYPASS_X + SWITCH),
-            ("the Tuner LED", TUNER_X + CAPTION_OFFSET - LAMP, TUNER_X + CAPTION_OFFSET + LAMP),
-            ("the Tuner switch", TUNER_X - SWITCH, TUNER_X + SWITCH),
-            ("the strip's edge", WINDOW_WIDTH as f32 - BENCH_MARGIN, WINDOW_WIDTH as f32),
-        ]);
+            ("the output meter", OUTPUT_METER.x - METER_REACH, OUTPUT_METER.x + METER_REACH),
+            ("the clip lamp", CLIP_LAMP.x - LAMP_REACH, CLIP_LAMP.x + LAMP_REACH),
+            ("On", BYPASS_X + CAPTION_OFFSET - 28.0, BYPASS_X + SWITCH),
+            ("Tuner", TUNER_X + CAPTION_OFFSET - 28.0, TUNER_X + SWITCH),
+        ]
+    }
+
+    #[test]
+    fn test_the_strip_controls_stand_clear_of_each_other_and_of_its_edges() {
+        let width = WINDOW_WIDTH as f32;
+        let mut row = vec![("the strip's edge", 0.0, BENCH_MARGIN)];
+        row.extend(strip_controls());
+        row.push(("the strip's edge", width - BENCH_MARGIN, width));
+        in_a_row(&row);
+        // The tuner's display takes the place of the preset display, so it is the same size
+        let tuner = (PRESET_X - PRESET_WIDTH / 2.0, PRESET_X + PRESET_WIDTH / 2.0);
+        let preset = strip_controls()[2];
+        assert!(preset.1 < tuner.0 && tuner.1 < preset.2);
         // Every one of them on the strip, from its top edge to the top of its lower edge
         let strip = BENCH_MARGIN..=BENCH_MARGIN + STRIP_HEIGHT - 5.0;
+        let knob = OUTPUT_RADIUS + TICKS;
         for y in [
             PRESET_CAPTION_Y - 7.0,
-            tape_bottom(PRESET_Y),
+            display_bottom(PRESET_Y),
             OUTPUT_KNOB.y - knob,
             INPUT_METER.y - METER_HEIGHT / 2.0,
             INPUT_METER.y + METER_CAPTION.y + 7.0,
@@ -1200,8 +1220,23 @@ mod tests {
     }
 
     #[test]
-    fn test_the_list_drops_out_under_its_tape() {
-        assert!(DROP_Y > tape_bottom(PRESET_Y), "the list covers the display it drops from");
+    fn test_the_strip_is_used_evenly_with_no_hole_in_the_middle() {
+        let controls = strip_controls();
+        let gaps: Vec<f32> = controls.windows(2).map(|pair| pair[1].1 - pair[0].2).collect();
+        let (least, most) =
+            gaps.iter().fold((f32::MAX, 0.0_f32), |(l, m), &g| (l.min(g), m.max(g)));
+        assert!(most - least < 12.0, "the gaps are not even: {gaps:?}");
+        // The ends are about as far from the strip's edges as the controls are from each other.
+        // The right end keeps a little more room: the logo stands there
+        let (left, right) =
+            (controls[0].1 - BENCH_MARGIN, WINDOW_WIDTH as f32 - BENCH_MARGIN - controls[8].2);
+        assert!((0.0..30.0).contains(&(right - left)), "{left} on the left, {right} on the right");
+        assert!(left < most && most < 160.0, "{left} {most}");
+    }
+
+    #[test]
+    fn test_the_list_drops_out_under_its_display() {
+        assert!(DROP_Y > display_bottom(PRESET_Y), "the list covers the display it drops from");
         assert!(BANK_X + reach(BANK_WIDTH) < PRESET_X - reach(PRESET_WIDTH));
     }
 

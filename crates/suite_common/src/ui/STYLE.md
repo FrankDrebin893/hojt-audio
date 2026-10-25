@@ -13,12 +13,12 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
   `footswitch`, `led`,
   `small_footswitch`, `rig_led` and `param_switch` (the switch and LED of a rig, bound to an on/off
   parameter), `stepper` (label tape with a chrome button at each end, for picking one of many),
-  `menu_stepper` (one whose tape drops a list open instead of stepping on) with `drop_panel`
+  `menu_stepper` (one whose tape drops a list open instead of stepping on) and `led_stepper` (the
+  same on an LED display) with `drop_panel`
   (the plate of tape rows that list, the amp's preset banks, is picked from) and `type_into`
   (a name typed on a row of it, the one place in the suite that takes typed text),
   `chrome_button` (one such button alone, for an action such as Save),
-  `tuner_display` (note name and a row of lamps on one strip of label tape) and `cents_meter`
-  (the lamps alone), `level_meter` (a column of ten lamps on label tape for a signal level, the
+  `cents_meter` (a row of lamps on label tape), `level_meter` (a column of ten lamps on label tape for a signal level, the
   lowest lit from -45 dBFS, the top one at full scale), `value_knob` and `value_switch` (a knob
   and a rig switch for a plain value that is not a parameter),
   `signal_lamp` (a small lamp with no switch, for what the sound is doing),
@@ -39,6 +39,10 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
   built from other sources than this checkout's. Made by `scripts/make-art.py`, a two-ink screen print
   (halftone, misregistration, paper dropout), or replaced by a painted or generated PNG at the same path
 - `hardware.rs` - Lit footswitch, indicator light, label tape, the paper of the name band
+- `led.rs` - The built-in LED display: a dark recessed window, a 5 x 7 dot-matrix readout in amber with
+  the unlit dots faintly showing, lit pixel by pixel and cached (`led_display`, `led_width`,
+  `LED_HEIGHT`, and the `tuner_display` on it). Readouts are capitals from the left; a glyph is
+  added in `glyph`, and a test holds that every character a name can hold has one
 - `art.rs` - `Motif`: what is painted on a mini pedal under its controls
 - `amp.rs` - The half stack of a rig: `amp_head` (handle, tolex, grille with piping and a stripe if it has
   them, panel with a printed line if it has one, jewel pilot lamp lit or not; `head_faces` says where its faces go)
@@ -93,6 +97,6 @@ controls, portrait) or `plugins/drums/src/editor.rs` (many controls, landscape) 
   landscape about 660 wide for more
 - **Clean factory paint:** no wear or dirt. Surfaces are lit, not flat: powder-coat flake, bevels, brushed and knurled metal come from `ui/raster.rs`, never from image files
 - **New shared pieces go in `suite_common::ui`,** not in a plugin's editor, so every plugin gets them
-- **Rigs** (a window of several pedals, as the Guitar Amp has): the rules for the strip, the stack, mini pedals, pedal art, slim pedals, a rearrangeable board, signal lamps, presets, file choices and the tuner are in `plugins/amp/AGENTS.md`, "Look: the rig". Read them before drawing a second rig
+- **Rigs** (a window of several pedals, as the Guitar Amp has): the rules for the strip, the stack, mini pedals, pedal art, equal pedals, a rearrangeable board, signal lamps, presets, file choices and the tuner are in `plugins/amp/AGENTS.md`, "Look: the rig". Read them before drawing a second rig
 
 After changing an editor, run it standalone (see `AGENTS.md`, Build Commands) and look at it before bundling.

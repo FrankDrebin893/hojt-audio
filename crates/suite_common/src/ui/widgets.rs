@@ -55,17 +55,10 @@ const DROP_BAR_GAP: f32 = 4.0;
 /// The most rows a column of a `drop_panel` shows at once: the rest are scrolled to
 pub const DROP_ROWS: usize = 7;
 
-// The tuner's display: the note in a cell at the left end of a strip of label tape, and
-// a row of lamps in the rest of it
-const TUNER_NOTE_WIDTH: f32 = 50.0;
+// The row of lamps of a `cents_meter`, on label tape
 const METER_PADDING: f32 = 8.0;
 // Lamps on each side of the middle one, which is lit alone while the note is in tune
 const METER_SIDE_LAMPS: usize = 8;
-// How much of its way from one lamp to the next the lit spot spends on both of them
-const METER_SHARED: f32 = 0.4;
-const METER_IN_TUNE_CENTS: f32 = 2.0;
-// The outermost lamp
-const METER_RANGE_CENTS: f32 = 50.0;
 
 fn polar(center: Pos2, radius: f32, angle: f32) -> Pos2 {
     Pos2::new(center.x + angle.cos() * radius, center.y + angle.sin() * radius)
@@ -436,6 +429,29 @@ pub fn menu_stepper(
     stepper_parts(ui, center, width, text, id_source)
 }
 
+/// A `menu_stepper` on an LED display (`led_display`) instead of label tape: `text` on a
+/// window `chars` characters wide centred on `center`, a chrome push button at each end, and
+/// a click on the window opens the whole list. `text` is cut off at the window's right end.
+/// The window is as high as every LED display, `LED_HEIGHT`.
+pub fn led_stepper(
+    ui: &mut Ui,
+    center: Pos2,
+    chars: usize,
+    text: &str,
+    id_source: &str,
+) -> Option<Pick> {
+    let width = super::led::led_width(chars);
+    let window = Rect::from_center_size(center, vec2(width, super::led::LED_HEIGHT));
+    let reach = width / 2.0 + STEPPER_BUTTON_GAP + STEPPER_BUTTON_RADIUS;
+    let clicked =
+        ui.interact(window, Id::new(("stepper", id_source, "tape")), Sense::click()).clicked();
+    let step = step_buttons(ui, center, reach, id_source)
+        .map(Pick::Step)
+        .or(clicked.then_some(Pick::Open));
+    super::led::led_display(ui.painter(), center, chars, text);
+    step
+}
+
 fn stepper_parts(
     ui: &mut Ui,
     center: Pos2,
@@ -778,37 +794,6 @@ pub fn type_into(ui: &Ui, text: &mut String, max_chars: usize) -> Option<Typed> 
     end
 }
 
-/// Display of a tuner: a strip of label tape `width` wide, centred on `center`, with the
-/// note's name at its left end and a `cents_meter` in the rest of it. Without a note the
-/// name is two dashes and the lamps are dark. As high as the tape of a `stepper`.
-pub fn tuner_display(
-    painter: &Painter,
-    center: Pos2,
-    width: f32,
-    note: Option<&str>,
-    cents: Option<f32>,
-) {
-    let tape = Rect::from_center_size(center, vec2(width, STEPPER_TAPE_HEIGHT));
-    painter.rect_filled(tape.translate(vec2(0.0, 2.0)), 2.0, SHADOW);
-    painter.rect_filled(tape, 2.0, TAPE);
-
-    let divider = tape.left() + TUNER_NOTE_WIDTH;
-    let text = note.unwrap_or("--").to_uppercase();
-    let galley = layout(painter, &text, mono(STEPPER_TEXT_SIZE), TAPE_TEXT, 0.1);
-    // The letter spacing also follows the last letter: leave it out of the centring
-    let text_width = galley.size().x - STEPPER_TEXT_SIZE * 0.1;
-    let text_x = tape.left() + (TUNER_NOTE_WIDTH - text_width) / 2.0;
-    painter.galley(Pos2::new(text_x, center.y - galley.size().y / 2.0), galley, TAPE_TEXT);
-    painter.line_segment(
-        [Pos2::new(divider, tape.top() + 4.0), Pos2::new(divider, tape.bottom() - 4.0)],
-        Stroke::new(1.0, KNOB_CAP_EDGE),
-    );
-
-    let lamps = Rect::from_min_max(Pos2::new(divider, tape.top()), tape.max)
-        .shrink2(vec2(METER_PADDING, 0.0));
-    meter_lamps(painter, lamps, cents);
-}
-
 /// How far a note is from in tune, as a row of lamps on a strip of label tape `width` wide,
 /// centred on `center`: flat to the left, sharp to the right, up to 50 cents. The lit spot
 /// moves like a needle, two lamps sharing it between their places. Within 2 cents the
@@ -881,30 +866,9 @@ fn meter_lamps(painter: &Painter, rect: Rect, cents: Option<f32>) {
     let middle_x = rect.center().x.round();
     let middle_y = rect.center().y.round();
 
-    // Where the lit spot is, in lamps from the middle. Out of tune it starts at the first
-    // lamp beside the middle one, so the middle one says in tune and nothing else
-    let in_tune = cents.is_some_and(|cents| cents.abs() <= METER_IN_TUNE_CENTS);
-    let spot = cents.filter(|_| !in_tune).map(|cents| {
-        let off = (cents.abs().min(METER_RANGE_CENTS) - METER_IN_TUNE_CENTS)
-            / (METER_RANGE_CENTS - METER_IN_TUNE_CENTS);
-        (1.0 + off * (side - 1.0)).copysign(cents)
-    });
-
     for lamp in -(METER_SIDE_LAMPS as i32)..=METER_SIDE_LAMPS as i32 {
         let middle = lamp == 0;
-        let brightness = if middle {
-            if in_tune {
-                1.0
-            } else {
-                0.0
-            }
-        } else {
-            // Fully lit until the spot is most of the way to the next lamp, then fading
-            // as that one comes up
-            spot.map_or(0.0, |spot| {
-                ((1.0 - (lamp as f32 - spot).abs()) / METER_SHARED).clamp(0.0, 1.0)
-            })
-        };
+        let brightness = super::led::needle_brightness(lamp, cents);
         let size = if middle {
             vec2(even(pitch * 0.8), even(rect.height() * 0.72))
         } else {
