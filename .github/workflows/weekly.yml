@@ -1,0 +1,37 @@
+name: Weekly
+
+# Once a week: checks the repository and the backlog and files what it finds as state:idea
+# issues (scripts/weekly-checks.sh). It needs no model and no key, only the built-in token.
+# It never approves, builds or merges anything. Run it by hand with "Run workflow"; tick
+# "dry run" to only print what it would file.
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Only print what would be filed
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  weekly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Weekly checks
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            scripts/weekly-checks.sh --dry-run
+          else
+            scripts/weekly-checks.sh
+          fi
