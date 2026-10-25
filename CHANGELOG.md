@@ -15,6 +15,10 @@ GitHub release.
 
 ### Guitar Amp
 
+- The window is about 30% wider (2535 x 650, from 1950 x 650). The strip across the top has the
+  room: its left controls stay where they were, the right ones stay at the right edge, and the
+  space opens between them. The pedals and the amp keep their size, with wider gaps between
+  them. Nothing in the sound changed
 - The big cream GUITAR AMP banner across the middle of the amp head is gone; the dials and the
   Amp and Mic row stand where they did, on the bare paint
 - A Fuzz pedal joins the board, in ember red with a geyser on it: thick, saturated fuzz that
