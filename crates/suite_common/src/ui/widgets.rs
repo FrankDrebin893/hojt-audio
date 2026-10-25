@@ -734,6 +734,22 @@ pub enum Typed {
     Cancelled,
 }
 
+/// Takes a name typed on the tape of a `stepper` centred on `center`, `width` wide: asks for
+/// the keyboard for it, as the row of a new bank does, then `type_into`. The caller draws the
+/// name (with its caret) on the stepper's tape.
+pub fn type_on_tape(
+    ui: &mut Ui,
+    center: Pos2,
+    width: f32,
+    text: &mut String,
+    max_chars: usize,
+) -> Option<Typed> {
+    let tape = Rect::from_center_size(center, vec2(width, STEPPER_TAPE_HEIGHT));
+    let response = ui.interact(tape, Id::new("typed-tape"), Sense::hover());
+    ask_for_keyboard(&response, text);
+    type_into(ui, text, max_chars)
+}
+
 /// Takes what was typed this frame into `text`: letters, backspace, enter and escape, and
 /// `max_chars` at most. For the one place in the suite where a name is typed (a new bank of
 /// presets, on its row of a `drop_panel`), so that no egui text widget is drawn.
