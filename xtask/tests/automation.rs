@@ -1,0 +1,89 @@
+//! The automation (AGENTS.md, "Automation and health") keeps the owner's approval: the approval
+//! list approves only for him and only open specs, `health.yml` writes only the `metrics` branch,
+//! and the skills the scheduled tasks run never approve and stop on `Pause automation`
+
+use std::path::Path;
+
+fn read(path: &str) -> String {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    std::fs::read_to_string(root.join(path)).unwrap().replace("\r\n", "\n")
+}
+
+/// The jobs of a workflow, each as its text from its name to the next job's
+fn jobs(yml: &str) -> Vec<String> {
+    let body = &yml[yml.find("\njobs:\n").expect("no jobs")..];
+    let mut jobs = Vec::new();
+    for line in body.lines().skip(2) {
+        if line.starts_with("  ") && !line.starts_with("   ") && line.ends_with(':') {
+            jobs.push(String::new());
+        }
+        if let Some(job) = jobs.last_mut() {
+            job.push_str(line);
+            job.push('\n');
+        }
+    }
+    jobs
+}
+
+#[test]
+fn test_only_the_owner_approves_through_the_list() {
+    let yml = read(".github/workflows/approve-specs.yml");
+    let approving: Vec<_> = jobs(&yml)
+        .into_iter()
+        .filter(|job| job.contains("approvals.sh approve") || job.contains("approvals.sh ticked"))
+        .collect();
+    assert_eq!(approving.len(), 2, "the ticks and the comment approve, nothing else");
+    for job in &approving {
+        let condition = &job[job.find("if:").expect("an approving job without a condition")
+            ..job.find("runs-on").unwrap()];
+        assert!(
+            condition.contains("== 'FrankDrebin893'"),
+            "a job approves without checking that the owner acted:\n{job}"
+        );
+    }
+    assert!(
+        !yml.contains("${{ github.event.comment.body }}\n        run"),
+        "a comment goes into a script only through env"
+    );
+}
+
+#[test]
+fn test_the_list_approves_only_open_specs_and_says_which_run() {
+    let script = read("scripts/approvals.sh");
+    assert!(script.contains(r#"!= *",state:spec,"*"#), "approves an issue that is not a spec");
+    assert!(script.contains("select(.state == \"OPEN\")"), "approves a closed issue");
+    assert!(script.contains("approved-by-run: ${RUN_URL"), "the comment `/next` checks is missing");
+    let next = read(".agents/skills/next/SKILL.md");
+    assert!(
+        next.contains("approved-by-run") && next.contains("triggering_actor"),
+        "`/next` does not check the run"
+    );
+}
+
+#[test]
+fn test_health_writes_only_the_metrics_branch() {
+    let yml = read(".github/workflows/health.yml");
+    let pushes: Vec<_> = yml.lines().filter(|l| l.contains("git push")).map(str::trim).collect();
+    assert_eq!(pushes, ["git push origin metrics"]);
+    for forbidden in ["state:approved", "gh pr ", "pull-requests: write"] {
+        assert!(!yml.contains(forbidden), "health.yml contains `{forbidden}`");
+    }
+}
+
+#[test]
+fn test_the_scheduled_skills_never_approve_and_can_be_paused() {
+    for skill in ["scout", "specwriter"] {
+        let text = read(&format!(".agents/skills/{skill}/SKILL.md"));
+        assert!(
+            text.contains("`Pause automation`"),
+            "/{skill} does not stop on `Pause automation`"
+        );
+        assert!(text.contains("Never"), "/{skill} does not say what it never does");
+        for line in text.lines().filter(|l| l.contains("state:approved")) {
+            assert!(
+                line.contains("Never") || line.contains("never"),
+                "/{skill} may approve: {line}"
+            );
+        }
+    }
+}

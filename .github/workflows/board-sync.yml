@@ -1,0 +1,30 @@
+name: Board sync
+
+# Keeps the State of an issue on the board "HØJT backlog" the same as its state:* label, so the
+# board never has to be moved by hand (scripts/board-state.sh). The board belongs to a user, which
+# the workflow's own token cannot reach: it needs the secret BOARD_TOKEN, a classic token with the
+# `project` scope. Without it this does nothing. Labels set by a workflow do not start this
+# (GitHub's rule), so scripts/approvals.sh moves the board itself.
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    if: startsWith(github.event.label.name, 'state:')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          GH_TOKEN: ${{ secrets.BOARD_TOKEN }}
+          ISSUE: ${{ github.event.issue.number }}
+          LABEL: ${{ github.event.label.name }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::notice::No BOARD_TOKEN secret, so the board is not moved"
+            exit 0
+          fi
+          scripts/board-state.sh "$ISSUE" "${LABEL#state:}"

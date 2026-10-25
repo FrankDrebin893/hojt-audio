@@ -1,0 +1,90 @@
+name: Health
+
+# Once a week: measures the project (scripts/health.sh --sound) and adds the line to
+# health/history.jsonl on the `metrics` branch, which nothing else writes and nothing merges.
+# `main` is never touched. The Monday digest and the dashboard read that file.
+on:
+  schedule:
+    - cron: "37 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      sound:
+        description: Also build the plugins and measure CPU and loudness
+        type: boolean
+        default: true
+
+concurrency:
+  group: health
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: read
+  actions: read
+
+env:
+  CARGO_TERM_COLOR: never
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libasound2-dev libgl-dev libjack-dev libx11-xcb-dev libxcb1-dev libxcb-dri2-0-dev libxcb-icccm4-dev libxcursor-dev libxkbcommon-dev libxcb-shape0-dev libxcb-xfixes0-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Measure
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SOUND: ${{ github.event_name == 'schedule' || inputs.sound }}
+        run: |
+          if [ "$SOUND" = "true" ]; then
+            scripts/health.sh --sound > "$RUNNER_TEMP/health.json"
+          else
+            scripts/health.sh > "$RUNNER_TEMP/health.json"
+          fi
+          jq . "$RUNNER_TEMP/health.json"
+
+      - name: Add it to the history
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch --depth 1 origin metrics; then
+            git worktree add "$RUNNER_TEMP/metrics" FETCH_HEAD
+            git -C "$RUNNER_TEMP/metrics" switch -c metrics
+          else
+            git worktree add --detach "$RUNNER_TEMP/metrics"
+            git -C "$RUNNER_TEMP/metrics" switch --orphan metrics
+          fi
+          cd "$RUNNER_TEMP/metrics"
+          mkdir -p health
+          cat "$RUNNER_TEMP/health.json" >> health/history.jsonl
+          git add health/history.jsonl
+          git commit -m "Health $(date -u +%Y-%m-%d)"
+          git push origin metrics
+
+      - name: Say it on the health issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          scripts/health-digest.sh "$RUNNER_TEMP/metrics/health/history.jsonl" > "$RUNNER_TEMP/digest.md"
+          cat "$RUNNER_TEMP/digest.md" >> "$GITHUB_STEP_SUMMARY"
+          gh label create health --repo "$REPO" --color 333333 --description "The weekly health digest (health.yml)" --force > /dev/null
+          n="$(gh issue list --repo "$REPO" --state open --label health --limit 1 --json number --jq '.[0].number // empty')"
+          if [ -z "$n" ]; then
+            gh issue create --repo "$REPO" --title "Project health" --label health \
+              --body "Every Monday \`health.yml\` measures the project and comments here. The history is \`health/history.jsonl\` on the \`metrics\` branch; what each number means is in \`scripts/README.md\`, Health."
+            n="$(gh issue list --repo "$REPO" --state open --label health --limit 1 --json number --jq '.[0].number')"
+          fi
+          gh issue comment "$n" --repo "$REPO" --body-file "$RUNNER_TEMP/digest.md"

@@ -11,6 +11,9 @@ state:approved|0e8a16|Rasmus said yes: ready to build
 state:building|fbca04|Being built on a branch
 state:review|5319e7|A pull request is open
 from:user|f9d0c4|Came from someone outside the project
+from:scout|c2e0c6|Filed by the Scout (/scout), from the market or our own plugins
+approval-list|0e8a16|The list of specs to approve (approve-specs.yml)
+health|333333|The weekly health digest (health.yml)
 kind:feature|a2eeef|Something new
 kind:bug|d73a4a|Something does not work
 kind:sound|d4a017|How something sounds
