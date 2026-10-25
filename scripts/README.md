@@ -79,7 +79,7 @@ issue "Project health". Nothing in it changes `main`.
 | `ci.main_pass_pct`, `main_red_now` | The last 30 finished `ci.yml` runs on `main`: share green, and whether the latest is red |
 | `ci.pr_pass_pct`, `pr_minutes_median` | The last 60 on pull requests: share green, median minutes a run takes |
 | `releases` | The last release, days since, and the entries under `Unreleased` in `CHANGELOG.md` |
-| `plugins.cpu` | Every `% of a core` line of the reports that time a block, with its number taken out of `what` so weeks compare |
+| `plugins.cpu` | Every `% of a core` line of the reports that time a block, and each amp model playing at 48 kHz from `amp_report`, with the numbers taken out of `what` so weeks compare |
 | `plugins.loudness` | Every render of `render_wavs`: integrated loudness (LUFS) and true peak (dB), by ffmpeg's `ebur128` |
 | `plugins.tests` | The number of tests in the workspace |
 

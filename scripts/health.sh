@@ -135,6 +135,14 @@ pad pad_report
 bells bells_report
 pitch_shifter quality_report'
 
+    # The amp prints its cost per amp model instead: "Klar       48000 Hz  playing   21.3 us   1.6 %   silent ..."
+    while read -r name pct; do
+        [[ -n "$name" ]] || continue
+        cpu="$(jq -c --arg w "$name playing at # kHz" --argjson v "$pct" \
+            '. + [{plugin: "amp", what: $w, core_pct: $v}]' <<< "$cpu")"
+    done < <(cargo test -q -p amp --release --locked amp_report -- --ignored --nocapture 2> /dev/null |
+        awk '$2 == "48000" && $3 == "Hz" && $4 == "playing" {print $1, $7}' || true)
+
     # Every render: integrated loudness and true peak
     rm -rf target/renders
     for plugin in amp drums bass pad bells pitch_shifter; do
