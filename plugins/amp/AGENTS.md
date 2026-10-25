@@ -328,8 +328,7 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
 
 - **Rigs:** a plugin made of several components (the Guitar Amp) is the one exception to one
   pedal per plugin. Its window is a `rig`: a `strip` across the top, a shallow enclosure in the
-  plugin's paint that carries the name band (across its middle only), model number, logo and
-  art, with a wing at each end for the plugin's own controls; and under it one line in signal
+  plugin's paint that carries the jack captions, model number, logo and art (no name band), with a wing at each end for the plugin's own controls; and under it one line in signal
   order: the gate, the pedals in front of the amp, the stack (the head standing on the cabinet,
   `STACK_WIDTH` wide), the pedals behind the cabinet. The pedals stand on the floor beside the
   cabinet, as tall as it. Each mini pedal has a paint of its own. On a strip, a head and mini
