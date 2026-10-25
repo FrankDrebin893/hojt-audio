@@ -15,6 +15,11 @@ GitHub release.
 
 ### Guitar Amp
 
+- Two more amps join the four at the end of the Amp stepper: Sang, a smooth, compressed
+  singing lead (model SG-60) with the mids pushed forward and the top rounded off, and Drøn (DR-80), a big, loose and
+  dark amp that lets the low end through and sags under hard playing. Each has a cabinet and a
+  head of its own (Sang deep blue with brass, Drøn dark green with dark wood) and two factory
+  presets (Sang: Solo, Kor; Drøn: Tung, Ørken). A project keeps the amp it had
 - A new preset is named when it is saved: Save makes the Preset display take a name, which is
   typed on its tape (enter or a second press of Save keeps it, escape drops it). The name is the
   file's name, with a number added if it is taken, and it is what the Preset display shows when

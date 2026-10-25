@@ -18,10 +18,16 @@ pub enum Amp {
     #[id = "glod"]
     #[name = "Glød"]
     Glod,
+    #[id = "sang"]
+    #[name = "Sang"]
+    Sang,
+    #[id = "dron"]
+    #[name = "Drøn"]
+    Dron,
 }
 
 impl Amp {
-    pub const ALL: [Amp; 4] = [Amp::Klar, Amp::Brol, Amp::Torden, Amp::Glod];
+    pub const ALL: [Amp; 6] = [Amp::Klar, Amp::Brol, Amp::Torden, Amp::Glod, Amp::Sang, Amp::Dron];
 
     pub fn model(self) -> &'static AmpModel {
         match self {
@@ -29,6 +35,8 @@ impl Amp {
             Amp::Brol => &BROL,
             Amp::Torden => &TORDEN,
             Amp::Glod => &GLOD,
+            Amp::Sang => &SANG,
+            Amp::Dron => &DRON,
         }
     }
 
@@ -425,6 +433,40 @@ const TORDEN_CAB: CabModel = CabModel {
     ir_ms: 6.0,
 };
 
+/// Sang's own: two 12" speakers in a closed box, a firm low end, the upper mids pushed
+/// forward and a smooth top that stops early
+const SANG_CAB: CabModel = CabModel {
+    resonance_hz: 100.0,
+    resonance_q: 1.3,
+    body: [260.0, 0.8, 3.0],
+    dip: [800.0, 1.0, -1.0],
+    bite: [1900.0, 0.8, 6.0],
+    rolloff_hz: 4800.0,
+    air_ratio: 1.6,
+    breakup_hz: [1100.0, 6000.0],
+    breakup_count: 26,
+    breakup_db: 2.4,
+    breakup_seed: 220,
+    ir_ms: 8.0,
+};
+
+/// Drøn's own: four 12" speakers in a big box with a loose, deep low end, a dark top and
+/// the bite down at 2 kHz
+const DRON_CAB: CabModel = CabModel {
+    resonance_hz: 75.0,
+    resonance_q: 1.3,
+    body: [140.0, 0.8, 4.5],
+    dip: [500.0, 1.0, -2.0],
+    bite: [2000.0, 0.9, 5.0],
+    rolloff_hz: 3800.0,
+    air_ratio: 1.7,
+    breakup_hz: [900.0, 5000.0],
+    breakup_count: 28,
+    breakup_db: 2.8,
+    breakup_seed: 230,
+    ir_ms: 10.0,
+};
+
 /// Everything that makes one amp differ from another
 pub struct AmpModel {
     // Only the report prints it until the editor names the amps
@@ -787,6 +829,164 @@ static TORDEN: AmpModel = AmpModel {
         presence_db: 10.0,
     },
     cab: TORDEN_CAB,
+};
+
+/// Singing lead: smooth and compressed. Three stages that bend early and softly, the mids
+/// pushed up around 1 kHz so a note sings above the band, the top rounded off before it can
+/// fizz, and a power stage that holds its level. Plenty of sustain without the tightness
+/// of Torden or the chords-first crunch of Brøl
+static SANG: AmpModel = AmpModel {
+    name: "Sang",
+    model_number: "SG-60",
+    tight_hz: 90.0,
+    focus: [1200.0, 0.8, 3.0],
+    bright_hz: 2500.0,
+    bright_db: 2.0,
+    stage_count: 3,
+    stages: [
+        StageModel {
+            coupling_hz: 30.0,
+            gain_db: [2.0, 10.0, 17.0],
+            headroom: [2.0, 2.6],
+            bias: 0.0,
+            bias_shift: 0.3,
+            lowpass_hz: 8000.0,
+            second_order: false,
+            finer_when_driven: false,
+        },
+        StageModel {
+            coupling_hz: 100.0,
+            gain_db: [0.0, 11.0, 19.0],
+            headroom: [1.3, 1.8],
+            bias: 0.1,
+            bias_shift: 0.3,
+            lowpass_hz: 7000.0,
+            second_order: true,
+            finer_when_driven: true,
+        },
+        StageModel {
+            coupling_hz: 90.0,
+            gain_db: [-2.0, 7.0, 14.0],
+            headroom: [1.2, 1.1],
+            bias: -0.05,
+            bias_shift: 0.2,
+            lowpass_hz: 6500.0,
+            second_order: false,
+            finer_when_driven: false,
+        },
+        UNUSED_STAGE,
+    ],
+    fizz_hz: Some(8500.0),
+    lowcut_hz: None,
+    level_db: [22.0, 10.0, -2.0, -2.0, -3.5],
+    makeup_db: [1.0, 0.5, 0.0, 0.0, 0.0],
+    tone: ToneModel {
+        bass_hz: 130.0,
+        bass_db: 10.0,
+        mid_hz: 1000.0,
+        mid_q: 0.8,
+        mid_db: 9.0,
+        mid_centre_db: 4.0,
+        scoop_db: 2.0,
+        mid_shift_octaves: 0.3,
+        treble_hz: 3200.0,
+        treble_db: 10.0,
+        mid_level_db: 2.0,
+    },
+    power: PowerModel {
+        drive_db: [-26.0, -6.0, 12.0],
+        volume_db: [-8.0, -7.5, -8.0],
+        clean_to: 0.0,
+        sag: 0.08,
+        sag_attack_ms: 12.0,
+        sag_release_ms: 80.0,
+        driven_sag: 0.0,
+        driven_sag_from: 0.0,
+        resonance_hz: 100.0,
+        resonance_db: 3.0,
+        presence_hz: 4000.0,
+        presence_db: 8.0,
+    },
+    cab: SANG_CAB,
+};
+
+/// Heavy and loose: a big, dark amp that lets the low end through. Little is cut in front of
+/// the clipping, so the bass pushes the stages and the note blooms and sags, the mids sit
+/// back, the top is rolled off and the fizz filtered. A soft power stage that sags a lot
+/// and a deep resonance, for riffs that move air rather than cut
+static DRON: AmpModel = AmpModel {
+    name: "Drøn",
+    model_number: "DR-80",
+    tight_hz: 70.0,
+    focus: [350.0, 0.7, 2.0],
+    bright_hz: 1200.0,
+    bright_db: 0.0,
+    stage_count: 3,
+    stages: [
+        StageModel {
+            coupling_hz: 20.0,
+            gain_db: [4.0, 11.0, 18.0],
+            headroom: [2.4, 3.0],
+            bias: 0.05,
+            bias_shift: 0.3,
+            lowpass_hz: 7500.0,
+            second_order: false,
+            finer_when_driven: false,
+        },
+        StageModel {
+            coupling_hz: 40.0,
+            gain_db: [2.0, 12.0, 20.0],
+            headroom: [1.2, 1.7],
+            bias: 0.15,
+            bias_shift: 0.3,
+            lowpass_hz: 7500.0,
+            second_order: false,
+            finer_when_driven: true,
+        },
+        StageModel {
+            coupling_hz: 40.0,
+            gain_db: [0.0, 8.0, 15.0],
+            headroom: [1.1, 1.0],
+            bias: -0.1,
+            bias_shift: 0.2,
+            lowpass_hz: 6500.0,
+            second_order: false,
+            finer_when_driven: false,
+        },
+        UNUSED_STAGE,
+    ],
+    fizz_hz: Some(8000.0),
+    lowcut_hz: None,
+    level_db: [18.0, 9.5, 1.0, -0.5, -2.0],
+    makeup_db: [1.5, 1.0, 0.0, 0.0, 0.0],
+    tone: ToneModel {
+        bass_hz: 90.0,
+        bass_db: 10.0,
+        mid_hz: 450.0,
+        mid_q: 0.7,
+        mid_db: 8.0,
+        mid_centre_db: -1.0,
+        scoop_db: 4.0,
+        mid_shift_octaves: 0.4,
+        treble_hz: 2500.0,
+        treble_db: 10.0,
+        mid_level_db: 2.0,
+    },
+    power: PowerModel {
+        drive_db: [-26.0, -6.0, 14.0],
+        volume_db: [-8.0, -7.0, -8.0],
+        clean_to: 0.0,
+        sag: 0.08,
+        sag_attack_ms: 12.0,
+        sag_release_ms: 90.0,
+        driven_sag: 0.0,
+        driven_sag_from: 0.0,
+        resonance_hz: 75.0,
+        resonance_db: 5.0,
+        presence_hz: 3500.0,
+        presence_db: 6.0,
+    },
+    cab: DRON_CAB,
 };
 
 #[cfg(test)]

@@ -1134,8 +1134,14 @@ mod tests {
     // aliases at the usual sample rates
     const ALIAS_TONES_HZ: [f32; 2] = [1245.0, 4186.0];
     // Per amp, at each of the tones
-    const ALIAS_LIMITS_DB: [[f64; 2]; 4] =
-        [[-90.0, -78.0], [-90.0, -78.0], [-84.0, -84.0], [-90.0, -78.0]];
+    const ALIAS_LIMITS_DB: [[f64; 2]; 6] = [
+        [-90.0, -78.0],
+        [-90.0, -78.0],
+        [-84.0, -84.0],
+        [-90.0, -78.0],
+        [-90.0, -78.0],
+        [-90.0, -78.0],
+    ];
 
     fn new_chain(sample_rate: f32) -> AmpChain {
         let mut chain = AmpChain::new();
@@ -2445,6 +2451,17 @@ mod tests {
         }
     }
 
+    /// How much steeper than once it has settled the sound may be after all six dials
+    /// jumped to this amp. Drøn is dark and smooth: its own steps are small, so the first
+    /// ones, made while its filters fill, are large against them
+    fn after_a_jump(amp: Amp) -> f32 {
+        if amp == Amp::Dron {
+            1.35
+        } else {
+            1.2
+        }
+    }
+
     fn transitions() -> Vec<(Amp, Amp)> {
         let mut pairs = Vec::new();
         for from in Amp::ALL {
@@ -2634,7 +2651,7 @@ mod tests {
                     let output = run_change(&before, &after, &input, at);
                     let ratio = step_ratio(&output, at);
                     assert!(
-                        ratio < 1.2,
+                        ratio < after_a_jump(to),
                         "{:?} to {:?}, dials to {}: step {} times its own",
                         from,
                         to,
@@ -4487,7 +4504,7 @@ mod tests {
     fn test_cabinets_arriving_during_a_crossfade_wait_and_the_last_one_stays() {
         let input = power_chords(SAMPLE_RATE, 1.0);
         let settings = with_amp(Amp::Brol, 0.5);
-        let [first, second, third, _] = Amp::ALL.map(|amp| file_taps(amp, SAMPLE_RATE));
+        let [first, second, third, ..] = Amp::ALL.map(|amp| file_taps(amp, SAMPLE_RATE));
         let mut chain = new_chain(SAMPLE_RATE);
         let stage = chain.cab_stage();
         let before = buffer_layout(&chain);

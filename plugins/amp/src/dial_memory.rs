@@ -192,7 +192,7 @@ mod tests {
         memory.leave(Amp::Klar, KLAR);
         memory.leave(Amp::Torden, TORDEN);
         let saved = memory.map(|stored| stored.clone());
-        assert_eq!(saved, vec![KLAR, DEFAULTS, TORDEN, DEFAULTS]);
+        assert_eq!(saved, vec![KLAR, DEFAULTS, TORDEN, DEFAULTS, DEFAULTS, DEFAULTS]);
 
         let restored = DialMemory::new(DEFAULTS);
         restored.set(saved);
