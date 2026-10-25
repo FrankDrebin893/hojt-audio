@@ -104,10 +104,10 @@ and where; `from:user` marks issues from outside the project.
   "somebody" or "needs to be manually reviewed". Names are for chat
 - The agent turns on auto-merge (and Auto-fix if supported by the agent platform) on every pull request
   it opens. A merge still needs CI to pass
-- `/next` works through the whole list: the session that runs it only picks and checks, and
-  every issue is built in a sub-session of its own, started with a fresh context. It starts the
-  next once the last is merged, and goes on until every approved issue is merged or waiting on
-  an answer from Rasmus
+- `/next` on its own works through the whole list: the session that runs it only picks, reviews
+  and merges, and every issue is built in a sub-session of its own, started with a fresh context.
+  It reviews each pull request itself, turns on auto-merge, and goes on to the next issue until
+  every approved issue is merged or waiting on an answer from Rasmus
 - Before a pull request of `/next`, a reviewer with a fresh context, given only the spec and
   the diff, scores the branch: fits the spec, ids untouched, tests that prove the change,
   stays in scope. Its verdict, accept or revise, goes in the pull request's description; on
