@@ -47,7 +47,7 @@ GitHub release.
   On. Nothing in the sound changed
 - The cabinet under the head looks as the cabinet that plays: each amp's own (Klar's ivory
   1x12, Glød's tweed 2x12, Brøl's black 4x12 with white piping and chrome corners, Torden's
-  4x12 with steel mesh and steel corners), each of the seven built-in cabinets with its own
+  4x12 with steel mesh and steel corners), each of the ten built-in cabinets with its own
   covering, grille and speakers, and a plain grey studio cabinet for a file of your own. A file
   that is gone or cannot be used shows the amp's own cabinet, which is what plays. The cabinet
   keeps its size and its controls stay where they are. Nothing in the sound changed
@@ -55,7 +55,7 @@ GitHub release.
 - Loading a preset or switching the amp is one step of the host's undo: in REAPER one Ctrl+Z
   puts the whole sound back, every dial, switch and the amp, instead of one knob at a time
 
-- Seven built-in cabinets to play any amp through, picked on the cabinet's Speaker display
+- Ten built-in cabinets to play any amp through, picked on the cabinet's Speaker display
   between the amp's own (`OWN`) and your own files, each with a sound of its own:
   - `1X10 SMALL`: one 10" speaker in a small box, hardly any low end and a boxy honk
   - `1X12 OPEN`: one 12" in an open back, soft lows and a glassy top
@@ -64,6 +64,9 @@ GitHub release.
   - `4X12 MID`: four 12"s in a closed box, old style, thumping lows and a thick honk
   - `4X12 TIGHT`: four 12"s in a closed box, modern, a tight thump and a sharp edge
   - `1X15 DEEP`: one 15", deep and round with a soft top
+  - `1X8 TINY`: one 8" in a small open box, no low end and a nasal, radio-like honk
+  - `2X12 PUNCH`: two 12"s in a closed box, a firm low end, a thick low-mid box and a bright sizzle
+  - `4X12 HEAVY`: four 12"s in a big closed box, a huge deep low end, a thick honk and a dark top
 
   A cabinet you pick stays when you change amps, and the Mic and Resonance dials work on it
 - Your own preset bank: the Save button beside the Preset display keeps the sound as it

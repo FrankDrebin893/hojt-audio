@@ -177,7 +177,7 @@ pub struct Speaker {
 /// The built-in cabinets, in the order the Speaker display steps through them. Each has a
 /// voice of its own, further apart than the amps' own cabinets are (`speaker_report`
 /// prints how far). New ones may go anywhere: a project stores the id, not the place
-pub static SPEAKERS: [Speaker; 7] = [
+pub static SPEAKERS: [Speaker; 10] = [
     Speaker { id: "1x10-small", name: "1X10 SMALL", cab: SMALL_CAB },
     Speaker { id: "1x12-open", name: "1X12 OPEN", cab: OPEN_ONE_CAB },
     Speaker { id: "2x12-open", name: "2X12 OPEN", cab: OPEN_TWO_CAB },
@@ -185,6 +185,9 @@ pub static SPEAKERS: [Speaker; 7] = [
     Speaker { id: "4x12-mid", name: "4X12 MID", cab: MID_CAB },
     Speaker { id: "4x12-tight", name: "4X12 TIGHT", cab: TIGHT_CAB },
     Speaker { id: "1x15-deep", name: "1X15 DEEP", cab: DEEP_CAB },
+    Speaker { id: "1x8-tiny", name: "1X8 TINY", cab: TINY_CAB },
+    Speaker { id: "2x12-punch", name: "2X12 PUNCH", cab: PUNCH_CAB },
+    Speaker { id: "4x12-heavy", name: "4X12 HEAVY", cab: HEAVY_CAB },
 ];
 
 /// One 10" speaker in a small open box: hardly any low end, a boxy honk around 700 Hz
@@ -304,6 +307,57 @@ const DEEP_CAB: CabModel = CabModel {
     breakup_db: 2.2,
     breakup_seed: 150,
     ir_ms: 8.0,
+};
+
+/// One 8" speaker in a small open box: no low end at all, a nasal honk around 900 Hz and a
+/// top that stops early. Tiny and lo-fi, for a radio-like lead
+const TINY_CAB: CabModel = CabModel {
+    resonance_hz: 220.0,
+    resonance_q: 0.7,
+    body: [900.0, 0.9, 5.0],
+    dip: [2000.0, 1.2, -4.0],
+    bite: [3000.0, 1.0, 2.0],
+    rolloff_hz: 3400.0,
+    air_ratio: 1.4,
+    breakup_hz: [1800.0, 5500.0],
+    breakup_count: 20,
+    breakup_db: 2.5,
+    breakup_seed: 180,
+    ir_ms: 5.0,
+};
+
+/// Two 12" speakers in a closed box: a firm, short low end, a thick low-mid box, the upper
+/// mids scooped out and a bright sizzle at 3.7 kHz. Punchy and cutting
+const PUNCH_CAB: CabModel = CabModel {
+    resonance_hz: 105.0,
+    resonance_q: 1.5,
+    body: [350.0, 0.8, 7.0],
+    dip: [1800.0, 1.0, -6.0],
+    bite: [3700.0, 0.8, 6.0],
+    rolloff_hz: 6200.0,
+    air_ratio: 1.2,
+    breakup_hz: [1100.0, 7000.0],
+    breakup_count: 26,
+    breakup_db: 2.6,
+    breakup_seed: 190,
+    ir_ms: 8.0,
+};
+
+/// Four 12" speakers in a big closed box: a huge, deep low end, a thick honk at 1.3 kHz and a
+/// dark top. Heavy and wide
+const HEAVY_CAB: CabModel = CabModel {
+    resonance_hz: 80.0,
+    resonance_q: 1.2,
+    body: [150.0, 0.8, 6.0],
+    dip: [600.0, 1.0, -2.0],
+    bite: [1300.0, 1.0, 6.0],
+    rolloff_hz: 3000.0,
+    air_ratio: 1.8,
+    breakup_hz: [1300.0, 5000.0],
+    breakup_count: 28,
+    breakup_db: 2.2,
+    breakup_seed: 200,
+    ir_ms: 10.0,
 };
 
 /// Klar's own: one 12" speaker in an open back. Light low end, a clear top
@@ -789,6 +843,9 @@ mod tests {
             "4x12-mid",
             "4x12-tight",
             "1x15-deep",
+            "1x8-tiny",
+            "2x12-punch",
+            "4x12-heavy",
         ] {
             assert!(ids.contains(&id), "{id}");
         }
