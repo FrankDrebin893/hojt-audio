@@ -36,6 +36,6 @@ pub use widgets::{
     cents_meter, chrome_button, drop_panel, footswitch, led, level_meter, lit_level_lamps,
     menu_stepper, nameplate_stepper, panel_caption, panel_knob, panel_knob_rect, param_knob,
     param_knob_with, param_switch, print_label, rig_led, signal_lamp, silk_frame, silk_label,
-    small_footswitch, stepper, tuner_display, type_into, value_knob, value_switch, Column, Pick,
-    Picked, Row, Step, Typed, LEVEL_MIN_DB,
+    small_footswitch, stepper, tuner_display, type_into, type_on_tape, value_knob, value_switch,
+    Column, Pick, Picked, Row, Step, Typed, LEVEL_MIN_DB,
 };

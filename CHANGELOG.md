@@ -20,6 +20,11 @@ GitHub release.
   dark amp that lets the low end through and sags under hard playing. Each has a cabinet and a
   head of its own (Sang deep blue with brass, Drøn dark green with dark wood) and two factory
   presets (Sang: Solo, Kor; Drøn: Tung, Ørken). A project keeps the amp it had
+- A new preset is named when it is saved: Save makes the Preset display take a name, which is
+  typed on its tape (enter or a second press of Save keeps it, escape drops it). The name is the
+  file's name, with a number added if it is taken, and it is what the Preset display shows when
+  the preset is loaded. Leave it empty and the preset is named after the one it started from, as
+  before. Saving over a preset you loaded is still one press
 - Two more microphones join Dynamic, Ribbon and Condenser at the end of the Mic Type stepper:
   Close (CLO), dark and close, with the low end pushed up, the top shut and a bite left in the
   upper mids, and Air (AIR), bright and thin, with the top opened wide and the lows let go. A

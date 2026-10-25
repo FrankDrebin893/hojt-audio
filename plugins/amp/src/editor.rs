@@ -7,9 +7,9 @@ use std::sync::{Arc, PoisonError};
 use suite_common::ui::{
     self, chrome_button, drop_panel, level_meter, menu_stepper, nameplate_stepper, panel_knob,
     param_knob, param_switch, print_label, rig_led, signal_lamp, silk_label, small_footswitch,
-    stepper, theme, tuner_display, type_into, Column, HeadFaces, MiniStyle, Motif, Ornament,
-    PedalStyle, Pick, Row, Step, Typed, BENCH_MARGIN, SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED,
-    SLIM_SWITCH,
+    stepper, theme, tuner_display, type_into, type_on_tape, Column, HeadFaces, MiniStyle, Motif,
+    Ornament, PedalStyle, Pick, Row, Step, Typed, BENCH_MARGIN, SLIM_KNOBS, SLIM_KNOB_RADIUS,
+    SLIM_LED, SLIM_SWITCH,
 };
 
 use crate::board::STACK_WIDTH;
@@ -85,6 +85,9 @@ const DROP_PRESET_CHARS: usize = 17;
 // The row at the end of the banks that makes one, and how long a name typed on it may be
 const NEW_BANK_ROW: &str = "+ New Bank";
 const NEW_BANK_CHARS: usize = 14;
+// How long a name typed for a new preset may be, and how much of it the tape has room for
+const NEW_PRESET_CHARS: usize = 24;
+const NEW_PRESET_SHOWN: usize = 12;
 
 // The right wing is placed from the window's right edge, so it stays at the end of the strip
 const RIGHT: f32 = WINDOW_WIDTH as f32;
@@ -451,6 +454,8 @@ pub(crate) struct View {
     bank: Bank,
     /// The list of banks and presets while it is dropped open
     menu: Option<Menu>,
+    /// The name being typed on the preset display's tape for a new preset, after Save
+    saving: Option<String>,
     /// What the preset display says instead of the name, and until when
     note: Option<(&'static str, f64)>,
     /// What the cabinet showed when the window was last drawn
@@ -550,8 +555,12 @@ impl PresetDisplay<'_> {
         silk_label(ui.painter(), origin + vec2(BANK_X, PRESET_CAPTION_Y), "Bank", 13.0);
         let bank_shown = user_presets::bank_name(&bank, BANK_NAME_CHARS);
         match menu_stepper(ui, origin + vec2(BANK_X, PRESET_Y), BANK_WIDTH, &bank_shown, "bank") {
-            Some(Pick::Open) => self.toggle_menu(view, &bank),
+            Some(Pick::Open) => {
+                view.saving = None;
+                self.toggle_menu(view, &bank);
+            }
             Some(Pick::Step(step)) => {
+                view.saving = None;
                 let banks = user_presets::banks(user_presets::presets_dir().as_deref());
                 let next = user_presets::neighbour_bank(&banks, &bank, step == Step::Next);
                 self.show_bank(&next, view);
@@ -560,16 +569,42 @@ impl PresetDisplay<'_> {
             None => {}
         }
 
-        let shown = match view.note {
-            Some((note, until)) if now < until => note.to_owned(),
-            _ => {
+        // A name typed for a new preset is taken before the tape is drawn, so the letter is
+        // on it in the same frame. Escape drops the name, and the sound is not saved
+        let typed = view.saving.as_mut().and_then(|name| {
+            type_on_tape(
+                ui,
+                origin + vec2(PRESET_X, PRESET_Y),
+                PRESET_WIDTH,
+                name,
+                NEW_PRESET_CHARS,
+            )
+        });
+        match typed {
+            Some(Typed::Done) => self.finish_save(&dir, factory, &user, view, now),
+            Some(Typed::Cancelled) => view.saving = None,
+            None => {}
+        }
+
+        let shown = match (&view.saving, view.note) {
+            (Some(name), _) => {
+                let skip = name.chars().count().saturating_sub(NEW_PRESET_SHOWN);
+                format!("{}_", name.chars().skip(skip).collect::<String>())
+            }
+            (None, Some((note, until))) if now < until => note.to_owned(),
+            (None, _) => {
                 view.note = None;
                 self.shown_name(factory, &user, &view.bank)
             }
         };
         match menu_stepper(ui, origin + vec2(PRESET_X, PRESET_Y), PRESET_WIDTH, &shown, "preset") {
+            // The tape clicked while a name is typed keeps it as it stands
+            Some(Pick::Open) if view.saving.is_some() => {
+                self.finish_save(&dir, factory, &user, view, now);
+            }
             Some(Pick::Open) => self.toggle_menu(view, &bank),
             Some(Pick::Step(step)) => {
+                view.saving = None;
                 view.note = None;
                 self.step(step == Step::Next, &bank, factory, &user, view, now);
             }
@@ -578,19 +613,56 @@ impl PresetDisplay<'_> {
 
         silk_label(ui.painter(), origin + vec2(SAVE_X, PRESET_CAPTION_Y), "Save", 13.0);
         if chrome_button(ui, origin + vec2(SAVE_X, PRESET_Y), "save-preset").clicked() {
-            // Nothing is written into the factory bank: a sound saved there goes into the
-            // presets folder, which is the bank showing from then on
-            let into = dir.clone().or_else(user_presets::presets_dir);
-            let saved = into.as_deref().is_some_and(|into| self.save(into, factory, &user, view));
-            if saved && dir.is_none() {
-                self.set_bank(user_presets::MINE);
+            if view.saving.is_some() {
+                // Pressed again, the name stands as it is: the mouse alone is enough
+                self.finish_save(&dir, factory, &user, view, now);
+            } else if dir.is_some() && !user.is_empty() {
+                // The preset loaded out of this bank is written over
+                self.finish_save_as(&dir, factory, &user, view, now, None);
+            } else {
+                // A new preset takes a name on the tape; nothing is written until it is kept
+                view.saving = Some(String::new());
+                view.note = None;
             }
-            view.note = Some((if saved { "SAVED" } else { "NOT SAVED" }, now + SAVE_NOTE_S));
         }
         // A note is only up for a while: draw once more when it is over
         if view.note.is_some() {
             ui.ctx().request_repaint_after(std::time::Duration::from_secs_f64(SAVE_NOTE_S));
         }
+    }
+
+    /// Keeps the name that was typed for a new preset and saves the sound under it
+    fn finish_save(
+        &self,
+        dir: &Option<std::path::PathBuf>,
+        factory: usize,
+        user: &str,
+        view: &mut View,
+        now: f64,
+    ) {
+        let name = view.saving.take().unwrap_or_default();
+        self.finish_save_as(dir, factory, user, view, now, Some(&name));
+    }
+
+    /// Saves the sound into the bank showing and says how it went. `named` is the name typed
+    /// for a new preset; none is the preset loaded being written over
+    fn finish_save_as(
+        &self,
+        dir: &Option<std::path::PathBuf>,
+        factory: usize,
+        user: &str,
+        view: &mut View,
+        now: f64,
+        named: Option<&str>,
+    ) {
+        // Nothing is written into the factory bank: a sound saved there goes into the
+        // presets folder, which is the bank showing from then on
+        let into = dir.clone().or_else(user_presets::presets_dir);
+        let saved = into.as_deref().is_some_and(|into| self.save(into, factory, user, named, view));
+        if saved && dir.is_none() {
+            self.set_bank(user_presets::MINE);
+        }
+        view.note = Some((if saved { "SAVED" } else { "NOT SAVED" }, now + SAVE_NOTE_S));
     }
 
     /// Drops the list open on the bank showing, or closes it if it is open already
@@ -773,15 +845,19 @@ impl PresetDisplay<'_> {
         self.set_user_preset(file);
     }
 
-    /// Writes the sound as it stands: over the player's preset loaded last, or, after a
-    /// factory preset, as a new one named after it. Returns whether it was written
-    fn save(&self, dir: &Path, factory: usize, user: &str, view: &mut View) -> bool {
+    /// Writes the sound as it stands: over the player's preset loaded last, or, as a
+    /// new one, under the name typed, or after the preset it started as with none. Returns whether it was written
+    fn save(
+        &self,
+        dir: &Path,
+        factory: usize,
+        user: &str,
+        named: Option<&str>,
+        view: &mut View,
+    ) -> bool {
         view.bank = Bank::read(self.params, Some(dir));
-        let file = if user.is_empty() {
-            user_presets::new_file_name(PRESETS[factory].name, &view.bank.files)
-        } else {
-            user.to_owned()
-        };
+        let file =
+            user_presets::save_file_name(named, user, PRESETS[factory].name, &view.bank.files);
         if user_presets::save(self.params, dir, &file).is_err() {
             return false;
         }
@@ -889,6 +965,7 @@ pub fn create(
             lamps: LampView::new(&lamp_reading),
             bank: Bank::default(),
             menu: None,
+            saving: None,
             note: None,
             cab_status: CabStatus::Fine,
         },
