@@ -31,7 +31,7 @@ const PILOT_RED: Color32 = rgb(214, 36, 28);
 const PILOT_AMBER: Color32 = rgb(236, 150, 40);
 
 /// The looks, in the order of `Amp::ALL`
-const LOOKS: [Look; 4] = [
+const LOOKS: [Look; 6] = [
     // Klar: ivory, a wheat cloth with a fine gold thread, a chrome panel and chrome knobs
     Look {
         head: HeadStyle {
@@ -102,6 +102,41 @@ const LOOKS: [Look; 4] = [
         },
         knobs: KnobCap::CreamChickenHead,
     },
+    // Sang: deep blue smooth vinyl piped in silver, a salt-and-pepper cloth, a brass panel and
+    // black chicken-heads
+    Look {
+        head: HeadStyle {
+            tolex: Tolex::Smooth,
+            covering: rgb(24, 40, 78),
+            piping: Some(rgb(200, 198, 190)),
+            grille: Grille::SaltPepper,
+            cloth: rgb(150, 148, 144),
+            cloth_stripe: None,
+            grille_height: GRILLE_HEIGHT,
+            panel: Plate::BrushedBrass,
+            print: INK,
+            panel_stripe: None,
+            jewel: PILOT_AMBER,
+        },
+        knobs: KnobCap::ChickenHead,
+    },
+    // Drøn: dark green coarse vinyl, black felt, a dark wood panel and gold-topped knobs
+    Look {
+        head: HeadStyle {
+            tolex: Tolex::Bronco,
+            covering: rgb(28, 52, 40),
+            piping: None,
+            grille: Grille::Felt,
+            cloth: rgb(30, 30, 32),
+            cloth_stripe: None,
+            grille_height: GRILLE_HEIGHT,
+            panel: Plate::DarkWood,
+            print: SILK,
+            panel_stripe: None,
+            jewel: PILOT_RED,
+        },
+        knobs: KnobCap::GoldTop,
+    },
 ];
 
 /// The look of `amp`'s head
@@ -146,7 +181,7 @@ const STEEL_MESH: Color32 = rgb(150, 150, 148);
 const SILVER_CLOTH: Color32 = rgb(172, 172, 168);
 
 /// The amps' own cabinets, in the order of `Amp::ALL`
-const OWN_CABS: [CabStyle; 4] = [
+const OWN_CABS: [CabStyle; 6] = [
     // Klar: one 12" in an open back, ivory with a wheat cloth like its head's
     cab(Tolex::Smooth, rgb(226, 216, 190), Grille::Wheat, rgb(196, 168, 112), Speakers::One12),
     // Brøl: four 12" in a closed box, black with a basketweave piped in white, chrome corners
@@ -162,6 +197,19 @@ const OWN_CABS: [CabStyle; 4] = [
     },
     // Glød: two 12" in an open back, tweed with an oxblood-brown cloth
     cab(Tolex::Tweed, rgb(198, 172, 122), Grille::Wheat, rgb(104, 44, 34), Speakers::Two12),
+    // Sang: two 12" in a closed box, deep blue with a salt-and-pepper cloth
+    CabStyle {
+        piping: Some(rgb(200, 198, 190)),
+        ..cab(
+            Tolex::Smooth,
+            rgb(24, 40, 78),
+            Grille::SaltPepper,
+            rgb(150, 148, 144),
+            Speakers::Two12,
+        )
+    },
+    // Drøn: four 12" in a big closed box, dark green with black felt
+    cab(Tolex::Bronco, rgb(28, 52, 40), Grille::Felt, rgb(30, 30, 32), Speakers::Four12),
 ];
 
 /// The built-in cabinets' looks, by the id of each in `SPEAKERS`
@@ -258,6 +306,8 @@ mod tests {
             (Amp::Glod, Tolex::Tweed, Plate::DarkWood, KnobCap::CreamChickenHead),
             (Amp::Brol, Tolex::Levant, Plate::BrushedBrass, KnobCap::GoldTop),
             (Amp::Torden, Tolex::Bronco, Plate::BlackAnodised, KnobCap::Fluted),
+            (Amp::Sang, Tolex::Smooth, Plate::BrushedBrass, KnobCap::ChickenHead),
+            (Amp::Dron, Tolex::Bronco, Plate::DarkWood, KnobCap::GoldTop),
         ];
         for (amp, tolex, panel, knobs) in expected {
             let look = look(amp);
@@ -265,16 +315,21 @@ mod tests {
         }
     }
 
-    // Each head is told from the others at a glance: by its covering, its grille, its panel
-    // and its knobs, each on its own
+    // Each head is told from the others at a glance: of its covering, its grille, its panel
+    // and its knobs, at least three differ from any other head's (there are only four of
+    // some, so with six amps one is shared now and then), and so does the colour of its covering
     #[test]
     fn test_no_two_heads_are_alike() {
         for (i, a) in LOOKS.iter().enumerate() {
             for b in &LOOKS[i + 1..] {
-                assert_ne!(a.head.tolex, b.head.tolex, "{a:?} and {b:?}");
-                assert_ne!(a.head.grille, b.head.grille, "{a:?} and {b:?}");
-                assert_ne!(a.head.panel, b.head.panel, "{a:?} and {b:?}");
-                assert_ne!(a.knobs, b.knobs, "{a:?} and {b:?}");
+                let differing = [
+                    a.head.tolex != b.head.tolex,
+                    a.head.grille != b.head.grille,
+                    a.head.panel != b.head.panel,
+                    a.knobs != b.knobs,
+                ];
+                assert!(differing.iter().filter(|&&d| d).count() >= 3, "{a:?} and {b:?}");
+                assert_ne!(a.head.covering, b.head.covering, "{a:?} and {b:?}");
             }
         }
     }
@@ -344,6 +399,8 @@ mod tests {
                 Some(Corners::Chrome),
             ),
             (Amp::Torden, Tolex::Bronco, Grille::Mesh, Speakers::Four12, Some(Corners::Steel)),
+            (Amp::Sang, Tolex::Smooth, Grille::SaltPepper, Speakers::Two12, None),
+            (Amp::Dron, Tolex::Bronco, Grille::Felt, Speakers::Four12, None),
         ];
         for (amp, tolex, grille, speakers, corners) in expected {
             let look = cab_look(amp, "", CabStatus::Fine);

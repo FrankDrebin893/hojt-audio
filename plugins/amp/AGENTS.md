@@ -5,9 +5,10 @@ reasons behind the amp's design are in `DESIGN.md` next to this file; open work 
 `plugin:amp` issues.
 
 A guitar amp with a full signal chain, all our own designs: own names, no real makers' names,
-trademarks or circuit names anywhere (code, comments, docs, commit messages). Four amps, each
+trademarks or circuit names anywhere (code, comments, docs, commit messages). Six amps, each
 with its own cabinet: Klar (clean, glassy), Brøl (mid-forward crunch), Torden (modern tight high
-gain), Glød (warm edge of breakup, between Klar and Brøl). They share the six dials.
+gain), Glød (warm edge of breakup, between Klar and Brøl), Sang (a smooth, compressed singing
+lead) and Drøn (a big, loose, dark amp with the low end let through). They share the six dials.
 
 - `src/lib.rs` - Plugin entry point, parameters. Reads them once per block into `AmpSettings`
 - `src/chain.rs` - `AmpChain`: the whole chain, dial smoothing, bypass crossfade, amp switching
@@ -237,7 +238,7 @@ How it behaves:
 | Fuzz (`fuzz_on`) | on / off | off | Fuzz pedal, either side of the amp |
 | Fuzz Amount (`fuzz_fuzz`) | 0.0-10.0 | 5.0 | Gain into the clipper, 26 to 56 dB |
 | Fuzz Tone (`fuzz_tone`) | 0.0-10.0 | 5.0 | Dark (a low-pass at 650 Hz) to bright (a high-pass at 1.1 kHz), the mids scooped in between |
-| Amp (`amp`) | Klar / Brøl / Torden / Glød | Brøl | Amp and its cabinet. Variant ids `klar`, `brol`, `torden`, `glod`. New amps go at the end: a project remembers its amp by its number |
+| Amp (`amp`) | Klar / Brøl / Torden / Glød / Sang / Drøn | Brøl | Amp and its cabinet. Variant ids `klar`, `brol`, `torden`, `glod`, `sang`, `dron`. New amps go at the end: a project remembers its amp by its number |
 | Gain, Bass, Mid, Treble, Presence, Master (`gain`, `bass`, `mid`, `treble`, `presence`, `master`) | 0.0-10.0 | 5.0 | The amp's dials |
 | Chorus, Phaser, Flanger, Tremolo (`chorus_on`, `phaser_on`, `flanger_on`, `trem_on`) | on / off | off | Modulation pedals |
 | Chorus Rate (`chorus_rate`) | 0.1-6 Hz | 0.8 Hz | Speed of the sweep, 7 to 12 ms |
@@ -349,6 +350,8 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   | Glød | lacquered tweed | oxblood-brown cloth, a gold stripe across it | dark wood, cream | cream chicken-head | none |
   | Brøl | black levant | salt-and-pepper basketweave | brushed brass, ink | gold top | white |
   | Torden | black bronco | perforated steel | black anodised, cream, one red line | black fluted | red |
+  | Sang | deep blue smooth | salt-and-pepper cloth | brushed brass, ink | black chicken-head | silver |
+  | Drøn | dark green bronco | black felt | dark wood, cream | gold top | none |
 
   The amp is picked on a `nameplate_stepper` in the middle of the grille: its name on a plate
   of the panel's metal, a chrome button each side. The panel holds, left to right, the input
@@ -367,6 +370,8 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   | `OWN`, Glød | lacquered tweed | oxblood-brown cloth | two 12" | none |
   | `OWN`, Brøl | black levant | basketweave | four 12" | white piping, chrome corners |
   | `OWN`, Torden | black bronco | perforated steel | four 12" | steel corners |
+  | `OWN`, Sang | deep blue smooth | salt-and-pepper cloth | two 12" | silver piping |
+  | `OWN`, Drøn | dark green bronco | black felt | four 12" | none |
   | `1X10 SMALL` | tan, smooth | wheat cloth | one 10", set high | none |
   | `1X12 OPEN` | cream levant | silver cloth | one 12" | none |
   | `2X12 OPEN` | grey levant | silver cloth | two 12" | none |

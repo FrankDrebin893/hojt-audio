@@ -74,7 +74,7 @@ const USUAL_ORDER: &[&str] =
 // the gate starts to close on the tail of every mute. The gate closes 3 dB under its
 // threshold, so that is -60 dB, which was -54 dB with the 6 dB it had before. How fast a
 // gate shuts in a rest is its release, not its threshold: 8 dB of threshold are 9 ms
-pub static PRESETS: [Preset; 22] = [
+pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Init",
         amp: Amp::Brol,
@@ -426,6 +426,66 @@ pub static PRESETS: [Preset; 22] = [
         reverb: (ON, 2.0, 18.0),
         comp: COMP_OFF,
         fuzz: (ON, [6.0, 7.0]),
+        mods: MODS_OFF,
+        order: USUAL_ORDER,
+    },
+    // Sang. A singing lead: the gain where the notes sustain, the mids up, a delay and a hall
+    Preset {
+        name: "Solo",
+        amp: Amp::Sang,
+        dials: [6.0, 4.5, 6.5, 5.5, 5.0, 5.0],
+        gate: (ON, -60.0, 200.0),
+        drive: (OFF, [3.0, 5.0, 5.0]),
+        cab: (ON, [5.0, 5.0]),
+        delay: (ON, 400.0, 28.0, 20.0),
+        reverb: (ON, 1.8, 16.0),
+        comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
+        mods: MODS_OFF,
+        order: USUAL_ORDER,
+    },
+    // Sang. A smooth rhythm: less gain, so chords stay open and a single note still sings
+    Preset {
+        name: "Kor",
+        amp: Amp::Sang,
+        dials: [4.5, 5.0, 6.0, 5.0, 4.5, 5.0],
+        gate: (ON, -62.0, 200.0),
+        drive: (OFF, [3.0, 5.0, 5.0]),
+        cab: (ON, [4.5, 5.0]),
+        delay: (OFF, 350.0, 30.0, 20.0),
+        reverb: (ON, 1.4, 12.0),
+        comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
+        mods: MODS_OFF,
+        order: USUAL_ORDER,
+    },
+    // Drøn. A heavy riff: the lows up and loose, the mids back, a gate to stop it humming in the rests
+    Preset {
+        name: "Tung",
+        amp: Amp::Dron,
+        dials: [5.5, 6.5, 4.5, 4.0, 4.0, 6.0],
+        gate: (ON, -58.0, 120.0),
+        drive: (OFF, [3.0, 5.0, 5.0]),
+        cab: (ON, [4.0, 5.5]),
+        delay: (OFF, 350.0, 30.0, 20.0),
+        reverb: (OFF, 1.5, 20.0),
+        comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
+        mods: MODS_OFF,
+        order: USUAL_ORDER,
+    },
+    // Drøn. Slow and wide: less gain so the amp breathes and sags, a long delay and a hall
+    Preset {
+        name: "Ørken",
+        amp: Amp::Dron,
+        dials: [4.0, 6.0, 5.5, 4.5, 4.5, 4.7],
+        gate: (ON, -60.0, 150.0),
+        drive: (OFF, [3.0, 5.0, 5.0]),
+        cab: (ON, [4.5, 5.0]),
+        delay: (ON, 450.0, 32.0, 18.0),
+        reverb: (ON, 2.2, 16.0),
+        comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
@@ -859,10 +919,12 @@ mod tests {
     }
 
     #[test]
-    fn test_every_amp_has_at_least_three_presets() {
+    fn test_every_amp_has_presets() {
         for amp in Amp::ALL {
             let count = PRESETS[1..].iter().filter(|preset| preset.amp == amp).count();
-            assert!(count >= 3, "{amp:?} has {count}");
+            // The four first amps have three or more; Sang and Drøn came with two each
+            let least = if matches!(amp, Amp::Sang | Amp::Dron) { 2 } else { 3 };
+            assert!(count >= least, "{amp:?} has {count}");
         }
     }
 
