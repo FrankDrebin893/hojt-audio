@@ -510,6 +510,41 @@ pub fn new_file_name(base: &str, taken: &[String]) -> String {
         .unwrap_or_default()
 }
 
+/// A file name for a new preset the player named `name`: the name filtered like a file name
+/// and `.preset` after it, with `2`, `3` and so on added while it is taken (letters in either
+/// case). Nothing when nothing is left of the name, which is a preset nobody named
+pub fn named_file_name(name: &str, taken: &[String]) -> Option<String> {
+    let name = plain_name(name);
+    if name.is_empty() {
+        return None;
+    }
+    let free = |file: &String| !taken.iter().any(|each| each.eq_ignore_ascii_case(file));
+    let plain = format!("{name}.{EXTENSION}");
+    if free(&plain) {
+        return Some(plain);
+    }
+    (2..).map(|number| format!("{name} {number}.{EXTENSION}")).find(free)
+}
+
+/// The file a save writes to. `named` is the name typed for a new preset: it names the file,
+/// and a name nothing is left of is one nobody gave, which is named after `started_as`, the
+/// preset the sound began as. With no name asked for, the preset loaded last (`user`) is
+/// written over, or a new one is made after `started_as` when none is loaded
+pub fn save_file_name(
+    named: Option<&str>,
+    user: &str,
+    started_as: &str,
+    taken: &[String],
+) -> String {
+    match named {
+        Some(name) => {
+            named_file_name(name, taken).unwrap_or_else(|| new_file_name(started_as, taken))
+        }
+        None if user.is_empty() => new_file_name(started_as, taken),
+        None => user.to_owned(),
+    }
+}
+
 /// Writes the sound as it stands to `file` in `dir`, making the folder if it is not there
 pub fn save(params: &GuitarAmpParams, dir: &Path, file: &str) -> std::io::Result<()> {
     if !user_cab::is_file_name(file) {
@@ -812,6 +847,28 @@ pub(crate) mod tests {
         assert!(bank_dir("/../secret").is_none());
         assert!(bank_dir(FACTORY).is_none());
         assert_eq!(bank_name("nonsense", 10), "FACTORY");
+    }
+
+    #[test]
+    fn test_a_named_preset_is_the_name_and_a_number_is_added_when_it_is_taken() {
+        let taken = vec!["Clean.preset".to_owned(), "clean 2.preset".to_owned()];
+        assert_eq!(named_file_name("Lead", &taken).as_deref(), Some("Lead.preset"));
+        assert_eq!(named_file_name(" Clean ", &taken).as_deref(), Some("Clean 3.preset"));
+        // Characters a file name cannot hold are left out, and nothing left is no name
+        assert_eq!(named_file_name("A/B:C?", &[]).as_deref(), Some("ABC.preset"));
+        assert_eq!(named_file_name("  ", &taken), None);
+        assert_eq!(named_file_name("*?", &taken), None);
+    }
+
+    #[test]
+    fn test_a_save_writes_over_the_preset_loaded_or_makes_one_named_or_not() {
+        let taken = vec!["Lead.preset".to_owned()];
+        assert_eq!(save_file_name(None, "Lead.preset", "Clean", &taken), "Lead.preset");
+        assert_eq!(save_file_name(None, "", "Clean", &taken), "Clean 2.preset");
+        assert_eq!(save_file_name(Some("Crunch"), "", "Clean", &taken), "Crunch.preset");
+        assert_eq!(save_file_name(Some("Lead"), "", "Clean", &taken), "Lead 2.preset");
+        // No name typed is today's behaviour
+        assert_eq!(save_file_name(Some(""), "", "Clean", &taken), "Clean 2.preset");
     }
 
     #[test]
