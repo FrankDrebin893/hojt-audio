@@ -405,10 +405,14 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   letters, numbers or cream triangles in it, and nothing that moves. A new paint goes in
   `PEDAL_PAINTS`, where tests hold it to cream print reading on it and to being clearly apart
   from the others; a new motif is drawn in `art.rs` for the layout of its pedal
-- **Slim pedals:** a pedal of a rig with two knobs can be a `slim_pedal`, 110 px wide: the
-  LED where a trio's upper left knob is, the two radius-17 knobs upper right and lower left
-  (`SLIM_LED`, `SLIM_KNOBS`), the switch where every pedal has it. Its title is size 21, so
-  seven letters fit. In a row with wide pedals the LEDs and switches line up
+- **Equal pedals:** every pedal of the row is `PEDAL_WIDTH` (180 px) wide; only the stack has its
+  own width. The gap between neighbours is what is left of the window after the margin at each
+  end (`GAP` in `board.rs`, a test holds it even and every pedal as wide as the next). A pedal
+  with two knobs is either a pair side by side (radius 24) or on a diagonal (`SLIM_LED`,
+  `SLIM_KNOBS`, `SLIM_SWITCH`): the LED where a trio's upper left knob is, the two radius-17
+  knobs upper right and lower left, as far from the middle as a pair's. The narrow motifs
+  (`art.rs`, `NARROW_ART`) stand in the middle of the wider face and their paint runs out to
+  both edges. In a row the LEDs and switches line up
 - **A board that can be rearranged:** a pedal is moved by dragging it by its title
   (`title_grip`); while it is held it is drawn `lifted` and last, the others glide to make
   room, and it lands in the nearest place it may have. No arrows, menus or lists. A pedal
@@ -421,6 +425,12 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   not print: silk triangles still mean signal direction at the jacks only
 - **An order is never a parameter.** Keep it in a `#[persist]` field, as ids, like a preset
   or a file choice
+- **The strip's row:** with no name band, the strip's controls stand in one row across it with
+  the same gap between neighbours (`STRIP_GAP`): the input meter, the Bank and Preset displays,
+  Save, the output knob, the output meter, the Clip lamp, On and Tuner. Each one's place is
+  worked from the end of the one before it, and a test holds the gaps even, the controls clear
+  of each other and of the edges, and the right end a little further from its edge (the logo
+  stands there)
 - **Level meters:** a signal level (the amp's input and output) is a `level_meter`, a column
   of lamps on label tape with a `silk_label` caption under it, in a wing of the strip. Same atomics and repaint rule as the signal lamps
 - **Signal lamps:** a light that follows the sound and not a switch (gate open, output clipping)
@@ -428,17 +438,26 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   control it belongs to. An LED above or beside a switch only ever says that the switch is on.
   Lamps are read from atomics the audio thread writes once per block; the editor asks for a
   repaint only when one changes, 20 times a second at most
-- **Pick one of many (presets):** a `stepper` with a `silk_label` caption above it, in the left
+- **The sound bank's LED display:** the Bank and Preset displays are built-in LED displays
+  (`suite_common::ui::led`): a dark recessed window with a dot-matrix readout in amber, the
+  unlit dots faintly there, lit pixel by pixel like the rest of `raster` (no image files). It
+  is `LED_HEIGHT` high and `led_width(chars)` wide: Bank holds 10 characters, Preset 16. The
+  text is capitals from the left, so a name being typed grows to the right, with the `_` caret
+  after it; what does not fit is cut. A character without a 5 x 7 glyph of its own is drawn as
+  a box, and a test holds that every letter, digit and sign a name can hold has one. The
+  tuner's display is the same window
+- **Pick one of many (presets):** a `led_stepper` (a stepper on an LED display) with a
+  `silk_label` caption above it, in the left
   wing of the strip. Step arrows are
   engraved in chrome buttons; silk triangles on the paint mean signal direction at the jacks only.
-  Names have at most 14 characters and are our own words. A trailing `*` on the tape means a
+  Names have at most 15 characters and are our own words. A trailing `*` on the display means a
   control was moved since loading. The bank the presets come from is picked the same way, on a
-  `menu_stepper` 120 px wide left of the preset display, its `Bank` caption on the preset
-  caption's line and its tape on the preset tape's line. While the tuner is on neither is drawn
+  `led_stepper` of 10 characters left of the preset display, its `Bank` caption on the preset
+  caption's line and its window on the preset window's line. While the tuner is on neither is drawn
 - **A list that drops open** is for the preset banks and nothing else, where stepping through
   every preset one at a time is too slow: everywhere else a choice is stepped through, with no
   dropdowns, lists or pop-ups. It is hardware, not a menu. `drop_panel` drops a dark plate with
-  a chrome edge from under the tape of a `menu_stepper`, its columns under cream `display`
+  a chrome edge from under the window of a `led_stepper`, its columns under cream `display`
   captions and every row a strip of label tape in `mono` capitals. The row in use carries a lit
   lamp at its left, the row under the pointer lightens, and a column of more than seven rows
   shows seven, with a chrome bar at its right and the wheel to reach the others. It is drawn
@@ -446,8 +465,8 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   click while it is open, and it closes on a pick, on a click outside it or on escape. No bar to
   drag, no icons, and no widget of egui's own
 - **Typed text** is taken in two places only: the name of a new preset bank, on its row of that
-  list, and the name of a new preset, on the Preset display's tape after Save
-  (`type_on_tape`, 24 letters, the last 12 shown). Both are `type_into`: the letters on the tape with a `_` after them,
+  list, and the name of a new preset, on the Preset display after Save
+  (`type_on_tape`, 24 letters, the last 15 shown). Both are `type_into`: the letters on the tape or display with a `_` after them,
   enter to keep it and escape to drop it. Nothing else in the suite is typed, and egui's text widget is never drawn.
   Nothing ever waits for the keyboard: a second click on the row (or a second press of Save) keeps the name as it stands,
   and an empty name is one the player did not give, so the mouse alone is enough
@@ -480,7 +499,7 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
 - **A file choice is never a parameter.** Keep the file name (not the path) in a `#[persist]` field
 - **Tuner:** a `small_footswitch` with `rig_led` and a `silk_label` at the end of the strip's
   right wing, beside the On switch. While it is on, a
-  `tuner_display` under its own caption takes the place of the preset `stepper`: note name in
-  `mono` capitals at the left, 17 lamps, flat to the left and sharp to the right, the larger
-  middle lamp lit alone within 2 cents. Lamps are `LED_ON` and `LED_OFF` on `TAPE`; no needles,
-  numbers or other colours. The editor repaints continuously only while the tuner is on
+  `tuner_display` (an LED display, `ui::led`) under its own caption takes the place of the
+  preset display: the note name in dots at the left, a needle of 17 lamps, flat to the left
+  and sharp to the right, the tall middle lamp lit alone within 2 cents. All in the display's
+  amber; no numbers or other colours. The editor repaints continuously only while the tuner is on

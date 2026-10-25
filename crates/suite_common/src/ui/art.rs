@@ -7,12 +7,15 @@
 //!
 //! Places are in pixels from the top left corner of the face. A motif is drawn for one
 //! layout of controls: 180 px wide with three knobs, with two, with the cabinet's stepper,
-//! or `SLIM_PEDAL_WIDTH` wide.
+//! or the narrow one with two knobs on a diagonal, drawn for a face `NARROW_ART` wide: on a wider
+//! face it stands in the middle and its paint runs out to both edges.
 
 use nih_plug_egui::egui::{vec2, Color32, Painter, Pos2, Rect, Shape, Stroke};
 
 use super::theme::{shade, SILK};
 
+// How wide a face the narrow motifs were drawn for
+const NARROW_ART: f32 = 110.0;
 // Plain paint between the art and the edge of the face. Also keeps it off the round corners
 const MARGIN: f32 = 5.0;
 // How much darker than the paint the second coat is
@@ -52,7 +55,12 @@ pub enum Motif {
 /// Paints `motif` on the top face `face` of a pedal painted `paint`. Call it over the paint
 /// and under the screws, the title and the controls
 pub(super) fn motif(painter: &Painter, face: Rect, paint: Color32, motif: Motif) {
-    let print = Print { painter: painter.with_clip_rect(face.shrink(MARGIN)), face, paint };
+    let narrow = matches!(
+        motif,
+        Motif::Isobars | Motif::Moons | Motif::Swell | Motif::Aurora | Motif::Rain | Motif::Geyser
+    );
+    let shift = if narrow { ((face.width() - NARROW_ART) / 2.0).max(0.0) } else { 0.0 };
+    let print = Print { painter: painter.with_clip_rect(face.shrink(MARGIN)), face, paint, shift };
     match motif {
         Motif::Plain => {}
         Motif::Sluice => sluice(&print),
@@ -75,15 +83,24 @@ struct Print {
     painter: Painter,
     face: Rect,
     paint: Color32,
+    /// How far the art is moved in from the left edge of the face: what is drawn to the
+    /// edges of its own width runs on out to the face's by `bleed`
+    shift: f32,
 }
 
 impl Print {
     fn at(&self, (x, y): (f32, f32)) -> Pos2 {
-        self.face.left_top() + vec2(x, y)
+        self.face.left_top() + vec2(x + self.shift, y)
     }
 
+    /// The width the art is drawn for
     fn width(&self) -> f32 {
-        self.face.width()
+        self.face.width() - 2.0 * self.shift
+    }
+
+    /// How far past its own width the paint of the art has to run to reach the face's edge
+    fn bleed(&self) -> f32 {
+        self.shift
     }
 
     fn height(&self) -> f32 {
@@ -113,7 +130,7 @@ impl Print {
 
     /// Everything from `top` down, across the face
     fn ground(&self, top: f32, color: Color32) {
-        self.rect((0.0, top), (self.width(), self.height()), color);
+        self.rect((-self.bleed(), top), (self.width() + self.bleed(), self.height()), color);
     }
 
     fn path(&self, points: &[(f32, f32)], width: f32, color: Color32) {
@@ -237,14 +254,14 @@ fn timber(print: &Print) {
 
 fn swell(print: &Print) {
     let coat = print.coat();
-    let width = print.width();
+    let (width, bleed) = (print.width(), print.bleed());
     // The sea: a thick wave is its surface
     print.ground(262.0, coat);
-    print.path(&wave((-4.0, 258.0), width + 4.0, 5.0, 27.0, 0.0), 8.0, coat);
+    print.path(&wave((-4.0 - bleed, 258.0), width + 4.0 + bleed, 5.0, 27.0, 0.0), 8.0, coat);
     // Deeper water under it
     let deep = shade(print.paint, COAT * 1.5);
     print.ground(288.0, deep);
-    print.path(&wave((-4.0, 284.0), width + 4.0, 5.0, 27.0, 0.5), 8.0, deep);
+    print.path(&wave((-4.0 - bleed, 284.0), width + 4.0 + bleed, 5.0, 27.0, 0.5), 8.0, deep);
     // Three voices, out of step
     for (y, start) in [(158.0, 0.0), (172.0, 0.33), (186.0, 0.66)] {
         print.path(&wave((70.0, y), width, 4.0, 20.0, start), LINE, SILK);
@@ -254,7 +271,7 @@ fn swell(print: &Print) {
 fn aurora(print: &Print) {
     // One sweep from the lower left up to the right
     let (from, pull_from, pull_to, to) =
-        ((-10.0, 262.0), (40.0, 250.0), (60.0, 150.0), (120.0, 116.0));
+        ((-10.0 - print.bleed(), 262.0), (40.0, 250.0), (60.0, 150.0), (120.0, 116.0));
     let sweep: Vec<_> = (0..=24)
         .map(|step| {
             let t = step as f32 / 24.0;
@@ -292,10 +309,12 @@ fn aurora(print: &Print) {
 }
 
 fn rain(print: &Print) {
-    let right = print.width() + 10.0;
+    let (left, right) = (-10.0 - print.bleed(), print.width() + 10.0 + print.bleed());
+    // The bands keep the slope they have on the narrow face
+    let rise = 46.0 * (right - left) / (print.width() + 20.0);
     for top in [196.0, 252.0, 308.0] {
         print.fill(
-            &[(-10.0, top), (right, top - 46.0), (right, top - 24.0), (-10.0, top + 22.0)],
+            &[(left, top), (right, top - rise), (right, top - rise + 22.0), (left, top + 22.0)],
             print.coat(),
         );
     }

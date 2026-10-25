@@ -31,20 +31,18 @@ const MINI_SCREW_SCALE: f32 = 0.75;
 // Centre of the title, from the top of the mini pedal
 const MINI_TITLE_Y: f32 = 30.0;
 const MINI_TITLE_SIZE: f32 = 24.0;
-// The longest titles of slim pedals have seven letters
-const SLIM_TITLE_SIZE: f32 = 21.0;
 // The part of a mini pedal's top face that it is moved by: its title, between the screws
 const GRIP_TOP: f32 = 12.0;
 const GRIP_BOTTOM: f32 = 48.0;
 const GRIP_INSET: f32 = 6.0;
 
-/// Width of a `slim_pedal`
-pub const SLIM_PEDAL_WIDTH: f32 = 110.0;
-/// On a slim pedal, from the centre of its top edge: the LED, the two knobs and the switch.
-/// The heights are those of a mini pedal with three knobs, so a row of both lines up. The
-/// LED has the place of the upper left knob
-pub const SLIM_LED: Vec2 = vec2(-33.0, 71.0);
-pub const SLIM_KNOBS: [Vec2; 2] = [vec2(19.0, 71.0), vec2(-19.0, 172.0)];
+/// On a mini pedal with two knobs one above the other, from the centre of its top edge: the
+/// LED, the two knobs and the switch. The knobs stand on a diagonal, the upper one right and
+/// the lower one left, as far from the middle as the pair of a pedal beside them. The heights
+/// are those of a mini pedal with three knobs, so a row of both lines up. The LED has the
+/// place of the upper left knob
+pub const SLIM_LED: Vec2 = vec2(-45.0, 71.0);
+pub const SLIM_KNOBS: [Vec2; 2] = [vec2(45.0, 71.0), vec2(-45.0, 172.0)];
 pub const SLIM_KNOB_RADIUS: f32 = 17.0;
 pub const SLIM_SWITCH: Vec2 = vec2(0.0, 273.0);
 
@@ -153,16 +151,10 @@ pub fn strip(ui: &Ui, rect: Rect, style: &PedalStyle) -> Rect {
 /// its title printed at the top. No band, model number or logo: the head carries those.
 /// Returns the top face.
 pub fn mini_pedal(ui: &Ui, rect: Rect, style: &MiniStyle) -> Rect {
-    titled_box(ui.painter(), rect, style, MINI_TITLE_SIZE)
+    titled_box(ui.painter(), rect, style)
 }
 
-/// Mini pedal `SLIM_PEDAL_WIDTH` wide, for two knobs one above the other (`SLIM_KNOBS`).
-/// Its title is a little smaller, so seven letters fit. Returns the top face.
-pub fn slim_pedal(ui: &Ui, rect: Rect, style: &MiniStyle) -> Rect {
-    titled_box(ui.painter(), rect, style, SLIM_TITLE_SIZE)
-}
-
-fn titled_box(painter: &Painter, rect: Rect, style: &MiniStyle, title_size: f32) -> Rect {
+fn titled_box(painter: &Painter, rect: Rect, style: &MiniStyle) -> Rect {
     let top = painted_box(painter, rect, style.paint, MINI_CORNER_RADIUS);
     // The print, then the art, go under the screws, the title and the controls
     super::artwork::paint_art(painter, top, MINI_CORNER_RADIUS, super::artwork::MINI);
@@ -173,7 +165,7 @@ fn titled_box(painter: &Painter, rect: Rect, style: &MiniStyle, title_size: f32)
         Pos2::new(top.center().x, top.top() + MINI_TITLE_Y),
         Align2::CENTER_CENTER,
         &style.title.to_uppercase(),
-        display(title_size),
+        display(MINI_TITLE_SIZE),
         SILK,
         0.16,
     );

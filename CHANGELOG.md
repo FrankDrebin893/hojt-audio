@@ -15,6 +15,16 @@ GitHub release.
 
 ### Guitar Amp
 
+- The window's look follows its new width. Every pedal in the row is now the same size, so the
+  row fills the window with an even gap between pedals and the cables between them, and the
+  narrow pedals (Comp, Chorus, Phaser, Flanger, Tremolo, Fuzz) are as wide as the rest, their
+  knobs and pictures spread to fit. The strip across the top is used evenly: the meters, the
+  Bank and Preset displays, Save, Output, Clip, On and Tuner stand in one row with the same gap
+  between them, and no big empty space is left in the middle
+- The Bank and Preset displays are now built-in LED displays: a dark recessed window with
+  amber dot-matrix letters, and the unlit dots faintly showing. They hold more (up to 15
+  letters of a preset's name), and the name you type after Save appears in the same display with
+  its caret. The tuner is on the same kind of display, with its needle of lamps in amber
 - Two more amps join the four at the end of the Amp stepper: Sang, a smooth, compressed
   singing lead (model SG-60) with the mids pushed forward and the top rounded off, and Drøn (DR-80), a big, loose and
   dark amp that lets the low end through and sags under hard playing. Each has a cabinet and a

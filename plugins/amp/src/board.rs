@@ -9,7 +9,7 @@
 //! or gliding to its place.
 
 use nih_plug_egui::egui::{vec2, Id, Painter, Pos2, Rect, Ui};
-use suite_common::ui::{self, BENCH_MARGIN, PLUG_Y, SLIM_PEDAL_WIDTH};
+use suite_common::ui::{self, BENCH_MARGIN, PLUG_Y};
 
 use crate::editor::{Jacks, Pedals, GATE_SLOT, PEDAL_HEIGHT, PEDAL_TOP, PEDAL_WIDTH, STACK_TOP};
 use crate::order::{self, ChainOrder};
@@ -18,14 +18,12 @@ use crate::order::{self, ChainOrder};
 const PEDALS: usize = 11;
 /// The head and the cabinet it stands on
 pub const STACK_WIDTH: f32 = 450.0;
-// The strip has the room: the row below it keeps its sizes and spreads its gaps to fill it
 pub const WINDOW_WIDTH: u32 = 2535;
 /// The space between two neighbours of the row: what is left of the window, after a margin at
-/// each end, four pedals of 180, six of 110 and the stack, shared by the ten gaps
-const GAP: f32 = (WINDOW_WIDTH as f32
-    - 2.0 * BENCH_MARGIN
-    - (4.0 * PEDAL_WIDTH + 6.0 * SLIM_PEDAL_WIDTH + STACK_WIDTH))
-    / (PEDALS - 1) as f32;
+/// each end, ten pedals of one width and the stack, shared by the ten gaps
+const GAP: f32 =
+    (WINDOW_WIDTH as f32 - 2.0 * BENCH_MARGIN - ((PEDALS - 1) as f32 * PEDAL_WIDTH + STACK_WIDTH))
+        / (PEDALS - 1) as f32;
 
 // Share of its way to its place that a pedal making room goes in a second, were it to keep its speed
 const GLIDE_PER_SECOND: f32 = 18.0;
@@ -94,7 +92,6 @@ impl Pedal {
     fn width(self) -> f32 {
         match self.slot() {
             None => STACK_WIDTH,
-            Some(slot) if Pedals::is_slim(slot) => SLIM_PEDAL_WIDTH,
             Some(_) => PEDAL_WIDTH,
         }
     }
@@ -405,7 +402,13 @@ mod tests {
         let lefts = order.places();
         let last = order.pedals[PEDALS - 1];
         assert_eq!(lefts[last as usize] + last.width() + BENCH_MARGIN, WINDOW_WIDTH as f32);
-        const { assert!(GAP > BENCH_MARGIN) };
+        const { assert!(GAP > BENCH_MARGIN && GAP < PEDAL_WIDTH / 4.0) };
+        // Every pedal is as wide as the next
+        for pedal in order.pedals {
+            if pedal != Pedal::Stack {
+                assert_eq!(pedal.width(), PEDAL_WIDTH);
+            }
+        }
         assert_eq!(lefts[Pedal::Gate as usize], BENCH_MARGIN);
         // The same gap between every two pieces, the stack among them
         for pair in order.pedals.windows(2) {
