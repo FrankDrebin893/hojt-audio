@@ -448,7 +448,7 @@ impl Bass {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use suite_common::measure::{brightness, peak, pitch_hz, rms};
+    use suite_common::measure::{brightness, peak, pitch_hz, rms, tone_level};
 
     const SAMPLE_RATE: f32 = 48000.0;
 
@@ -471,6 +471,71 @@ mod tests {
 
     fn pitch(samples: &[f32], sample_rate: f32) -> f32 {
         pitch_hz(samples, sample_rate, 25.0, 500.0)
+    }
+
+    /// One note from the string alone: the voice's settings with Sub at 0
+    fn string_alone(voice: Voice, midi: u8, velocity: f32, seconds: f32) -> Vec<f32> {
+        let mut bass = bass(voice, SAMPLE_RATE);
+        bass.set(&BassSettings { sub: 0.0, ..voice.settings() });
+        bass.note_on(midi, velocity);
+        render(&mut bass, SAMPLE_RATE, seconds)
+    }
+
+    // What a partial is measured over: 170 ms, which tells apart the partials of a low E
+    const WINDOW: usize = 8192;
+
+    /// The partial of a note nearest 1.5 kHz, where a string's top is heard
+    fn top_partial_hz(freq_hz: f32) -> f32 {
+        (1500.0 / freq_hz).round().max(2.0) * freq_hz
+    }
+
+    /// Where the partial near `freq_hz` really is: a string's partials sit a little off the
+    /// harmonics. Looked for within a quarter of the spacing of the note's harmonics.
+    fn find_partial(samples: &[f32], start_s: f32, freq_hz: f32, spacing_hz: f32) -> f32 {
+        let start = (start_s * SAMPLE_RATE) as usize;
+        let window = &samples[start..start + WINDOW];
+        (-8..=8)
+            .map(|step| freq_hz + step as f32 * spacing_hz / 32.0)
+            .map(|hz| (hz, tone_level(window, SAMPLE_RATE, hz)))
+            .fold((freq_hz, 0.0), |best, found| if found.1 > best.1 { found } else { best })
+            .0
+    }
+
+    /// Level in dB of the partial near `freq_hz` in the window that starts at `start_s`
+    fn partial_db(samples: &[f32], start_s: f32, freq_hz: f32, spacing_hz: f32) -> f32 {
+        let freq_hz = find_partial(samples, start_s, freq_hz, spacing_hz);
+        let start = (start_s * SAMPLE_RATE) as usize;
+        20.0 * tone_level(&samples[start..start + WINDOW], SAMPLE_RATE, freq_hz).max(1e-9).log10()
+    }
+
+    /// Time for the partial near `freq_hz` to fall by 60 dB: the slope of its level every
+    /// 20 ms from 50 ms on, while it is within 45 dB of where it started
+    fn partial_t60(samples: &[f32], freq_hz: f32, spacing_hz: f32) -> f32 {
+        let freq_hz = find_partial(samples, 0.05, freq_hz, spacing_hz);
+        let mut points: Vec<(f32, f32)> = Vec::new();
+        let mut start_s = 0.05;
+        while ((start_s * SAMPLE_RATE) as usize) + WINDOW <= samples.len() {
+            let start = (start_s * SAMPLE_RATE) as usize;
+            let level = tone_level(&samples[start..start + WINDOW], SAMPLE_RATE, freq_hz);
+            let level_db = 20.0 * level.max(1e-12).log10();
+            if points.first().is_some_and(|&(_, first)| level_db < first - 45.0)
+                || level_db < -120.0
+            {
+                break;
+            }
+            points.push((start_s, level_db));
+            start_s += 0.02;
+        }
+        let count = points.len() as f32;
+        let mean_t = points.iter().map(|point| point.0).sum::<f32>() / count;
+        let mean_db = points.iter().map(|point| point.1).sum::<f32>() / count;
+        let slope = points.iter().map(|&(t, db)| (t - mean_t) * (db - mean_db)).sum::<f32>()
+            / points.iter().map(|&(t, _)| (t - mean_t) * (t - mean_t)).sum::<f32>().max(1e-9);
+        if slope >= 0.0 {
+            f32::INFINITY
+        } else {
+            -60.0 / slope
+        }
     }
 
     #[test]
@@ -675,24 +740,35 @@ mod tests {
         }
     }
 
-    /// Level, pitch error and brightness per voice and note:
+    /// Level, pitch error and brightness per voice and note, and from the string alone (Sub
+    /// at 0) how long the fundamental and the top ring and how loud harmonics 2 and 3 are:
     ///   cargo test -p bass --release bass_report -- --ignored --nocapture
     #[test]
     #[ignore]
     fn bass_report() {
         for voice in Voice::ALL {
             println!("\n{:?}", voice);
-            println!("{:<8}{:>8}{:>8}{:>10}{:>12}", "note", "peak", "rms", "cents", "brightness");
+            println!(
+                "{:<8}{:>8}{:>8}{:>10}{:>12}{:>10}{:>10}{:>8}{:>8}",
+                "note", "peak", "rms", "cents", "brightness", "T60 f0", "T60 top", "h2 dB", "h3 dB"
+            );
             for midi in [28u8, 33, 38, 43, 50, 55] {
                 let output = note(voice, midi, 0.9, 1.0);
                 let found = pitch(&output[9600..], SAMPLE_RATE);
+                let string = string_alone(voice, midi, 0.9, 3.0);
+                let freq_hz = note_hz(midi as f32);
+                let fundamental = partial_db(&string, 0.05, freq_hz, freq_hz);
                 println!(
-                    "{:<8}{:>8.3}{:>8.3}{:>10.1}{:>12.4}",
+                    "{:<8}{:>8.3}{:>8.3}{:>10.1}{:>12.4}{:>10.2}{:>10.2}{:>8.1}{:>8.1}",
                     midi,
                     peak(&output),
                     rms(&output),
                     1200.0 * (found / note_hz(midi as f32)).log2(),
                     brightness(&output),
+                    partial_t60(&string, freq_hz, freq_hz),
+                    partial_t60(&string, top_partial_hz(freq_hz), freq_hz),
+                    partial_db(&string, 0.05, 2.0 * freq_hz, freq_hz) - fundamental,
+                    partial_db(&string, 0.05, 3.0 * freq_hz, freq_hz) - fundamental,
                 );
             }
         }
@@ -714,7 +790,136 @@ mod tests {
         );
     }
 
-    /// Writes WAV files to target/renders for listening (bass_<voice>.wav):
+    /// A line to render: (beat, length in beats, note, velocity), and its tempo
+    type Line = (Vec<(f32, f32, u8, f32)>, f32);
+
+    /// Sixteenths on the low E at 150 bpm, the octave on the 15th, and a long note to end
+    fn metal_line() -> Line {
+        let mut line = Vec::new();
+        for bar in 0..4 {
+            let start = bar as f32 * 4.0;
+            let root = [28, 28, 31, 26][bar];
+            for sixteenth in 0..16 {
+                let accent = if sixteenth % 4 == 0 { 1.0 } else { 0.8 };
+                let midi = if sixteenth == 14 { root + 12 } else { root };
+                line.push((start + sixteenth as f32 * 0.25, 0.2, midi, accent));
+            }
+        }
+        line.push((16.0, 4.0, 28, 1.0));
+        (line, 150.0)
+    }
+
+    /// A held root, a dead note, a slide up to the fifth and the octave, at 88 bpm
+    fn groove_line() -> Line {
+        let mut line = Vec::new();
+        for bar in 0..4 {
+            let start = bar as f32 * 4.0;
+            let root = [33, 33, 38, 36][bar];
+            line.push((start, 1.4, root, 0.85));
+            line.push((start + 1.5, 0.1, root, 0.3));
+            line.push((start + 2.0, 0.8, root + 5, 0.8));
+            line.push((start + 2.5, 0.75, root + 7, 0.8));
+            line.push((start + 3.25, 0.5, root + 12, 0.7));
+        }
+        line.push((16.0, 4.0, 33, 0.85));
+        (line, 88.0)
+    }
+
+    /// Quarter notes walking through F, Bb, C and F at 132 bpm, each let go before the next
+    fn walking_line() -> Line {
+        let notes = [29u8, 33, 36, 38, 34, 38, 41, 40, 36, 40, 43, 42, 41, 36, 33, 31];
+        let mut line: Vec<_> = notes
+            .iter()
+            .enumerate()
+            .map(|(beat, &midi)| (beat as f32, 0.85, midi, if beat % 2 == 0 { 0.8 } else { 0.7 }))
+            .collect();
+        line.push((16.0, 3.0, 29, 0.8));
+        (line, 132.0)
+    }
+
+    /// A one drop at 76 bpm: the root on beat three, the fifth and the octave around it
+    fn reggae_line() -> Line {
+        let mut line = Vec::new();
+        for bar in 0..4 {
+            let start = bar as f32 * 4.0;
+            let root = [28, 28, 33, 35][bar];
+            line.push((start + 0.5, 0.4, root, 0.75));
+            line.push((start + 2.0, 1.2, root, 0.9));
+            line.push((start + 3.25, 0.2, root + 7, 0.7));
+            line.push((start + 3.5, 0.4, root + 12, 0.7));
+        }
+        line.push((16.0, 3.0, 28, 0.9));
+        (line, 76.0)
+    }
+
+    /// Sixteenths at 100 bpm with dead notes (soft and very short) between the notes
+    fn funk_line() -> Line {
+        // (sixteenth, semitones over the root, or None for a dead note)
+        const PATTERN: [(usize, Option<u8>); 10] = [
+            (0, Some(0)),
+            (2, None),
+            (3, Some(12)),
+            (5, None),
+            (6, Some(0)),
+            (8, Some(10)),
+            (9, None),
+            (10, Some(12)),
+            (13, None),
+            (14, Some(7)),
+        ];
+        let mut line = Vec::new();
+        for bar in 0..4 {
+            let start = bar as f32 * 4.0;
+            let root = [31, 31, 36, 38][bar];
+            for (sixteenth, interval) in PATTERN {
+                let beat = start + sixteenth as f32 * 0.25;
+                match interval {
+                    Some(interval) => line.push((beat, 0.2, root + interval, 0.85)),
+                    None => line.push((beat, 0.04, root, 0.25)),
+                }
+            }
+        }
+        line.push((16.0, 2.0, 31, 0.9));
+        (line, 100.0)
+    }
+
+    fn render_line(voice: Voice, (line, bpm): &Line, path: &std::path::Path) {
+        let samples_per_beat = SAMPLE_RATE * 60.0 / bpm;
+        let mut events: Vec<(usize, u8, f32)> = Vec::new();
+        for &(beat, length, midi, velocity) in line {
+            events.push(((beat * samples_per_beat) as usize, midi, velocity));
+            events.push((((beat + length) * samples_per_beat) as usize, midi, 0.0));
+        }
+        events.sort_by_key(|event| event.0);
+        let length = events.last().unwrap().0 + SAMPLE_RATE as usize;
+
+        let mut bass = bass(voice, SAMPLE_RATE);
+        let mut next = 0;
+        let spec = hound::WavSpec {
+            channels: 1,
+            sample_rate: SAMPLE_RATE as u32,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        let mut writer = hound::WavWriter::create(path, spec).unwrap();
+        for sample in 0..length {
+            while next < events.len() && events[next].0 <= sample {
+                let (_, midi, velocity) = events[next];
+                if velocity > 0.0 {
+                    bass.note_on(midi, velocity);
+                } else {
+                    bass.note_off(midi);
+                }
+                next += 1;
+            }
+            writer.write_sample((bass.process().clamp(-1.0, 1.0) * 32767.0) as i16).unwrap();
+        }
+        writer.finalize().unwrap();
+    }
+
+    /// Writes WAV files to target/renders for listening: each voice's own line
+    /// (bass_<voice>.wav), and a walking, a reggae and a funk line on both voices
+    /// (bass_<line>_<voice>.wav):
     ///   cargo test -p bass --release render_wavs -- --ignored
     #[test]
     #[ignore]
@@ -723,71 +928,17 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
 
         for voice in Voice::ALL {
-            // (beat, length in beats, note, velocity)
-            let (line, bpm): (Vec<(f32, f32, u8, f32)>, f32) = match voice {
-                Voice::Metal => {
-                    let mut line = Vec::new();
-                    for bar in 0..4 {
-                        let start = bar as f32 * 4.0;
-                        let root = [28, 28, 31, 26][bar];
-                        for sixteenth in 0..16 {
-                            let accent = if sixteenth % 4 == 0 { 1.0 } else { 0.8 };
-                            let midi = if sixteenth == 14 { root + 12 } else { root };
-                            line.push((start + sixteenth as f32 * 0.25, 0.2, midi, accent));
-                        }
-                    }
-                    line.push((16.0, 4.0, 28, 1.0));
-                    (line, 150.0)
-                }
-                Voice::Groove => {
-                    let mut line = Vec::new();
-                    for bar in 0..4 {
-                        let start = bar as f32 * 4.0;
-                        let root = [33, 33, 38, 36][bar];
-                        line.push((start, 1.4, root, 0.85));
-                        // A dead note, then a slide up to the fifth and back
-                        line.push((start + 1.5, 0.1, root, 0.3));
-                        line.push((start + 2.0, 0.8, root + 5, 0.8));
-                        line.push((start + 2.5, 0.75, root + 7, 0.8));
-                        line.push((start + 3.25, 0.5, root + 12, 0.7));
-                    }
-                    line.push((16.0, 4.0, 33, 0.85));
-                    (line, 88.0)
-                }
+            let name = format!("{:?}", voice).to_lowercase();
+            let own = match voice {
+                Voice::Metal => metal_line(),
+                Voice::Groove => groove_line(),
             };
-
-            let samples_per_beat = SAMPLE_RATE * 60.0 / bpm;
-            let mut events: Vec<(usize, u8, f32)> = Vec::new();
-            for &(beat, length, midi, velocity) in &line {
-                events.push(((beat * samples_per_beat) as usize, midi, velocity));
-                events.push((((beat + length) * samples_per_beat) as usize, midi, 0.0));
+            render_line(voice, &own, &dir.join(format!("bass_{}.wav", name)));
+            for (style, line) in
+                [("walking", walking_line()), ("reggae", reggae_line()), ("funk", funk_line())]
+            {
+                render_line(voice, &line, &dir.join(format!("bass_{}_{}.wav", style, name)));
             }
-            events.sort_by_key(|event| event.0);
-            let length = events.last().unwrap().0 + SAMPLE_RATE as usize;
-
-            let mut bass = bass(voice, SAMPLE_RATE);
-            let mut next = 0;
-            let spec = hound::WavSpec {
-                channels: 1,
-                sample_rate: SAMPLE_RATE as u32,
-                bits_per_sample: 16,
-                sample_format: hound::SampleFormat::Int,
-            };
-            let name = format!("bass_{}.wav", format!("{:?}", voice).to_lowercase());
-            let mut writer = hound::WavWriter::create(dir.join(name), spec).unwrap();
-            for sample in 0..length {
-                while next < events.len() && events[next].0 <= sample {
-                    let (_, midi, velocity) = events[next];
-                    if velocity > 0.0 {
-                        bass.note_on(midi, velocity);
-                    } else {
-                        bass.note_off(midi);
-                    }
-                    next += 1;
-                }
-                writer.write_sample((bass.process().clamp(-1.0, 1.0) * 32767.0) as i16).unwrap();
-            }
-            writer.finalize().unwrap();
         }
         println!("Wrote renders to {}", dir.display());
     }
