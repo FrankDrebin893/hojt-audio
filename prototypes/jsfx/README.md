@@ -25,6 +25,10 @@ Where a port differs from its script:
   its crash for the china (52)
 - The two basses are one plugin. Slide at 0 ms plucks every note, as the metal script did;
   Tone on the Metal voice is the low-pass behind its drive, which the script fixed at 3200 Hz
+- The bass no longer follows its scripts in the string, the plucks and the pickup (#130): the
+  string loses its top at the same rate on every note, both voices are plucked with a fixed
+  shape and read by a pickup, the sine under the string is locked to it, and Metal's split into
+  clean lows and driven mids sums flat. The voices' settings changed with it
 - Pad and bells have two switches each that the scripts did not, and the bells' delay time
   glides when its knob is turned
 - The pad sets its filters every 32 samples, not once per block of the host
