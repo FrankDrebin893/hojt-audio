@@ -13,6 +13,13 @@ GitHub release.
   one; the other windows went from about a sixth of a core to under two percent. Nothing in the
   sound or the look changed
 
+### Drum Synth
+
+- The Jazz kit's cymbals are dry and defined: every ride stroke is a clear ping over a quieter,
+  even wash, and the hats and crashes keep their sizzle without the swirl of beating tones. They
+  are a little darker, and the ride bell is rounder. A project on the Jazz kit sounds different;
+  Rock, Metal and Groove are as they were
+
 ### Guitar Amp
 
 - Typing a preset name after Save now works in REAPER (and in any host that takes the keys of a
