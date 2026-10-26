@@ -57,8 +57,9 @@ How it behaves:
 Tests sit next to the code (`bass.rs`): tuning at several rates, envelopes, the two voices, bounded output with everything up, and the tone: the top dies before the fundamental, the same note sounds the same, Groove has harmonics, the sine does not take over a held note, and a new pluck does not click. Two ignored tests are tools for working on the sound:
 
 ```bash
-# Level, tuning and brightness per note; from the string alone the T60 of the fundamental and of
-# the partial nearest 1.5 kHz and the levels of harmonics 2 and 3; and the cost
+# Level, tuning and brightness per note; with Sub at 0, from what the pickup reads before the
+# output stage ("string"), the T60 of the fundamental and of the partial nearest 1.5 kHz and the
+# levels of harmonics 2 and 3, and the same two T60s at the output ("out"); and the cost
 cargo test -p bass --release bass_report -- --ignored --nocapture
 
 # WAV files in target/renders: bass_metal.wav, bass_groove.wav, and a walking, a reggae and a

@@ -1017,8 +1017,10 @@ mod tests {
         }
     }
 
-    /// Level, pitch error and brightness per voice and note, and from the string alone (Sub
-    /// at 0) how long the fundamental and the top ring and how loud harmonics 2 and 3 are:
+    /// Level, pitch error and brightness per voice and note. Then, with Sub at 0: from what the
+    /// pickup reads, before the voice's output stage, how long the fundamental and the top
+    /// ring and how loud harmonics 2 and 3 are (the columns `string`); and how long the two ring
+    /// at the voice's output, through its drive (the columns `out`):
     ///   cargo test -p bass --release bass_report -- --ignored --nocapture
     #[test]
     #[ignore]
@@ -1026,26 +1028,54 @@ mod tests {
         for voice in Voice::ALL {
             println!("\n{:?}", voice);
             println!(
-                "{:<8}{:>8}{:>8}{:>10}{:>12}{:>10}{:>10}{:>8}{:>8}",
-                "note", "peak", "rms", "cents", "brightness", "T60 f0", "T60 top", "h2 dB", "h3 dB"
+                "{:<8}{:>8}{:>8}{:>10}{:>12}{:>12}{:>12}{:>10}{:>10}{:>10}{:>10}",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "string T60",
+                "string T60",
+                "string",
+                "string",
+                "out T60",
+                "out T60"
+            );
+            println!(
+                "{:<8}{:>8}{:>8}{:>10}{:>12}{:>12}{:>12}{:>10}{:>10}{:>10}{:>10}",
+                "note",
+                "peak",
+                "rms",
+                "cents",
+                "brightness",
+                "f0",
+                "top",
+                "h2 dB",
+                "h3 dB",
+                "f0",
+                "top"
             );
             for midi in [28u8, 33, 38, 43, 50, 55] {
                 let output = note(voice, midi, 0.9, 1.0);
                 let found = pitch(&output[9600..], SAMPLE_RATE);
-                let string = string_alone(voice, midi, 0.9, 3.0);
+                let string = pickup_alone(voice, midi, 0.9, 3.0);
+                let out = string_alone(voice, midi, 0.9, 3.0);
                 let freq_hz = note_hz(midi as f32);
+                let top_hz = top_partial_hz(freq_hz);
                 let fundamental = partial_db(&string, 0.05, freq_hz, freq_hz);
                 println!(
-                    "{:<8}{:>8.3}{:>8.3}{:>10.1}{:>12.4}{:>10.2}{:>10.2}{:>8.1}{:>8.1}",
+                    "{:<8}{:>8.3}{:>8.3}{:>10.1}{:>12.4}{:>12.2}{:>12.2}{:>10.1}{:>10.1}{:>10.2}{:>10.2}",
                     midi,
                     peak(&output),
                     rms(&output),
                     1200.0 * (found / note_hz(midi as f32)).log2(),
                     brightness(&output),
                     partial_t60(&string, freq_hz, freq_hz),
-                    partial_t60(&string, top_partial_hz(freq_hz), freq_hz),
+                    partial_t60(&string, top_hz, freq_hz),
                     partial_db(&string, 0.05, 2.0 * freq_hz, freq_hz) - fundamental,
                     partial_db(&string, 0.05, 3.0 * freq_hz, freq_hz) - fundamental,
+                    partial_t60(&out, freq_hz, freq_hz),
+                    partial_t60(&out, top_hz, freq_hz),
                 );
             }
         }
