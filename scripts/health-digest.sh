@@ -22,6 +22,9 @@ tail -n 2 "$history" | jq -rs '
     "- Scout: \($f.scout.filed) filed, \($f.scout.approved) approved, \($f.scout.declined) declined, hit rate \(num($f.scout.hit_rate))%",
     "- CI: main \(num($now.ci.main_pass_pct))% green\(delta($was.ci.main_pass_pct; $now.ci.main_pass_pct)), pull requests \(num($now.ci.pr_pass_pct))%, median \(num($now.ci.pr_minutes_median)) min",
     "- Release: \(num($now.releases.last_tag)), \(num($now.releases.days_since)) days ago, \($now.releases.unreleased_entries) entries unreleased",
+    (if $now.releases.downloads then "- Downloads: \($now.releases.downloads_total) in all\(delta($was.releases.downloads_total; $now.releases.downloads_total)); " +
+      ([$now.releases.downloads | group_by(.tag) | sort_by(.[0].published) | reverse[] | "\(.[0].tag) \(map(.count) | add)"] | join(", "))
+      else empty end),
     (if $now.plugins then "- Plugins: \($now.plugins.tests) tests; CPU " +
       ([$now.plugins.cpu | group_by(.plugin)[] | "\(.[0].plugin) \(map(.core_pct) | max)%"] | join(", ")) else empty end)
   ] +
