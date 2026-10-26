@@ -114,6 +114,20 @@ GitHub release.
   in — in `FACTORY` it goes to `MINE`, as before — and the Preset caption opens that bank's
   folder, where you can move a preset from one bank to another
 
+### Bass Synth
+
+- Both voices sound like a bass through a pickup, not a synth. The top of a note fades soon
+  after the attack while its low end keeps ringing, on low notes as on high ones, so the low E
+  no longer rings with a clang. A fingered note on Groove has the growl of a pickup near the
+  bridge, and a picked note on Metal has a firm attack that is the same every time you play it
+  at the same strength
+- The sine under the string (Sub) starts in step with the string's own low end and dies with
+  it, so a held note stays a string to the end instead of turning into an organ tone
+- On Metal the clean lows and the distorted mids now meet without a hollow between them
+- The voices' own settings changed to suit the new sound: Metal is Sub 25 % and Sustain 3 s,
+  Groove is Sub 30 %. The knobs and their ranges are the same, and a saved project keeps its
+  knobs but plays the new sound
+
 ## 0.2.1
 
 ### Guitar Amp

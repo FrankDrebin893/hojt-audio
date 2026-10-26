@@ -66,6 +66,27 @@ pub fn pitch_hz(samples: &[f32], sample_rate: f32, low_hz: f32, high_hz: f32) ->
     sample_rate / ((shortest + index) as f64 + offset) as f32
 }
 
+/// Amplitude of the sine at `freq_hz` in the samples, through a Hann window: a sine of
+/// amplitude 1 at that frequency reads 1. Two tones are told apart when they are more than
+/// four times `sample_rate / samples.len()` apart.
+pub fn tone_level(samples: &[f32], sample_rate: f32, freq_hz: f32) -> f32 {
+    let length = samples.len();
+    if length < 2 {
+        return 0.0;
+    }
+    let step = std::f64::consts::TAU * freq_hz as f64 / sample_rate as f64;
+    let window_step = std::f64::consts::TAU / (length - 1) as f64;
+    let (mut real, mut imag, mut weight) = (0.0f64, 0.0f64, 0.0f64);
+    for (index, &sample) in samples.iter().enumerate() {
+        let window = 0.5 - 0.5 * (window_step * index as f64).cos();
+        let angle = step * index as f64;
+        real += sample as f64 * window * angle.cos();
+        imag += sample as f64 * window * angle.sin();
+        weight += window;
+    }
+    (2.0 * (real * real + imag * imag).sqrt() / weight) as f32
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -97,5 +118,21 @@ mod tests {
         assert!((zero_crossing_freq(&tone, sample_rate) - 100.0).abs() < 0.5);
         // 40 dB is 4.6 time constants
         assert!((decay_time_s(&tone, sample_rate, -40.0) - 0.46).abs() < 0.02);
+    }
+
+    #[test]
+    fn test_tone_level_reads_each_tone_of_a_chord() {
+        let sample_rate = 48000.0;
+        let tone: Vec<f32> = (0..8192)
+            .map(|i| {
+                let t = i as f32 / sample_rate;
+                0.5 * sine(t * 41.2) + 0.1 * sine(t * 82.4) + 0.02 * sine(t * 1483.2)
+            })
+            .collect();
+        for (freq_hz, level) in [(41.2, 0.5), (82.4, 0.1), (1483.2, 0.02)] {
+            let found = tone_level(&tone, sample_rate, freq_hz);
+            assert!((found / level - 1.0).abs() < 0.05, "{} Hz: {} for {}", freq_hz, found, level);
+        }
+        assert!(tone_level(&tone, sample_rate, 700.0) < 0.002);
     }
 }
