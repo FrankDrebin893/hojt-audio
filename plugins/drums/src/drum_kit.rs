@@ -488,6 +488,36 @@ mod tests {
         &samples[(from * SAMPLE_RATE) as usize..(to * SAMPLE_RATE) as usize]
     }
 
+    /// How evenly 1.5 to 4 kHz is filled 15 Hz at a time, 0.3 to 1.3 s after a hit at the
+    /// start of `output`: 1 is noise, low a comb of long tones, which beat (a chorus)
+    fn comb(output: &[f32]) -> f32 {
+        spectrum_fill_by(seconds(output, 0.3, 1.3), SAMPLE_RATE, 1500.0, 4000.0, 15.0)
+    }
+
+    /// The 2 to 10 kHz level of the first 30 ms of a hit at the start of `output` over that of
+    /// 150 to 300 ms: how far the stroke stands out of its own ring
+    fn ping(output: &[f32]) -> f32 {
+        band_rms(seconds(output, 0.0, 0.03), SAMPLE_RATE, 2000.0, 10000.0)
+            / band_rms(seconds(output, 0.15, 0.3), SAMPLE_RATE, 2000.0, 10000.0).max(1e-9)
+    }
+
+    /// The ride in swung eighths at 160 bpm, velocity 0.8, dry: the comb of seconds 2 to 4,
+    /// where the strokes have built up
+    fn ride_pattern_comb(kit: Kit) -> f32 {
+        let mut drums = dry_kit(kit, SAMPLE_RATE);
+        let samples_per_beat = SAMPLE_RATE * 60.0 / 160.0;
+        let mut output = Vec::new();
+        for beat in 0..12 {
+            for offset in [0.0, 2.0 / 3.0] {
+                let at = ((beat as f32 + offset) * samples_per_beat) as usize;
+                let (left, right) = render(&mut drums, at - output.len());
+                output.extend(left.iter().zip(&right).map(|(l, r)| (l + r) * 0.5));
+                drums.note_on(51, 0.8);
+            }
+        }
+        spectrum_fill_by(seconds(&output, 2.0, 4.0), SAMPLE_RATE, 1500.0, 4000.0, 15.0)
+    }
+
     fn render_stems(drums: &mut DrumKit, num_samples: usize) -> Vec<((f32, f32), Stems)> {
         let output = (0..num_samples)
             .map(|_| {
@@ -956,6 +986,25 @@ mod tests {
     }
 
     #[test]
+    fn test_jazz_ride_strokes_ping_over_a_wash_that_does_not_beat() {
+        // Long modes a few tens of hertz apart beat, under strokes that hardly stood out of
+        // their own ring: 0.30 in the pattern and a ping of 1.36 when the modes went to 5 kHz
+        let pattern = ride_pattern_comb(Kit::Jazz);
+        assert!(pattern > 0.65, "Jazz ride comb in the pattern: {}", pattern);
+        let ping = ping(&render_note(Kit::Jazz, 51, 0.8, 1.5));
+        assert!(ping >= 1.7, "Jazz ride ping: {}", ping);
+    }
+
+    #[test]
+    fn test_jazz_open_hat_and_crash_tails_are_even() {
+        // 0.80 and 0.86 when the modes went to 6.5 and 5 kHz and rang 1.3 times as long
+        for (name, note) in [("open hat", HAT_OPEN), ("crash", CRASH)] {
+            let comb = comb(&render_note(Kit::Jazz, note, 0.8, 1.5));
+            assert!(comb > 0.85, "Jazz {} comb: {}", name, comb);
+        }
+    }
+
+    #[test]
     fn test_tune_shifts_drum_pitch() {
         let kick_freq = |semitones| {
             let mut drums = dry_kit(Kit::Jazz, SAMPLE_RATE);
@@ -1055,12 +1104,13 @@ mod tests {
         // >4k the level above 4 kHz in the first 200 ms. For cymbals: low tail is the share
         // of the energy under 1 kHz from half a second on, fill how evenly 4 to 12 kHz is
         // filled (1 is noise, 0 a few sines), fine the same in 15 Hz steps from 5 to 7 kHz, which
-        // tells noise from a bank of resonators
+        // tells noise from a bank of resonators, comb the same from 1.5 to 4 kHz in the tail (0.3
+        // to 1.3 s), ping the 2 to 10 kHz level of the first 30 ms over that of 150 to 300 ms
         for velocity in [0.6, 1.0] {
             for kit in Kit::ALL {
                 println!("\n{:?}, velocity {}", kit, velocity);
                 println!(
-                    "{:<16}{:>8}{:>8}{:>8}{:>8}{:>11}{:>12}{:>10}{:>7}{:>7}",
+                    "{:<16}{:>8}{:>8}{:>8}{:>8}{:>11}{:>12}{:>10}{:>7}{:>7}{:>7}{:>7}",
                     "piece",
                     "peak",
                     "rms",
@@ -1070,7 +1120,9 @@ mod tests {
                     "brightness",
                     "low tail",
                     "fill",
-                    "fine"
+                    "fine",
+                    "comb",
+                    "ping"
                 );
                 for (index, (name, note)) in PIECES.into_iter().enumerate() {
                     let output = render_note(kit, note, velocity, 12.0);
@@ -1097,7 +1149,14 @@ mod tests {
                             7000.0,
                             15.0,
                         );
-                        print!("{:>10.3}{:>7.2}{:>7.2}", low * low, fill, fine);
+                        print!(
+                            "{:>10.3}{:>7.2}{:>7.2}{:>7.2}{:>7.2}",
+                            low * low,
+                            fill,
+                            fine,
+                            comb(&output),
+                            ping(&output)
+                        );
                     }
                     println!();
                 }

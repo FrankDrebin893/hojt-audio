@@ -92,8 +92,12 @@ fn rock() -> KitPreset {
         cymbals: cymbals(&CymbalCharacter {
             brightness: 1.0,
             sustain: 1.0,
+            ring: 1.0,
+            ring_top: 1.0,
+            mode_top: 1.0,
             wash: 1.0,
             attack: 1.0,
+            attack_time: 1.0,
         }),
         room_decay_s: 0.6,
         room_level: 1.0,
@@ -101,7 +105,7 @@ fn rock() -> KitPreset {
 }
 
 /// Small and resonant: high open kick with a felt beater, ringing snare, singing toms,
-/// dark washy cymbals, more room
+/// dry, defined cymbals, more room
 fn jazz() -> KitPreset {
     KitPreset {
         kick: KickPreset {
@@ -135,23 +139,44 @@ fn jazz() -> KitPreset {
             ring: 0.7,
             attack_level: 0.3,
         },
+        // The modes stop at half the height and their top dies fast: tens of long tones a few
+        // tens of hertz apart are heard as a chorus. The stick is louder and longer, so every
+        // stroke is a ping over its wash
         cymbals: cymbals(&CymbalCharacter {
-            brightness: 0.8,
+            brightness: 0.7,
             sustain: 1.3,
-            wash: 1.2,
-            attack: 0.8,
+            ring: 1.0,
+            ring_top: 0.25,
+            mode_top: 0.5,
+            wash: 1.0,
+            attack: 1.6,
+            attack_time: 2.0,
         }),
         room_decay_s: 0.8,
         room_level: 1.2,
     }
 }
 
-/// How a kit's cymbals differ from the reference set below
+/// How a kit's cymbals differ from the reference set below. Every factor is 1.0 for the
+/// reference (Rock). The three hi-hat sounds share one cymbal, and the factors apply to all
+/// three alike, so they keep one range
 struct CymbalCharacter {
+    /// Darker below 1.0: the tilt of the modes and the top of the wash
     brightness: f32,
+    /// Length of the wash
     sustain: f32,
+    /// Ring of the lowest modes (`decay_low_ms`)
+    ring: f32,
+    /// Ring of the highest modes (`decay_high_ms`)
+    ring_top: f32,
+    /// Height of the highest mode (`high_hz`)
+    mode_top: f32,
+    /// Level of the wash
     wash: f32,
+    /// Level of the stick
     attack: f32,
+    /// Length of the stick (`attack_ms`)
+    attack_time: f32,
 }
 
 fn cymbals(character: &CymbalCharacter) -> CymbalSet {
@@ -159,11 +184,13 @@ fn cymbals(character: &CymbalCharacter) -> CymbalSet {
         tilt: preset.tilt * character.brightness,
         wash_hp_hz: preset.wash_hp_hz * character.brightness.sqrt(),
         wash_lp_hz: preset.wash_lp_hz * character.brightness,
-        decay_low_ms: preset.decay_low_ms * character.sustain,
-        decay_high_ms: preset.decay_high_ms * character.sustain,
+        high_hz: preset.high_hz * character.mode_top,
+        decay_low_ms: preset.decay_low_ms * character.ring,
+        decay_high_ms: preset.decay_high_ms * character.ring_top,
         wash_decay_ms: preset.wash_decay_ms * character.sustain,
         wash_level: preset.wash_level * character.wash,
         attack_level: preset.attack_level * character.attack,
+        attack_ms: preset.attack_ms * character.attack_time,
         ..preset
     };
     // The modes are the body and pitch of a cymbal and stop where the wash takes over: above
