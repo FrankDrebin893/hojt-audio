@@ -481,23 +481,8 @@
       <a href="fonts/BowlbyOneSC-OFL.txt">Bowlby One SC</a> and
       <a href="fonts/IBMPlexMono-OFL.txt">IBM Plex Mono</a>. VST is a registered trademark of Steinberg
       Media Technologies GmbH.</p>
-    <p>Visits and downloads are counted with <a href="https://www.goatcounter.com">GoatCounter</a>:
-      no cookies, nothing that tells one visitor from another.</p>
   </div>
 </footer>
-
-<!-- Counts visits, and each download as an event named after its zip (download/HojtGuitarAmp-windows). -->
-<script data-goatcounter="https://hojt.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
-<script>
-document.addEventListener('click', function (e) {
-  var a = e.target.closest('a[href*="/releases/latest/download/"]');
-  if (!a || !window.goatcounter || !window.goatcounter.count) return;
-  window.goatcounter.count({
-    path: 'download/' + a.href.split('/').pop().replace(/\.zip$/, ''),
-    event: true,
-  });
-});
-</script>
 
 </body>
 </html>
