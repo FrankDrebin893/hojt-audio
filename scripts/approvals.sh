@@ -21,15 +21,19 @@ list_issue() {
     gh issue list --repo "$repo" --state open --label approval-list --limit 1 --json number --jq '.[0].number // empty'
 }
 
-# One line of a spec: its title, what the player gets, its size and how many questions it asks
+# One line of a spec: its title, what the player gets, its size and how many questions it asks.
+# The spec's parts are bold headings (.agents/skills/spec/SKILL.md): **What changes**, **Risks and
+# size** (opening with S, M or L) and **Questions** (a numbered list)
 describe() {
     local n="$1" title spec player size questions
     title="$(gh issue view "$n" --repo "$repo" --json title --jq .title)"
     spec="$(gh api "repos/$repo/issues/$n/comments" --paginate \
         --jq '[.[] | select(.body | startswith("## Spec"))] | last | .body // ""')"
-    player="$(grep -m1 -oE '^For the player: [^.]*' <<< "$spec" | sed 's/^For the player: //' | cut -c1-160 || true)"
-    size="$(grep -m1 -oE 'Size [SML]\b' <<< "$spec" | cut -d' ' -f2 || true)"
-    questions="$(awk '/^#+ *Questions/ {on = 1; next} /^#+ |^---/ {on = 0} on && /^([0-9]+\.|-) / {n++} END {print n + 0}' <<< "$spec")"
+    player="$(awk '/^\*\*What changes/ {on = 1; next} on && NF {print; exit}' <<< "$spec" |
+        sed -E 's/([.!?]) .*/\1/' | cut -c1-160 || true)"
+    size="$(awk '/^\*\*Risks and size/ {on = 1; next} on && NF {print; exit}' <<< "$spec" |
+        grep -oE '^[SML]\b' || true)"
+    questions="$(awk '/^\*\*Questions/ {on = 1; next} /^\*\*|^#+ |^---/ {on = 0} on && /^[0-9]+\. / {n++} END {print n + 0}' <<< "$spec")"
     printf -- '- [ ] #%s %s' "$n" "$title"
     [[ -n "$size" ]] && printf ' · size %s' "$size"
     ((questions > 0)) && printf ' · %s question%s' "$questions" "$([[ $questions -gt 1 ]] && echo s)"
