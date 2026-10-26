@@ -23,7 +23,7 @@ const SLOPE: [f32; 2] = [0.3, 0.85];
 const KNEE_DB: f32 = 12.0;
 
 // Added behind the curve across Sustain (0, 2.5, 5, 7.5, 10), so that Level at 5 is about as
-// loud as the pedal switched off for a guitar at the reference level
+// loud as the pedal switched off for a guitar at -24 dBFS RMS (`PEDAL_DI_DB`)
 const MAKEUP_DB: [f32; 5] = [1.1, 3.6, 7.5, 13.0, MAX_GAIN_DB];
 
 // How fast the gain falls when a note is struck. The first milliseconds get through louder:
@@ -382,11 +382,11 @@ mod tests {
         to_db(peak(samples) / rms(samples))
     }
 
-    /// The two made-up recordings at the reference level
+    /// The two made-up recordings at the level the pedal was matched at
     fn reference_recordings(sample_rate: f32) -> [(&'static str, Vec<f32>); 2] {
         [
-            ("riffs", at_rms_db(&guitar_di(sample_rate), REFERENCE_DI_DB)),
-            ("clean", at_rms_db(&clean_di(sample_rate), REFERENCE_DI_DB)),
+            ("riffs", at_rms_db(&guitar_di(sample_rate), PEDAL_DI_DB)),
+            ("clean", at_rms_db(&clean_di(sample_rate), PEDAL_DI_DB)),
         ]
     }
 
@@ -399,7 +399,7 @@ mod tests {
             recording.extend(pluck(freq, Pluck::OPEN, index as u32 + 1, sample_rate, note_len));
             recording.extend(vec![0.0; ms(50.0, sample_rate)]);
         }
-        at_rms_db(&recording, REFERENCE_DI_DB)
+        at_rms_db(&recording, PEDAL_DI_DB)
     }
 
     /// A tone that is soft, then loud, then soft again, 400 ms each: the same sound at
@@ -442,7 +442,7 @@ mod tests {
 
     #[test]
     fn test_off_is_bit_transparent_once_it_has_faded() {
-        let input = at_rms_db(&guitar_di(SAMPLE_RATE)[..ms(1500.0, SAMPLE_RATE)], REFERENCE_DI_DB);
+        let input = at_rms_db(&guitar_di(SAMPLE_RATE)[..ms(1500.0, SAMPLE_RATE)], PEDAL_DI_DB);
         let split = ms(700.0, SAMPLE_RATE) / BLOCK * BLOCK;
         let fade = ms(FADE_MS, SAMPLE_RATE) + 1;
 
@@ -535,7 +535,7 @@ mod tests {
     #[test]
     fn test_output_does_not_depend_on_block_size() {
         // Playing, switched off for long enough to fall idle, on again at other settings
-        let input = at_rms_db(&guitar_di(SAMPLE_RATE)[..ms(2400.0, SAMPLE_RATE)], REFERENCE_DI_DB);
+        let input = at_rms_db(&guitar_di(SAMPLE_RATE)[..ms(2400.0, SAMPLE_RATE)], PEDAL_DI_DB);
         let third = input.len() / 3;
         let parts = [
             (settings(0.6, 0.5), &input[..third]),
@@ -625,7 +625,7 @@ mod tests {
 
     #[test]
     fn test_level_dial_spans_its_range_around_the_middle() {
-        let input = at_rms_db(&guitar_di(SAMPLE_RATE)[..ms(3000.0, SAMPLE_RATE)], REFERENCE_DI_DB);
+        let input = at_rms_db(&guitar_di(SAMPLE_RATE)[..ms(3000.0, SAMPLE_RATE)], PEDAL_DI_DB);
         let level = |level: f32| to_db(rms(&run(&settings(0.5, level), &input)));
         // All but the 10 ms fade from the untouched signal at the start
         assert!(
@@ -663,7 +663,7 @@ mod tests {
     /// after, in dB
     fn ring_db(sustain: Option<f32>) -> f32 {
         let mut note = pluck(196.0, Pluck::OPEN, 3, SAMPLE_RATE, ms(2000.0, SAMPLE_RATE));
-        set_rms_db(&mut note, REFERENCE_DI_DB);
+        set_rms_db(&mut note, PEDAL_DI_DB);
         let output = match sustain {
             Some(sustain) => run(&settings(sustain, 0.5), &note),
             None => note,
@@ -835,8 +835,7 @@ mod tests {
 
     #[test]
     fn test_both_channels_get_the_same_gain() {
-        let left_in =
-            at_rms_db(&guitar_di(SAMPLE_RATE)[..ms(3000.0, SAMPLE_RATE)], REFERENCE_DI_DB);
+        let left_in = at_rms_db(&guitar_di(SAMPLE_RATE)[..ms(3000.0, SAMPLE_RATE)], PEDAL_DI_DB);
         // Something else on the right, quieter, then louder than the left
         let right_in: Vec<f32> = sine(330.0, 1.0, SAMPLE_RATE, left_in.len())
             .iter()
@@ -918,7 +917,7 @@ mod tests {
 
     #[test]
     fn test_reset_starts_over() {
-        let input = at_rms_db(&guitar_di(SAMPLE_RATE)[..ms(800.0, SAMPLE_RATE)], REFERENCE_DI_DB);
+        let input = at_rms_db(&guitar_di(SAMPLE_RATE)[..ms(800.0, SAMPLE_RATE)], PEDAL_DI_DB);
         let setting = settings(0.7, 0.6);
         let mut comp = new_comp(SAMPLE_RATE);
         let first = run_mono(&mut comp, &setting, &input, BLOCK);
@@ -1040,7 +1039,10 @@ mod tests {
         crate::test_util::pin_thread();
         println!("Compressor pedal at 48 kHz, Level 5. Reduction: how far the pedal turns the riffs down at");
         println!("-36 (soft) and -18 dBFS RMS (hard), make-up left out. Apart: how far the two are apart coming");
-        println!("out (18 dB going in). Loudness: against the pedal off, at the reference level of {} dBFS RMS.", REFERENCE_DI_DB);
+        println!(
+            "out (18 dB going in). Loudness: against the pedal off, for a guitar at {} dBFS RMS.",
+            PEDAL_DI_DB
+        );
         println!("Ring: level of a string 1.5 s after it was picked against 100 ms after ({:.1} dB by itself).", ring_db(None));
         println!();
         println!("Sustain  make-up  reduction dB   apart   loudness LU    ring");
@@ -1074,7 +1076,7 @@ mod tests {
         }
 
         println!();
-        println!("Crest: peak over RMS of the recordings at the reference level, and of single picked notes.");
+        println!("Crest: peak over RMS of the recordings at the level the pedal was matched at, and of single picked notes.");
         println!("Held: distortion of a held note at -24 dBFS RMS. Attack and release: time for 63 % and 90 %");
         println!("of the way in dB after a 1 kHz tone steps from -40 to -10.5 dBFS and back");
         println!();
@@ -1115,7 +1117,7 @@ mod tests {
             ("one channel, 384 kHz, blocks of 128", 384000.0, 128, false),
         ];
         for (name, sample_rate, block, stereo) in cases {
-            let riffs = at_rms_db(&guitar_di(sample_rate), REFERENCE_DI_DB);
+            let riffs = at_rms_db(&guitar_di(sample_rate), PEDAL_DI_DB);
             let hiss = noise(0.1, riffs.len());
             let playing = cost_ns(sample_rate, block, stereo, &on, &riffs);
             let worst = cost_ns(sample_rate, block, stereo, &on, &hiss);
@@ -1141,7 +1143,7 @@ mod tests {
     fn render_comp() {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/renders");
         std::fs::create_dir_all(&dir).unwrap();
-        let input = at_rms_db(&clean_di(SAMPLE_RATE), REFERENCE_DI_DB);
+        let input = at_rms_db(&clean_di(SAMPLE_RATE), PEDAL_DI_DB);
         write_wav(&dir.join("amp_comp_dry.wav"), &[&input], SAMPLE_RATE as u32);
         for sustain in [3, 5, 8] {
             let output = run(&settings(sustain as f32 / 10.0, 0.5), &input);

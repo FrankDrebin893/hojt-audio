@@ -174,7 +174,9 @@ impl Drive {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::test_util::{band_level_db, peak, power_chords, rms, sine, thd_db, to_db};
+    use crate::test_util::{
+        at_rms_db, band_level_db, peak, power_chords, rms, sine, thd_db, to_db, PEDAL_DI_DB,
+    };
 
     const SAMPLE_RATE: f32 = 192_000.0;
     const LEN: usize = 96_000;
@@ -273,7 +275,8 @@ pub mod tests {
 
     #[test]
     fn test_level_dial_spans_forty_decibels_with_unity_near_the_middle() {
-        let input = power_chords(SAMPLE_RATE, 1.0);
+        // A guitar recorded hot, at the level the pedal was matched at
+        let input = at_rms_db(&power_chords(SAMPLE_RATE, 1.0), PEDAL_DI_DB + 6.0);
         let level =
             |drive: f32, level: f32| to_db(rms(&run(drive, 0.5, level, &input)) / rms(&input));
         assert!((level(0.3, 1.0) - level(0.3, 0.0) - 40.0).abs() < 0.5);

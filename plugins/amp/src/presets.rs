@@ -1248,4 +1248,99 @@ mod tests {
             println!();
         }
     }
+
+    #[test]
+    #[ignore]
+    fn scratch_131() {
+        let di = guitar_di(SAMPLE_RATE);
+        let clean = clean_di(SAMPLE_RATE);
+        let chords = power_chords(SAMPLE_RATE, 2.0);
+        let only = std::env::var("ONLY").unwrap_or_default();
+        let top = |settings: &AmpSettings, rec: &[f32], level: f32| {
+            let (l, r) = run(settings, &at_rms_db(rec, level));
+            to_db(peak(&l).max(peak(&r)))
+        };
+        let mut all = vec![];
+        for preset in &PRESETS {
+            if !only.is_empty() && !only.contains(&format!("{:?}", preset.amp)) {
+                continue;
+            }
+            let s = preset.settings();
+            let heard = loudness_at(preset, &di, REFERENCE_DI_DB);
+            all.push(heard);
+            println!(
+                "{:<8} {:<7} riffs {:>6.1} | chords-18 pk {:>6.1}",
+                preset.name,
+                format!("{:?}", preset.amp),
+                heard,
+                top(&s, &chords, REFERENCE_DI_DB + 12.0),
+            );
+        }
+        for amp in Amp::ALL {
+            if !only.is_empty() && !only.contains(&format!("{:?}", amp)) {
+                continue;
+            }
+            for gain in [0.0, 0.25, 0.5, 0.75, 1.0] {
+                let s = AmpSettings { amp, gain, ..AmpSettings::default() };
+                let heard = |rec: &[f32]| {
+                    let (l, _) = run(&s, &at_rms_db(rec, REFERENCE_DI_DB));
+                    loudness_lufs(&[&l], SAMPLE_RATE)
+                };
+                let (l, _) = run(&s, &sine(220.0, HELD_NOTE, SAMPLE_RATE, 19_200));
+                let (ch, _) = run(&s, &chords);
+                println!(
+                    "{:<7} gain {:>4.1}: riffs {:>6.1} clean {:>6.1} chords rms {:>6.1} | pk cl+12 {:>6.1} ch+12 {:>6.1} | held thd {:>6.1}",
+                    format!("{:?}", amp),
+                    gain * 10.0,
+                    heard(&di),
+                    heard(&clean),
+                    to_db(rms(&ch)),
+                    top(&s, &clean, REFERENCE_DI_DB + 12.0),
+                    top(&s, &chords, REFERENCE_DI_DB + 12.0),
+                    thd_db(&l[9600..], SAMPLE_RATE, 220.0),
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn scratch_131_masters() {
+        let di = guitar_di(SAMPLE_RATE);
+        let chords = at_rms_db(&power_chords(SAMPLE_RATE, 2.0), REFERENCE_DI_DB + 12.0);
+        let only = std::env::var("ONLY").unwrap_or_default();
+        let input = at_rms_db(&di, REFERENCE_DI_DB);
+        for preset in &PRESETS[1..] {
+            if !only.is_empty() && !only.contains(preset.name) {
+                continue;
+            }
+            let mut line = format!(
+                "{:<8} {:<7} m{:.1}:",
+                preset.name,
+                format!("{:?}", preset.amp),
+                preset.dials[5]
+            );
+            let steps: Vec<f32> = if std::env::var("OWN").is_ok() {
+                vec![preset.dials[5]]
+            } else {
+                (0..=12).map(|step| 3.0 + 0.5 * step as f32).collect()
+            };
+            for master in steps {
+                let mut s = preset.settings();
+                s.master = master / 10.0;
+                let (l, _) = run(&s, &input);
+                let heard = loudness_lufs(&[&l], SAMPLE_RATE);
+                let (cl, cr) = run(&s, &chords);
+                let pk = to_db(peak(&cl).max(peak(&cr)));
+                let (dl, dr) = run(&s, &at_rms_db(&chords, REFERENCE_DI_DB + 6.0));
+                let pk6 = to_db(peak(&dl).max(peak(&dr)));
+                line += &format!(
+                    " {master:.1}:{heard:.1}/{pk:.1}/{:.1} +6pk {pk6:.1} D6 {:.1}",
+                    pk - heard,
+                    pk6 - heard
+                );
+            }
+            println!("{line}");
+        }
+    }
 }
