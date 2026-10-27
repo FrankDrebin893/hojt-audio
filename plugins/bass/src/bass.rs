@@ -28,6 +28,7 @@ impl Voice {
                 sustain_s: 3.0,
                 slide_ms: 0.0,
                 transpose: 0.0,
+                bend: BEND_DEFAULT,
             },
             Voice::Groove => BassSettings {
                 voice: self,
@@ -39,6 +40,7 @@ impl Voice {
                 sustain_s: 3.0,
                 slide_ms: 60.0,
                 transpose: 0.0,
+                bend: BEND_DEFAULT,
             },
         }
     }
@@ -52,6 +54,10 @@ pub const SUSTAIN_MIN_S: f32 = 0.5;
 pub const SUSTAIN_MAX_S: f32 = 8.0;
 pub const SLIDE_MAX_MS: f32 = 300.0;
 pub const TRANSPOSE_RANGE: f32 = 24.0;
+// How far the pitch-bend wheel goes at its end, in semitones
+pub const BEND_MIN: i32 = 1;
+pub const BEND_MAX: i32 = 12;
+pub const BEND_DEFAULT: f32 = 2.0;
 
 /// Everything the pedal sets, as the plugin reads it once per block
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -72,6 +78,10 @@ pub struct BassSettings {
     pub slide_ms: f32,
     /// Semitones
     pub transpose: f32,
+    /// Semitones the pitch-bend wheel goes at its end, up and down. A setting of the player's
+    /// keyboard, not of a voice: every voice has the default, and the plugin's footswitches
+    /// leave it where it is
+    pub bend: f32,
 }
 
 impl Default for BassSettings {
@@ -108,6 +118,11 @@ const SUB_DECAY: f32 = 0.85;
 const CROSSOVER_HZ: f32 = 120.0;
 // Time constant of the fade that takes the step out of a new pluck over a ringing string
 const DECLICK_S: f32 = 0.0015;
+// Time constant of the smoothing of the bend, so that a wheel sending coarse steps does not
+// zipper
+const BEND_SMOOTHING_S: f32 = 0.005;
+// How far the bend moves before the loop's gain follows it
+const BEND_FOLLOW_ST: f32 = 0.01;
 
 /// The loop's low-pass and what it does at one pitch
 #[derive(Clone, Copy)]
@@ -169,16 +184,28 @@ pub struct Bass {
     // Length of the loop in samples, and where a slide is taking it
     delay: f32,
     target_delay: f32,
-    // The pitch the string is at, or sliding to
+    // The pitch the string is at, or sliding to, before the bend
     freq_hz: f32,
     // What the loop's low-pass adds to its length at that pitch
     filter_delay: f32,
+    // And at that pitch bent as far as the loop's gain last followed the bend
+    bent_filter_delay: f32,
     loop_lp: f32,
     loop_state: f32,
     feedback: f32,
     feedback_held: f32,
     feedback_released: f32,
     glide: f32,
+
+    // The wheel, -1.0 to 1.0, and the bend it makes in semitones, smoothed, with the ratio
+    // of frequencies that is
+    wheel: f32,
+    bend_st: f32,
+    bend_ratio: f32,
+    bend_smoothing: f32,
+    // The bend the loop's gain was last worked out for, and its ratio
+    followed_bend_st: f32,
+    followed_ratio: f32,
 
     note: Option<u8>,
     held: bool,
@@ -224,12 +251,19 @@ impl Bass {
             target_delay: 800.0,
             freq_hz: 55.0,
             filter_delay: 0.0,
+            bent_filter_delay: 0.0,
             loop_lp: 0.4,
             loop_state: 0.0,
             feedback: 0.0,
             feedback_held: 0.0,
             feedback_released: 0.0,
             glide: 1.0,
+            wheel: 0.0,
+            bend_st: 0.0,
+            bend_ratio: 1.0,
+            bend_smoothing: 1.0,
+            followed_bend_st: 0.0,
+            followed_ratio: 1.0,
             note: None,
             held: false,
             string_voice: Voice::Metal,
@@ -270,6 +304,7 @@ impl Bass {
         self.split_low.set(CROSSOVER_HZ, 0.5, sample_rate);
         self.mid_peak.set(900.0, 1.0, sample_rate);
         self.declick_decay = decay_coeff(DECLICK_S, sample_rate);
+        self.bend_smoothing = 1.0 - decay_coeff(BEND_SMOOTHING_S, sample_rate);
         self.set_voice_filters();
         self.reset();
     }
@@ -283,6 +318,12 @@ impl Bass {
         self.last_raw = 0.0;
         self.declick = 0.0;
         self.declick_pending = false;
+        // The wheel back at centre
+        self.wheel = 0.0;
+        self.bend_st = 0.0;
+        self.bend_ratio = 1.0;
+        self.followed_bend_st = 0.0;
+        self.followed_ratio = 1.0;
         for filter in [
             &mut self.pickup,
             &mut self.split_low,
@@ -298,9 +339,13 @@ impl Bass {
     /// Once per block. A ringing note keeps the string it was plucked with: another voice
     /// changes what stands behind the string at once, and the string at the next pluck.
     pub fn set(&mut self, settings: &BassSettings) {
-        if *settings == self.settings {
-            return;
+        if *settings != self.settings {
+            self.change(settings);
         }
+        self.follow_bend();
+    }
+
+    fn change(&mut self, settings: &BassSettings) {
         let voice_changed = settings.voice != self.settings.voice;
         let brightness_changed = settings.brightness != self.settings.brightness;
         let decay_changed = voice_changed || settings.sustain_s != self.settings.sustain_s;
@@ -325,6 +370,41 @@ impl Bass {
                 self.set_feedback();
             }
         }
+    }
+
+    /// Where the pitch-bend wheel is: -1.0 all the way down, 0.0 at centre, 1.0 all the way up
+    pub fn set_wheel(&mut self, wheel: f32) {
+        self.wheel = wheel.clamp(-1.0, 1.0);
+    }
+
+    /// The loop's gain, and what its low-pass adds to the loop's length, follow the bend once
+    /// it has moved far enough to matter, so that Sustain is the same T60 on a bent note. The
+    /// low-pass stays the one the note was plucked with. Once per block: on every sample it
+    /// would make the level jump
+    fn follow_bend(&mut self) {
+        // Or once it has got where the wheel is, wherever that is
+        let settled = self.bend_st == self.wheel * self.settings.bend;
+        let moved = self.bend_st != self.followed_bend_st
+            && (settled || (self.bend_st - self.followed_bend_st).abs() >= BEND_FOLLOW_ST);
+        if moved && self.note.is_some() {
+            self.followed_bend_st = self.bend_st;
+            self.followed_ratio = self.bend_ratio;
+            self.set_feedback();
+        }
+    }
+
+    /// One sample of the bend's smoothing, towards where the wheel is
+    fn smooth_bend(&mut self) {
+        let target = self.wheel * self.settings.bend;
+        if self.bend_st == target {
+            return;
+        }
+        self.bend_st += (target - self.bend_st) * self.bend_smoothing;
+        // There, rather than ever nearer: at centre the string is exactly as unbent
+        if (self.bend_st - target).abs() < 1e-5 {
+            self.bend_st = target;
+        }
+        self.bend_ratio = if self.bend_st == 0.0 { 1.0 } else { (self.bend_st / 12.0).exp2() };
     }
 
     fn set_voice_filters(&mut self) {
@@ -399,22 +479,29 @@ impl Bass {
         let top_t60_s = (TOP_T60_MIN_S
             + (TOP_T60_MAX_S - TOP_T60_MIN_S) * self.settings.brightness)
             * (0.6 + 0.4 * self.string_velocity);
-        let damping =
-            Damping::for_note(self.freq_hz, self.settings.sustain_s, top_t60_s, self.sample_rate);
+        let damping = Damping::for_note(
+            self.freq_hz * self.followed_ratio,
+            self.settings.sustain_s,
+            top_t60_s,
+            self.sample_rate,
+        );
         self.loop_lp = damping.loop_lp;
         self.set_feedback();
     }
 
-    /// The loop's gain, which sets how long the fundamental rings, held and let go
+    /// The loop's gain, which sets how long the fundamental rings, held and let go, at the
+    /// pitch the string is bent to
     fn set_feedback(&mut self) {
-        let damping = Damping::at(self.loop_lp, self.freq_hz, self.sample_rate);
-        self.filter_delay = damping.filter_delay;
+        self.filter_delay = Damping::at(self.loop_lp, self.freq_hz, self.sample_rate).filter_delay;
+        let freq_hz = self.freq_hz * self.followed_ratio;
+        let damping = Damping::at(self.loop_lp, freq_hz, self.sample_rate);
+        self.bent_filter_delay = damping.filter_delay;
         let release_s = match self.settings.voice {
             Voice::Metal => RELEASE_METAL_S,
             Voice::Groove => RELEASE_GROOVE_S,
         };
         let gain =
-            |t60_s: f32| (10.0f32.powf(-3.0 / (t60_s * self.freq_hz)) / damping.gain).min(0.99999);
+            |t60_s: f32| (10.0f32.powf(-3.0 / (t60_s * freq_hz)) / damping.gain).min(0.99999);
         self.feedback_held = gain(self.settings.sustain_s);
         self.feedback_released = gain(release_s);
         self.feedback = if self.held { self.feedback_held } else { self.feedback_released };
@@ -436,6 +523,9 @@ impl Bass {
         self.held = true;
         self.string_voice = self.settings.voice;
         self.string_velocity = velocity;
+        // The string starts at the bent pitch
+        self.followed_bend_st = self.bend_st;
+        self.followed_ratio = self.bend_ratio;
         self.damp_string();
         self.delay = self.loop_delay(self.freq_hz);
         self.target_delay = self.delay;
@@ -443,7 +533,7 @@ impl Bass {
         // What the line holds is how fast the string moves. A string pulled to a point and
         // let go moves one way on one side of that point and the other way on the other:
         // two levels, whose edges are rounded by what plucks it.
-        let period = self.delay;
+        let period = self.read_delay();
         let length = (period.ceil() as usize).clamp(2, self.line.len() - 8);
         let (along, level, sharpness, rounding_s) = match self.settings.voice {
             Voice::Metal => {
@@ -521,6 +611,17 @@ impl Bass {
         1.0 / (2.0 * (std::f32::consts::PI * PICKUP).sin())
     }
 
+    /// Where the loop is read: its length, as a slide has it, at the pitch the wheel bends it
+    /// to, less what its low-pass adds there
+    fn read_delay(&self) -> f32 {
+        if self.bend_ratio == 1.0 {
+            return self.delay;
+        }
+        let longest = (self.line.len() - 4) as f32;
+        ((self.delay + self.filter_delay) / self.bend_ratio - self.bent_filter_delay)
+            .clamp(2.0, longest)
+    }
+
     /// What the line held `delay` samples ago, between two samples
     fn read(&self, delay: f32) -> f32 {
         let whole = delay.ceil();
@@ -535,14 +636,16 @@ impl Bass {
     fn string_and_sub(&mut self) -> (f32, f32) {
         let rate = self.sample_rate;
 
-        // Only moves during a slide
+        // Only moves during a slide, and while the wheel moves
         self.delay += (self.target_delay - self.delay) * self.glide;
-        let freq_hz = rate / (self.delay + self.filter_delay);
+        self.smooth_bend();
+        let freq_hz = rate / (self.delay + self.filter_delay) * self.bend_ratio;
+        let delay = self.read_delay();
 
         // The string, and the pickup: where the string is read now, against what reaches it
         // a fifth of the way round later
-        let string = self.read(self.delay);
-        let ahead = self.read((self.delay * (1.0 - PICKUP)).max(1.0));
+        let string = self.read(delay);
+        let ahead = self.read((delay * (1.0 - PICKUP)).max(1.0));
         self.loop_state += (string - self.loop_state) * self.loop_lp;
         self.line[self.write] = self.loop_state * self.feedback;
         self.write = (self.write + 1) & self.mask;
@@ -614,6 +717,17 @@ mod tests {
         let mut bass = bass(voice, SAMPLE_RATE);
         bass.note_on(note, velocity);
         render(&mut bass, SAMPLE_RATE, seconds)
+    }
+
+    /// As the plugin plays: the settings given once a block of 64 samples, which is when the
+    /// string follows the bend
+    fn play(bass: &mut Bass, settings: &BassSettings, sample_rate: f32, seconds: f32) -> Vec<f32> {
+        let mut output = Vec::new();
+        while output.len() < (seconds * sample_rate) as usize {
+            bass.set(settings);
+            output.extend((0..64).map(|_| bass.process()));
+        }
+        output
     }
 
     fn pitch(samples: &[f32], sample_rate: f32) -> f32 {
@@ -986,10 +1100,11 @@ mod tests {
 
     #[test]
     fn test_output_is_bounded_at_every_setting() {
-        for voice in Voice::ALL {
+        for (voice, wheel) in Voice::ALL.into_iter().flat_map(|v| [(v, 0.0), (v, -1.0), (v, 1.0)]) {
             for sample_rate in [44100.0, 192000.0] {
                 let mut bass = bass(voice, sample_rate);
-                bass.set(&BassSettings {
+                bass.set_wheel(wheel);
+                let settings = BassSettings {
                     voice,
                     volume_db: 0.0,
                     drive: 1.0,
@@ -999,22 +1114,206 @@ mod tests {
                     sustain_s: SUSTAIN_MAX_S,
                     slide_ms: 5.0,
                     transpose: -TRANSPOSE_RANGE,
-                });
+                    bend: BEND_MAX as f32,
+                };
                 let mut output = Vec::new();
                 for midi in [0u8, 28, 127, 40, 28] {
                     bass.note_on(midi, 1.0);
-                    output.extend(render(&mut bass, sample_rate, 0.2));
+                    output.extend(play(&mut bass, &settings, sample_rate, 0.2));
                 }
                 assert!(output.iter().all(|sample| sample.is_finite()));
                 assert!(
                     peak(&output) <= 2.0,
-                    "{:?} at {} Hz peaks at {}",
+                    "{:?} at {} Hz, wheel at {}, peaks at {}",
                     voice,
                     sample_rate,
+                    wheel,
                     peak(&output)
                 );
             }
         }
+    }
+
+    /// Cents from `expected_hz` of what is played from `start_s` on
+    fn cents_off(output: &[f32], sample_rate: f32, start_s: f32, expected_hz: f32) -> f32 {
+        let found = pitch(&output[(start_s * sample_rate) as usize..], sample_rate);
+        1200.0 * (found / expected_hz).log2()
+    }
+
+    // The rates the bend is tested at
+    const BEND_RATES: [f32; 3] = [44100.0, 48000.0, 96000.0];
+
+    #[test]
+    fn test_the_wheel_bends_a_held_note_by_the_bend_range() {
+        for voice in Voice::ALL {
+            for sample_rate in BEND_RATES {
+                // Up and down at Bend 2, and up an octave at Bend 12
+                for (bend, wheel) in [(2.0, 1.0), (2.0, -1.0), (12.0, 1.0)] {
+                    let settings = BassSettings { bend, ..voice.settings() };
+                    let mut bass = bass(voice, sample_rate);
+                    bass.set(&settings);
+                    bass.note_on(33, 0.9);
+                    play(&mut bass, &settings, sample_rate, 0.1);
+                    bass.set_wheel(wheel);
+                    let output = play(&mut bass, &settings, sample_rate, 0.6);
+                    let cents = cents_off(&output, sample_rate, 0.1, note_hz(33.0 + wheel * bend));
+                    assert!(
+                        cents.abs() < 2.0,
+                        "{:?} at {} Hz, Bend {}, wheel {}: {} cents off",
+                        voice,
+                        sample_rate,
+                        bend,
+                        wheel,
+                        cents
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_the_wheel_back_at_centre_brings_the_note_back() {
+        for voice in Voice::ALL {
+            for sample_rate in BEND_RATES {
+                let settings = voice.settings();
+                // The same note, never bent, measured over the same time
+                let mut unbent = bass(voice, sample_rate);
+                unbent.note_on(33, 0.9);
+                let unbent = play(&mut unbent, &settings, sample_rate, 1.0);
+
+                let mut bass = bass(voice, sample_rate);
+                bass.note_on(33, 0.9);
+                let mut output = play(&mut bass, &settings, sample_rate, 0.1);
+                bass.set_wheel(1.0);
+                output.extend(play(&mut bass, &settings, sample_rate, 0.3));
+                bass.set_wheel(0.0);
+                output.extend(play(&mut bass, &settings, sample_rate, 0.6));
+
+                let start = (0.5 * sample_rate) as usize;
+                let found = pitch(&output[start..], sample_rate);
+                let expected = pitch(&unbent[start..], sample_rate);
+                let cents = 1200.0 * (found / expected).log2();
+                assert!(
+                    cents.abs() < 1.0,
+                    "{:?} at {} Hz: {} cents off",
+                    voice,
+                    sample_rate,
+                    cents
+                );
+                assert_eq!(bass.bend_ratio, 1.0, "the string is exactly unbent again");
+            }
+        }
+    }
+
+    #[test]
+    fn test_a_note_plucked_with_the_wheel_up_starts_bent() {
+        for voice in Voice::ALL {
+            for sample_rate in BEND_RATES {
+                let settings = voice.settings();
+                let mut bass = bass(voice, sample_rate);
+                bass.set_wheel(0.5);
+                play(&mut bass, &settings, sample_rate, 0.05);
+                bass.note_on(33, 0.9);
+                // From its start: half of Bend 2 up
+                let output = play(&mut bass, &settings, sample_rate, 0.25);
+                let cents = cents_off(&output, sample_rate, 0.0, note_hz(34.0));
+                assert!(
+                    cents.abs() < 2.0,
+                    "{:?} at {} Hz: {} cents off",
+                    voice,
+                    sample_rate,
+                    cents
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_the_bend_moves_the_pitch_smoothly() {
+        let step = |samples: &[f32]| {
+            samples.windows(2).fold(0.0f32, |most, pair| most.max((pair[1] - pair[0]).abs()))
+        };
+        for voice in Voice::ALL {
+            for sample_rate in BEND_RATES {
+                let settings = voice.settings();
+                let mut bass = bass(voice, sample_rate);
+                bass.note_on(33, 0.9);
+                play(&mut bass, &settings, sample_rate, 0.3);
+                // How far the held note moves from one sample to the next on its own
+                let held = step(&play(&mut bass, &settings, sample_rate, 0.1));
+                // A wheel that sends coarse steps, a quarter of the way a block, up and back
+                let mut bent = Vec::new();
+                for wheel in [0.25, 0.5, 0.75, 1.0, 1.0, 0.75, 0.5, 0.25, 0.0, 0.0] {
+                    bass.set_wheel(wheel);
+                    bent.extend(play(&mut bass, &settings, sample_rate, 64.0 / sample_rate));
+                }
+                bent.extend(play(&mut bass, &settings, sample_rate, 0.05));
+                // A whole tone up makes the note's own steps an eighth larger
+                assert!(
+                    step(&bent) <= held * 1.2,
+                    "{:?} at {} Hz: steps of {} while bending, {} held",
+                    voice,
+                    sample_rate,
+                    step(&bent),
+                    held
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_a_slide_with_the_wheel_up_ends_bent() {
+        for sample_rate in BEND_RATES {
+            // Groove slides
+            let settings = Voice::Groove.settings();
+            let mut bass = bass(Voice::Groove, sample_rate);
+            bass.set_wheel(1.0);
+            bass.note_on(33, 0.9);
+            play(&mut bass, &settings, sample_rate, 0.3);
+            bass.note_on(38, 0.9);
+            let output = play(&mut bass, &settings, sample_rate, 0.6);
+            let cents = cents_off(&output, sample_rate, 0.3, note_hz(40.0));
+            assert!(cents.abs() < 2.0, "at {} Hz: {} cents off", sample_rate, cents);
+        }
+    }
+
+    #[test]
+    fn test_a_bent_note_rings_as_long_as_sustain_says() {
+        for voice in Voice::ALL {
+            let settings = BassSettings { sub: 0.0, ..voice.settings() };
+            let mut bass = bass(voice, SAMPLE_RATE);
+            bass.set(&settings);
+            bass.note_on(33, 0.9);
+            bass.set_wheel(1.0);
+            // What the pickup reads, before the output stage, the settings once a block
+            let mut string = Vec::new();
+            while string.len() < (3.0 * SAMPLE_RATE) as usize {
+                bass.set(&settings);
+                string.extend((0..64).map(|_| bass.string_and_sub().0));
+            }
+            let freq_hz = note_hz(35.0);
+            let t60 = partial_t60(&string, freq_hz, freq_hz);
+            assert!(
+                (t60 / settings.sustain_s - 1.0).abs() < 0.1,
+                "{:?}: the bent note rings {} s, Sustain is {} s",
+                voice,
+                t60,
+                settings.sustain_s
+            );
+        }
+    }
+
+    #[test]
+    fn test_reset_puts_the_wheel_back_at_centre() {
+        let mut bass = bass(Voice::Metal, SAMPLE_RATE);
+        bass.set_wheel(1.0);
+        bass.note_on(33, 0.9);
+        play(&mut bass, &Voice::Metal.settings(), SAMPLE_RATE, 0.1);
+        bass.reset();
+        bass.note_on(33, 0.9);
+        let output = play(&mut bass, &Voice::Metal.settings(), SAMPLE_RATE, 0.5);
+        let cents = cents_off(&output, SAMPLE_RATE, 0.2, note_hz(33.0));
+        assert!(cents.abs() < 2.0, "{} cents off", cents);
     }
 
     /// Level, pitch error and brightness per voice and note. Then, with Sub at 0: from what the
