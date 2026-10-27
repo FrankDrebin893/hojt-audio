@@ -195,6 +195,11 @@ const GATE_LAMP: Vec2 = vec2(60.0, 164.0);
 // While the Delay follows the song's tempo (Sync), its Time knob, the first, picks the note
 // value in the same place, and its tape shows the note
 pub(crate) const DELAY_SLOT: usize = 2;
+// Sync is a small push button right of the Mix knob, where the Gate has its lamp: a stomp
+// switch beside the On switch would run off the face. Its LED above it, its caption above that
+const SYNC_CAPTION: Vec2 = vec2(60.0, 156.0);
+const SYNC_LED: Vec2 = vec2(60.0, 180.0);
+const SYNC_BUTTON: Vec2 = vec2(60.0, 212.0);
 
 /// Where the patch cables go into the stack: the head's input and the cabinet's output
 #[derive(Clone, Copy)]
@@ -321,6 +326,16 @@ impl Pedals<'_> {
         }
         param_switch(ui, setter, on, top + PEDAL_SWITCH, top + PEDAL_LED);
 
+        if slot == DELAY_SLOT {
+            let sync = params.delay_sync.value();
+            silk_label(ui.painter(), top + SYNC_CAPTION, "Sync", LAMP_CAPTION_SIZE);
+            rig_led(ui.painter(), top + SYNC_LED, sync);
+            if chrome_button(ui, top + SYNC_BUTTON, "delay-sync").clicked() {
+                setter.begin_set_parameter(&params.delay_sync);
+                setter.set_parameter(&params.delay_sync, !sync);
+                setter.end_set_parameter(&params.delay_sync);
+            }
+        }
         if slot == GATE_SLOT {
             signal_lamp(ui.painter(), top + GATE_LAMP, self.gate_open);
             silk_label(ui.painter(), top + GATE_LAMP + LAMP_CAPTION, "Open", LAMP_CAPTION_SIZE);
@@ -1272,6 +1287,41 @@ mod tests {
     /// Where the cabinet's controls go
     fn plate() -> Rect {
         cab_plates().next().unwrap()
+    }
+
+    #[test]
+    fn test_the_delays_sync_button_stands_clear_of_the_knobs_and_on_the_face() {
+        let knob = TRIO_RADIUS + TICKS;
+        let mix = TRIO_KNOBS[2];
+        // Across, right of the Mix knob's scale and its tape, inside the face
+        for (name, y) in
+            [("caption", SYNC_CAPTION.y), ("LED", SYNC_LED.y), ("button", SYNC_BUTTON.y)]
+        {
+            if (y - mix.y).abs() < knob + 4.0 {
+                in_a_row(&[
+                    ("the Mix knob", mix.x - knob, mix.x + knob),
+                    (name, SYNC_LED.x - 20.0, SYNC_LED.x + 20.0),
+                    ("the face's edge", PEDAL_WIDTH / 2.0, PEDAL_WIDTH),
+                ]);
+            }
+        }
+        in_a_row(&[
+            ("the Mix knob's tape", mix.x - 24.0, mix.x + 24.0),
+            ("the Sync button", SYNC_BUTTON.x - BUTTON, SYNC_BUTTON.x + BUTTON),
+            ("the face's edge", PEDAL_WIDTH / 2.0, PEDAL_WIDTH),
+        ]);
+        assert_eq!(SYNC_CAPTION.x, SYNC_BUTTON.x);
+        assert_eq!(SYNC_LED.x, SYNC_BUTTON.x);
+        // From top to bottom: the Repeat knob's tape, the caption, the LED, the button, and
+        // the On switch's place
+        let repeat_tape_bottom = TRIO_KNOBS[1].y + TRIO_RADIUS + 18.0 + 15.0 + 2.0 + 16.0;
+        in_a_row(&[
+            ("the Repeat knob's tape", 0.0, repeat_tape_bottom),
+            ("the Sync caption", SYNC_CAPTION.y - 7.0, SYNC_CAPTION.y + 7.0),
+            ("the Sync LED", SYNC_LED.y - LAMP, SYNC_LED.y + LAMP),
+            ("the Sync button", SYNC_BUTTON.y - BUTTON, SYNC_BUTTON.y + BUTTON + 2.5),
+            ("the On switch", PEDAL_SWITCH.y - SWITCH, PEDAL_SWITCH.y + SWITCH),
+        ]);
     }
 
     #[test]

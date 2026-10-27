@@ -22,6 +22,14 @@ GitHub release.
 
 ### Guitar Amp
 
+- The Delay can follow the song's tempo. A small Sync button right of the Mix knob, with its
+  LED above it, turns it on: the Time knob then picks a note, 1/4, 1/8 dotted, 1/8, 1/8
+  triplet or 1/16 (`1/8 .`, `1/8 T` on its tape), and the repeats land on the beat in the DAW
+  and follow when the tempo changes (between 20 and 1000 ms, so a 1/4 under 60 bpm stays at
+  1000 ms). Off, Time is milliseconds as before and keeps its setting. New parameters Delay
+  Sync (on / off, off) and Delay Note (default 1/8 dotted). A project or a preset from before
+  opens with Sync off and sounds as it did; the factory presets keep it off. The standalone
+  follows its own tempo (120 bpm, or what `--tempo` says)
 - Typing a preset name after Save now works in REAPER (and in any host that takes the keys of a
   plug-in window for its own shortcuts): the letters never reached the amp before, while the
   same window worked on its own. It now tells the host that it wants every key while a name is

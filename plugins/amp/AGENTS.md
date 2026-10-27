@@ -436,6 +436,11 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   stands there)
 - **Level meters:** a signal level (the amp's input and output) is a `level_meter`, a column
   of lamps on label tape with a `silk_label` caption under it, in a wing of the strip. Same atomics and repaint rule as the signal lamps
+- **The Delay's Sync:** the one on/off of the rig that is not a stomp switch. A second
+  `small_footswitch` beside the On switch runs off the face, so Sync is a `chrome_button` with
+  a `rig_led` above it and its `silk_label` above that, right of the Mix knob where the Gate
+  has its lamp (#145). While it is lit the Time knob, in the same place, picks Delay Note and
+  its tape shows the note
 - **Signal lamps:** a light that follows the sound and not a switch (gate open, output clipping)
   is a `signal_lamp`, with a `silk_label` of size 13 centred 18 px under it, placed beside the
   control it belongs to. An LED above or beside a switch only ever says that the switch is on.
