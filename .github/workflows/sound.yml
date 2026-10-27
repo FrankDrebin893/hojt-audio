@@ -36,7 +36,6 @@ jobs:
           sudo apt-get install -y libasound2-dev libgl-dev libjack-dev libx11-xcb-dev libxcb1-dev libxcb-dri2-0-dev libxcb-icccm4-dev libxcursor-dev libxkbcommon-dev libxcb-shape0-dev libxcb-xfixes0-dev
 
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
 
       - name: Where it branched, and which plugins it touches
         id: scope
@@ -52,18 +51,30 @@ jobs:
           echo "plugins=$plugins" >> "$GITHUB_OUTPUT"
           git worktree add ../base "$base"
 
+      # Two builds, each in its own target: the branch's here, main's in ../base. Sharing one
+      # target ran the branch's binaries on both sides (#143): the workspace crates have the same
+      # relative paths in both checkouts, so cargo took the newer outputs as fresh. After the
+      # step above, which needs ../base empty, before the cache fills ../base/target
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            ../base -> target
+
       - name: Reports and renders after
         run: bash scripts/sound-reports.sh "$RUNNER_TEMP/after" --renders ${{ steps.scope.outputs.plugins }}
 
       - name: Reports and renders before
         working-directory: ../base
-        # The build reuses what the run after compiled; renders still land in ../base/target
-        env:
-          CARGO_TARGET_DIR: ${{ github.workspace }}/target
         run: bash "$GITHUB_WORKSPACE/scripts/sound-reports.sh" "$RUNNER_TEMP/before" --renders ${{ steps.scope.outputs.plugins }}
 
       - name: Compare
         run: |
+          # No renders of main means the run before did not build main: say so, not "no change"
+          if [ -n "${{ steps.scope.outputs.plugins }}" ] && [ -z "$(ls -A ../base/target/renders 2>/dev/null)" ]; then
+            echo "::error::../base/target/renders is empty: the run before did not render main's build"
+            exit 1
+          fi
           {
             echo "<!-- sound-report -->"
             echo "### Sound"
