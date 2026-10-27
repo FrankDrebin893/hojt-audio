@@ -1,551 +1,199 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-02T15:29:52Z",
+  "generatedAt": "2026-10-27T21:47:00Z",
   "title": "Design System: Piano MIDI Visualization",
   "provenance": {
-    "source": "src/PianoMidiVisualizationApp/Themes/Dark.xaml and the code-behind renderers; commits 5338eec, efe044d, 6f28a91, c12c0ee",
+    "source": "src/PianoMidiVisualizationApp/Themes/Dark.xaml, Views/HojtBadge.xaml, and docs/styles.css",
     "directionContract": ".impeccable/surfaces/src-pianomidivisualizationapp-mainwindow-xaml.md",
-    "seedKey": "a1a0326c",
-    "platform": "WPF / .NET 10; CSS in components is a preview translation only"
+    "platform": "WPF / .NET 10 + GitHub Pages web landing page"
   },
   "extensions": {
     "colorMeta": {
-      "lacquer-deep": {
-        "role": "neutral",
-        "displayName": "Lacquer Deep",
+      "panel-scarlet": {
+        "role": "primary",
+        "displayName": "Panel Scarlet",
+        "canonical": "#A8131C",
         "tonalRamp": [
-          "#0B0A09",
-          "#100F0E",
-          "#1C1A17",
-          "#282520",
-          "#34302B",
-          "#3D3934",
-          "#58534C",
-          "#7A736A"
+          "#2A1214",
+          "#4A080C",
+          "#780D13",
+          "#A8131C",
+          "#C42B1C",
+          "#E2581E",
+          "#F0736A",
+          "#FFC0AE"
         ],
-        "note": "Themes/Dark.xaml Color.Lacquer.Deep; the project's own six-step ladder (extended with the ivory floor for the strip)."
+        "note": "Themes/Dark.xaml Color.Lacquer.Chrome; brushed scarlet anodised aluminium front panel."
       },
-      "lacquer-chrome": {
+      "oled-black": {
         "role": "neutral",
-        "displayName": "Lacquer Chrome",
+        "displayName": "OLED Black",
+        "canonical": "#000000",
         "tonalRamp": [
-          "#0B0A09",
-          "#100F0E",
-          "#1C1A17",
-          "#282520",
-          "#34302B",
-          "#3D3934",
-          "#58534C",
-          "#7A736A"
+          "#000000",
+          "#060606",
+          "#0A0A0A",
+          "#0C0C0C",
+          "#111111",
+          "#141414",
+          "#1C1C1C",
+          "#2E2E2E"
         ],
-        "note": "Themes/Dark.xaml Color.Lacquer.Chrome; the project's own six-step ladder (extended with the ivory floor for the strip)."
+        "note": "Themes/Dark.xaml Color.Lacquer.Stage; recessed OLED screen and drawer surfaces."
       },
-      "lacquer-stage": {
+      "well-deep": {
         "role": "neutral",
-        "displayName": "Lacquer Stage",
+        "displayName": "Well Deep",
+        "canonical": "#060606",
         "tonalRamp": [
-          "#0B0A09",
-          "#100F0E",
-          "#1C1A17",
-          "#282520",
-          "#34302B",
-          "#3D3934",
-          "#58534C",
-          "#7A736A"
+          "#000000",
+          "#060606",
+          "#0A0A0A",
+          "#0C0C0C",
+          "#141414",
+          "#1C1C1C",
+          "#2E2E2E",
+          "#3E3E3E"
         ],
-        "note": "Themes/Dark.xaml Color.Lacquer.Stage; the project's own six-step ladder (extended with the ivory floor for the strip)."
+        "note": "Themes/Dark.xaml Color.Lacquer.Deep; falling-notes lane, take timeline, and MIDI log well."
       },
-      "lacquer-raised": {
+      "rubber-raised": {
         "role": "neutral",
-        "displayName": "Lacquer Raised",
+        "displayName": "Rubber Raised",
+        "canonical": "#1C1C1C",
         "tonalRamp": [
-          "#0B0A09",
-          "#100F0E",
-          "#1C1A17",
-          "#282520",
-          "#34302B",
-          "#3D3934",
-          "#58534C",
-          "#7A736A"
+          "#060606",
+          "#0C0C0C",
+          "#141414",
+          "#1C1C1C",
+          "#242424",
+          "#2E2E2E",
+          "#3E3E3E",
+          "#7C7A78"
         ],
-        "note": "Themes/Dark.xaml Color.Lacquer.Raised; the project's own six-step ladder (extended with the ivory floor for the strip)."
-      },
-      "lacquer-hover": {
-        "role": "neutral",
-        "displayName": "Lacquer Hover",
-        "tonalRamp": [
-          "#0B0A09",
-          "#100F0E",
-          "#1C1A17",
-          "#282520",
-          "#34302B",
-          "#3D3934",
-          "#58534C",
-          "#7A736A"
-        ],
-        "note": "Themes/Dark.xaml Color.Lacquer.Hover; the project's own six-step ladder (extended with the ivory floor for the strip)."
-      },
-      "lacquer-line": {
-        "role": "neutral",
-        "displayName": "Lacquer Line",
-        "tonalRamp": [
-          "#0B0A09",
-          "#100F0E",
-          "#1C1A17",
-          "#282520",
-          "#34302B",
-          "#3D3934",
-          "#58534C",
-          "#7A736A"
-        ],
-        "note": "Themes/Dark.xaml Color.Lacquer.Line; the project's own six-step ladder (extended with the ivory floor for the strip)."
+        "note": "Themes/Dark.xaml Color.Lacquer.Raised; black rubber panel keys, buttons, and chord tiles at rest."
       },
       "ivory-key": {
         "role": "neutral",
-        "displayName": "Keytop Ivory",
+        "displayName": "Keytop White",
+        "canonical": "#FCFCFB",
         "tonalRamp": [
-          "#58534C",
-          "#7A736A",
-          "#979084",
-          "#ADA699",
-          "#D2CBBF",
-          "#E6DFD2",
-          "#F5F0E6",
-          "#FBF8F0"
+          "#7C7A78",
+          "#8E8C8A",
+          "#D0CECC",
+          "#DCDAD8",
+          "#F0EEEC",
+          "#F4F2EE",
+          "#FCFCFB",
+          "#FFFFFF"
         ],
-        "note": "Themes/Dark.xaml Color.Ivory.Key; the project's own ivory ramp."
-      },
-      "ivory-primary": {
-        "role": "neutral",
-        "displayName": "Ivory Primary",
-        "tonalRamp": [
-          "#58534C",
-          "#7A736A",
-          "#979084",
-          "#ADA699",
-          "#D2CBBF",
-          "#E6DFD2",
-          "#F5F0E6",
-          "#FBF8F0"
-        ],
-        "note": "Themes/Dark.xaml Color.Ivory.Primary; the project's own ivory ramp."
-      },
-      "ivory-pressed": {
-        "role": "neutral",
-        "displayName": "Ivory Pressed (On)",
-        "tonalRamp": [
-          "#58534C",
-          "#7A736A",
-          "#979084",
-          "#ADA699",
-          "#D2CBBF",
-          "#E6DFD2",
-          "#F5F0E6",
-          "#FBF8F0"
-        ],
-        "note": "Themes/Dark.xaml Color.Ivory.Pressed; the project's own ivory ramp."
-      },
-      "ivory-secondary": {
-        "role": "neutral",
-        "displayName": "Ivory Secondary",
-        "tonalRamp": [
-          "#58534C",
-          "#7A736A",
-          "#979084",
-          "#ADA699",
-          "#D2CBBF",
-          "#E6DFD2",
-          "#F5F0E6",
-          "#FBF8F0"
-        ],
-        "note": "Themes/Dark.xaml Color.Ivory.Secondary; the project's own ivory ramp."
-      },
-      "ivory-tertiary": {
-        "role": "neutral",
-        "displayName": "Ivory Tertiary",
-        "tonalRamp": [
-          "#58534C",
-          "#7A736A",
-          "#979084",
-          "#ADA699",
-          "#D2CBBF",
-          "#E6DFD2",
-          "#F5F0E6",
-          "#FBF8F0"
-        ],
-        "note": "Themes/Dark.xaml Color.Ivory.Tertiary; the project's own ivory ramp."
-      },
-      "ivory-muted": {
-        "role": "neutral",
-        "displayName": "Ivory Muted",
-        "tonalRamp": [
-          "#58534C",
-          "#7A736A",
-          "#979084",
-          "#ADA699",
-          "#D2CBBF",
-          "#E6DFD2",
-          "#F5F0E6",
-          "#FBF8F0"
-        ],
-        "note": "Themes/Dark.xaml Color.Ivory.Muted; the project's own ivory ramp."
-      },
-      "ivory-faint": {
-        "role": "neutral",
-        "displayName": "Ivory Faint (marks only)",
-        "tonalRamp": [
-          "#58534C",
-          "#7A736A",
-          "#979084",
-          "#ADA699",
-          "#D2CBBF",
-          "#E6DFD2",
-          "#F5F0E6",
-          "#FBF8F0"
-        ],
-        "note": "Themes/Dark.xaml Color.Ivory.Faint; the project's own ivory ramp."
-      },
-      "ivory-disabled": {
-        "role": "neutral",
-        "displayName": "Ivory Disabled",
-        "tonalRamp": [
-          "#58534C",
-          "#7A736A",
-          "#979084",
-          "#ADA699",
-          "#D2CBBF",
-          "#E6DFD2",
-          "#F5F0E6",
-          "#FBF8F0"
-        ],
-        "note": "Themes/Dark.xaml Color.Ivory.Disabled; the project's own ivory ramp."
+        "note": "Themes/Dark.xaml Color.Ivory.Key; white keytops, primary actions, and switched-on toggles."
       },
       "amber": {
-        "role": "primary",
-        "displayName": "Key-Centre Amber",
+        "role": "secondary",
+        "displayName": "Attention Amber",
+        "canonical": "#F0C06A",
         "tonalRamp": [
           "#1C1609",
           "#2A2215",
           "#3A2E1B",
-          "#463820",
           "#6E4F1C",
           "#8A6A30",
+          "#E9C47E",
           "#EDA73C",
           "#F0C06A"
         ],
-        "canonical": "oklch(83.3% 0.118 80.6)",
-        "note": "Themes/Dark.xaml Color.Amber; the project's own amber family."
-      },
-      "amber-pale": {
-        "role": "primary",
-        "displayName": "Pale Amber",
-        "tonalRamp": [
-          "#1C1609",
-          "#2A2215",
-          "#3A2E1B",
-          "#463820",
-          "#6E4F1C",
-          "#8A6A30",
-          "#EDA73C",
-          "#F0C06A"
-        ],
-        "note": "Themes/Dark.xaml Color.Amber.Pale; the project's own amber family."
-      },
-      "amber-strong": {
-        "role": "primary",
-        "displayName": "Strong Amber",
-        "tonalRamp": [
-          "#1C1609",
-          "#2A2215",
-          "#3A2E1B",
-          "#463820",
-          "#6E4F1C",
-          "#8A6A30",
-          "#EDA73C",
-          "#F0C06A"
-        ],
-        "note": "Themes/Dark.xaml Color.Amber.Strong; the project's own amber family."
-      },
-      "amber-deep": {
-        "role": "primary",
-        "displayName": "Deep Amber",
-        "tonalRamp": [
-          "#1C1609",
-          "#2A2215",
-          "#3A2E1B",
-          "#463820",
-          "#6E4F1C",
-          "#8A6A30",
-          "#EDA73C",
-          "#F0C06A"
-        ],
-        "note": "Themes/Dark.xaml Color.Amber.Deep; the project's own amber family."
-      },
-      "amber-border": {
-        "role": "primary",
-        "displayName": "Amber Border",
-        "tonalRamp": [
-          "#1C1609",
-          "#2A2215",
-          "#3A2E1B",
-          "#463820",
-          "#6E4F1C",
-          "#8A6A30",
-          "#EDA73C",
-          "#F0C06A"
-        ],
-        "note": "Themes/Dark.xaml Color.Amber.Border; the project's own amber family."
-      },
-      "amber-wash-hover": {
-        "role": "primary",
-        "displayName": "Amber Wash Hover",
-        "tonalRamp": [
-          "#1C1609",
-          "#2A2215",
-          "#3A2E1B",
-          "#463820",
-          "#6E4F1C",
-          "#8A6A30",
-          "#EDA73C",
-          "#F0C06A"
-        ],
-        "note": "Themes/Dark.xaml Color.Amber.WashHover; the project's own amber family."
-      },
-      "amber-wash": {
-        "role": "primary",
-        "displayName": "Amber Wash",
-        "tonalRamp": [
-          "#1C1609",
-          "#2A2215",
-          "#3A2E1B",
-          "#463820",
-          "#6E4F1C",
-          "#8A6A30",
-          "#EDA73C",
-          "#F0C06A"
-        ],
-        "note": "Themes/Dark.xaml Color.Amber.Wash; the project's own amber family."
-      },
-      "amber-fill": {
-        "role": "primary",
-        "displayName": "Amber Fill",
-        "tonalRamp": [
-          "#1C1609",
-          "#2A2215",
-          "#3A2E1B",
-          "#463820",
-          "#6E4F1C",
-          "#8A6A30",
-          "#EDA73C",
-          "#F0C06A"
-        ],
-        "note": "Themes/Dark.xaml Color.Amber.Fill; the project's own amber family."
-      },
-      "amber-ink": {
-        "role": "primary",
-        "displayName": "Amber Ink",
-        "tonalRamp": [
-          "#1C1609",
-          "#2A2215",
-          "#3A2E1B",
-          "#463820",
-          "#6E4F1C",
-          "#8A6A30",
-          "#EDA73C",
-          "#F0C06A"
-        ],
-        "note": "Themes/Dark.xaml Color.Amber.Ink; the project's own amber family."
+        "note": "Themes/Dark.xaml Color.Amber; status chip and first-run checklist while waiting on the player."
       },
       "held-blue": {
         "role": "secondary",
         "displayName": "Held-Key Blue",
+        "canonical": "#4FA3FF",
         "tonalRamp": [
           "#00072F",
           "#002452",
           "#004176",
           "#18619D",
           "#3681C6",
-          "#54A4EE",
+          "#4FA3FF",
           "#81CAFF",
           "#B2F5FF"
         ],
-        "canonical": "oklch(68.8% 0.136 249.1)",
-        "note": "Themes/Dark.xaml Color.Blue; ramp synthesized in OKLCH for preview, not project tokens."
+        "note": "Themes/Dark.xaml Color.Blue; held keys, recorded notes, and circle chord-root outline."
       },
       "target-magenta": {
         "role": "secondary",
         "displayName": "Asking Magenta",
+        "canonical": "#E83E9C",
         "tonalRamp": [
           "#2F0012",
           "#56002D",
           "#7E004B",
           "#A8006A",
           "#D32E8C",
-          "#FA58AE",
+          "#E83E9C",
           "#FF87D3",
           "#FFB9FC"
         ],
-        "canonical": "oklch(64.2% 0.221 351.4)",
-        "note": "Themes/Dark.xaml Color.Target; ramp synthesized in OKLCH for preview, not project tokens."
+        "note": "Themes/Dark.xaml Color.Target; Wait-for-Me target keys and chord tile hover outline."
       },
       "hit-green": {
         "role": "tertiary",
         "displayName": "Hit Green",
+        "canonical": "#8BE36B",
         "tonalRamp": [
           "#001300",
           "#002F00",
           "#134E00",
           "#2F6F0F",
           "#4A912E",
-          "#67B549",
-          "#87DE67",
+          "#6DC252",
+          "#8BE36B",
           "#B6FF99"
         ],
-        "canonical": "oklch(83.4% 0.178 138.0)",
-        "note": "Themes/Dark.xaml Color.Correct; ramp synthesized in OKLCH for preview, not project tokens."
+        "note": "Themes/Dark.xaml Color.Correct; correct note hits and connected status beacon."
       },
-      "miss-red": {
-        "role": "tertiary",
-        "displayName": "Miss Red",
+      "hojt-panel": {
+        "role": "neutral",
+        "displayName": "HØJT Badge Plate",
+        "canonical": "#1C1A18",
         "tonalRamp": [
-          "#330000",
-          "#5A0000",
-          "#830004",
-          "#AE1321",
-          "#DA383C",
-          "#FF5B5A",
-          "#FF8B84",
-          "#FFBCB3"
+          "#0A0A0A",
+          "#1C1A18",
+          "#2E2B28",
+          "#4A4540",
+          "#7A736A",
+          "#ADA699",
+          "#EADFC8",
+          "#FCFCFB"
         ],
-        "canonical": "oklch(67.9% 0.209 24.7)",
-        "note": "Themes/Dark.xaml Color.Wrong; ramp synthesized in OKLCH for preview, not project tokens."
-      },
-      "record-red": {
-        "role": "tertiary",
-        "displayName": "Record Red",
-        "tonalRamp": [
-          "#330000",
-          "#5A0000",
-          "#830000",
-          "#AE1613",
-          "#DA3A31",
-          "#FF6153",
-          "#FF907E",
-          "#FFC0AE"
-        ],
-        "canonical": "oklch(64.4% 0.204 28.3)",
-        "note": "Themes/Dark.xaml Color.Record; ramp synthesized in OKLCH for preview, not project tokens."
-      },
-      "right-hand-teal": {
-        "role": "tertiary",
-        "displayName": "Right-Hand Teal",
-        "tonalRamp": [
-          "#00130E",
-          "#003027",
-          "#004E44",
-          "#006F62",
-          "#079183",
-          "#34B5A4",
-          "#67DBCA",
-          "#9EFFF4"
-        ],
-        "canonical": "oklch(73.7% 0.114 182.7)",
-        "note": "Themes/Dark.xaml Brush.Song.Part0 (literal); ramp synthesized in OKLCH for preview, not project tokens."
-      },
-      "left-hand-violet": {
-        "role": "tertiary",
-        "displayName": "Left-Hand Violet",
-        "tonalRamp": [
-          "#100420",
-          "#291B3E",
-          "#46365F",
-          "#655382",
-          "#8572A7",
-          "#A792CE",
-          "#CDB8F4",
-          "#F7E3FF"
-        ],
-        "canonical": "oklch(73.7% 0.091 300.5)",
-        "note": "Themes/Dark.xaml Brush.Song.Part1 (literal); ramp synthesized in OKLCH for preview, not project tokens."
-      },
-      "record-idle": {
-        "role": "tertiary",
-        "displayName": "Record Idle",
-        "tonalRamp": [
-          "#330000",
-          "#5A0000",
-          "#830000",
-          "#AE1613",
-          "#C42B1C",
-          "#DA3A31",
-          "#F0736A",
-          "#FFC0AE"
-        ],
-        "note": "Themes/Dark.xaml Color.Record.Idle; ramp synthesized."
-      },
-      "danger-red": {
-        "role": "tertiary",
-        "displayName": "Close Red",
-        "tonalRamp": [
-          "#330000",
-          "#5A0000",
-          "#830000",
-          "#AE1613",
-          "#C42B1C",
-          "#DA3A31",
-          "#F0736A",
-          "#FFC0AE"
-        ],
-        "note": "Themes/Dark.xaml Brush.Danger (literal); Windows' close-button red, title-bar close hover only."
-      },
-      "danger-text": {
-        "role": "tertiary",
-        "displayName": "Danger Text",
-        "tonalRamp": [
-          "#330000",
-          "#5A0000",
-          "#830000",
-          "#AE1613",
-          "#C42B1C",
-          "#DA3A31",
-          "#F0736A",
-          "#FFC0AE"
-        ],
-        "note": "Themes/Dark.xaml Brush.Danger.Text (literal); remove-glyph hover ink."
+        "note": "Views/HojtBadge.xaml and docs/img/hojt-badge.svg; hardware badge plate (#1C1A18), silk border/glyphs (#EADFC8), and pointer slash (#E2581E)."
       }
     },
     "typographyMeta": {
+      "brand": {
+        "displayName": "HØJT Hardware Badge",
+        "purpose": "Bebas Neue 22px vector glyph outlines inside the 63x33.8 HØJT hardware badge."
+      },
       "display": {
-        "displayName": "Chord Name",
-        "purpose": "The chord name at the centre of the stage (Size.Readout.Name). The only display-size text."
+        "displayName": "OLED Chord Name",
+        "purpose": "Inter Tight ExtraBold 72px chord name at the centre of the OLED window."
       },
       "headline": {
         "displayName": "Readout Numeral",
-        "purpose": "Roman numeral on the voicing line (Size.Readout.Function), sized to share its 19px line box. Ivory Primary whatever the chord's kind."
-      },
-      "title": {
-        "displayName": "Panel Title",
-        "purpose": "Panel headers in Ivory Tertiary, sentence case."
+        "purpose": "Inter Tight SemiBold 18px Roman numeral and panel headers."
       },
       "body": {
-        "displayName": "Body",
-        "purpose": "Controls, menus, tiles, lists. WPF default size; the face is never overridden."
+        "displayName": "Instrument Body",
+        "purpose": "Inter Tight Regular 12px for desktop controls, menus, tiles, and lists."
       },
-      "body-readout": {
-        "displayName": "Readout Voicing",
-        "purpose": "The voicing line under the chord name (Size.Readout.Voicing)."
-      },
-      "label": {
-        "displayName": "Label",
-        "purpose": "Secondary details, gesture text, song details (10-11px)."
+      "legend": {
+        "displayName": "Hardware Legend",
+        "purpose": "Inter Tight SemiBold 11px for front-panel key legends and OLED status headers."
       },
       "data": {
-        "displayName": "Data",
-        "purpose": "Pitches on the readout (Size.Readout.Notes), one column per note; each note's interval sits centred under it at 14px (Size.Readout.Intervals)."
-      },
-      "data-small": {
-        "displayName": "Data Small",
-        "purpose": "The MIDI log and clocks (11-12px)."
+        "displayName": "Musical Data",
+        "purpose": "JetBrains Mono 18px/11px for pitches, intervals, tempo clocks, and MIDI logs."
       }
     },
     "shadows": [
@@ -560,21 +208,21 @@
         "purpose": "Black keys standing proud: DropShadowEffect direction 315, depth 3, blur 5, opacity 0.5."
       },
       {
-        "name": "piano-echo",
-        "value": "0 3px 14px rgba(0,0,0,0.45)",
-        "purpose": "The transient echo pill over the stage, the only floating chrome: direction 270, depth 3, blur 14, opacity 0.45."
+        "name": "hojt-badge",
+        "value": "0 3px 0 rgba(0,0,0,0.314)",
+        "purpose": "3px vertical drop shadow under the 63x30.8 HØJT hardware plate."
       }
     ],
     "motion": [
       {
         "name": "readout-latch-fade",
         "value": "hold 1 for 150ms; ExponentialEase EaseOut (exponent 4) to 0.4 at 1.6s; linear to 0 at 2s",
-        "purpose": "A latched chord readout dims to read as a memory rather than as sounding (Style.Readout.Latch)."
+        "purpose": "A latched chord readout dims after keys are released (Style.Readout.Latch)."
       },
       {
         "name": "state-change",
         "value": "instant",
-        "purpose": "Control hover, press and on states switch without transitions; popups open with PopupAnimation None."
+        "purpose": "Control hover, press, and on states switch without transitions on desktop."
       }
     ],
     "breakpoints": [
@@ -583,170 +231,95 @@
         "value": "900x420"
       },
       {
-        "name": "keyboard-scale",
-        "value": "~1070px wide with the sidebar open; the keyboard Viewbox scales below this"
+        "name": "web-tablet",
+        "value": "1024px"
+      },
+      {
+        "name": "web-mobile",
+        "value": "768px"
       }
     ]
   },
   "components": [
     {
-      "name": "Button",
+      "name": "Rubber Button",
       "kind": "button",
       "refersTo": "button",
-      "description": "A lacquer key: no border at rest, lifts on hover, sinks on press.",
+      "description": "Black rubber key with white legend; lifts to Rubber Hover on pointer over.",
       "html": "<button class=\"ds-btn\">Tap</button>",
-      "css": ".ds-btn { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 12px; background: #282520; color: #D2CBBF; border: 1px solid transparent; border-radius: 3px; padding: 3px 10px; cursor: pointer; } .ds-btn:hover { background: #34302B; color: #F5F0E6; } .ds-btn:active { background: #1C1A17; } .ds-btn:focus-visible { outline: 1.5px solid #D2CBBF; outline-offset: 2px; } .ds-btn:disabled { background: #100F0E; color: #58534C; cursor: default; }"
+      "css": ".ds-btn { font-family: 'Inter Tight', system-ui, sans-serif; font-size: 12px; background: #1C1C1C; color: #F0EEEC; border: 1px solid #3E3E3E; border-radius: 3px; padding: 3px 10px; cursor: pointer; } .ds-btn:hover { background: #2E2E2E; color: #FFFFFF; }"
     },
     {
-      "name": "Primary Button",
+      "name": "Primary Ivory Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "The one primary action in a view: an ivory keytop with lacquer ink.",
+      "description": "Switched-on toggle or primary action: white keytop with black ink.",
       "html": "<button class=\"ds-btn-primary\">Start audio</button>",
-      "css": ".ds-btn-primary { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 12px; font-weight: 600; background: #E6DFD2; color: #100F0E; border: 1px solid transparent; border-radius: 3px; padding: 3px 10px; cursor: pointer; } .ds-btn-primary:hover { background: #F5F0E6; } .ds-btn-primary:active { background: #D2CBBF; } .ds-btn-primary:focus-visible { outline: 1.5px solid #D2CBBF; outline-offset: 2px; }"
+      "css": ".ds-btn-primary { font-family: 'Inter Tight', system-ui, sans-serif; font-size: 12px; font-weight: 600; background: #F4F2EE; color: #0A0A0A; border: none; border-radius: 3px; padding: 3px 10px; cursor: pointer; }"
     },
     {
-      "name": "Toolbar Toggle",
-      "kind": "button",
-      "refersTo": "toolbar-toggle-on",
-      "description": "Stays down while its feature is on: lacquer off, ivory with lacquer ink on.",
-      "html": "<button class=\"ds-toggle\" aria-pressed=\"false\">7ths</button> <button class=\"ds-toggle\" aria-pressed=\"true\">7ths</button>",
-      "css": ".ds-toggle { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 12px; background: #282520; color: #D2CBBF; border: 1px solid transparent; border-radius: 3px; padding: 3px 7px; cursor: pointer; } .ds-toggle:hover { background: #34302B; color: #F5F0E6; } .ds-toggle[aria-pressed=true] { background: #E6DFD2; color: #100F0E; } .ds-toggle[aria-pressed=true]:hover { background: #F5F0E6; } .ds-toggle:focus-visible { outline: 1.5px solid #D2CBBF; outline-offset: 2px; }"
-    },
-    {
-      "name": "Input",
-      "kind": "input",
-      "refersTo": "input",
-      "description": "The only outlined control: lacquer fill, Lacquer Line outline.",
-      "html": "<input class=\"ds-input\" value=\"90\" aria-label=\"Tempo\">",
-      "css": ".ds-input { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 12px; background: #282520; color: #D2CBBF; caret-color: #F5F0E6; border: 1px solid #3D3934; border-radius: 3px; padding: 3px 6px; } .ds-input:hover { border-color: #979084; } .ds-input:focus-visible { outline: 1.5px solid #D2CBBF; outline-offset: 2px; }"
-    },
-    {
-      "name": "Status Chip",
-      "kind": "chip",
-      "refersTo": "status-chip-attention",
-      "description": "Title-bar pill: quiet grey when ready, amber while something needs you.",
-      "html": "<span class=\"ds-chip\"><i></i>Digital Piano · ASIO</span> <span class=\"ds-chip ds-chip-attn\"><i></i>No MIDI input</span>",
-      "css": ".ds-chip { font-family: 'Segoe UI', system-ui, sans-serif; display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px 0 8px; font-size: 12px; color: #ADA699; border: 1px solid #34302B; border-radius: 11px; background: #100F0E; box-sizing: border-box; } .ds-chip i { width: 7px; height: 7px; border-radius: 50%; background: #979084; } .ds-chip:hover { background: #34302B; color: #F5F0E6; } .ds-chip-attn { background: #2A2215; border-color: #8A6A30; color: #F0C06A; } .ds-chip-attn i { background: #F0C06A; } .ds-chip-attn:hover { background: #3A2E1B; color: #F0C06A; }"
-    },
-    {
-      "name": "Chord Readout",
+      "name": "HØJT Hardware Badge",
       "kind": "custom",
-      "refersTo": "ivory-primary",
-      "description": "The centre of the stage: chord name, an ivory numeral leading the voicing, each interval under its note, and a last line that speaks only when there is something to say.",
-      "html": "<div class=\"ds-readout\"><div class=\"ds-ro-name\">G7/B</div><div class=\"ds-ro-voicing\"><b>V65</b><i> · </i>1st inversion · drop 2</div><div class=\"ds-ro-cols\"><span><b>B2</b>3</span><span><b>F3</b>b7</span><span><b>G3</b>R</span><span><b>D4</b>5</span></div><div class=\"ds-ro-save\">Saved · 3/8</div></div>",
-      "css": ".ds-readout { font-family: 'Segoe UI', system-ui, sans-serif; background: #1C1A17; padding: 12px 24px; text-align: center; width: max-content; } .ds-ro-name { font-size: 64px; font-weight: 700; line-height: 70px; color: #F5F0E6; } .ds-ro-voicing { margin-top: 3px; font-size: 14px; line-height: 19px; color: #D2CBBF; } .ds-ro-voicing b { font-size: 18px; font-weight: 600; color: #F5F0E6; } .ds-ro-voicing i { font-style: normal; color: #979084; } .ds-ro-cols { display: flex; justify-content: center; } .ds-ro-cols span { display: flex; flex-direction: column; margin: 0 6px; font-family: Consolas, monospace; font-size: 14px; line-height: 18px; color: #979084; } .ds-ro-cols b { font-weight: 400; font-size: 18px; line-height: 22px; color: #ADA699; } .ds-ro-save { margin-top: 4px; font-size: 11px; line-height: 18px; color: #979084; }"
-    },
-    {
-      "name": "Chord Tile",
-      "kind": "custom",
-      "refersTo": "chord-tile-played",
-      "description": "Borderless 22px lacquer tiles; the played one alone gains a held-blue edge, a hovered one a magenta outline.",
-      "html": "<div class=\"ds-strip\"><span class=\"ds-tile\"><b>ii7</b> Dm7</span><span class=\"ds-tile ds-tile-played\"><b>V7</b> G7</span><span class=\"ds-tile\"><b>vi7</b> Am7</span></div>",
-      "css": ".ds-strip { display: flex; gap: 4px; background: #1C1A17; padding: 8px; } .ds-tile { font-family: 'Segoe UI', system-ui, sans-serif; display: inline-flex; align-items: center; height: 22px; min-width: 52px; padding: 0 8px; box-sizing: border-box; font-size: 12px; color: #ADA699; background: #282520; border: 1px solid #282520; border-radius: 4px; cursor: pointer; justify-content: center; gap: 4px; } .ds-tile b { font-weight: 600; } .ds-tile:hover { background: #34302B; border-color: #E83E9C; color: #D2CBBF; } .ds-tile-played { border-color: #50A0EB; color: #F5F0E6; } .ds-tile-played:hover { border-color: #E83E9C; }"
-    },
-    {
-      "name": "Setup Step",
-      "kind": "custom",
-      "refersTo": "setup-step-next",
-      "description": "First-run checklist row: flat until hovered; the next step sits on an amber wash.",
-      "html": "<div class=\"ds-steps\"><div class=\"ds-step ds-step-done\">Choose a MIDI keyboard</div><div class=\"ds-step ds-step-next\">Start audio</div><div class=\"ds-step\">Pick a key</div></div>",
-      "css": ".ds-steps { background: #1C1A17; padding: 8px; display: grid; gap: 2px; } .ds-step { font-family: 'Segoe UI', system-ui, sans-serif; height: 26px; display: flex; align-items: center; padding: 0 12px 0 6px; font-size: 12px; color: #D2CBBF; border-radius: 4px; cursor: pointer; } .ds-step:hover { background: #34302B; color: #F5F0E6; } .ds-step-next { background: #3A2E1B; color: #F5F0E6; } .ds-step-next:hover { background: #463820; } .ds-step-done { color: #ADA699; }"
-    },
-    {
-      "name": "Keyboard Octave",
-      "kind": "custom",
-      "refersTo": "held-blue",
-      "description": "Ivory keytops and ebony sharps: tonic amber with a deep amber lip, in-key wash with an amber-border lip, held blue.",
-      "html": "<div class=\"ds-kb\"><div class=\"ds-w ds-tonic\"><span>C4</span></div><div class=\"ds-w ds-inkey\"></div><div class=\"ds-w ds-held\"><span>E</span></div><div class=\"ds-w ds-inkey\"></div><div class=\"ds-b\" style=\"left:26px\"></div><div class=\"ds-b\" style=\"left:62px\"></div></div>",
-      "css": ".ds-kb { position: relative; display: flex; gap: 1px; background: #1C1A17; padding: 8px; width: max-content; } .ds-w { font-family: 'Segoe UI', system-ui, sans-serif; position: relative; width: 34px; height: 120px; border: 0.5px solid #2A2622; border-radius: 0 0 4px 4px; background: linear-gradient(#FBF8F0, #EAE5DA); box-shadow: 0 1px 2px rgba(0,0,0,0.15); display: flex; align-items: flex-end; justify-content: center; font-size: 9px; font-weight: 500; color: #47423B; } .ds-w span { margin-bottom: 8px; } .ds-inkey { background: linear-gradient(#FDF1D6, #F1DAA3); border-bottom: 3px solid #8A6A30; } .ds-tonic { background: linear-gradient(#F7C96C, #E4A847); border-bottom: 4px solid #6E4F1C; font-size: 10px; } .ds-held { background: linear-gradient(#8CC8FF, #50A0EB); color: #0A1F3D; font-weight: 600; font-size: 11px; } .ds-b { position: absolute; top: 8px; width: 20px; height: 76px; border-radius: 2px; background: linear-gradient(#4A4540 0%, #25221F 8%, #181614 50%, #0B0A09 100%); box-shadow: 2px 2px 5px rgba(0,0,0,0.5); }"
-    },
-    {
-      "name": "Piano Roll Lane",
-      "kind": "custom",
-      "refersTo": "lacquer-deep",
-      "description": "Song lane and take timeline: flat note slots cut in a deep lacquer well, bar numbers in the margin, the hit line as the tracker bar.",
-      "html": "<div class=\"ds-roll\"><span class=\"ds-bar\">12</span><i class=\"ds-n ds-rh\" style=\"left:40px;top:10px;height:40px\"></i><i class=\"ds-n ds-lh\" style=\"left:90px;top:30px;height:60px\"></i><i class=\"ds-n ds-rec\" style=\"left:140px;top:20px;height:30px\"></i><div class=\"ds-hit\"></div></div>",
-      "css": ".ds-roll { font-family: 'Segoe UI', system-ui, sans-serif; position: relative; width: 220px; height: 120px; background: #0B0A09; border-top: 1px solid #34302B; } .ds-bar { position: absolute; left: 4px; top: 2px; font-size: 10px; color: #979084; } .ds-n { position: absolute; width: 14px; border-radius: 2px; } .ds-rh { background: #3FC1B0; } .ds-lh { background: #B39DDB; } .ds-rec { background: #50A0EB; } .ds-hit { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: #ADA699; }"
+      "refersTo": "hojt-panel",
+      "description": "Exact 63x33.8 vector hardware badge shared across HØJT Audio instruments.",
+      "html": "<svg viewBox=\"0 0 63 33.8\" width=\"63\" height=\"33.8\"><rect x=\"0\" y=\"3\" width=\"63\" height=\"30.8\" rx=\"6\" ry=\"6\" fill=\"#000000\" fill-opacity=\"0.314\"/><rect x=\"0\" y=\"0\" width=\"63\" height=\"30.8\" rx=\"6\" ry=\"6\" fill=\"#1C1A18\"/><rect x=\"2.75\" y=\"2.75\" width=\"57.5\" height=\"25.3\" rx=\"3.5\" ry=\"3.5\" fill=\"none\" stroke=\"#EADFC8\" stroke-width=\"1.5\"/><path fill=\"#EADFC8\" d=\"M10.142,7.7L12.562,7.7 12.562,13.97 15.158,13.97 15.158,7.7 17.578,7.7 17.578,23.1 15.158,23.1 15.158,16.17 12.562,16.17 12.562,23.1 10.142,23.1 10.142,7.7z M38.774,23.188L38.163,23.166 37.652,23.1 37.652,20.9 38.026,20.966 38.444,20.988 38.784,20.965 39.076,20.897 39.323,20.784 39.522,20.625 39.676,20.419 39.786,20.166 39.852,19.864 39.874,19.514 39.874,7.7 42.294,7.7 42.294,19.448 42.28,19.906 42.24,20.333 42.172,20.731 42.077,21.098 41.955,21.435 41.805,21.742 41.629,22.018 41.425,22.264 40.933,22.668 40.328,22.957 39.608,23.13 38.774,23.188z M48.794,9.9L46.264,9.9 46.264,7.7 53.744,7.7 53.744,9.9 51.214,9.9 51.214,23.1 48.794,23.1 48.794,9.9z\"/><circle cx=\"27.6\" cy=\"15.4\" r=\"6.6\" fill=\"none\" stroke=\"#EADFC8\" stroke-width=\"2.31\"/><line x1=\"21.29\" y1=\"24.41\" x2=\"33.91\" y2=\"6.39\" stroke=\"#E2581E\" stroke-width=\"1.87\" stroke-linecap=\"butt\"/></svg>",
+      "css": ""
     }
   ],
   "narrative": {
-    "northStar": "The Piano's Case",
-    "overview": "The window is the instrument's body. A fixed ladder of warm lacquer greys recedes; the ivory keys and the ivory chord name lead; one amber marks the key you're in and whatever is still waiting on you. The chrome (title bar, sidebar, panels, status bar) sits a step darker than the stage, so the house lights are down and the only lift in the window is where the readout and the keys are. The player glances up and finds the chord name and the lit keys at once.\n\nDensity is instrument-panel tight: 12px body text, 22px tiles, 3px corners, a 900x420 minimum window where every row is budgeted. Controls are lacquer keys with no border at rest; only inputs are outlined. A switched-on control becomes an ivory keytop with lacquer ink rather than borrowing a hue. Every other hue has exactly one job, published as a colour table and held identical across the keyboard, circle of fifths, chord strip, song lane and recorder.\n\nThe song lane and the take timeline are piano rolls: notes are flat slots cut into a deep lacquer well, bar numbers sit in the margin, and the keyboard's top edge is the tracker bar every note is read against. It rejects the generic dark-IDE arrangement: grey panels, bordered grey buttons, and a muted blue accent borrowed for every \"on\".",
+    "northStar": "The Front Panel",
+    "overview": "The window is a piece of hardware with rounded corners. The chrome (title bar, front panel, toolbar, status bar) is one sheet of brushed scarlet aluminium with white legends. Set into it on the left is a black OLED window that spans the full width of the 61-key keyboard and holds everything you read: a status line, the grand staff, the chord name, the circle of fifths and the chord strip. Below the OLED window and practice toolbar, behind a felt strip, sit real white and black keys. In the right-hand hardware column beside the OLED display and keys sit two halo knobs for volume and click, twelve rubber panel keys with LEDs, and the vector HØJT hardware badge.",
     "keyCharacteristics": [
-      "Six lacquer steps, darkest first, with nothing between them; chrome darker than stage.",
-      "One ivory ramp carries text and keytops; Muted and brighter clear 4.5:1 up to Raised.",
-      "Amber is the only brand hue: key centre and \"waiting on you\", never decoration.",
-      "A published one-job-per-hue colour table (blue = you playing, magenta = the app asking).",
-      "Ink, not boxes: borderless controls, outlined inputs, one edged tile at a time.",
-      "Roles never rest on colour alone: edge marks, lips and outlines back every hue."
+      "One scarlet panel, brushed, shared by every chrome surface without seams on a 14px hardware grid.",
+      "One black OLED window with a bezel spans the full width of the 61-key keyboard and holds the readout and diatonic chord strip.",
+      "Real keys, neutral white with no ivory yellowing: a held key goes down and lights blue along its back edge, and out-of-key keys dim when a key signature is active.",
+      "A right-hand hardware front panel of rotary halo knobs, twelve LED rubber keys, and the HØJT hardware badge.",
+      "On means white: a lit toggle, the primary action, and the played chord tile are white with black ink."
     ],
     "rules": [
       {
-        "name": "The Lacquer Ladder Rule",
-        "body": "Surfaces use only the six lacquer steps, and nothing sits between them. Depth is a step on the ladder, never a new grey.",
+        "name": "The One Panel Rule",
+        "body": "Every chrome surface is the same brushed scarlet. Separation inside the chrome comes from black rubber controls and legends, never from a second red.",
         "section": "colors"
       },
       {
-        "name": "The House Lights Down Rule",
-        "body": "Chrome is one step darker than the stage. Anything that is not the readout, the staff, the circle or the keys belongs on chrome.",
+        "name": "The Window Holds the Reading Rule",
+        "body": "Whatever you read mid-phrase (chord, numeral, notes, staff, circle, chord strip) sits in the black OLED window. The panel carries controls and labels only.",
+        "section": "colors"
+      },
+      {
+        "name": "The On Means White Rule",
+        "body": "A switched-on toggle, the one primary action and the played chord tile are white keys with black ink. Amber never means 'on'; blue never means 'on'.",
         "section": "colors"
       },
       {
         "name": "The One Job Per Hue Rule",
-        "body": "Blue is you playing; amber is the key centre and whatever is waiting on you; magenta is the app asking for a key; teal and violet are your hands; green is hit; red is miss and recording. A hue is never borrowed for a second meaning in any widget.",
+        "body": "Amber is what waits on you; blue is you playing; magenta is the app asking; teal and violet are your hands; green is hit; red is miss and recording.",
         "section": "colors"
       },
       {
-        "name": "The On Means Ivory Rule",
-        "body": "A switched-on toggle (metronome, loop, 7ths) and the one primary action are ivory keytops with lacquer ink. Amber never means \"this is on\"; blue never means \"this is on\".",
-        "section": "colors"
-      },
-      {
-        "name": "The Marks Not Words Rule",
-        "body": "Ivory Faint draws marks. Any text uses Ivory Muted or brighter, which clears 4.5:1 on every lacquer step up to Raised.",
-        "section": "colors"
-      },
-      {
-        "name": "The Data Wears Consolas Rule",
-        "body": "Monospace is for pitches, intervals, the MIDI log and clocks only, so digits don't shift as they change. It is never a stylistic voice for labels or headers.",
+        "name": "The Data Holds Still Rule",
+        "body": "Monospace is for pitches, intervals, levels, the MIDI log and clocks, so digits don't shift as they change.",
         "section": "typography"
       },
       {
-        "name": "The Weight Not Case Rule",
-        "body": "Hierarchy comes from size and weight in sentence case. There are no uppercase labels, tracked-out headers or kickers.",
-        "section": "typography"
-      },
-      {
-        "name": "The Step Not Shadow Rule",
-        "body": "Chrome, panels, tiles and inputs are flat. To separate a surface, move it a step on the ladder; shadows are reserved for the keys and the echo.",
+        "name": "The Set-In Rule",
+        "body": "A surface either sits in the panel (the OLED window, the knob recesses) or is a black key on it. There are no shadows on panels, tiles or inputs.",
         "section": "elevation"
-      },
-      {
-        "name": "The Ink Not Boxes Rule",
-        "body": "Buttons carry no border at rest; only inputs are outlined. An edge is a state (played, hovered hint, focused), not decoration.",
-        "section": "shapes"
       }
     ],
     "dos": [
-      "**Do** build every brush from a `Color.*` token in `Dark.xaml` and resolve it by key in code-behind renderers; nothing else in the app picks a colour.",
-      "**Do** keep chrome one lacquer step darker than the stage (`lacquer-chrome` under `lacquer-stage`).",
-      "**Do** mark \"on\" and the single primary action with an ivory keytop and lacquer ink.",
-      "**Do** give every colour-coded role a second cue: an edge mark, a lip or an outline.",
-      "**Do** say a chord's kind in words (the Roman-numeral tags \"secondary\", \"borrowed\", \"chromatic\"), not with a tint: the numeral stays ivory.",
-      "**Do** keep words at Ivory Muted or brighter; use Ivory Faint only for marks.",
-      "**Do** put Consolas on data that changes (pitches, intervals, clocks, the log) and Segoe UI on everything else.",
-      "**Do** make stage controls that sit beside the save shortcut non-focusable (chord tiles, the status chip, setup steps, metronome buttons) so Space stays \"save chord\".",
-      "**Do** put colours for stateful controls in Style setters, never local attributes, so hover and state triggers can paint."
+      "**Do** build every brush from a `Color.*` token in `Dark.xaml` and resolve it by key in code-behind renderers.",
+      "**Do** put anything read mid-phrase inside the OLED window, and controls and legends on the panel.",
+      "**Do** mark 'on' and the single primary action with a white key and Ink.",
+      "**Do** give disabled controls the Disabled Fill, never the panel brush.",
+      "**Do** keep words at Legend Muted or brighter on the scarlet; Legend Faint draws marks only."
     ],
     "donts": [
-      "**Don't** add a grey between the lacquer steps, or a new surface colour outside the ladder.",
-      "**Don't** use amber as decoration or to mean \"this control is on\"; it is the key centre and what is waiting on you.",
-      "**Don't** borrow held-key blue for selection, links or \"on\"; blue means you are playing.",
-      "**Don't** draw a border on a button or toggle at rest; only inputs are outlined.",
-      "**Don't** use Ivory Faint for any text.",
-      "**Don't** add shadows to chrome, panels, tiles or inputs; change the lacquer step instead.",
-      "**Don't** use green for anything but a hit, or red for anything but a miss, recording, removal, or the window's close button.",
+      "**Don't** add a second red to the chrome, or a gradient across the panel that makes tiles band.",
+      "**Don't** use amber as decoration or to mean 'on'.",
+      "**Don't** borrow blue for selection or 'on'; blue means you are playing.",
+      "**Don't** use the halos' green-to-red scale anywhere but the halos.",
       "**Don't** use Unicode look-alike glyphs (✕, ↻, □) for icons; use Segoe MDL2 Assets codes or a drawn path."
     ]
   }
