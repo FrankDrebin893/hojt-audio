@@ -139,8 +139,8 @@ GitHub release.
   it, so a held note stays a string to the end instead of turning into an organ tone
 - On Metal the clean lows and the distorted mids now meet without a hollow between them
 - The voices' own settings changed to suit the new sound: Metal is Drive 40 %, Tone 2600 Hz,
-  Sub 25 % and Sustain 3 s, Groove is Sub 30 %. The knobs and their ranges are the same, and a saved project keeps its
-  knobs but plays the new sound
+  Sub 25 % and Sustain 3 s, Groove is Sub 30 %. The knobs and their ranges are the same, and a
+  saved project keeps its knobs but plays the new sound
 - The bass follows the pitch-bend wheel, and pitch bend drawn in the DAW: the ringing note bends
   smoothly up or down and comes back to pitch with the wheel, and a note played with the wheel
   off centre starts bent. The sine under the string bends with it, and a slide and a bend add
