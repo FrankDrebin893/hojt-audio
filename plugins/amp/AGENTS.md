@@ -259,6 +259,8 @@ How it behaves:
 | Delay Time (`delay_time`) | 20-1000 ms | 350 ms | Time between repeats |
 | Delay Feedback (`delay_feedback`) | 0-90 % | 35 % | Level of each repeat against the one before |
 | Delay Mix (`delay_mix`) | 0-100 % | 25 % | Level of the repeats |
+| Delay Sync (`delay_sync`) | on / off | off | The repeats follow the song's tempo: the Time knob picks Delay Note, and the time is `60000 / bpm` times the note's beats, kept to 20-1000 ms. With no tempo from the host, the Time knob's ms. Factory presets set it off |
+| Delay Note (`delay_note`) | 1/4, 1/8 dotted, 1/8, 1/8 triplet, 1/16 | 1/8 dotted | The note value while Sync is on (`suite_common::dsp::NoteValue`). Variant ids `quarter`, `dotted_eighth`, `eighth`, `eighth_triplet`, `sixteenth`; a new one goes at the end |
 | Reverb (`reverb_on`) | on / off | off | Stereo reverb behind the delay |
 | Reverb Decay (`reverb_decay`) | 0.3-6.0 s | 1.5 s | Time for the tail to fall by 60 dB |
 | Reverb Mix (`reverb_mix`) | 0-100 % | 20 % | Level of the tail |
@@ -434,6 +436,11 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   stands there)
 - **Level meters:** a signal level (the amp's input and output) is a `level_meter`, a column
   of lamps on label tape with a `silk_label` caption under it, in a wing of the strip. Same atomics and repaint rule as the signal lamps
+- **The Delay's Sync:** the one on/off of the rig that is not a stomp switch. A second
+  `small_footswitch` beside the On switch runs off the face, so Sync is a `chrome_button` with
+  a `rig_led` above it and its `silk_label` above that, right of the Mix knob where the Gate
+  has its lamp (#145). While it is lit the Time knob, in the same place, picks Delay Note and
+  its tape shows the note
 - **Signal lamps:** a light that follows the sound and not a switch (gate open, output clipping)
   is a `signal_lamp`, with a `silk_label` of size 13 centred 18 px under it, placed beside the
   control it belongs to. An LED above or beside a switch only ever says that the switch is on.

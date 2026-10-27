@@ -17,7 +17,9 @@ param comp_on
 param comp_sustain
 param delay_feedback
 param delay_mix
+param delay_note
 param delay_on
+param delay_sync
 param delay_time
 param drive_gain
 param drive_level

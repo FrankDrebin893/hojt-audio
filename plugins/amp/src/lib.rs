@@ -42,9 +42,13 @@ use mods::phaser::{self, PhaserSettings};
 use mods::tremolo::{self, TremoloSettings};
 use order::StoredOrder;
 use reverb::{ReverbSettings, DECAY_MAX_S, DECAY_MIN_S};
+use suite_common::dsp::NoteValue;
 
 // The id of the tuner switch, as in `GuitarAmpParams`
 const TUNER_ID: &str = "tuner";
+
+// The note the delay's Time knob picks when Sync is first switched on
+const DELAY_NOTE: NoteValue = NoteValue::DottedEighth;
 
 const LEVEL_MIN_DB: f32 = -30.0;
 const LEVEL_MAX_DB: f32 = 6.0;
@@ -240,6 +244,14 @@ pub struct GuitarAmpParams {
     #[id = "delay_mix"]
     pub delay_mix: FloatParam,
 
+    /// The delay follows the song's tempo: the Time knob picks `delay_note`, and `delay_time`
+    /// keeps its ms for when Sync is off
+    #[id = "delay_sync"]
+    pub delay_sync: BoolParam,
+
+    #[id = "delay_note"]
+    pub delay_note: EnumParam<NoteValue>,
+
     // Reverb
     #[id = "reverb_on"]
     pub reverb_on: BoolParam,
@@ -396,6 +408,9 @@ impl Default for GuitarAmpParams {
             .with_value_to_string(formatters::v2s_f32_rounded(0)),
             delay_feedback: percent_param("Delay Feedback", defaults.delay.feedback, FEEDBACK_MAX),
             delay_mix: percent_param("Delay Mix", defaults.delay.mix, 1.0),
+            // Off, so a project or a preset from before sounds as it did
+            delay_sync: BoolParam::new("Delay Sync", false),
+            delay_note: EnumParam::new("Delay Note", DELAY_NOTE),
 
             reverb_on: BoolParam::new("Reverb", defaults.reverb.on),
             reverb_decay: FloatParam::new(
@@ -435,8 +450,9 @@ impl GuitarAmpParams {
         [&self.gain, &self.bass, &self.mid, &self.treble, &self.presence, &self.master]
     }
 
-    /// What the knobs say now
-    fn settings(&self) -> AmpSettings {
+    /// What the knobs say now, with the song at `tempo_bpm` (`None` where the host gives
+    /// no tempo)
+    fn settings(&self, tempo_bpm: Option<f64>) -> AmpSettings {
         AmpSettings {
             bypass: self.bypass.value(),
             in_gain_db: self.in_gain.value(),
@@ -490,7 +506,12 @@ impl GuitarAmpParams {
             mic_type: self.cab_mic_type.value(),
             delay: DelaySettings {
                 on: self.delay_on.value(),
-                time_ms: self.delay_time.value(),
+                time_ms: delay_time_ms(
+                    self.delay_time.value(),
+                    self.delay_sync.value(),
+                    self.delay_note.value(),
+                    tempo_bpm,
+                ),
                 feedback: self.delay_feedback.value(),
                 mix: self.delay_mix.value(),
             },
@@ -504,6 +525,18 @@ impl GuitarAmpParams {
             order: self.order.get(),
         }
     }
+}
+
+/// The delay's time: the Time knob's ms, or with Sync on the note it picks at the song's tempo,
+/// kept to the delay's range. A tempo that changes glides as a turn of the knob does
+fn delay_time_ms(knob_ms: f32, sync: bool, note: NoteValue, tempo_bpm: Option<f64>) -> f32 {
+    suite_common::dsp::delay_time_ms(
+        knob_ms,
+        sync.then_some(note),
+        tempo_bpm,
+        TIME_MIN_MS,
+        TIME_MAX_MS,
+    )
 }
 
 /// 0.0-1.0 parameter shown as an amp dial, 0.0 to 10.0
@@ -627,7 +660,10 @@ impl Plugin for GuitarAmpPlugin {
         if std::mem::take(&mut self.cab_load_due) {
             context.execute_background(Task::LoadCabinet);
         }
-        let settings = self.params.settings();
+        // The song's tempo is only asked for while the delay follows it
+        let tempo_bpm =
+            if self.params.delay_sync.value() { context.transport().tempo } else { None };
+        let settings = self.params.settings(tempo_bpm);
 
         match buffer.as_slice() {
             [left, right] => self.chain.process(&settings, left, Some(&mut **right)),
@@ -711,11 +747,11 @@ mod tests {
     #[test]
     fn test_parameters_start_at_the_settings_the_chain_starts_with() {
         let params = GuitarAmpParams::default();
-        assert_eq!(params.settings(), AmpSettings::default());
+        assert_eq!(params.settings(None), AmpSettings::default());
 
         // The values DAW projects were saved against. Changing a default changes how a
         // project sounds that never touched that knob
-        let settings = params.settings();
+        let settings = params.settings(None);
         assert!(!settings.bypass && settings.gate_on && !settings.drive_on && settings.cab_on);
         assert_eq!(
             (settings.comp.on, settings.comp.sustain, settings.comp.level),
@@ -768,6 +804,84 @@ mod tests {
         );
         assert_eq!((settings.reverb.decay_s, settings.reverb.mix), (1.5, 0.2));
         assert_eq!(settings.out_level, 1.0);
+    }
+
+    /// Where the first repeat of an impulse lands, in ms, through the delay at `time_ms`:
+    /// half way between its left side and its right one, which the spread puts 1.2 % early
+    /// and late
+    fn first_repeat_ms(time_ms: f32) -> f32 {
+        const RATE: f32 = 48_000.0;
+        let mut impulse = vec![0.0; (1.5 * RATE) as usize];
+        impulse[0] = 1.0;
+        let (left, right) =
+            crate::delay::tests::run(&DelaySettings { time_ms, ..settings(0.0) }, &impulse, RATE);
+        let peak = |channel: &[f32]| {
+            (1..channel.len()).max_by(|&a, &b| channel[a].abs().total_cmp(&channel[b].abs()))
+        };
+        let (left, right) = (peak(&left).unwrap(), peak(&right).unwrap());
+        (left + right) as f32 * 0.5 / RATE * 1000.0
+    }
+
+    /// The delay on, one repeat, all wet
+    fn settings(feedback: f32) -> DelaySettings {
+        DelaySettings { on: true, time_ms: 350.0, feedback, mix: 1.0 }
+    }
+
+    #[test]
+    fn test_a_synced_delay_repeats_on_the_note_at_the_songs_tempo() {
+        let synced = |bpm| delay_time_ms(350.0, true, NoteValue::DottedEighth, Some(bpm));
+        let at_120 = first_repeat_ms(synced(120.0));
+        assert!((at_120 - 375.0).abs() <= 1.0, "a dotted 1/8 at 120 bpm repeats at {at_120} ms");
+        let at_90 = first_repeat_ms(synced(90.0));
+        assert!((at_90 - 500.0).abs() <= 1.0, "a dotted 1/8 at 90 bpm repeats at {at_90} ms");
+        // Slower than the delay reaches: its longest time. With no tempo, the knob
+        assert_eq!(delay_time_ms(350.0, true, NoteValue::Quarter, Some(50.0)), TIME_MAX_MS);
+        assert_eq!(delay_time_ms(350.0, true, NoteValue::Quarter, None), 350.0);
+    }
+
+    #[test]
+    fn test_without_sync_the_delay_is_as_it_was_at_any_tempo() {
+        const RATE: f32 = 48_000.0;
+        let mut noise = suite_common::dsp::Noise::new(7);
+        let input: Vec<f32> = (0..(RATE as usize)).map(|_| 0.3 * noise.next()).collect();
+        for knob_ms in [20.0, 350.0, 1000.0] {
+            let knob = DelaySettings { time_ms: knob_ms, ..settings(0.6) };
+            let before = crate::delay::tests::run(&knob, &input, RATE);
+            for tempo in [None, Some(60.0), Some(120.0), Some(187.5)] {
+                for note in [NoteValue::Quarter, NoteValue::Sixteenth] {
+                    let time_ms = delay_time_ms(knob_ms, false, note, tempo);
+                    let now =
+                        crate::delay::tests::run(&DelaySettings { time_ms, ..knob }, &input, RATE);
+                    assert!(now == before, "{knob_ms} ms at {tempo:?} bpm");
+                }
+            }
+        }
+        // The parameters as they start, and as a project from before has them: Sync off
+        let params = GuitarAmpParams::default();
+        assert!(!params.delay_sync.value());
+        assert_eq!(params.delay_note.value(), NoteValue::DottedEighth);
+        assert_eq!(params.settings(Some(120.0)), params.settings(None));
+    }
+
+    #[test]
+    fn test_a_project_from_before_opens_with_sync_off() {
+        // A state saved before there was Sync names neither new id. Nothing adds them, so
+        // they stay at what a new plugin starts with: Sync off
+        let mut state = PluginState {
+            version: "0.2.0".to_owned(),
+            params: [
+                ("delay_on", nih_plug::wrapper::state::ParamValue::Bool(true)),
+                ("delay_time", nih_plug::wrapper::state::ParamValue::F32(512.0)),
+            ]
+            .into_iter()
+            .map(|(id, value)| (id.to_owned(), value))
+            .collect(),
+            fields: Default::default(),
+        };
+        GuitarAmpPlugin::filter_state(&mut state);
+        assert!(!state.params.contains_key("delay_sync"));
+        assert!(!state.params.contains_key("delay_note"));
+        assert!(!GuitarAmpParams::default().delay_sync.default_plain_value());
     }
 
     #[test]
