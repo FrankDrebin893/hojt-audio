@@ -21,10 +21,10 @@ impl Voice {
             Voice::Metal => BassSettings {
                 voice: self,
                 volume_db: -2.0,
-                drive: 0.5,
+                drive: 0.4,
                 brightness: 0.55,
                 sub: 0.25,
-                tone_hz: 3200.0,
+                tone_hz: 2600.0,
                 sustain_s: 3.0,
                 slide_ms: 0.0,
                 transpose: 0.0,
@@ -124,6 +124,26 @@ const BEND_SMOOTHING_S: f32 = 0.005;
 // How far the bend moves before the loop's gain follows it
 const BEND_FOLLOW_ST: f32 = 0.01;
 
+// No two plucks are the same: each one moves where it is plucked by up to this much of the
+// string, how round its edges are by up to this share, and the pick's click by up to this share.
+// Where it is plucked and how round, each to the other side of the last pluck and by at least
+// `PLUCK_JITTER_LEAST` of the most, so that two plucks in a row are never nearly alike
+const PLUCK_JITTER_ALONG: f32 = 0.015;
+const PLUCK_JITTER_ROUNDING: f32 = 0.15;
+const PLUCK_JITTER_CLICK: f32 = 0.25;
+const PLUCK_JITTER_LEAST: f32 = 0.4;
+// A string pulled hard is stretched: it starts this many cents sharp at full velocity (less by
+// the square of a softer one) and falls to pitch with this time constant
+const SHARP_START_CENTS: f32 = 6.0;
+const SHARP_START_S: f32 = 0.06;
+// Of what was ringing on the same note, what a new pluck leaves under it: a pick lands on a
+// moving string
+const PLUCK_KEEPS: f32 = 0.25;
+// Metal's drive gets less hot as the note falls: how long its gain takes to fall by 60 dB,
+// against the fundamental's T60. Three quarters of what it loses is made up after it, so the
+// drive cleans up without taking the note's level down with it
+const DRIVE_FOLLOW: f32 = 0.25;
+
 /// The loop's low-pass and what it does at one pitch
 #[derive(Clone, Copy)]
 struct Damping {
@@ -197,6 +217,14 @@ pub struct Bass {
     feedback_released: f32,
     glide: f32,
 
+    // How sharp the string still is from a hard pluck, in cents, and how fast that falls
+    sharp_cents: f32,
+    sharp_decay: f32,
+    // Where the last pluck was moved to and how its edges were rounded, -1.0 to 1.0 of the
+    // most they move
+    along_offset: f32,
+    rounding_offset: f32,
+
     // The wheel, -1.0 to 1.0, and the bend it makes in semitones, smoothed, with the ratio
     // of frequencies that is
     wheel: f32,
@@ -220,6 +248,11 @@ pub struct Bass {
     sub_attack_step: f32,
     sub_decay_held: f32,
     sub_decay_released: f32,
+
+    // How hot Metal's drive is, 1.0 at the pluck and falling with the string, held and let go
+    drive_env: f32,
+    drive_decay_held: f32,
+    drive_decay_released: f32,
 
     // The step a new pluck makes over a ringing string, fading out
     last_raw: f32,
@@ -258,6 +291,10 @@ impl Bass {
             feedback_held: 0.0,
             feedback_released: 0.0,
             glide: 1.0,
+            sharp_cents: 0.0,
+            sharp_decay: 0.0,
+            along_offset: 0.0,
+            rounding_offset: 0.0,
             wheel: 0.0,
             bend_st: 0.0,
             bend_ratio: 1.0,
@@ -274,6 +311,9 @@ impl Bass {
             sub_attack_step: 1.0,
             sub_decay_held: 0.0,
             sub_decay_released: 0.0,
+            drive_env: 0.0,
+            drive_decay_held: 0.0,
+            drive_decay_released: 0.0,
             last_raw: 0.0,
             declick: 0.0,
             declick_pending: false,
@@ -305,6 +345,7 @@ impl Bass {
         self.mid_peak.set(900.0, 1.0, sample_rate);
         self.declick_decay = decay_coeff(DECLICK_S, sample_rate);
         self.bend_smoothing = 1.0 - decay_coeff(BEND_SMOOTHING_S, sample_rate);
+        self.sharp_decay = decay_coeff(SHARP_START_S, sample_rate);
         self.set_voice_filters();
         self.reset();
     }
@@ -315,6 +356,8 @@ impl Bass {
         self.note = None;
         self.held = false;
         self.sub_env = 0.0;
+        self.sharp_cents = 0.0;
+        self.drive_env = 0.0;
         self.last_raw = 0.0;
         self.declick = 0.0;
         self.declick_pending = false;
@@ -419,6 +462,8 @@ impl Bass {
         self.sub_attack_step = 1.0 / (sub_attack_s * rate);
         self.sub_decay_held = t60(self.settings.sustain_s * SUB_DECAY);
         self.sub_decay_released = t60(release_s * SUB_DECAY);
+        self.drive_decay_held = t60(self.settings.sustain_s * DRIVE_FOLLOW);
+        self.drive_decay_released = t60(release_s * DRIVE_FOLLOW);
         match self.settings.voice {
             Voice::Metal => {
                 self.drive_lp.set(tone_hz, 0.8, rate);
@@ -518,7 +563,11 @@ impl Bass {
     fn pluck(&mut self, note: u8, velocity: f32) {
         let rate = self.sample_rate;
         let brightness = self.settings.brightness;
-        self.freq_hz = self.freq_hz(note);
+        let freq_hz = self.freq_hz(note);
+        // A pick lands on a string that may still move: what rings on the same note is damped,
+        // anything else is stopped
+        let keeps = if self.note.is_some() && self.freq_hz == freq_hz { PLUCK_KEEPS } else { 0.0 };
+        self.freq_hz = freq_hz;
         self.note = Some(note);
         self.held = true;
         self.string_voice = self.settings.voice;
@@ -529,13 +578,15 @@ impl Bass {
         self.damp_string();
         self.delay = self.loop_delay(self.freq_hz);
         self.target_delay = self.delay;
+        // Pulled hard, the string is stretched and starts sharp
+        self.sharp_cents = SHARP_START_CENTS * velocity * velocity;
 
         // What the line holds is how fast the string moves. A string pulled to a point and
         // let go moves one way on one side of that point and the other way on the other:
         // two levels, whose edges are rounded by what plucks it.
         let period = self.read_delay();
         let length = (period.ceil() as usize).clamp(2, self.line.len() - 8);
-        let (along, level, sharpness, rounding_s) = match self.settings.voice {
+        let (mut along, level, sharpness, mut rounding_s) = match self.settings.voice {
             Voice::Metal => {
                 // A pick: harder and brighter is a sharper edge
                 let sharpness = 0.6 * brightness + 0.4 * velocity;
@@ -547,6 +598,11 @@ impl Bass {
                 (FINGER, velocity, sharpness, 0.00015 * (1.0 - 0.5 * sharpness))
             }
         };
+        // No hand plucks twice in the same place or the same way
+        self.along_offset = self.away(self.along_offset);
+        self.rounding_offset = self.away(self.rounding_offset);
+        along += PLUCK_JITTER_ALONG * self.along_offset;
+        rounding_s *= 1.0 + PLUCK_JITTER_ROUNDING * self.rounding_offset;
         let high = 1.0 / along;
         let low = -1.0 / (1.0 - along);
         for (index, sample) in self.pluck[..length].iter_mut().enumerate() {
@@ -564,20 +620,21 @@ impl Bass {
         // The pick's click, where it leaves the string
         if self.settings.voice == Voice::Metal {
             let click = ((0.0004 * rate) as usize).min(length);
+            let level = 2.0 * sharpness * (1.0 + PLUCK_JITTER_CLICK * self.noise.next());
             let mut previous = 0.0;
             for (index, sample) in self.pluck[..click].iter_mut().enumerate() {
                 let noise = self.noise.next();
-                *sample +=
-                    (noise - previous) * 2.0 * sharpness * (1.0 - index as f32 / click as f32);
+                *sample += (noise - previous) * level * (1.0 - index as f32 / click as f32);
                 previous = noise;
             }
         }
 
-        // Into the line, in the order it is read: what is ringing is stopped by the pluck
+        // Into the line, in the order it is read, over what is left of the ringing string
         let scale = level * STRING_GAIN / std::f32::consts::TAU;
         let start = self.write + self.line.len() - length;
         for index in 0..length {
-            self.line[(start + index) & self.mask] = self.pluck[index] * scale;
+            let position = (start + index) & self.mask;
+            self.line[position] = self.pluck[index] * scale + self.line[position] * keeps;
         }
 
         // The fundamental of what the pickup will read over the first time round, which the
@@ -587,8 +644,9 @@ impl Bass {
         let (step_sin, step_cos) = step.sin_cos();
         let (mut sin, mut cos) = (0.0f32, 1.0f32);
         let (mut real, mut imag) = (0.0, 0.0);
+        let at = |index: usize| self.line[(start + index) & self.mask];
         for index in 0..length {
-            let read = (self.pluck[(index + tap) % length] - self.pluck[index]) * scale;
+            let read = at((index + tap) % length) - at(index);
             real += read * cos;
             imag -= read * sin;
             (sin, cos) = (sin * step_cos + cos * step_sin, cos * step_cos - sin * step_sin);
@@ -602,8 +660,20 @@ impl Bass {
         self.sub_env = amplitude;
         self.sub_attack = 0.0;
 
+        self.drive_env = 1.0;
         self.loop_state = 0.0;
         self.declick_pending = true;
+    }
+
+    /// A random offset, -1.0 to 1.0, on the other side of the last one and at least
+    /// `PLUCK_JITTER_LEAST` from the middle: two plucks in a row are never alike
+    fn away(&mut self, last: f32) -> f32 {
+        let size = PLUCK_JITTER_LEAST + (1.0 - PLUCK_JITTER_LEAST) * self.noise.next_unipolar();
+        if last > 0.0 {
+            -size
+        } else {
+            size
+        }
     }
 
     /// What makes the fundamental come out of the pickup as loud as it is on the string
@@ -614,12 +684,22 @@ impl Bass {
     /// Where the loop is read: its length, as a slide has it, at the pitch the wheel bends it
     /// to, less what its low-pass adds there
     fn read_delay(&self) -> f32 {
-        if self.bend_ratio == 1.0 {
+        let ratio = self.pitch_ratio();
+        if ratio == 1.0 {
             return self.delay;
         }
         let longest = (self.line.len() - 4) as f32;
-        ((self.delay + self.filter_delay) / self.bend_ratio - self.bent_filter_delay)
-            .clamp(2.0, longest)
+        ((self.delay + self.filter_delay) / ratio - self.bent_filter_delay).clamp(2.0, longest)
+    }
+
+    /// How far the string is above the pitch it is at, or sliding to: the bend, and what is
+    /// left of a hard pluck's sharp start (a few cents, where 2^(c/1200) is 1 + c ln 2 / 1200
+    /// within a hundredth of a cent)
+    fn pitch_ratio(&self) -> f32 {
+        if self.sharp_cents == 0.0 {
+            return self.bend_ratio;
+        }
+        self.bend_ratio * (1.0 + self.sharp_cents * (std::f32::consts::LN_2 / 1200.0))
     }
 
     /// What the line held `delay` samples ago, between two samples
@@ -639,7 +719,14 @@ impl Bass {
         // Only moves during a slide, and while the wheel moves
         self.delay += (self.target_delay - self.delay) * self.glide;
         self.smooth_bend();
-        let freq_hz = rate / (self.delay + self.filter_delay) * self.bend_ratio;
+        if self.sharp_cents != 0.0 {
+            self.sharp_cents *= self.sharp_decay;
+            // At pitch, rather than ever nearer
+            if self.sharp_cents < 1e-3 {
+                self.sharp_cents = 0.0;
+            }
+        }
+        let freq_hz = rate / (self.delay + self.filter_delay) * self.pitch_ratio();
         let delay = self.read_delay();
 
         // The string, and the pickup: where the string is read now, against what reaches it
@@ -679,7 +766,14 @@ impl Bass {
                 // The lows stay clean; what is over them is distorted and laid on top
                 let low = self.split_low.process(raw).low;
                 let high = raw - low;
-                let driven = (high * (1.0 + settings.drive * 14.0)).tanh();
+                // Hot on the attack, cleaner as the string falls, so the top dies with it; with
+                // three quarters of the gain it loses made up after it
+                let most = 1.0 + settings.drive * 14.0;
+                let gain = 1.0 + settings.drive * 14.0 * self.drive_env;
+                self.drive_env *=
+                    if self.held { self.drive_decay_held } else { self.drive_decay_released };
+                let lost = most / gain;
+                let driven = (high * gain).tanh() * (lost * lost.sqrt()).sqrt();
                 let driven = self.drive_lp.process(driven).low;
                 let driven = driven + self.mid_peak.process(driven).band * 0.6;
                 let mixed = low * 1.1 + driven * (0.25 + settings.drive * 0.9) * 0.5;
@@ -1001,30 +1095,189 @@ mod tests {
         }
     }
 
+    /// Level in dB of harmonics `first` to `last` of a note together, at 50 ms
+    fn harmonics_db(samples: &[f32], freq_hz: f32, first: usize, last: usize) -> f32 {
+        let power: f32 = (first..=last)
+            .map(|harmonic| harmonic as f32 * freq_hz)
+            .map(|hz| 10.0f32.powf(partial_db(samples, 0.05, hz, freq_hz) / 10.0))
+            .sum();
+        10.0 * power.log10()
+    }
+
     #[test]
     fn test_the_same_note_sounds_the_same() {
-        for midi in MEASURED {
-            let mut bass = bass(Voice::Metal, SAMPLE_RATE);
-            bass.set(&BassSettings { sub: 0.0, ..Voice::Metal.settings() });
-            let mut pluck = || {
-                bass.note_on(midi, 0.9);
-                let output = render(&mut bass, SAMPLE_RATE, 0.3);
-                bass.note_off(midi);
-                render(&mut bass, SAMPLE_RATE, 0.5);
-                output
-            };
-            let (first, second) = (pluck(), pluck());
-            let freq_hz = note_hz(midi as f32);
-            for harmonic in 1..=8 {
-                let hz = harmonic as f32 * freq_hz;
+        // Two plucks in a row are not copies: each is plucked a little further from or nearer
+        // to the bridge. Harmonics 1 to 3 hold the note's body and stay within 1 dB. From 4 up a
+        // harmonic can sit near a node of where the pick or the finger is (Metal's 4th and 6th,
+        // Groove's 8th), so a move of 1 % of the string moves it by several dB, as on a real
+        // string: those are held together, harmonics 4 to 8 within 3 dB
+        for voice in Voice::ALL {
+            for midi in MEASURED {
+                let mut bass = bass(voice, SAMPLE_RATE);
+                bass.set(&BassSettings { sub: 0.0, ..voice.settings() });
+                let mut pluck = || {
+                    bass.note_on(midi, 0.9);
+                    let output = render(&mut bass, SAMPLE_RATE, 0.3);
+                    bass.note_off(midi);
+                    render(&mut bass, SAMPLE_RATE, 0.5);
+                    output
+                };
+                let (first, second) = (pluck(), pluck());
+                let freq_hz = note_hz(midi as f32);
+                for harmonic in 1..=3 {
+                    let hz = harmonic as f32 * freq_hz;
+                    let apart = partial_db(&first, 0.05, hz, freq_hz)
+                        - partial_db(&second, 0.05, hz, freq_hz);
+                    assert!(
+                        apart.abs() < 1.0,
+                        "{:?} note {} harmonic {}: {} dB apart",
+                        voice,
+                        midi,
+                        harmonic,
+                        apart
+                    );
+                }
                 let apart =
-                    partial_db(&first, 0.05, hz, freq_hz) - partial_db(&second, 0.05, hz, freq_hz);
+                    harmonics_db(&first, freq_hz, 4, 8) - harmonics_db(&second, freq_hz, 4, 8);
                 assert!(
-                    apart.abs() < 1.0,
-                    "note {} harmonic {}: {} dB apart",
+                    apart.abs() < 3.0,
+                    "{:?} note {}: harmonics 4 to 8 {} dB apart",
+                    voice,
                     midi,
-                    harmonic,
                     apart
+                );
+            }
+        }
+    }
+
+    /// The first 50 ms of each of `count` plucks of a note at one velocity, a sixteenth at
+    /// 150 bpm apart, held for most of it as the Metal line plays them
+    fn sixteenths(voice: Voice, midi: u8, count: usize) -> Vec<Vec<f32>> {
+        let mut bass = bass(voice, SAMPLE_RATE);
+        let sixteenth = SAMPLE_RATE * 60.0 / 150.0 / 4.0;
+        let attack = (0.05 * SAMPLE_RATE) as usize;
+        (0..count)
+            .map(|_| {
+                bass.note_on(midi, 0.8);
+                let output = render(&mut bass, SAMPLE_RATE, sixteenth * 0.8 / SAMPLE_RATE);
+                bass.note_off(midi);
+                render(&mut bass, SAMPLE_RATE, sixteenth * 0.2 / SAMPLE_RATE);
+                output[..attack].to_vec()
+            })
+            .collect()
+    }
+
+    fn correlation(first: &[f32], second: &[f32]) -> f32 {
+        let both: f32 = first.iter().zip(second).map(|(a, b)| a * b).sum();
+        let first: f32 = first.iter().map(|a| a * a).sum();
+        let second: f32 = second.iter().map(|b| b * b).sum();
+        both / (first * second).sqrt().max(1e-12)
+    }
+
+    #[test]
+    fn test_two_plucks_in_a_row_are_not_copies() {
+        for voice in Voice::ALL {
+            for midi in MEASURED {
+                let plucks = sixteenths(voice, midi, 6);
+                // From the second on, each lands on a ringing string, as the ones before it
+                for pair in plucks[1..].windows(2) {
+                    let alike = correlation(&pair[0], &pair[1]);
+                    let apart_db = 20.0 * (rms(&pair[1]) / rms(&pair[0])).log10();
+                    assert!(
+                        alike < 0.98,
+                        "{:?} note {}: two plucks correlate {}",
+                        voice,
+                        midi,
+                        alike
+                    );
+                    assert!(
+                        apart_db.abs() < 1.0,
+                        "{:?} note {}: two plucks {} dB apart",
+                        voice,
+                        midi,
+                        apart_db
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_metals_drive_lets_the_note_die() {
+        // At Metal's output, with Sub at 0: the top dies soon, and the fundamental rings as
+        // long as it does on the string, not held up by the drive
+        for midi in [28u8, 33, 38, 43, 50, 55] {
+            let string = pickup_alone(Voice::Metal, midi, 0.9, 3.0);
+            let out = string_alone(Voice::Metal, midi, 0.9, 3.0);
+            let freq_hz = note_hz(midi as f32);
+            let top = partial_t60(&out, top_partial_hz(freq_hz), freq_hz);
+            assert!(top <= 0.6, "note {}: the top rings {} s at the output", midi, top);
+            let on_string = partial_t60(&string, freq_hz, freq_hz);
+            let at_output = partial_t60(&out, freq_hz, freq_hz);
+            assert!(
+                (at_output / on_string - 1.0).abs() <= 0.15,
+                "note {}: the fundamental rings {} s at the output, {} s on the string",
+                midi,
+                at_output,
+                on_string
+            );
+        }
+    }
+
+    /// The period the string plays at over the 20 ms that start at `start_s`: where what
+    /// follows matches it best, between two samples
+    fn period_over_20_ms(samples: &[f32], start_s: f32, about: f32) -> f32 {
+        let start = (start_s * SAMPLE_RATE) as usize;
+        let window = &samples[start..start + (0.02 * SAMPLE_RATE) as usize];
+        let match_at = |lag: usize| -> f32 {
+            let later = &samples[start + lag..start + lag + window.len()];
+            correlation(window, later)
+        };
+        let lags = (0.97 * about) as usize..(1.03 * about) as usize;
+        let best = lags.clone().max_by(|&a, &b| match_at(a).total_cmp(&match_at(b))).unwrap();
+        let (before, at, after) = (match_at(best - 1), match_at(best), match_at(best + 1));
+        best as f32 + 0.5 * (before - after) / (before - 2.0 * at + after).min(-1e-12)
+    }
+
+    #[test]
+    fn test_a_hard_pluck_starts_sharp_and_settles() {
+        for voice in Voice::ALL {
+            for midi in MEASURED {
+                let freq_hz = note_hz(midi as f32);
+                let period = SAMPLE_RATE / freq_hz;
+                // Cents sharp over the first 20 ms, against the same pluck played at pitch
+                let sharp_at = |velocity: f32| {
+                    let mut sharp = bass(voice, SAMPLE_RATE);
+                    sharp.note_on(midi, velocity);
+                    let sharp = render(&mut sharp, SAMPLE_RATE, 0.1);
+                    let mut at_pitch = bass(voice, SAMPLE_RATE);
+                    at_pitch.note_on(midi, velocity);
+                    at_pitch.sharp_cents = 0.0;
+                    let at_pitch = render(&mut at_pitch, SAMPLE_RATE, 0.1);
+                    1200.0
+                        * (period_over_20_ms(&at_pitch, 0.0, period)
+                            / period_over_20_ms(&sharp, 0.0, period))
+                        .log2()
+                };
+                let hard = sharp_at(1.0);
+                assert!(
+                    (3.0..=8.0).contains(&hard),
+                    "{:?} note {}: {} cents sharp at full velocity",
+                    voice,
+                    midi,
+                    hard
+                );
+                let soft = sharp_at(0.3);
+                assert!(soft < 1.5, "{:?} note {}: {} cents sharp at 0.3", voice, midi, soft);
+
+                let output = note(voice, midi, 1.0, 0.8);
+                let settled = cents_off(&output, SAMPLE_RATE, 0.3, freq_hz);
+                assert!(
+                    settled.abs() < 1.0,
+                    "{:?} note {}: {} cents off after 300 ms",
+                    voice,
+                    midi,
+                    settled
                 );
             }
         }

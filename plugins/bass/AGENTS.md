@@ -39,14 +39,24 @@ How it behaves:
 - The plucks are written into the line as the string's velocity: two levels either side of
   where it is plucked (the pick at 0.18 of the string from the bridge, the finger at 0.12),
   their edges rounded by how sharp the touch is (velocity and Brightness). Metal adds a little
-  noise for the pick's click. A new pluck stops what was ringing; the step it makes in the
-  output fades out over 1.5 ms
+  noise for the pick's click. No two plucks are the same: each moves where it is plucked (up to
+  ±0.015 of the string), how round its edges are (±15 %) and the click's level (±25 %), the
+  first two each to the other side of the last pluck, from the voice's own `Noise` (a fixed
+  seed, so renders and tests repeat). Velocity is untouched
+- A pluck starts sharp by the square of its velocity (6 cents at full velocity) and falls to
+  pitch with a 60 ms time constant; the tuning is measured after it has settled
+- A new pluck on the same note keeps a quarter of what was ringing under it (a pick lands on a
+  moving string); on another note it stops it. The step it makes in the output fades out over
+  1.5 ms
 - The pickup reads the line at two points a fifth of the string apart (a comb, which takes out
   every fifth harmonic), and a resonant low-pass at 2.8 kHz follows it
 - Sub is a sine that starts in phase with what the pickup reads of the fundamental, at a level
   against it (4 times it at 100 %), and dies with T60s of 0.85 of the string's, held and let go
 - Metal splits the lows from the mids at 120 Hz with a low-pass and what it leaves, which sum
-  to the input
+  to the input. The drive's gain follows the note down from the pluck (it falls by 60 dB in a
+  quarter of Sustain, or of the release once let go), and three quarters of what it loses is
+  made up after it: the mids break up on the attack and clean up as the note rings, so the top
+  dies with the string and the fundamental rings as long at the output as on the string
 - Notes are within 1 cent from 44.1 to 192 kHz (`bass_report`)
 - `lib.rs` takes every default from `BassSettings::default`, which is Metal's settings
 
@@ -54,16 +64,16 @@ How it behaves:
 |----------------|-------|-------|--------|-------------|
 | Voice (`voice`) | Metal / Groove | | | Pluck and output stage |
 | Volume (`volume`) | -30 to +12 dB | -2 dB | -3 dB | Output level |
-| Drive (`drive`) | 0-100 % | 50 % | 15 % | Distortion of the mids (Metal), tube drive (Groove) |
+| Drive (`drive`) | 0-100 % | 40 % | 15 % | Distortion of the mids (Metal), tube drive (Groove) |
 | Brightness (`brightness`) | 0-100 % | 55 % | 35 % | How hard the string is plucked and how long its top rings |
 | Sub (`sub`) | 0-100 % | 25 % | 30 % | Level of the sine under the string |
-| Tone (`tone`) | 300-4000 Hz | 3200 Hz | 1100 Hz | Low-pass |
+| Tone (`tone`) | 300-4000 Hz | 2600 Hz | 1100 Hz | Low-pass |
 | Sustain (`sustain`) | 0.5-8 s | 3 s | 3 s | Time for a held note to fall by 60 dB |
 | Slide (`slide`) | 0-300 ms | 0 ms | 60 ms | Slide between overlapping notes; 0 plucks every note |
 | Transpose (`transpose`) | -24 to +24 st | 0 | 0 | |
 | Bend (`bend`) | 1-12 st | 2 | 2 | How far the pitch-bend wheel goes at its end; no voice sets it |
 
-Tests sit next to the code (`bass.rs`): tuning at several rates, envelopes, the two voices, the pitch-bend wheel (its range, back to centre, a pluck and a slide while bent, no zipper, Sustain on a bent note), bounded output with everything up and the wheel at both ends, and the tone: the top dies before the fundamental, the same note sounds the same, Groove has harmonics, the sine does not take over a held note, and a new pluck does not click. Two ignored tests are tools for working on the sound:
+Tests sit next to the code (`bass.rs`): tuning at several rates, envelopes, the two voices, the pitch-bend wheel (its range, back to centre, a pluck and a slide while bent, no zipper, Sustain on a bent note), bounded output with everything up and the wheel at both ends, and the tone: the top dies before the fundamental, the same note sounds the same while two plucks in a row are not copies, a hard pluck starts sharp and settles, Metal's drive lets the note die, Groove has harmonics, the sine does not take over a held note, and a new pluck does not click. Two ignored tests are tools for working on the sound:
 
 ```bash
 # Level, tuning and brightness per note; with Sub at 0, from what the pickup reads before the
