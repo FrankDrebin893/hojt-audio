@@ -53,8 +53,9 @@ jobs:
 
       # Two builds, each in its own target: the branch's here, main's in ../base. Sharing one
       # target ran the branch's binaries on both sides (#143): the workspace crates have the same
-      # relative paths in both checkouts, so cargo took the newer outputs as fresh. After the
-      # step above, which needs ../base empty, before the cache fills ../base/target
+      # relative paths in both checkouts, so cargo took the newer outputs as fresh. This step
+      # comes after the worktree is added: restoring the cache fills ../base/target, and
+      # git refuses to add a worktree to a folder that is not empty
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
