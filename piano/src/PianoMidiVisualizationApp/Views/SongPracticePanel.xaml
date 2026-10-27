@@ -3,8 +3,12 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:views="clr-namespace:PianoMidiVisualizationApp.Views"
              xmlns:vm="clr-namespace:PianoMidiVisualizationApp.ViewModels"
+             xmlns:models="clr-namespace:PianoMidiVisualizationApp.Models"
              xmlns:converters="clr-namespace:PianoMidiVisualizationApp.Converters"
-             x:Name="Root">
+             x:Name="Root"
+             AllowDrop="True"
+             PreviewDragOver="OnPreviewDragOver"
+             Drop="OnDrop">
 
     <!-- Song practice: fills the stage's readout row while it is on. DataContext is the
          SongPracticeViewModel. Buttons are Focusable="False", like the rest of the toolbars, so
@@ -16,6 +20,7 @@
             <Setter Property="MinWidth" Value="26"/>
             <Setter Property="Height" Value="26"/>
             <Setter Property="Padding" Value="4,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Focusable" Value="False"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Background" Value="Transparent"/>
@@ -80,6 +85,7 @@
             <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
         </Style>
 
         <Style x:Key="Style.SongStepButton" TargetType="Button" BasedOn="{StaticResource Style.SongButton}">
@@ -91,17 +97,20 @@
         <!-- The margin is the roomy one; a narrow bar tightens it from code-behind. -->
         <Style x:Key="Style.SongSeparator" TargetType="Rectangle">
             <Setter Property="Width" Value="1"/>
-            <Setter Property="Margin" Value="10,3"/>
+            <Setter Property="Height" Value="18"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="10,0"/>
             <Setter Property="Fill" Value="{StaticResource Brush.Separator}"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
         </Style>
 
         <!-- The loop range, "1 to 4", each bar in its own stepper box: "to" rather than a dash,
              which looked like one more minus button between them. A template because it is shown
              in two places: inline on a wide bar, in a popup from the range button on a narrow one. -->
         <DataTemplate x:Key="Template.LoopRange">
-            <StackPanel Orientation="Horizontal">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <Border Style="{StaticResource Style.SongStepper}">
-                    <StackPanel Orientation="Horizontal">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <Button Content="&#x2212;" Style="{StaticResource Style.SongStepButton}"
                                 Command="{Binding LoopStartEarlierCommand}" ToolTip="Loop from an earlier bar"/>
                         <TextBlock Text="{Binding LoopStartBar}" Style="{StaticResource Style.SongValue}" MinWidth="24"
@@ -113,7 +122,7 @@
                 </Border>
                 <TextBlock Text="to" Style="{StaticResource Style.SongLabel}" Margin="6,0"/>
                 <Border Style="{StaticResource Style.SongStepper}">
-                    <StackPanel Orientation="Horizontal">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <Button Content="&#x2212;" Style="{StaticResource Style.SongStepButton}"
                                 Command="{Binding LoopEndEarlierCommand}" ToolTip="Loop to an earlier bar"/>
                         <TextBlock Text="{Binding LoopEndBar}" Style="{StaticResource Style.SongValue}" MinWidth="24"
@@ -141,7 +150,7 @@
                         <Border x:Name="Bd" Background="{StaticResource Brush.Input}"
                                 BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
                                 CornerRadius="3" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
-                            <StackPanel Orientation="Horizontal">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <ContentPresenter VerticalAlignment="Center"/>
                                 <Path Margin="5,1,0,0" VerticalAlignment="Center" Data="M 0,0 L 4,4 L 8,0"
                                       Stroke="{StaticResource Brush.Text.Muted}" StrokeThickness="1.4"/>
@@ -164,6 +173,7 @@
         <!-- Everything that only makes sense with a song loaded. -->
         <Style x:Key="Style.NeedsSong" TargetType="StackPanel">
             <Setter Property="Orientation" Value="Horizontal"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
             <Style.Triggers>
                 <DataTrigger Binding="{Binding HasSong}" Value="False">
                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -172,17 +182,17 @@
         </Style>
     </UserControl.Resources>
 
-    <Grid>
+    <Grid Background="Transparent">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>   <!-- transport -->
             <RowDefinition Height="*"/>      <!-- falling notes -->
         </Grid.RowDefinitions>
 
         <!-- ===================== Transport =====================
-             The practice toolbar sits in a flat row above this (see MainWindow), so the top
-             margin matches the 6px the lane is given below. -->
-        <Border Grid.Row="0" Margin="16,6,16,6" Padding="8,4" CornerRadius="6"
-                Background="{StaticResource Brush.Surface}">
+             The practice toolbar sits in a flat row above this (see MainWindow), so the left/right
+             14px margins align with the practice toolbar above and the keybed well below. -->
+        <Border Grid.Row="0" Margin="14,2,14,6" Padding="10,4" CornerRadius="6"
+                Background="{StaticResource Brush.Surface}" SnapsToDevicePixels="True">
             <Grid x:Name="BarGrid" SizeChanged="BarGrid_SizeChanged">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -194,31 +204,57 @@
                      SongPracticePanel.BarDensity) so the text keeps its size; the Viewbox only
                      scales down what still doesn't fit after that. -->
                 <Viewbox x:Name="BarViewbox" Grid.Column="0" Stretch="Uniform" StretchDirection="DownOnly"
-                         HorizontalAlignment="Left">
+                         HorizontalAlignment="Left" VerticalAlignment="Center">
                     <StackPanel x:Name="BarContent" Orientation="Horizontal" Height="30"
-                                SizeChanged="BarContent_SizeChanged">
-                        <Button Style="{StaticResource Style.SongButton}" Command="{Binding OpenSongCommand}"
-                                ToolTip="Open a MIDI song (Ctrl+O)">
-                            <StackPanel Orientation="Horizontal">
+                                VerticalAlignment="Center" SizeChanged="BarContent_SizeChanged">
+                        <ComboBox x:Name="SongBankCombo" Width="196" Height="26" VerticalAlignment="Center"
+                                  Focusable="False"
+                                  ItemsSource="{Binding SongBank}"
+                                  SelectedItem="{Binding SelectedSongBankItem}"
+                                  Tag="Choose a song..."
+                                  ToolTip="Choose a built-in classic song or an imported MIDI song">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate DataType="{x:Type models:SongBankItem}">
+                                    <Grid VerticalAlignment="Center" ToolTip="{Binding Subtitle}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Brush.Text.Primary}"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <Border Grid.Column="1" Margin="6,0,2,0" Padding="4,1" CornerRadius="2"
+                                                Background="{StaticResource Brush.Border}" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Badge}" FontSize="9" FontWeight="Bold"
+                                                       Foreground="{StaticResource Brush.Text.Muted}"/>
+                                        </Border>
+                                    </Grid>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+
+                        <Button Margin="4,0,0,0" Style="{StaticResource Style.SongButton}"
+                                Command="{Binding ImportSongCommand}"
+                                ToolTip="Import .mid song into Song Bank (Ctrl+O), or drop .mid files here">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="&#xE8E5;" Style="{StaticResource Style.SongGlyph}"/>
-                                <TextBlock x:Name="OpenLabel" Text="Open" Margin="6,0,2,0" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="OpenLabel" Text="Import…" Margin="6,0,2,0" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
 
                         <StackPanel x:Name="SongControls" Style="{StaticResource Style.NeedsSong}">
                             <!-- The tooltip has it all, for when a narrow bar trims the title and
                                  drops the details -->
-                            <StackPanel x:Name="TitleBlock" Margin="10,0,0,0" VerticalAlignment="Center" MaxWidth="220">
+                            <StackPanel x:Name="TitleBlock" Margin="8,0,0,0" VerticalAlignment="Center" MaxWidth="130">
                                 <StackPanel.ToolTip>
                                     <TextBlock><Run Text="{Binding Title, Mode=OneWay}" FontWeight="SemiBold"/><LineBreak/><Run
                                                Text="{Binding SongDetails, Mode=OneWay}"/><LineBreak/><Run
                                                Text="{Binding SongPath, Mode=OneWay}"/></TextBlock>
                                 </StackPanel.ToolTip>
-                                <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
-                                           Foreground="{StaticResource Brush.Text.Primary}"
+                                <TextBlock x:Name="SongDetailsText" Text="{Binding SongDetails}" FontSize="11"
+                                           Foreground="{StaticResource Brush.Text.Muted}"
+                                           VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis"/>
-                                <TextBlock x:Name="SongDetailsText" Text="{Binding SongDetails}" FontSize="10"
-                                           Foreground="{StaticResource Brush.Text.Muted}"/>
                             </StackPanel>
 
                             <Rectangle Style="{StaticResource Style.SongSeparator}"/>
@@ -252,10 +288,10 @@
                                 </TextBlock>
                             </Button>
 
-                            <TextBlock x:Name="BarLabel" Text="Bar" Style="{StaticResource Style.SongLabel}" Margin="10,0,0,0"/>
+                            <TextBlock x:Name="BarLabel" Text="Bar" Style="{StaticResource Style.SongLabel}" Margin="8,0,0,0"/>
                             <!-- As wide as the song's last bar ("16 / 16", hidden), so the bar does
                                  not shift as the digits change. Consolas digits are all one width. -->
-                            <Grid Margin="6,0,0,0" ToolTip="The bar you are at, of the song's bars">
+                            <Grid Margin="6,0,0,0" VerticalAlignment="Center" ToolTip="The bar you are at, of the song's bars">
                                 <TextBlock Text="{Binding BarCount, StringFormat='{}{0} / {0}'}"
                                            Style="{StaticResource Style.SongValue}" Visibility="Hidden"/>
                                 <TextBlock Text="{Binding BarText}" Style="{StaticResource Style.SongValue}"
@@ -266,7 +302,7 @@
 
                             <TextBlock x:Name="SpeedLabel" Text="Speed" Style="{StaticResource Style.SongLabel}" Margin="0,0,6,0"/>
                             <Border Style="{StaticResource Style.SongStepper}">
-                                <StackPanel Orientation="Horizontal">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <Button Content="&#x2212;" Style="{StaticResource Style.SongStepButton}"
                                             Command="{Binding DecreaseSpeedCommand}" ToolTip="Slower"/>
                                     <TextBlock Text="{Binding SpeedText}" Style="{StaticResource Style.SongValue}" Width="32"
@@ -282,14 +318,14 @@
                             <!-- Reads as a sentence, "Loop bars 1 to 4" -->
                             <ToggleButton Style="{StaticResource Style.SongButton}" IsChecked="{Binding IsLoopEnabled}"
                                           ToolTip="Loop a range of bars">
-                                <StackPanel Orientation="Horizontal">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Text="&#xE8EE;" Style="{StaticResource Style.SongGlyph}"/>
                                     <TextBlock x:Name="LoopLabel" Text="Loop" Margin="6,0,2,0" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </ToggleButton>
-                            <StackPanel x:Name="InlineLoopRange" Orientation="Horizontal">
+                            <StackPanel x:Name="InlineLoopRange" Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock x:Name="BarsLabel" Text="Bars" Style="{StaticResource Style.SongLabel}" Margin="8,0,0,0"/>
-                                <ContentPresenter Margin="6,0,0,0" Content="{Binding}"
+                                <ContentPresenter Margin="6,0,0,0" VerticalAlignment="Center" Content="{Binding}"
                                                   ContentTemplate="{StaticResource Template.LoopRange}"/>
                             </StackPanel>
                             <!-- Narrow bar only: the range above, folded into a dropdown -->
@@ -312,13 +348,14 @@
 
                             <ToggleButton Style="{StaticResource Style.SongButton}" IsChecked="{Binding IsTrackListOpen}"
                                           ToolTip="Choose which parts you play">
-                                <StackPanel Orientation="Horizontal">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Text="&#xE8FD;" Style="{StaticResource Style.SongGlyph}"/>
                                     <TextBlock x:Name="TracksLabel" Text="Tracks" Margin="6,0,2,0" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </ToggleButton>
 
-                            <ComboBox Width="100" Height="26" Margin="6,0,0,0"
+                            <ComboBox Width="100" Height="26" Margin="6,0,0,0" VerticalAlignment="Center"
+                                      Focusable="False"
                                       ItemsSource="{x:Static vm:SongPracticeViewModel.ModeOptions}"
                                       SelectedValuePath="Mode"
                                       SelectedValue="{Binding Mode}"
@@ -361,7 +398,7 @@
                AllowsTransparency="False" PopupAnimation="None" Focusable="False">
             <Border Background="{StaticResource Brush.Popup.Background}"
                     BorderBrush="{StaticResource Brush.Popup.Border}" BorderThickness="1" Padding="8,6">
-                <StackPanel Orientation="Horizontal">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="Bars" Style="{StaticResource Style.SongLabel}" Margin="0,0,6,0"/>
                     <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource Template.LoopRange}"/>
                 </StackPanel>
@@ -369,7 +406,7 @@
         </Popup>
 
         <!-- ===================== Falling notes ===================== -->
-        <views:FallingNotesControl x:Name="Notes" Grid.Row="1"
+        <views:FallingNotesControl x:Name="Notes" Grid.Row="1" Margin="14,0,14,0"
                                    Session="{Binding}"
                                    Keyboard="{Binding KeyboardControl, ElementName=Root}"/>
 
@@ -432,14 +469,20 @@
                     </Style.Triggers>
                 </Style>
             </StackPanel.Style>
-            <TextBlock Text="No song loaded" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center"
+            <TextBlock Text="Choose a song to practice" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center"
                        Foreground="{StaticResource Brush.Text.Secondary}"/>
             <TextBlock Margin="0,6,0,12" FontSize="12" HorizontalAlignment="Center" TextAlignment="Center"
                        Foreground="{StaticResource Brush.Text.Muted}"
-                       Text="Open a MIDI file and its notes fall onto the keys below."/>
-            <Button HorizontalAlignment="Center" Padding="14,5" Focusable="False"
-                    Style="{StaticResource Style.PrimaryButton}"
-                    Command="{Binding OpenSongCommand}" Content="Open MIDI song…  (Ctrl+O)"/>
+                       Text="Pick one of the 6 built-in classics from the Song Bank above, or import / drop a .mid file here."/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Padding="14,5" Margin="0,0,8,0" Focusable="False"
+                        Style="{StaticResource Style.PrimaryButton}"
+                        Command="{Binding EnsureDefaultSongLoadedCommand}" Content="Start with Ode to Joy"/>
+                <Button Padding="14,5" Focusable="False"
+                        Style="{StaticResource Style.SongButton}"
+                        BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
+                        Command="{Binding ImportSongCommand}" Content="Import MIDI song…  (Ctrl+O)"/>
+            </StackPanel>
         </StackPanel>
 
         <!-- ===================== Track list =====================
@@ -493,6 +536,7 @@
                                                    TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
                                     <ComboBox Grid.Column="2" Width="104" Height="26" VerticalAlignment="Center"
+                                              Focusable="False"
                                               ItemsSource="{x:Static vm:SongPracticeViewModel.RoleOptions}"
                                               SelectedValuePath="Role"
                                               SelectedValue="{Binding Role}">

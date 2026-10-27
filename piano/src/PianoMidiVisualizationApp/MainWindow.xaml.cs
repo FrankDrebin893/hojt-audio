@@ -67,6 +67,7 @@ public partial class MainWindow : Window
         double width = FrontPanel.Visibility != Visibility.Visible ? 0
             : IsCompact ? CompactFrontPanelWidth : FrontPanelWidth;
         FrontPanelColumn.Width = new GridLength(width);
+        FrontPanelGrid.MinHeight = IsCompact ? 0 : Math.Max(0, Stage.ActualHeight - 14);
     }
 
     /// <summary>

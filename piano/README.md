@@ -22,9 +22,11 @@ right-hand hardware deck holds the rotary volume and click knobs and panel keys.
   (Bb in F, not A#). The other keys label only the Cs; **View → All Note Names** labels every key.
 - **Sustain pedal**: holds the sound in both SoundFont and SFZ pianos. A key the pedal is holding
   keeps a paler blue edge and still counts toward the chord name.
-- **SoundFont and SFZ pianos**: `.sf2` files play through the MeltySynth synthesizer. `.sfz`
-  instruments such as [Salamander Grand Piano](https://sfzinstruments.github.io/pianos/salamander)
-  play through a built-in sample player with velocity layers.
+- **Soundbank Library (`.sf2` & `.sfz` pianos)**: import multiple SoundFont (`.sf2`, played
+  through the MeltySynth synthesizer) and SFZ (`.sfz`, such as
+  [Salamander Grand Piano](https://sfzinstruments.github.io/pianos/salamander), played through a
+  built-in multi-velocity sample player) pianos into your library and switch instruments with one
+  click.
 - **Low-latency audio**: ASIO output (around 5 ms with a good driver), with WASAPI as a
   fallback that needs no extra drivers.
 
@@ -66,9 +68,11 @@ right-hand hardware deck holds the rotary volume and click knobs and panel keys.
 
 ![Song practice with Ode to Joy in "Wait for me" mode. Right-hand notes fall in teal and left-hand chords in violet, straight onto the keyboard. The song is paused on the next note, C4, which is outlined on the keyboard, with a score of 24 correct, 1 wrong and 0 missed.](docs/screenshots/song-practice.png)
 
-- **Open any MIDI file** (**Ctrl+O**), and its notes fall straight onto the keys they belong
-  to. A two-handed piano track is split into right and left hand at middle C, each in its own
-  colour.
+- **Built-in Song Bank & MIDI import**: ships with 6 built-in two-hand classical piano pieces
+  (*Ode to Joy*, Bach's *Prelude in C Major* & *Minuet in G Major*, Satie's *Gymnopédie No. 1*,
+  *Für Elise*, and Pachelbel's *Canon in D*), or click **Import…** (**Ctrl+O**) / drag and drop any
+  `.mid` file into your persistent Song Bank. Two-handed piano tracks are split into right and left
+  hand, each in its own colour.
 - **Tracks**: decide who plays each part: **You play**, **Auto-play** (the app plays it as
   accompaniment) or **Mute**.
 - **Wait for me**: the song stops at each of your chords until you play it, with the keys to
@@ -163,7 +167,7 @@ Everything is also in **View → Settings…** (**Ctrl+,**):
 
 1. Select your MIDI keyboard from the **Keyboard** dropdown and click **Connect**.
 2. Choose **ASIO** or **WASAPI** under **Output**, and select your audio device.
-3. Click **Choose…** next to **Piano sound** to pick a SoundFont or SFZ file.
+3. Click **Import .sf2 / .sfz…** under **Soundbank Library** to import one or more SoundFont or SFZ pianos, and click any bank in the list to switch to it.
 4. Click **Start audio**.
 
 Then play. You'll hear sound and see the keys light up. Pick a **Key** in the toolbar to turn on

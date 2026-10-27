@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.Win32;
 using PianoMidiVisualizationApp.Audio;
 using PianoMidiVisualizationApp.Models;
 using PianoMidiVisualizationApp.Services;
@@ -25,6 +27,8 @@ public record ScaleOption(ScaleType Scale, string Name, string Group);
 
 public partial class SettingsViewModel : ObservableObject
 {
+    private bool _isSyncingSoundBank;
+
     [ObservableProperty]
     private DeviceInfo? _selectedMidiDevice;
 
@@ -40,6 +44,17 @@ public partial class SettingsViewModel : ObservableObject
 
     /// <summary>What Settings shows for the sound: its file name, the folder being noise at that width.</summary>
     public string SoundFontFileName => string.IsNullOrEmpty(SoundFontPath) ? "" : Path.GetFileName(SoundFontPath);
+
+    /// <summary>Managed library of imported .sf2 and .sfz piano soundbanks.</summary>
+    public ObservableCollection<SoundBankEntry> SoundBanks { get; } = new();
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedSoundBank))]
+    private SoundBankEntry? _selectedSoundBank;
+
+    public bool HasSoundBanks => SoundBanks.Count > 0;
+
+    public bool HasSelectedSoundBank => SelectedSoundBank is not null;
 
     [ObservableProperty]
     private float _volume = 0.8f;
@@ -152,8 +167,12 @@ public partial class SettingsViewModel : ObservableObject
 
     public SettingsViewModel()
     {
+        SoundBanks.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasSoundBanks));
+
         for (int pc = 0; pc < 12; pc++)
             KeyRoots.Add(new KeyRootOption { PitchClass = pc, Name = MusicKey.RootName(pc, KeyScale) });
+
+        ScanLocalSoundbanksDirectory();
     }
 
     /// <summary>Renames the existing roots; deliberately does not replace them.</summary>
@@ -165,10 +184,236 @@ public partial class SettingsViewModel : ObservableObject
 
     partial void OnKeyScaleChanged(ScaleType value) => RespellKeyRoots();
 
+    partial void OnSelectedSoundBankChanged(SoundBankEntry? value)
+    {
+        if (_isSyncingSoundBank) return;
+
+        _isSyncingSoundBank = true;
+        try
+        {
+            if (value is not null && !string.IsNullOrWhiteSpace(value.FilePath))
+            {
+                SoundFontPath = value.FilePath;
+            }
+            else if (value is null && SoundBanks.Count == 0)
+            {
+                SoundFontPath = "";
+            }
+        }
+        finally
+        {
+            _isSyncingSoundBank = false;
+        }
+    }
+
+    partial void OnSoundFontPathChanged(string value)
+    {
+        if (_isSyncingSoundBank) return;
+
+        _isSyncingSoundBank = true;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                SelectedSoundBank = null;
+            }
+            else
+            {
+                var entry = AddOrFindSoundBank(value);
+                SelectedSoundBank = entry;
+            }
+        }
+        finally
+        {
+            _isSyncingSoundBank = false;
+        }
+    }
+
+    private SoundBankEntry AddOrFindSoundBank(string filePath, string? preferredName = null)
+    {
+        var existing = SoundBanks.FirstOrDefault(b =>
+            string.Equals(b.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null)
+        {
+            if (string.IsNullOrWhiteSpace(existing.Name))
+                existing.Name = Path.GetFileNameWithoutExtension(filePath);
+            return existing;
+        }
+
+        var entry = new SoundBankEntry
+        {
+            Name = !string.IsNullOrWhiteSpace(preferredName)
+                ? preferredName
+                : Path.GetFileNameWithoutExtension(filePath),
+            FilePath = filePath
+        };
+        SoundBanks.Add(entry);
+        return entry;
+    }
+
+    private void ScanLocalSoundbanksDirectory()
+    {
+        try
+        {
+            string dir = AppSettings.SoundbanksDirectoryPath;
+            Directory.CreateDirectory(dir);
+
+            var files = Directory.EnumerateFiles(dir)
+                .Where(f =>
+                {
+                    string ext = Path.GetExtension(f);
+                    return ext.Equals(".sf2", StringComparison.OrdinalIgnoreCase)
+                        || ext.Equals(".sfz", StringComparison.OrdinalIgnoreCase);
+                })
+                .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase);
+
+            foreach (string file in files)
+                AddOrFindSoundBank(file);
+        }
+        catch
+        {
+            // Ignore directory access issues on restricted environments
+        }
+    }
+
+    /// <summary>
+    /// Imports a .sf2 or .sfz soundbank file into the managed library and makes it active.
+    /// Standalone .sf2 files are copied into the local Soundbanks folder when possible; .sfz
+    /// files are referenced in place so their relative sample folders remain intact.
+    /// </summary>
+    public SoundBankEntry? ImportSoundBankFile(string sourcePath)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePath))
+            return null;
+
+        string targetPath = sourcePath;
+        string ext = Path.GetExtension(sourcePath);
+
+        if (ext.Equals(".sf2", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                if (File.Exists(sourcePath))
+                {
+                    string dir = AppSettings.SoundbanksDirectoryPath;
+                    Directory.CreateDirectory(dir);
+                    string destPath = Path.Combine(dir, Path.GetFileName(sourcePath));
+
+                    if (!string.Equals(Path.GetFullPath(sourcePath), Path.GetFullPath(destPath), StringComparison.OrdinalIgnoreCase))
+                    {
+                        File.Copy(sourcePath, destPath, overwrite: true);
+                    }
+                    targetPath = destPath;
+                }
+            }
+            catch
+            {
+                // If copy fails or file is locked, reference the original path directly
+                targetPath = sourcePath;
+            }
+        }
+
+        var entry = AddOrFindSoundBank(targetPath);
+        SelectedSoundBank = entry;
+        if (!string.Equals(SoundFontPath, entry.FilePath, StringComparison.Ordinal))
+            SoundFontPath = entry.FilePath;
+
+        PersistSoundBanks();
+        return entry;
+    }
+
+    [RelayCommand]
+    private void ImportSoundBanks()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Multiselect = true,
+            Filter = "Piano sound banks (*.sf2;*.sfz)|*.sf2;*.sfz|SoundFont 2 (*.sf2)|*.sf2|SFZ instrument (*.sfz)|*.sfz|All files (*.*)|*.*",
+            Title = "Import Piano Soundbanks (.sf2 or .sfz)"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            foreach (string file in dialog.FileNames)
+                ImportSoundBankFile(file);
+        }
+    }
+
+    [RelayCommand]
+    private void BrowseSoundFont() => ImportSoundBanks();
+
+    [RelayCommand]
+    private void SelectSoundBank(SoundBankEntry? entry)
+    {
+        if (entry is not null)
+            SelectedSoundBank = entry;
+    }
+
+    [RelayCommand]
+    private void RemoveSoundBank(SoundBankEntry? entry)
+    {
+        var target = entry ?? SelectedSoundBank;
+        if (target is null) return;
+
+        int index = SoundBanks.IndexOf(target);
+        bool wasSelected = ReferenceEquals(target, SelectedSoundBank)
+                           || string.Equals(target.FilePath, SoundFontPath, StringComparison.OrdinalIgnoreCase);
+
+        SoundBanks.Remove(target);
+
+        if (wasSelected)
+        {
+            if (SoundBanks.Count > 0)
+            {
+                int nextIndex = Math.Clamp(index, 0, SoundBanks.Count - 1);
+                SelectedSoundBank = SoundBanks[nextIndex];
+            }
+            else
+            {
+                SelectedSoundBank = null;
+                SoundFontPath = "";
+            }
+        }
+
+        PersistSoundBanks();
+    }
+
+    private void PersistSoundBanks()
+    {
+        try
+        {
+            var saved = AppSettings.Load();
+            saved.SoundFontPath = SoundFontPath;
+            saved.SoundBanks = SoundBanks.ToList();
+            saved.Save();
+        }
+        catch
+        {
+            // Ignore persistence errors
+        }
+    }
+
     public void ApplyFrom(AppSettings settings)
     {
         UseAsio = settings.UseAsio;
+
+        if (settings.SoundBanks is { Count: > 0 })
+        {
+            foreach (var bank in settings.SoundBanks)
+            {
+                if (!string.IsNullOrWhiteSpace(bank.FilePath))
+                    AddOrFindSoundBank(bank.FilePath, bank.Name);
+            }
+        }
+
+        ScanLocalSoundbanksDirectory();
+
         SoundFontPath = settings.SoundFontPath ?? "";
+        if (string.IsNullOrEmpty(SoundFontPath) && SoundBanks.Count > 0 && SelectedSoundBank is not null)
+        {
+            SoundFontPath = SelectedSoundBank.FilePath;
+        }
+
         Volume = settings.Volume;
         AnthropicApiKey = settings.AnthropicApiKey ?? "";
 
@@ -200,6 +445,7 @@ public partial class SettingsViewModel : ObservableObject
             LastAudioDriver = SelectedAudioDriver,
             UseAsio = UseAsio,
             SoundFontPath = SoundFontPath,
+            SoundBanks = SoundBanks.ToList(),
             Volume = Volume,
             AnthropicApiKey = AnthropicApiKey,
             KeyHighlightEnabled = KeyTonicPitchClass.HasValue,

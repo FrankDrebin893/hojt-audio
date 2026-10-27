@@ -3,6 +3,7 @@ name: Piano MIDI Visualization
 description: A Windows desktop piano companion whose window is an instrument's front panel — brushed scarlet aluminium, a black OLED window, real ivory keys.
 colors:
   panel-scarlet: "#A8131C"
+  panel-scarlet-deep: "#780D13"
   oled-black: "#000000"
   well-deep: "#060606"
   rubber-raised: "#1C1C1C"
@@ -31,6 +32,7 @@ colors:
   held-blue: "#4FA3FF"
   target-magenta: "#E83E9C"
   hit-green: "#8BE36B"
+  hit-green-border: "#6DC252"
   miss-red: "#FF5252"
   record-red: "#F04A3E"
   record-idle: "#9C4A42"
@@ -48,23 +50,47 @@ colors:
 typography:
   brand:
     fontFamily: "Bebas Neue"
-    fontSize: "20px"
+    fontSize: "22px"
     fontWeight: 400
   display:
     fontFamily: "Inter Tight"
     fontSize: "72px"
     fontWeight: 800
+  web-hero:
+    fontFamily: "Inter Tight"
+    fontSize: "44px"
+    fontWeight: 800
+  web-section:
+    fontFamily: "Inter Tight"
+    fontSize: "28px"
+    fontWeight: 800
+  web-subhead:
+    fontFamily: "Inter Tight"
+    fontSize: "24px"
+    fontWeight: 700
   headline:
     fontFamily: "Inter Tight"
     fontSize: "18px"
     fontWeight: 600
-  body:
+  web-body:
     fontFamily: "Inter Tight"
-    fontSize: "12px"
+    fontSize: "16px"
+    fontWeight: 400
+  web-body-sm:
+    fontFamily: "Inter Tight"
+    fontSize: "15px"
     fontWeight: 400
   body-readout:
     fontFamily: "Inter Tight"
     fontSize: "14px"
+    fontWeight: 400
+  web-caption:
+    fontFamily: "Inter Tight"
+    fontSize: "13px"
+    fontWeight: 600
+  body:
+    fontFamily: "Inter Tight"
+    fontSize: "12px"
     fontWeight: 400
   legend:
     fontFamily: "Inter Tight"
@@ -83,10 +109,12 @@ rounded:
   tile: "4px"
   card: "6px"
   oled-inner: "6px"
+  lg: "8px"
   oled-bezel: "10px"
   window: "10px"
   panel-key: "5px"
   pill: "11px"
+  stage: "12px"
 spacing:
   hairline: "2px"
   xs: "4px"

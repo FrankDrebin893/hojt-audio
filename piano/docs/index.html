@@ -15,7 +15,14 @@
     <div class="shell top-bar">
       <div class="brand-group">
         <a href="#stage" class="hojt-badge" aria-label="HØJT">
-          <span class="hojt-badge-inner" aria-hidden="true">H<svg viewBox="0 0 44 54"><circle cx="22" cy="27" r="16" fill="none" stroke="#eadfc8" stroke-width="5.6"/><line x1="6.7" y1="48.8" x2="37.3" y2="5.2" stroke="#e2581e" stroke-width="4.6"/></svg>JT</span>
+          <svg viewBox="0 0 63 33.8" width="63" height="33.8" aria-hidden="true">
+            <rect x="0" y="3" width="63" height="30.8" rx="6" ry="6" fill="#000000" fill-opacity="0.314"/>
+            <rect x="0" y="0" width="63" height="30.8" rx="6" ry="6" fill="#1C1A18"/>
+            <rect x="2.75" y="2.75" width="57.5" height="25.3" rx="3.5" ry="3.5" fill="none" stroke="#EADFC8" stroke-width="1.5"/>
+            <path fill="#EADFC8" d="M10.142,7.7L12.562,7.7 12.562,13.97 15.158,13.97 15.158,7.7 17.578,7.7 17.578,23.1 15.158,23.1 15.158,16.17 12.562,16.17 12.562,23.1 10.142,23.1 10.142,7.7z M38.774,23.188L38.163,23.166 37.652,23.1 37.652,20.9 38.026,20.966 38.444,20.988 38.784,20.965 39.076,20.897 39.323,20.784 39.522,20.625 39.676,20.419 39.786,20.166 39.852,19.864 39.874,19.514 39.874,7.7 42.294,7.7 42.294,19.448 42.28,19.906 42.24,20.333 42.172,20.731 42.077,21.098 41.955,21.435 41.805,21.742 41.629,22.018 41.425,22.264 40.933,22.668 40.328,22.957 39.608,23.13 38.774,23.188z M48.794,9.9L46.264,9.9 46.264,7.7 53.744,7.7 53.744,9.9 51.214,9.9 51.214,23.1 48.794,23.1 48.794,9.9z"/>
+            <circle cx="27.6" cy="15.4" r="6.6" fill="none" stroke="#EADFC8" stroke-width="2.31"/>
+            <line x1="21.29" y1="24.41" x2="33.91" y2="6.39" stroke="#E2581E" stroke-width="1.87" stroke-linecap="butt"/>
+          </svg>
         </a>
         <a href="#stage" class="brand-title">Piano MIDI Visualization</a>
         <span class="status-beacon">
@@ -75,9 +82,9 @@
           <div class="hero-badges">
             <span class="badge">Windows 10 / 11 (win-x64)</span>
             <span class="badge">Self-Contained Single-File .EXE</span>
-            <span class="badge">MeltySynth .SF2 &amp; .SFZ Engine</span>
+            <span class="badge">Multi-Bank .SF2 &amp; .SFZ Library</span>
+            <span class="badge">6 Built-In Classic Songs + MIDI Import</span>
             <span class="badge">~5 ms ASIO &amp; WASAPI</span>
-            <span class="badge">61-Key (C2–C7) Transparent Out-of-Key Scale</span>
           </div>
         </div>
 
@@ -95,21 +102,21 @@
           </div>
           <div class="chassis-spec-grid">
             <div class="spec-cell">
-              <h2 class="spec-title">Full-Width OLED Readout</h2>
+              <div class="spec-title">Full-Width OLED Readout</div>
               <p class="spec-desc">
                 The recessed gunmetal OLED bezel matches the exact full width of the 61-key keyboard below it—uniting the engraved grand staff, 72px chord readout, figured-bass numeral pill, circle of fifths, and diatonic chord strip.
               </p>
             </div>
             <div class="spec-cell">
-              <h2 class="spec-title">Transparent Out-of-Key Keys</h2>
+              <div class="spec-title">Transparent Out-of-Key Keys</div>
               <p class="spec-desc">
                 When a key signature is active, keys outside the scale become transparent across both white and black key surfaces, while in-key notes remain solid opaque ivory and ebony with crisp scale markers.
               </p>
             </div>
             <div class="spec-cell">
-              <h2 class="spec-title">Side Knobs &amp; Panel Keys</h2>
+              <div class="spec-title">Side Knobs &amp; Panel Keys</div>
               <p class="spec-desc">
-                The right-hand scarlet hardware deck houses the 13-LED rotary halo knobs for Master <strong>Volume</strong> and Metronome <strong>Click</strong> above twelve rubber LED keys for key, scale, mute, metronome, recorder, and note labels.
+                The right-hand scarlet hardware deck houses the 13-LED rotary halo knobs for Master <strong>Volume</strong> and Metronome <strong>Click</strong> above twelve rubber LED keys and the vector <strong>HØJT</strong> hardware badge.
               </p>
             </div>
           </div>
@@ -145,10 +152,10 @@
             </button>
             <button type="button" class="tour-btn" role="tab" aria-selected="false"
                     data-src="screenshots/song-practice.png" data-w="1920" data-h="1080"
-                    data-title="Song Practice — Player-Piano Roll &amp; Wait Mode"
-                    data-dim="1920 × 1080 · Ode to Joy · Wait for Me"
-                    data-desc="Open any .mid file to replace the readout with a falling-notes player-piano roll aligned column-for-column with the 61 keys. Right-hand notes appear in teal, left-hand notes in violet, and the next chord outlines its target keys in magenta while waiting for you to play it.">
-              3. Falling-Notes Song Practice
+                    data-title="Song Bank &amp; Falling-Notes Practice — 6 Built-In Classics + MIDI Import"
+                    data-dim="1920 × 1080 · Ode to Joy · Built-In Song Bank"
+                    data-desc="Pick from 6 built-in classical pieces (Ode to Joy, Bach's Prelude in C &amp; Minuet in G, Satie's Gymnopédie No. 1, Für Elise, and Pachelbel's Canon in D) or import and drag-and-drop any .mid file into your persistent Song Bank. Right-hand notes appear in teal, left-hand notes in violet, and Wait for Me mode holds each chord in magenta until you play it.">
+              3. Song Bank &amp; Falling Notes
             </button>
             <button type="button" class="tour-btn" role="tab" aria-selected="false"
                     data-src="screenshots/recorder.png" data-w="1920" data-h="1260"
@@ -159,10 +166,10 @@
             </button>
             <button type="button" class="tour-btn" role="tab" aria-selected="false"
                     data-src="screenshots/settings.png" data-w="1920" data-h="840"
-                    data-title="Settings &amp; Learned Piano Controls (Ctrl+,)"
-                    data-dim="1920 × 840 · ASIO / WASAPI · MIDI Learn"
-                    data-desc="Pick your USB MIDI keyboard, load a .sf2 SoundFont or .sfz instrument, choose ASIO or WASAPI audio output, and teach any physical key, drum pad, or pedal on your controller to trigger six hands-free actions: Record, Play Take, Metronome, Tap Tempo, Play Song, and Restart Song.">
-              5. Audio &amp; Piano Controls
+                    data-title="Soundbank Library &amp; Learned Piano Controls (Ctrl+,)"
+                    data-dim="1920 × 840 · Multi-Bank .SF2 / .SFZ · MIDI Learn"
+                    data-desc="Import multiple .sf2 SoundFonts and .sfz grand pianos into the managed Soundbank Library and switch instruments with one click. Configure ASIO or WASAPI output, and teach any physical key, drum pad, or pedal on your controller to trigger six hands-free actions: Record, Play Take, Metronome, Tap Tempo, Play Song, and Restart Song.">
+              5. Soundbank Library &amp; Controls
             </button>
             <button type="button" class="tour-btn" role="tab" aria-selected="false"
                     data-src="screenshots/first-run.png" data-w="1920" data-h="900"
@@ -211,11 +218,11 @@
 
           <article class="gallery-card">
             <div class="gallery-thumb-wrap">
-              <img src="screenshots/song-practice.png" width="1920" height="1080" loading="lazy" alt="Song practice mode with falling notes for Ode to Joy">
+              <img src="screenshots/song-practice.png" width="1920" height="1080" loading="lazy" alt="Song practice mode with built-in Song Bank and falling notes for Ode to Joy">
             </div>
             <div class="gallery-card-body">
-              <h3 class="gallery-card-title">Falling-Notes Song Practice</h3>
-              <p class="gallery-card-desc">Practise any MIDI file with separate right/left hand lanes, bar looping, 25–150% tempo scaling, and Wait for Me mode that pauses until you play the chord.</p>
+              <h3 class="gallery-card-title">Song Bank &amp; Falling-Notes Practice</h3>
+              <p class="gallery-card-desc">Ships with 6 built-in classical pieces (Beethoven, Bach, Satie, Pachelbel) plus drag-and-drop MIDI import into your persistent Song Bank, with bar looping and Wait for Me mode.</p>
             </div>
           </article>
 
@@ -231,11 +238,11 @@
 
           <article class="gallery-card">
             <div class="gallery-thumb-wrap">
-              <img src="screenshots/settings.png" width="1920" height="840" loading="lazy" alt="Settings overlay showing SoundFont path, ASIO output, and learned piano controls">
+              <img src="screenshots/settings.png" width="1920" height="840" loading="lazy" alt="Settings overlay showing managed Soundbank Library, ASIO output, and learned piano controls">
             </div>
             <div class="gallery-card-body">
-              <h3 class="gallery-card-title">ASIO / WASAPI &amp; Learned Piano Controls</h3>
-              <p class="gallery-card-desc">Map unused lowest/highest keys, drum pads, or pedals on your MIDI controller to run the recorder, metronome, tap tempo, and song transport from the piano.</p>
+              <h3 class="gallery-card-title">Managed Soundbank Library &amp; Piano Controls</h3>
+              <p class="gallery-card-desc">Import multiple .sf2 and .sfz piano soundbanks for one-click switching, and map unused keys, pads, or pedals on your MIDI controller to transport actions.</p>
             </div>
           </article>
 
@@ -370,12 +377,16 @@
                   <td>Dedicated side panel with 13-LED rotary Halo Knobs for Master <strong>Volume</strong> and Metronome <strong>Click</strong> above 12 LED rubber keys (<code>key ◀</code>, <code>key ▶</code>, <code>scale</code>, <code>mute</code>, <code>metro</code>, <code>tap</code>, <code>-</code>, <code>+</code>, <code>rec</code>, <code>play</code>, <code>loop</code>, <code>notes</code>).</td>
                 </tr>
                 <tr>
-                  <td><strong>MeltySynth .SF2 &amp; .SFZ</strong></td>
-                  <td>Plays SoundFonts and multi-velocity SFZ pianos (like Salamander Grand Piano) through ASIO (~5 ms) or WASAPI with full CC64 sustain-pedal support.</td>
+                  <td><strong>Soundbank Library (.SF2 &amp; .SFZ)</strong></td>
+                  <td>Import multiple SoundFonts and multi-velocity SFZ pianos into your persistent library and switch instruments with one click over ASIO (~5 ms) or WASAPI.</td>
+                </tr>
+                <tr>
+                  <td><strong>Built-In Song Bank</strong></td>
+                  <td>Includes 6 built-in two-hand classical songs (Beethoven, Bach, Satie, Pachelbel) plus drag-and-drop <code>.mid</code> import for falling-notes Wait for Me and Play Along practice.</td>
                 </tr>
                 <tr>
                   <td><strong>AI Music Assistant</strong></td>
-                  <td>Optional panel (<code>Shift+F2</code>) powered by Google Gemini (`gemini-2.5-flash`) using your own API key, automatically receiving your active key, held chord, and recent MIDI activity.</td>
+                  <td>Optional panel (<code>Shift+F2</code>) powered by Google Gemini (<code>gemini-2.5-flash</code>) using your own API key, automatically receiving your active key, held chord, and recent MIDI activity.</td>
                 </tr>
               </tbody>
             </table>
@@ -498,7 +509,7 @@
         </div>
 
         <div class="section-head" style="margin-bottom: 1.5rem;">
-          <h3 class="section-title" style="font-size: 1.5rem;">Keyboard Shortcuts Reference</h3>
+          <h3 class="subsection-title">Keyboard Shortcuts Reference</h3>
           <p class="section-lead measure">
             Every panel and transport action is reachable from the computer keyboard or via learned MIDI controls on your piano.
           </p>
@@ -596,7 +607,14 @@
       <div class="footer-top">
         <div class="brand-group">
           <span class="hojt-badge" aria-label="HØJT">
-            <span class="hojt-badge-inner" aria-hidden="true">H<svg viewBox="0 0 44 54"><circle cx="22" cy="27" r="16" fill="none" stroke="#eadfc8" stroke-width="5.6"/><line x1="6.7" y1="48.8" x2="37.3" y2="5.2" stroke="#e2581e" stroke-width="4.6"/></svg>JT</span>
+            <svg viewBox="0 0 63 33.8" width="63" height="33.8" aria-hidden="true">
+              <rect x="0" y="3" width="63" height="30.8" rx="6" ry="6" fill="#000000" fill-opacity="0.314"/>
+              <rect x="0" y="0" width="63" height="30.8" rx="6" ry="6" fill="#1C1A18"/>
+              <rect x="2.75" y="2.75" width="57.5" height="25.3" rx="3.5" ry="3.5" fill="none" stroke="#EADFC8" stroke-width="1.5"/>
+              <path fill="#EADFC8" d="M10.142,7.7L12.562,7.7 12.562,13.97 15.158,13.97 15.158,7.7 17.578,7.7 17.578,23.1 15.158,23.1 15.158,16.17 12.562,16.17 12.562,23.1 10.142,23.1 10.142,7.7z M38.774,23.188L38.163,23.166 37.652,23.1 37.652,20.9 38.026,20.966 38.444,20.988 38.784,20.965 39.076,20.897 39.323,20.784 39.522,20.625 39.676,20.419 39.786,20.166 39.852,19.864 39.874,19.514 39.874,7.7 42.294,7.7 42.294,19.448 42.28,19.906 42.24,20.333 42.172,20.731 42.077,21.098 41.955,21.435 41.805,21.742 41.629,22.018 41.425,22.264 40.933,22.668 40.328,22.957 39.608,23.13 38.774,23.188z M48.794,9.9L46.264,9.9 46.264,7.7 53.744,7.7 53.744,9.9 51.214,9.9 51.214,23.1 48.794,23.1 48.794,9.9z"/>
+              <circle cx="27.6" cy="15.4" r="6.6" fill="none" stroke="#EADFC8" stroke-width="2.31"/>
+              <line x1="21.29" y1="24.41" x2="33.91" y2="6.39" stroke="#E2581E" stroke-width="1.87" stroke-linecap="butt"/>
+            </svg>
           </span>
           <span class="brand-title">Piano MIDI Visualization</span>
           <span class="status-beacon">MIT LICENSE · C# / .NET 10 / WPF</span>

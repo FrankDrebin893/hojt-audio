@@ -6,6 +6,7 @@ using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
+using PianoMidiVisualizationApp.Models;
 using PianoMidiVisualizationApp.Services.SongPractice;
 using PianoMidiVisualizationApp.Views;
 
@@ -102,10 +103,18 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
     private TimeSpan _scheduledUntil;
 
     private bool _isTicking;
+    private bool _updatingSelection;
 
     public SongClock Clock { get; } = new();
 
     public ObservableCollection<SongPartViewModel> Parts { get; } = new();
+
+    /// <summary>Built-in classic songs plus user-imported MIDI songs in the local Song Bank.</summary>
+    public ObservableCollection<SongBankItem> SongBank { get; } = new();
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Title))]
+    private SongBankItem? _selectedSongBankItem;
 
     public static IReadOnlyList<PartRoleOption> RoleOptions { get; } =
     [
@@ -158,7 +167,7 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
 
     public bool HasSong => Song != null;
 
-    public string Title => Song?.Title ?? "";
+    public string Title => SelectedSongBankItem?.Title ?? Song?.Title ?? "";
 
     public string SongDetails => Song is { } s
         ? $"{Math.Round(s.InitialBpm)} BPM · {s.BarCount} {(s.BarCount == 1 ? "bar" : "bars")}"
@@ -235,6 +244,90 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
             : KeyboardLayout.Default;
         _autoPlayer = new SongAutoPlayer(noteOn, noteOff);
         _reportStatus = reportStatus;
+
+        InitializeSongBank();
+    }
+
+    // ------------------------------------------------------------------ song bank
+
+    private void InitializeSongBank()
+    {
+        SongBank.Clear();
+
+        foreach (var builtIn in BuiltInSongs.EnsureAll())
+            SongBank.Add(builtIn);
+
+        string userFolder = GetUserSongsFolder();
+        if (Directory.Exists(userFolder))
+        {
+            try
+            {
+                var files = Directory.EnumerateFiles(userFolder)
+                    .Where(IsMidiExtension)
+                    .OrderBy(f => Path.GetFileNameWithoutExtension(f), StringComparer.CurrentCultureIgnoreCase);
+
+                foreach (string file in files)
+                {
+                    if (SongBank.Any(i => string.Equals(i.FilePath, file, StringComparison.OrdinalIgnoreCase)))
+                        continue;
+
+                    SongBank.Add(new SongBankItem
+                    {
+                        Title = Path.GetFileNameWithoutExtension(file),
+                        Subtitle = "Imported MIDI",
+                        FilePath = file,
+                        IsBuiltIn = false
+                    });
+                }
+            }
+            catch
+            {
+                // Ignore directory enumeration issues.
+            }
+        }
+    }
+
+    private static string GetUserSongsFolder()
+    {
+        try
+        {
+            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (!string.IsNullOrWhiteSpace(localAppData))
+            {
+                string folder = Path.Combine(localAppData, "PianoMidiVisualizationApp", "Songs");
+                Directory.CreateDirectory(folder);
+                return folder;
+            }
+        }
+        catch
+        {
+            // Fall through to temp path.
+        }
+
+        string fallback = Path.Combine(Path.GetTempPath(), "PianoMidiVisualizationApp", "Songs");
+        Directory.CreateDirectory(fallback);
+        return fallback;
+    }
+
+    private static bool IsMidiExtension(string path) =>
+        Path.GetExtension(path) is { } ext &&
+        (ext.Equals(".mid", StringComparison.OrdinalIgnoreCase) ||
+         ext.Equals(".midi", StringComparison.OrdinalIgnoreCase) ||
+         ext.Equals(".kar", StringComparison.OrdinalIgnoreCase));
+
+    partial void OnSelectedSongBankItemChanged(SongBankItem? value)
+    {
+        if (_updatingSelection) return;
+        if (value is not null && File.Exists(value.FilePath))
+            LoadSong(value.FilePath, showTrackList: false);
+    }
+
+    /// <summary>Loads the first built-in song if no song is currently loaded.</summary>
+    [RelayCommand]
+    public void EnsureDefaultSongLoaded()
+    {
+        if (HasSong || SongBank.Count == 0) return;
+        SelectedSongBankItem = SongBank[0];
     }
 
     // ------------------------------------------------------------------ loop range
@@ -309,25 +402,83 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
         RaiseFrame();
     }
 
-    // ------------------------------------------------------------------ loading
+    // ------------------------------------------------------------------ loading & importing
 
     [RelayCommand]
-    private void OpenSong()
+    private void OpenSong() => ImportSong();
+
+    [RelayCommand]
+    private void ImportSong()
     {
         var dialog = new OpenFileDialog
         {
-            Title = "Open a MIDI song",
-            Filter = "MIDI files (*.mid;*.midi;*.kar)|*.mid;*.midi;*.kar|All files (*.*)|*.*"
+            Title = "Import MIDI Song into Song Bank",
+            Filter = "MIDI files (*.mid;*.midi;*.kar)|*.mid;*.midi;*.kar|All files (*.*)|*.*",
+            Multiselect = true
         };
         if (SongPath is { } previous && Path.GetDirectoryName(previous) is { } folder && Directory.Exists(folder))
             dialog.InitialDirectory = folder;
 
-        if (dialog.ShowDialog() == true)
-            LoadSong(dialog.FileName, showTrackList: true);
+        if (dialog.ShowDialog() == true && dialog.FileNames.Length > 0)
+            ImportDroppedFiles(dialog.FileNames);
+    }
+
+    /// <summary>
+    /// Copies one or more MIDI files into the user's persistent Song Bank folder, adds them to
+    /// <see cref="SongBank"/>, and loads the first imported song.
+    /// </summary>
+    public void ImportDroppedFiles(IEnumerable<string> paths)
+    {
+        string userFolder = GetUserSongsFolder();
+        string? firstImportedPath = null;
+
+        foreach (string sourcePath in paths)
+        {
+            if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath) || !IsMidiExtension(sourcePath))
+                continue;
+
+            string destPath = CopyToUserSongsFolder(sourcePath, userFolder);
+            firstImportedPath ??= destPath;
+
+            var existing = SongBank.FirstOrDefault(i => string.Equals(i.FilePath, destPath, StringComparison.OrdinalIgnoreCase));
+            if (existing is null)
+            {
+                SongBank.Add(new SongBankItem
+                {
+                    Title = Path.GetFileNameWithoutExtension(destPath),
+                    Subtitle = "Imported MIDI",
+                    FilePath = destPath,
+                    IsBuiltIn = false
+                });
+            }
+        }
+
+        if (firstImportedPath is not null)
+            LoadSong(firstImportedPath, showTrackList: true);
+    }
+
+    private static string CopyToUserSongsFolder(string sourcePath, string userFolder)
+    {
+        try
+        {
+            string fullSource = Path.GetFullPath(sourcePath);
+            string fullUserFolder = Path.GetFullPath(userFolder);
+            if (fullSource.StartsWith(fullUserFolder, StringComparison.OrdinalIgnoreCase))
+                return fullSource;
+
+            Directory.CreateDirectory(fullUserFolder);
+            string destPath = Path.Combine(fullUserFolder, Path.GetFileName(sourcePath));
+            File.Copy(sourcePath, destPath, overwrite: true);
+            return destPath;
+        }
+        catch
+        {
+            return sourcePath;
+        }
     }
 
     /// <summary>Loads a song, replacing any current one. Reports and returns false if it cannot be read.</summary>
-    public bool LoadSong(string path, bool showTrackList)
+    public bool LoadSong(string path, bool showTrackList = true)
     {
         Song song;
         try
@@ -347,6 +498,31 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
 
         Song = song;
         SongPath = path;
+
+        var bankItem = SongBank.FirstOrDefault(i => string.Equals(i.FilePath, path, StringComparison.OrdinalIgnoreCase))
+                    ?? SongBank.FirstOrDefault(i => i.IsBuiltIn && string.Equals(i.Title, song.Title, StringComparison.OrdinalIgnoreCase));
+        if (bankItem is null)
+        {
+            bankItem = new SongBankItem
+            {
+                Title = song.Title,
+                Subtitle = $"{Math.Round(song.InitialBpm)} BPM · {song.BarCount} {(song.BarCount == 1 ? "bar" : "bars")}",
+                FilePath = path,
+                IsBuiltIn = false
+            };
+            SongBank.Add(bankItem);
+        }
+
+        _updatingSelection = true;
+        try
+        {
+            SelectedSongBankItem = bankItem;
+        }
+        finally
+        {
+            _updatingSelection = false;
+        }
+
         foreach (var part in song.Parts)
         {
             var vm = new SongPartViewModel(part);
@@ -365,7 +541,7 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
         IsTrackListOpen = showTrackList;
 
         int yours = Parts.Count(p => p.Role == PartRole.YouPlay);
-        _reportStatus($"Loaded {song.Title}: {Parts.Count} {(Parts.Count == 1 ? "part" : "parts")}, " +
+        _reportStatus($"Loaded {Title}: {Parts.Count} {(Parts.Count == 1 ? "part" : "parts")}, " +
                       $"{yours} for you to play, {song.BarCount} bars at {Math.Round(song.InitialBpm)} BPM");
         SongLoaded?.Invoke(this, EventArgs.Empty);
         return true;
@@ -385,6 +561,15 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
         _scorer = null;
         Song = null;
         SongPath = null;
+        _updatingSelection = true;
+        try
+        {
+            SelectedSongBankItem = null;
+        }
+        finally
+        {
+            _updatingSelection = false;
+        }
         IsTrackListOpen = false;
         IsFinished = false;
         IsWaiting = false;
@@ -658,8 +843,8 @@ public partial class SongPracticeViewModel : ObservableObject, IDisposable
         IsFinished = true;
 
         _reportStatus(_yourNotes.Length == 0
-            ? $"Finished {Song?.Title}"
-            : $"Finished {Song?.Title}: {CorrectCount} correct, {WrongCount} wrong" +
+            ? $"Finished {Title}"
+            : $"Finished {Title}: {CorrectCount} correct, {WrongCount} wrong" +
               (Mode == PracticeMode.PlayAlong ? $", {MissedCount} missed" : ""));
     }
 

@@ -1,5 +1,6 @@
 using System.IO;
 using PianoMidiVisualizationApp.Midi;
+using PianoMidiVisualizationApp.Models;
 using PianoMidiVisualizationApp.Services;
 using PianoMidiVisualizationApp.Services.SongPractice;
 
@@ -132,6 +133,21 @@ internal static class Scenes
     {
         var vm = host.Vm;
         vm.IsSettingsOverlayVisible = true;
+
+        var active = vm.Settings.SelectedSoundBank;
+        foreach (var extra in vm.Settings.SoundBanks.Where(b => b != active).ToList())
+            vm.Settings.SoundBanks.Remove(extra);
+
+        vm.Settings.SoundBanks.Add(new SoundBankEntry
+        {
+            Name = "Yamaha C5 Concert Grand",
+            FilePath = @"C:\SoundFonts\Yamaha C5\YamahaC5Grand.sf2"
+        });
+        vm.Settings.SoundBanks.Add(new SoundBankEntry
+        {
+            Name = "Upright Felt Piano",
+            FilePath = @"C:\SoundFonts\Felt Piano\UprightFeltPiano.sfz"
+        });
 
         var controls = vm.PianoControls;
         controls.LearnCommand.Execute(controls.Rows.Single(r => r.Action == PianoAction.ToggleMetronome));

@@ -4,7 +4,7 @@
 
 ## Platform
 
-windows
+adaptive
 
 ## Users
 
@@ -52,15 +52,17 @@ piano rolls show which notes to play. This app tells you what they are.
 ## Capabilities and Constraints
 
 - **Hear:** SoundFont playback through MeltySynth, and SFZ through a built-in sample player with
-  velocity layers. The CC64 sustain pedal holds the sound in both. There is a master volume and
-  a metronome click volume.
+  velocity layers. The Managed Soundbank Library lets you import multiple `.sf2` and `.sfz`
+  pianos into `%LOCALAPPDATA%\PianoMidiVisualizationApp\Soundbanks` and switch instruments with
+  one click. The CC64 sustain pedal holds the sound in both. There is a master volume and a
+  metronome click volume.
 - **See:** a 61-key keyboard (C2–C7) that scales with the window, beneath a recessed OLED
   display that spans the full width of the keys, with a right-hand hardware panel housing the
-  volume and click halo knobs and twelve shortcut panel keys. There are 12 scales; when a key
-  is selected, out-of-key white and black keys become transparent, in-key keys carry a crisp
-  edge marker with the tonic set apart, and note names switch to sharps or flats to suit the
-  key. "Mute out-of-key" silences wrong notes but still shows them. A key the pedal holds stays
-  lit and still counts toward the chord name.
+  volume and click halo knobs, twelve shortcut panel keys, and the vector `HØJT` hardware badge.
+  There are 12 scales; when a key is selected, out-of-key white and black keys become
+  transparent, in-key keys carry a crisp edge marker with the tonic set apart, and note names
+  switch to sharps or flats to suit the key. "Mute out-of-key" silences wrong notes but still
+  shows them. A key the pedal holds stays lit and still counts toward the chord name.
 - **Understand:** the chord readout (which latches for two seconds after releasing the keys,
   dimming), grand staff, circle of fifths (click to change key) and diatonic chord strip (click
   to play).
@@ -68,8 +70,11 @@ piano rolls show which notes to play. This app tells you what they are.
   learned for six actions: record, play the latest take, metronome on/off, tap tempo,
   play/pause the song and restart the song. A mapped key stops sounding its note until cleared.
   A short note over the stage confirms each action.
-- **Songs:** open a `.mid` and practise with falling notes. Choose tracks and hands, set the
-  speed, loop a bar range, use "Wait for me" and get scored.
+- **Songs:** choose from 6 built-in two-hand classical songs (Beethoven's *Ode to Joy* & *Für
+  Elise*, Bach's *Prelude in C Major* & *Minuet in G Major*, Satie's *Gymnopédie No. 1*, and
+  Pachelbel's *Canon in D*) or import / drag-and-drop any `.mid` file into the persistent Song
+  Bank (`%LOCALAPPDATA%\PianoMidiVisualizationApp\Songs`) and practise with falling notes.
+  Choose tracks and hands, set the speed, loop a bar range, use "Wait for me" and get scored.
 - **Recorder:** the last 10 takes are kept. A note held by the pedal is recorded for as long
   as it sounds. Play back at 50–100%, loop an A–B region, and export a take as `.mid`.
 - **Metronome:** 30–240 BPM, Tap tempo, beats per bar with an accented downbeat, and a beat

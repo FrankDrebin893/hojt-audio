@@ -1185,11 +1185,11 @@
         </Setter>
     </Style>
 
-    <!-- The 7ths switch as a soft key, to sit in the chord strip's row of keys: a black label
-         while off, a white one with ink while on. -->
+    <!-- The 7ths switch in the chord strip's row of OLED pills: a black pill
+         while off, a bright-bordered one with primary ink while on. -->
     <Style x:Key="Style.SoftKeyToggle" TargetType="ToggleButton">
         <Setter Property="Focusable" Value="False"/>
-        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.ChordTile.Border}"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="MinWidth" Value="44"/>
         <Setter Property="Padding" Value="8,0"/>
@@ -1200,24 +1200,22 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ToggleButton">
-                    <StackPanel Background="Transparent">
-                        <Border Height="22" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"
-                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1.5"
-                                CornerRadius="4" SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <Border x:Name="Key" Style="{StaticResource Style.SoftKeyCap}"/>
-                    </StackPanel>
+                    <Border x:Name="Pill" Height="24" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                            CornerRadius="4" SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter Property="Background" Value="{StaticResource Brush.ChordTile.Hover}"/>
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Pill" Property="BorderThickness" Value="1.5"/>
                             <Setter Property="BorderBrush" Value="{StaticResource Brush.Text.Primary}"/>
                             <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Key" Property="RenderTransform">
+                            <Setter TargetName="Pill" Property="RenderTransform">
                                 <Setter.Value>
                                     <TranslateTransform Y="1"/>
                                 </Setter.Value>
@@ -1229,12 +1227,10 @@
         </Setter>
     </Style>
 
-    <!-- A chord tile (DataContext: ChordTileViewModel), drawn as a soft key: its 22px label sits
-         on the OLED's bottom edge and a black rubber key sits under it on the panel, 18px lower,
-         past the window's bezel (see Size.SoftKey.* and the OLED window's bottom margin in
-         MainWindow). The whole column is one button. Never focusable, or a clicked tile would
-         take Space, the save-chord shortcut. All the colours are Setters, since a local value
-         would outrank the triggers. -->
+    <!-- A chord tile (DataContext: ChordTileViewModel), drawn as a crisp 24px OLED pill inside
+         the bottom edge of the OLED screen. Never focusable, or a clicked tile would take Space,
+         the save-chord shortcut. All the colours are Setters, since a local value would outrank
+         the triggers. -->
     <Style x:Key="Style.ChordTile" TargetType="Button">
         <Setter Property="Focusable" Value="False"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -1249,19 +1245,16 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <StackPanel Background="Transparent">
-                        <Border Height="22" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                Padding="{TemplateBinding Padding}" CornerRadius="4"
-                                SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <Border x:Name="Key" Style="{StaticResource Style.SoftKeyCap}"/>
-                    </StackPanel>
+                    <Border x:Name="Pill" Height="24" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}" CornerRadius="4"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Key" Property="RenderTransform">
+                            <Setter TargetName="Pill" Property="RenderTransform">
                                 <Setter.Value>
                                     <TranslateTransform Y="1"/>
                                 </Setter.Value>

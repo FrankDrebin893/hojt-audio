@@ -5,11 +5,11 @@
     <!-- One line, scaled down rather than wrapped on a narrow window: like the toolbar below it,
          a second line would push the keyboard off the bottom of the stage at 900x420. -->
     <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
-        <StackPanel Orientation="Horizontal">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
             <!-- Only for pentatonic and blues keys, whose chords come from a parent scale. -->
             <TextBlock Text="{Binding Caption}" ToolTip="{Binding CaptionDetail}"
                        FontSize="11" Foreground="{StaticResource Brush.Text.Muted}"
-                       VerticalAlignment="Top" Margin="0,3,8,0"
+                       VerticalAlignment="Center" Margin="0,0,8,0"
                        Visibility="{Binding HasCaption, Converter={StaticResource BoolToVisConverter}}"/>
 
             <ItemsControl ItemsSource="{Binding Tiles}" Focusable="False">
@@ -26,7 +26,7 @@
                                 CommandParameter="{Binding}"
                                 ToolTip="{Binding ToolTip}"
                                 MouseEnter="Tile_MouseEnter" MouseLeave="Tile_MouseLeave">
-                            <StackPanel Orientation="Horizontal">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <!-- Full white on a black tile; the played tile is white, so there
                                      the numeral takes its ink. -->
                                 <TextBlock Text="{Binding Numeral}" FontWeight="SemiBold">

@@ -40,26 +40,9 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <!-- The HØJT logo on its dark plate: the Ø is a knob and its orange slash the pointer. -->
-                    <Border Background="#1C1A18" CornerRadius="4" Padding="1.5" Margin="10,0,8,0"
-                            VerticalAlignment="Center">
-                        <Border BorderBrush="#EADFC8" BorderThickness="1.2" CornerRadius="3" Padding="5,1,5,0">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="H" FontFamily="{StaticResource Font.Brand}" FontSize="14"
-                                           Foreground="#EADFC8" VerticalAlignment="Center" Margin="0,0,1,0"/>
-                                <Viewbox Width="11" Height="13.5" VerticalAlignment="Center" Margin="0,-1,1,0">
-                                    <Canvas Width="44" Height="54">
-                                        <Ellipse Canvas.Left="6" Canvas.Top="11" Width="32" Height="32"
-                                                 Stroke="#EADFC8" StrokeThickness="5.6"/>
-                                        <Line X1="6.7" Y1="48.8" X2="37.3" Y2="5.2"
-                                              Stroke="#E2581E" StrokeThickness="4.6"/>
-                                    </Canvas>
-                                </Viewbox>
-                                <TextBlock Text="JT" FontFamily="{StaticResource Font.Brand}" FontSize="14"
-                                           Foreground="#EADFC8" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Border>
-                    </Border>
+                    <!-- The HØJT Ø knob glyph, aligned at 14px left margin with the OLED bezel and keybed below. -->
+                    <Image Source="app.png" Width="18" Height="18" Margin="14,0,8,0"
+                           VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality"/>
                     <!-- The name printed on the panel, bold white like the comp's model name. -->
                     <TextBlock Text="Piano MIDI Visualization" Foreground="{StaticResource Brush.Text.Primary}"
                                FontSize="14" FontWeight="ExtraBold" VerticalAlignment="Center" Margin="0,0,16,0"/>
@@ -199,18 +182,8 @@
                     </Border.Effect>
                     <Border.Style>
                         <Style TargetType="Border">
-                            <!-- While the chord strip shows, the bottom margin leaves its soft keys
-                                 on the panel below the window (less on a short stage, where they
-                                 slim down: IsCompact); with no strip the window runs to the toolbar. -->
-                            <Setter Property="Margin" Value="16,8,16,6"/>
+                            <Setter Property="Margin" Value="14,8,14,6"/>
                             <Style.Triggers>
-                                <MultiDataTrigger>
-                                    <MultiDataTrigger.Conditions>
-                                        <Condition Binding="{Binding IsChordStripVisible}" Value="True"/>
-                                        <Condition Binding="{Binding ChordStrip.HasChords}" Value="True"/>
-                                    </MultiDataTrigger.Conditions>
-                                    <Setter Property="Margin" Value="16,8,16,30"/>
-                                </MultiDataTrigger>
                                 <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                 </DataTrigger>
@@ -238,10 +211,10 @@
                             TextElement.FontFamily="{StaticResource Font.Data}" TextElement.FontSize="11">
                     <StackPanel.Style>
                         <Style TargetType="StackPanel">
-                            <Setter Property="Margin" Value="34,16,34,0"/>
+                            <Setter Property="Margin" Value="30,18,30,0"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
-                                    <Setter Property="Margin" Value="34,8,34,0"/>
+                                    <Setter Property="Margin" Value="30,10,30,0"/>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
                                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -522,7 +495,7 @@
                     <views:ChordStripControl.Style>
                         <Style TargetType="views:ChordStripControl">
                             <Setter Property="Visibility" Value="Collapsed"/>
-                            <Setter Property="Margin" Value="28,0,28,8"/>
+                            <Setter Property="Margin" Value="28,0,28,16"/>
                             <Style.Triggers>
                                 <MultiDataTrigger>
                                     <MultiDataTrigger.Conditions>
@@ -555,35 +528,34 @@
                     </Border.Resources>
                     <!-- Placement is all Setters, not attributes: a local value would outrank the
                          song practice trigger. Song practice lifts the toolbar to the top row as
-                         a flat line on the stage, so the song bar stays the one panel above the
-                         lane. Its 12px padding starts "Key" 28px in, level with the Open glyph. -->
+                         a full-width recessed bar aligned at 14px left and right. -->
                     <Border.Style>
                         <Style TargetType="Border">
                             <Setter Property="Visibility" Value="Visible"/>
                             <Setter Property="Grid.Row" Value="3"/>
-                            <Setter Property="HorizontalAlignment" Value="Center"/>
-                            <Setter Property="Margin" Value="0,0,0,6"/>
-                            <Setter Property="Padding" Value="12,5"/>
+                            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                            <Setter Property="Margin" Value="14,0,14,6"/>
+                            <Setter Property="Padding" Value="14,5"/>
                             <Setter Property="Background" Value="{StaticResource Brush.Panel.Recess}"/>
                             <Setter Property="BorderBrush" Value="{StaticResource Brush.Panel.RecessRim}"/>
-                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                            <Setter Property="BorderThickness" Value="1"/>
                             <Style.Triggers>
-                                <!-- A short stage tightens the spacing so the soft keys fit. Before
-                                     the song-practice trigger, which wins when both apply. -->
+                                <!-- A short stage tightens the spacing. Before the song-practice
+                                     trigger, which wins when both apply. -->
                                 <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
-                                    <Setter Property="Margin" Value="0,0,0,2"/>
-                                    <Setter Property="Padding" Value="10,3"/>
+                                    <Setter Property="Margin" Value="14,0,14,4"/>
+                                    <Setter Property="Padding" Value="12,3"/>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsZenMode}" Value="True">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
                                     <Setter Property="Grid.Row" Value="0"/>
-                                    <Setter Property="HorizontalAlignment" Value="Left"/>
-                                    <Setter Property="Margin" Value="16,6,16,0"/>
-                                    <Setter Property="Padding" Value="12,0"/>
-                                    <Setter Property="Background" Value="Transparent"/>
-                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                                    <Setter Property="Margin" Value="14,8,14,4"/>
+                                    <Setter Property="Padding" Value="14,4"/>
+                                    <Setter Property="Background" Value="{StaticResource Brush.Panel.Recess}"/>
+                                    <Setter Property="BorderThickness" Value="1"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -593,7 +565,7 @@
                          window is too narrow (below ~1070px with the sidebar open) it scales
                          down rather than wrapping: a second line would push the keyboard off the
                          bottom of the stage at the 900x420 minimum. -->
-                    <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
+                    <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Center">
                     <StackPanel Orientation="Horizontal">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="Key" Foreground="{StaticResource Brush.Text.Muted}"
@@ -820,13 +792,13 @@
                         IsHitTestVisible="False">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Margin" Value="6,4,6,0"/>
+                            <Setter Property="Margin" Value="14,0,14,6"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
-                                    <Setter Property="Margin" Value="6,1,6,0"/>
+                                    <Setter Property="Margin" Value="14,0,14,4"/>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
-                                    <Setter Property="Margin" Value="6,0,6,0"/>
+                                    <Setter Property="Margin" Value="14,0,14,6"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -859,10 +831,10 @@
                         IsHitTestVisible="False">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Margin" Value="12,5,12,0"/>
+                            <Setter Property="Margin" Value="24,1,24,0"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
-                                    <Setter Property="Margin" Value="12,1,12,0"/>
+                                    <Setter Property="Margin" Value="24,1,24,0"/>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
                                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -875,10 +847,10 @@
                            Fill="{StaticResource Brush.Felt}" IsHitTestVisible="False">
                     <Rectangle.Style>
                         <Style TargetType="Rectangle">
-                            <Setter Property="Margin" Value="14,11,14,0"/>
+                            <Setter Property="Margin" Value="24,7,24,0"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
-                                    <Setter Property="Margin" Value="14,3,14,0"/>
+                                    <Setter Property="Margin" Value="24,3,24,0"/>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
                                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -892,13 +864,13 @@
                          TextOptions.TextFormattingMode="Ideal">
                     <Viewbox.Style>
                         <Style TargetType="Viewbox">
-                            <Setter Property="Margin" Value="16,16,16,0"/>
+                            <Setter Property="Margin" Value="24,13,24,4"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
-                                    <Setter Property="Margin" Value="16,8,16,0"/>
+                                    <Setter Property="Margin" Value="24,8,24,3"/>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSongPracticeVisible}" Value="True">
-                                    <Setter Property="Margin" Value="16,0"/>
+                                    <Setter Property="Margin" Value="24,0,24,4"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -909,11 +881,11 @@
 
             <!-- The front panel on the right of the stage: the two halo knobs (master volume and
                  the metronome click, the same settings as the sliders in Settings), then twelve
-                 rubber keys with LEDs. Every key is a shortcut for something the toolbar or a
-                 menu item also does. Shrinks on a short window; hidden in song practice (the lane
-                 needs the full width) and in zen mode, which keeps only the window and the keys. -->
-            <Viewbox x:Name="FrontPanel" Grid.Column="1" Margin="2,8,18,8"
-                     Stretch="Uniform" StretchDirection="DownOnly" VerticalAlignment="Center">
+                 rubber keys with LEDs, and the HØJT hardware badge anchored at the bottom-right.
+                 Top-aligned with the OLED bezel (8px) and bottom-aligned with the keybed well (6px). -->
+            <Viewbox x:Name="FrontPanel" Grid.Column="1" Margin="2,8,14,6"
+                     Stretch="Uniform" StretchDirection="DownOnly"
+                     VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
                 <Viewbox.Style>
                     <Style TargetType="Viewbox">
                         <Style.Triggers>
@@ -926,9 +898,15 @@
                         </Style.Triggers>
                     </Style>
                 </Viewbox.Style>
-                <StackPanel Width="250">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <StackPanel Margin="0,0,10,0">
+                <Grid x:Name="FrontPanelGrid" Width="252">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <UniformGrid Grid.Row="0" Columns="2" Margin="0,4,0,0">
+                        <StackPanel HorizontalAlignment="Center">
                             <views:HaloKnob Value="{Binding Settings.Volume}"
                                             ToolTip="Master volume. Drag up or down, or scroll."
                                             AutomationProperties.Name="Volume"/>
@@ -938,7 +916,7 @@
                                        FontFamily="{StaticResource Font.Data}" FontSize="11"
                                        HorizontalAlignment="Center" Foreground="{StaticResource Brush.Text.Muted}"/>
                         </StackPanel>
-                        <StackPanel Margin="10,0,0,0">
+                        <StackPanel HorizontalAlignment="Center">
                             <views:HaloKnob Value="{Binding Settings.MetronomeVolume}"
                                             ToolTip="Metronome click volume, relative to the master volume. Drag up or down, or scroll."
                                             AutomationProperties.Name="Metronome volume"/>
@@ -948,10 +926,10 @@
                                        FontFamily="{StaticResource Font.Data}" FontSize="11"
                                        HorizontalAlignment="Center" Foreground="{StaticResource Brush.Text.Muted}"/>
                         </StackPanel>
-                    </StackPanel>
+                    </UniformGrid>
 
                     <!-- Twelve keys: key and scale, metronome, recorder and note labels. -->
-                    <UniformGrid Columns="4" Margin="0,18,0,0">
+                    <UniformGrid Grid.Row="1" Columns="4" VerticalAlignment="Center" Margin="0,14,0,14">
                         <StackPanel Margin="0,0,0,10">
                             <Button Style="{StaticResource Style.PanelKey}" Command="{Binding PreviousKeyCommand}"
                                     ToolTip="Key down a fifth" AutomationProperties.Name="Key down a fifth">
@@ -1107,30 +1085,11 @@
                         </StackPanel>
                     </UniformGrid>
 
-                    <!-- The HØJT hardware badge plate at the lower-right of the front panel. -->
-                    <Border Background="#1C1A18" CornerRadius="6" Padding="2" Margin="0,14,4,0"
-                            HorizontalAlignment="Right">
-                        <Border.Effect>
-                            <DropShadowEffect Color="#000000" Direction="270" ShadowDepth="2.5" BlurRadius="4" Opacity="0.55"/>
-                        </Border.Effect>
-                        <Border BorderBrush="#EADFC8" BorderThickness="1.5" CornerRadius="4" Padding="9,2,9,0">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="H" FontFamily="{StaticResource Font.Brand}" FontSize="20"
-                                           Foreground="#EADFC8" VerticalAlignment="Center" Margin="0,0,1.5,0"/>
-                                <Viewbox Width="16" Height="19.5" VerticalAlignment="Center" Margin="0,-1.5,1.5,0">
-                                    <Canvas Width="44" Height="54">
-                                        <Ellipse Canvas.Left="6" Canvas.Top="11" Width="32" Height="32"
-                                                 Stroke="#EADFC8" StrokeThickness="5.6"/>
-                                        <Line X1="6.7" Y1="48.8" X2="37.3" Y2="5.2"
-                                              Stroke="#E2581E" StrokeThickness="4.6"/>
-                                    </Canvas>
-                                </Viewbox>
-                                <TextBlock Text="JT" FontFamily="{StaticResource Font.Brand}" FontSize="20"
-                                           Foreground="#EADFC8" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Border>
-                    </Border>
-                </StackPanel>
+                    <!-- Exact 1:1 HØJT hardware badge plate at the lower-right of the front panel,
+                         right-aligned with the 4th column of panel keys and bottom-aligned with the keybed. -->
+                    <views:HojtBadge Grid.Row="2" Width="63" Height="33.8"
+                                     HorizontalAlignment="Right" Margin="0,0,5.5,0"/>
+                </Grid>
             </Viewbox>
 
             <!-- Echo: what a control on the piano just did ("Recording armed"), faded in and out
@@ -1178,11 +1137,11 @@
         </Border>
 
         <!-- ===================== MIDI log ===================== -->
-        <Border Grid.Row="3" Background="{StaticResource Brush.TitleBar}" Height="120" Padding="4"
+        <Border Grid.Row="3" Background="{StaticResource Brush.TitleBar}" Height="120" Padding="14,4,14,6"
                 Visibility="{Binding IsMidiLogVisible, Converter={StaticResource BoolToVisConverter}}">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Text="MIDI Log" Foreground="{StaticResource Brush.Text.Muted}"
-                           FontSize="11" Margin="4,0,0,2"/>
+                           FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
                 <ListBox ItemsSource="{Binding MidiLog}"
                          Background="{StaticResource Brush.Console}" Foreground="{StaticResource Brush.Log.Text}"
                          FontFamily="Consolas" FontSize="11"
@@ -1208,7 +1167,7 @@
         </Border>
 
         <!-- ===================== Status bar ===================== -->
-        <Border Grid.Row="5" Background="{StaticResource Brush.Surface}" Padding="10,4"
+        <Border Grid.Row="5" Background="{StaticResource Brush.Surface}" Padding="14,4"
                 Visibility="{Binding IsStatusBarVisible, Converter={StaticResource BoolToVisConverter}}">
             <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource Brush.Text.Tertiary}" FontSize="12"/>
         </Border>

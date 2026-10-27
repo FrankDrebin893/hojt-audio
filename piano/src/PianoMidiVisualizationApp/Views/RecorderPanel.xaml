@@ -15,7 +15,7 @@
         </Style>
 
         <!-- The header line, as tall as the transport while it shows (ShowTransport), so the
-             "Recorder" title and the transport beside it sit on one line. -->
+             "Recorder" title and the transport beside it sit on one shared grid row. -->
         <Style x:Key="Style.HeaderLine" TargetType="FrameworkElement">
             <Setter Property="Margin" Value="0,0,0,4"/>
             <Style.Triggers>
@@ -26,127 +26,131 @@
         </Style>
     </UserControl.Resources>
 
-    <Border Background="{StaticResource Brush.Surface}" Height="150" Padding="8,6,8,8">
+    <Border Background="{StaticResource Brush.Surface}" Height="150" Padding="14,6,14,6">
         <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="240"/>
+                <ColumnDefinition Width="230"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- ===== Takes ===== -->
-            <DockPanel Grid.Column="0">
-                <DockPanel DockPanel.Dock="Top" Style="{StaticResource Style.HeaderLine}">
-                    <TextBlock DockPanel.Dock="Right" Foreground="{StaticResource Brush.Text.Faint}" FontSize="10"
-                               VerticalAlignment="Center"
-                               Text="{Binding Takes.Count, StringFormat='{}{0}/10 kept'}"/>
-                    <TextBlock Text="Recorder" Foreground="{StaticResource Brush.Text.Tertiary}"
-                               FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                </DockPanel>
-
-                <Grid>
-                    <!-- Neither the list nor its items take focus: a focused ListBox swallows Space
-                         (it re-selects), and Space has to keep saving the chord. Clicks select via
-                         TakeList_PreviewMouseLeftButtonDown instead. -->
-                    <ListBox x:Name="TakeList" ItemsSource="{Binding Takes}" SelectedItem="{Binding SelectedTake}"
-                             Background="{StaticResource Brush.Console}" BorderThickness="0"
-                             Focusable="False"
-                             PreviewMouseLeftButtonDown="TakeList_PreviewMouseLeftButtonDown"
-                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                        <ListBox.ItemContainerStyle>
-                            <Style TargetType="ListBoxItem">
-                                <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}"/>
-                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                <Setter Property="Focusable" Value="False"/>
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="ListBoxItem">
-                                            <Border x:Name="Bd" Background="Transparent" Padding="6,3">
-                                                <ContentPresenter/>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Hover}"/>
-                                                </Trigger>
-                                                <Trigger Property="IsSelected" Value="True">
-                                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Selected}"/>
-                                                    <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </ListBox.ItemContainerStyle>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="12">
-                                        <Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold"/>
-                                        <!-- Lifted on the selected row, whose fill is too light for Muted. -->
-                                        <Run Text="{Binding CreatedText, Mode=OneWay}" FontSize="10">
-                                            <Run.Style>
-                                                <Style TargetType="Run">
-                                                    <Setter Property="Foreground" Value="{StaticResource Brush.Text.Muted}"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
-                                                            <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Run.Style>
-                                        </Run>
-                                    </TextBlock>
-                                    <TextBlock Grid.Column="1" Text="{Binding LengthText}" FontFamily="Consolas"
-                                               FontSize="12" VerticalAlignment="Center" Margin="8,0,4,0"
-                                               ToolTip="{Binding Summary}"/>
-                                    <Button Grid.Column="2" Content="&#xE74E;" FontSize="12"
-                                            Style="{StaticResource Style.GlyphButton}" Focusable="False"
-                                            Command="{Binding DataContext.ExportTakeCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                            CommandParameter="{Binding}"
-                                            VerticalAlignment="Center" ToolTip="Export as .mid"/>
-                                    <Button Grid.Column="3" Focusable="False"
-                                            Style="{StaticResource Style.RemoveGlyphButton}"
-                                            Command="{Binding DataContext.DeleteTakeCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                            CommandParameter="{Binding}"
-                                            VerticalAlignment="Center" ToolTip="Delete take"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-
-                    <!-- Empty state, over the list -->
-                    <TextBlock Text="No takes yet. Press Ctrl+R, then play — recording starts at your first note."
-                               TextWrapping="Wrap" TextAlignment="Center" Margin="12,0"
-                               VerticalAlignment="Center" IsHitTestVisible="False"
-                               FontSize="11" Foreground="{StaticResource Brush.Text.Faint}">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Takes.Count}" Value="0">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                </Grid>
+            <!-- ===== Row 0: Shared Header Row ===== -->
+            <DockPanel Grid.Row="0" Grid.Column="0" Style="{StaticResource Style.HeaderLine}">
+                <TextBlock DockPanel.Dock="Right" Foreground="{StaticResource Brush.Text.Faint}" FontSize="10"
+                           VerticalAlignment="Center"
+                           Text="{Binding Takes.Count, StringFormat='{}{0}/10 kept'}"/>
+                <TextBlock Text="Recorder" Foreground="{StaticResource Brush.Text.Tertiary}"
+                           FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
             </DockPanel>
 
-            <!-- ===== Selected take ===== -->
-            <DockPanel Grid.Column="1" Margin="10,0,0,0">
-                <!-- Song practice's transport: record, play the take, loop, speed. -->
-                <views:RecorderTransport DockPanel.Dock="Top" HorizontalAlignment="Left"
-                                         Style="{StaticResource Style.HeaderLine}"
-                                         Visibility="{Binding ShowTransport, ElementName=Root,
-                                                      Converter={StaticResource BoolToVisConverter}}"/>
+            <!-- Song practice's transport: record, play the take, loop, speed. -->
+            <views:RecorderTransport Grid.Row="0" Grid.Column="1" Margin="12,0,0,4"
+                                     HorizontalAlignment="Left"
+                                     Style="{StaticResource Style.HeaderLine}"
+                                     Visibility="{Binding ShowTransport, ElementName=Root,
+                                                  Converter={StaticResource BoolToVisConverter}}"/>
 
+            <!-- ===== Row 1, Column 0: Takes ===== -->
+            <Grid Grid.Row="1" Grid.Column="0">
+                <!-- Neither the list nor its items take focus: a focused ListBox swallows Space
+                     (it re-selects), and Space has to keep saving the chord. Clicks select via
+                     TakeList_PreviewMouseLeftButtonDown instead. -->
+                <ListBox x:Name="TakeList" ItemsSource="{Binding Takes}" SelectedItem="{Binding SelectedTake}"
+                         Background="{StaticResource Brush.Console}" BorderThickness="0"
+                         Focusable="False"
+                         PreviewMouseLeftButtonDown="TakeList_PreviewMouseLeftButtonDown"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="Focusable" Value="False"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="Bd" Background="Transparent" Padding="6,3">
+                                            <ContentPresenter/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Hover}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.Selected}"/>
+                                                <Setter Property="Foreground" Value="{StaticResource Brush.Text.Primary}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="12">
+                                    <Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold"/>
+                                    <!-- Lifted on the selected row, whose fill is too light for Muted. -->
+                                    <Run Text="{Binding CreatedText, Mode=OneWay}" FontSize="10">
+                                        <Run.Style>
+                                            <Style TargetType="Run">
+                                                <Setter Property="Foreground" Value="{StaticResource Brush.Text.Muted}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                                        <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Run.Style>
+                                    </Run>
+                                </TextBlock>
+                                <TextBlock Grid.Column="1" Text="{Binding LengthText}" FontFamily="Consolas"
+                                           FontSize="12" VerticalAlignment="Center" Margin="8,0,4,0"
+                                           ToolTip="{Binding Summary}"/>
+                                <Button Grid.Column="2" Content="&#xE74E;" FontSize="12"
+                                        Style="{StaticResource Style.GlyphButton}" Focusable="False"
+                                        Command="{Binding DataContext.ExportTakeCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                        CommandParameter="{Binding}"
+                                        VerticalAlignment="Center" ToolTip="Export as .mid"/>
+                                <Button Grid.Column="3" Focusable="False"
+                                        Style="{StaticResource Style.RemoveGlyphButton}"
+                                        Command="{Binding DataContext.DeleteTakeCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                        CommandParameter="{Binding}"
+                                        VerticalAlignment="Center" ToolTip="Delete take"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <!-- Empty state, over the list -->
+                <TextBlock Text="No takes yet. Press Ctrl+R, then play — recording starts at your first note."
+                           TextWrapping="Wrap" TextAlignment="Center" Margin="12,0"
+                           VerticalAlignment="Center" IsHitTestVisible="False"
+                           FontSize="11" Foreground="{StaticResource Brush.Text.Faint}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Takes.Count}" Value="0">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+
+            <!-- ===== Row 1, Column 1: Selected take timeline & loop controls ===== -->
+            <DockPanel Grid.Row="1" Grid.Column="1" Margin="12,0,0,0">
                 <DockPanel DockPanel.Dock="Bottom" Margin="0,6,0,0">
                     <Button DockPanel.Dock="Right" Content="Export .mid…" Style="{StaticResource Style.PanelButton}"
                             Command="{Binding ExportTakeCommand}"

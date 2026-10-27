@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -62,8 +63,8 @@ public partial class SongPracticePanel : UserControl
     /// </summary>
     private const double ChordReserve = 90;
 
-    private static readonly Thickness SeparatorMargin = new(10, 3, 10, 3);
-    private static readonly Thickness TightSeparatorMargin = new(5, 3, 5, 3);
+    private static readonly Thickness SeparatorMargin = new(10, 0, 10, 0);
+    private static readonly Thickness TightSeparatorMargin = new(5, 0, 5, 0);
 
     private static readonly Size Unbounded = new(double.PositiveInfinity, double.PositiveInfinity);
 
@@ -124,7 +125,9 @@ public partial class SongPracticePanel : UserControl
 
         Show(SongDetailsText, density < BarDensity.NoSongDetails);
         Change(TitleBlock, MaxWidthProperty,
-               density >= BarDensity.NoBarLabel ? 84.0 : density >= BarDensity.NoSongDetails ? 160.0 : 220.0);
+               density >= BarDensity.NoBarLabel ? 84.0 : density >= BarDensity.NoSongDetails ? 120.0 : 160.0);
+        Change(SongBankCombo, WidthProperty,
+               density >= BarDensity.NoBarLabel ? 140.0 : density >= BarDensity.NoSongDetails ? 168.0 : 196.0);
 
         bool labelled = density < BarDensity.IconButtons;
         Show(OpenLabel, labelled);
@@ -157,6 +160,37 @@ public partial class SongPracticePanel : UserControl
             (element as UIElement)?.InvalidateMeasure();
         }
     }
+
+    // ------------------------------------------------------------------ drag & drop MIDI import
+
+    private void OnPreviewDragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = HasMidiFiles(e.Data) ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void OnDrop(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+        if (e.Data.GetData(DataFormats.FileDrop) is not string[] files) return;
+
+        var midiFiles = files.Where(IsMidiFile).ToList();
+        if (midiFiles.Count == 0) return;
+
+        Session?.ImportDroppedFiles(midiFiles);
+        e.Handled = true;
+    }
+
+    private static bool HasMidiFiles(IDataObject data) =>
+        data.GetDataPresent(DataFormats.FileDrop) &&
+        data.GetData(DataFormats.FileDrop) is string[] files &&
+        files.Any(IsMidiFile);
+
+    private static bool IsMidiFile(string path) =>
+        System.IO.Path.GetExtension(path) is { } ext &&
+        (ext.Equals(".mid", StringComparison.OrdinalIgnoreCase) ||
+         ext.Equals(".midi", StringComparison.OrdinalIgnoreCase) ||
+         ext.Equals(".kar", StringComparison.OrdinalIgnoreCase));
 
     // Scrolling over a value nudges it, like the metronome's tempo box.
 

@@ -11,6 +11,7 @@ public class AppSettings
     public string? LastAudioDriver { get; set; }
     public bool UseAsio { get; set; } = true;
     public string? SoundFontPath { get; set; }
+    public List<SoundBankEntry> SoundBanks { get; set; } = new();
     public float Volume { get; set; } = 0.8f;
     public string? AnthropicApiKey { get; set; }
 
@@ -91,6 +92,8 @@ public class AppSettings
     private static string DirectoryPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "PianoMidiVisualizationApp");
+
+    public static string SoundbanksDirectoryPath => Path.Combine(DirectoryPath, "Soundbanks");
 
     private static string FilePath => Path.Combine(DirectoryPath, "settings.json");
 

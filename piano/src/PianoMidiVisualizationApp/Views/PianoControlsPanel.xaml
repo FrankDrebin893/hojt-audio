@@ -80,7 +80,7 @@
 
         <Style x:Key="Style.LearnButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Content" Value="Learn"/>
-            <Setter Property="MinWidth" Value="64"/>
+            <Setter Property="Width" Value="64"/>
             <Setter Property="Height" Value="24"/>
             <Setter Property="Padding" Value="10,0"/>
             <Setter Property="Focusable" Value="False"/>
@@ -95,7 +95,8 @@
         <Style x:Key="Style.ClearButton" TargetType="Button" BasedOn="{StaticResource Style.IconButton}">
             <Setter Property="Content" Value="Clear"/>
             <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="Width" Value="44"/>
+            <Setter Property="Padding" Value="6,0"/>
             <Setter Property="Height" Value="24"/>
             <Setter Property="Focusable" Value="False"/>
             <Setter Property="Visibility" Value="Hidden"/>
@@ -110,8 +111,8 @@
         </Style>
     </UserControl.Resources>
 
-    <Border Background="{StaticResource Brush.SurfaceAlt}" Padding="12,10,12,10"
-            BorderBrush="{StaticResource Brush.Separator}" BorderThickness="0,1,0,0">
+    <Border Background="{StaticResource Brush.SurfaceAlt}" Padding="20,10,20,14"
+             BorderBrush="{StaticResource Brush.Separator}" BorderThickness="0,1,0,0">
         <StackPanel>
             <TextBlock Text="Piano controls" FontSize="13" FontWeight="SemiBold"
                        Foreground="{StaticResource Brush.Text.Primary}"/>
@@ -132,10 +133,11 @@
                 </TextBlock.Style>
             </TextBlock>
 
-            <!-- Two columns, filled row by row: the actions are ordered in related pairs. Capped
-                 in width, so a wide window doesn't stretch the chips into long empty bars. -->
+            <!-- Two columns, filled row by row: the actions are ordered in related pairs. Fixed
+                 label and button column widths ensure every chip, Learn button, and Clear button
+                 lines up down both columns. -->
             <ItemsControl ItemsSource="{Binding Rows}" Focusable="False"
-                          MaxWidth="920" HorizontalAlignment="Left">
+                          Width="1192" HorizontalAlignment="Left">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <UniformGrid Columns="2"/>
@@ -143,15 +145,16 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Grid Margin="0,0,20,6">
+                        <Grid Width="452" HorizontalAlignment="Left" Margin="0,0,0,6">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" MinWidth="150"/>
-                                <ColumnDefinition Width="*" MinWidth="100"/>
+                                <ColumnDefinition Width="192"/>
+                                <ColumnDefinition Width="140"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
+                            <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0"
+                                       TextTrimming="CharacterEllipsis">
                                 <Run Text="{Binding Label, Mode=OneWay}" FontSize="12"
                                      Foreground="{StaticResource Brush.Text.Secondary}"/><Run
                                      Text="{Binding Shortcut, Mode=OneWay, StringFormat='  {0}'}" FontSize="11"
