@@ -134,6 +134,12 @@ GitHub release.
 - The voices' own settings changed to suit the new sound: Metal is Sub 25 % and Sustain 3 s,
   Groove is Sub 30 %. The knobs and their ranges are the same, and a saved project keeps its
   knobs but plays the new sound
+- The bass follows the pitch-bend wheel, and pitch bend drawn in the DAW: the ringing note bends
+  smoothly up or down and comes back to pitch with the wheel, and a note played with the wheel
+  off centre starts bent. The sine under the string bends with it, and a slide and a bend add
+  up. A new knob in the String frame, Bend (1 to 12 st, 2 by default), sets how far the wheel
+  goes at its end, up and down; the voice footswitches leave it where it is. With the wheel at
+  centre the sound is exactly as before
 
 ## 0.2.1
 

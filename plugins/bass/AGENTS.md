@@ -11,12 +11,19 @@ Groove (finger; a tone filter and a little tube drive). Ported from `prototypes/
 - `src/bass.rs` - `Bass`: the string (a delay line that feeds itself through a low-pass and
   holds how fast the string moves), the two plucks, the pickup, the sine under the string, the
   two output stages; `Voice` and its settings
-- `src/editor.rs` - egui GUI: cobalt pedal, eight knobs, one footswitch per voice
+- `src/editor.rs` - egui GUI: cobalt pedal, nine knobs, one footswitch per voice
 
 How it behaves:
 
 - A voice footswitch also sets the knobs to that voice's own settings (`Voice::settings`),
-  like a preset. A host that changes Voice itself leaves the knobs alone
+  like a preset, all but Bend, which belongs to the player's keyboard as the wheel does. A host
+  that changes Voice itself leaves the knobs alone
+- The pitch-bend wheel (`MidiPitchBend`, 8192 exactly centre) bends whatever note is sounding
+  by up to Bend semitones either way. The bend is smoothed (5 ms) and divides the loop's length,
+  sliding or not, so a slide and a bend add up; the sine under the string follows. The loop's
+  gain and damping follow the bend once a block when it has moved 1 cent or settled, so Sustain
+  is the same T60 on a bent note. A pluck starts at the bent pitch; all sound off and a host's
+  reset put the wheel back at centre. At centre the string is exactly as it was without it
 - Slide at 0 ms plucks every note. Above 0, a note that starts while another is held slides
   to it without a new pluck, in the Slide time
 - Tone is the low-pass behind the string on Groove, and behind the drive on Metal
@@ -53,8 +60,9 @@ How it behaves:
 | Sustain (`sustain`) | 0.5-8 s | 3 s | 3 s | Time for a held note to fall by 60 dB |
 | Slide (`slide`) | 0-300 ms | 0 ms | 60 ms | Slide between overlapping notes; 0 plucks every note |
 | Transpose (`transpose`) | -24 to +24 st | 0 | 0 | |
+| Bend (`bend`) | 1-12 st | 2 | 2 | How far the pitch-bend wheel goes at its end; no voice sets it |
 
-Tests sit next to the code (`bass.rs`): tuning at several rates, envelopes, the two voices, bounded output with everything up, and the tone: the top dies before the fundamental, the same note sounds the same, Groove has harmonics, the sine does not take over a held note, and a new pluck does not click. Two ignored tests are tools for working on the sound:
+Tests sit next to the code (`bass.rs`): tuning at several rates, envelopes, the two voices, the pitch-bend wheel (its range, back to centre, a pluck and a slide while bent, no zipper, Sustain on a bent note), bounded output with everything up and the wheel at both ends, and the tone: the top dies before the fundamental, the same note sounds the same, Groove has harmonics, the sine does not take over a held note, and a new pluck does not click. Two ignored tests are tools for working on the sound:
 
 ```bash
 # Level, tuning and brightness per note; with Sub at 0, from what the pickup reads before the

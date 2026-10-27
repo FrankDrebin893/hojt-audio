@@ -37,7 +37,8 @@ fn set<P: Param>(setter: &ParamSetter, param: &P, value: P::Plain) {
     setter.end_set_parameter(param);
 }
 
-/// Picks a voice and puts the knobs where that bass has them, like a preset
+/// Picks a voice and puts the knobs where that bass has them, like a preset. Bend stays where
+/// it is: it belongs to the player's keyboard, as the wheel does
 fn pick_voice(setter: &ParamSetter, params: &BassSynthParams, voice: Voice) {
     let settings = voice.settings();
     set(setter, &params.voice, voice);
@@ -104,12 +105,14 @@ pub fn create(
                 let frame = Rect::from_min_max(pos2(40.0, 206.0), pos2(620.0, 328.0))
                     .translate(origin.to_vec2());
                 silk_frame(ui.painter(), frame, "String", STYLE.paint);
+                // Five knobs evenly over the frame, Tone at 115 and Bend at 545
                 let string_y = 246.0;
+                let string_x = |index: f32| 115.0 + index * (545.0 - 115.0) / 4.0;
                 param_knob(
                     ui,
                     setter,
                     &params.tone,
-                    origin + vec2(115.0, string_y),
+                    origin + vec2(string_x(0.0), string_y),
                     19.0,
                     "Tone",
                     None,
@@ -118,7 +121,7 @@ pub fn create(
                     ui,
                     setter,
                     &params.sustain,
-                    origin + vec2(258.0, string_y),
+                    origin + vec2(string_x(1.0), string_y),
                     19.0,
                     "Sustain",
                     None,
@@ -127,7 +130,7 @@ pub fn create(
                     ui,
                     setter,
                     &params.slide,
-                    origin + vec2(402.0, string_y),
+                    origin + vec2(string_x(2.0), string_y),
                     19.0,
                     "Slide",
                     None,
@@ -136,9 +139,18 @@ pub fn create(
                     ui,
                     setter,
                     &params.transpose,
-                    origin + vec2(545.0, string_y),
+                    origin + vec2(string_x(3.0), string_y),
                     19.0,
                     "Transpose",
+                    None,
+                );
+                param_knob(
+                    ui,
+                    setter,
+                    &params.bend,
+                    origin + vec2(string_x(4.0), string_y),
+                    19.0,
+                    "Bend",
                     None,
                 );
 

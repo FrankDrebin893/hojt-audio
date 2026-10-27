@@ -2,6 +2,7 @@
 
 use crate::bass::{Bass, Voice};
 use crate::BassSynthPlugin;
+use nih_plug::prelude::NoteEvent;
 use suite_common::host::{self, NoAlloc};
 
 #[global_allocator]
@@ -10,7 +11,12 @@ static ALLOC: NoAlloc = NoAlloc;
 #[test]
 fn test_process_allocates_nothing() {
     // Each note is still held when the next comes: it slides
-    let notes = host::notes(28, 12, 2, 10, 15);
+    let mut notes = host::notes(28, 12, 2, 10, 15);
+    // And the pitch-bend wheel moved in the middle of the notes, up, down and back
+    for (block, value) in [(13, 0.8), (14, 1.0), (37, 0.2), (38, 0.0), (61, 0.5)] {
+        notes.push((block, NoteEvent::MidiPitchBend { timing: 30, channel: 0, value }));
+    }
+    notes.sort_by_key(|(block, event)| (*block, event.timing()));
     let mut plugin = BassSynthPlugin::default();
     // A host starts the smoothers at the parameters' values; the test host cannot
     plugin.params.volume.smoothed.reset(plugin.params.volume.value());

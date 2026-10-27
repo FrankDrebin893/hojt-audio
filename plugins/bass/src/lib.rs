@@ -44,6 +44,10 @@ pub struct BassSynthParams {
 
     #[id = "transpose"]
     pub transpose: FloatParam,
+
+    /// How far the pitch-bend wheel goes, a setting of the player's keyboard: no voice sets it
+    #[id = "bend"]
+    pub bend: IntParam,
 }
 
 impl Default for BassSynthPlugin {
@@ -115,7 +119,27 @@ impl Default for BassSynthParams {
             )
             .with_step_size(1.0)
             .with_unit(" st"),
+
+            bend: IntParam::new(
+                "Bend",
+                defaults.bend as i32,
+                IntRange::Linear { min: bass::BEND_MIN, max: bass::BEND_MAX },
+            )
+            .with_unit(" st"),
         }
+    }
+}
+
+/// Where the pitch-bend wheel is, -1.0 to 1.0, from nih-plug's 0.0 to 1.0: the 14 bits of MIDI
+/// back, so that the wheel's centre (8192 of 16383) is exactly 0 and each end exactly 1
+fn wheel_position(value: f32) -> f32 {
+    const RANGE: f32 = ((1 << 14) - 1) as f32;
+    const CENTRE: f32 = (1 << 13) as f32;
+    let from_centre = (value * RANGE).round().clamp(0.0, RANGE) - CENTRE;
+    if from_centre < 0.0 {
+        from_centre / CENTRE
+    } else {
+        from_centre / (RANGE - CENTRE)
     }
 }
 
@@ -139,6 +163,7 @@ impl BassSynthParams {
             sustain_s: self.sustain.value(),
             slide_ms: self.slide.value(),
             transpose: self.transpose.value(),
+            bend: self.bend.value() as f32,
         }
     }
 }
@@ -156,7 +181,8 @@ impl Plugin for BassSynthPlugin {
         ..AudioIOLayout::const_default()
     }];
 
-    // Controllers too: all notes off lets go of the string, all sound off stops it
+    // Controllers too: all notes off lets go of the string, all sound off stops it, and the
+    // pitch-bend wheel bends it
     const MIDI_INPUT: MidiConfig = MidiConfig::MidiCCs;
     const MIDI_OUTPUT: MidiConfig = MidiConfig::None;
 
@@ -213,6 +239,9 @@ impl Plugin for BassSynthPlugin {
                     NoteEvent::MidiCC { cc, .. } if cc == control_change::ALL_SOUND_OFF => {
                         self.bass.reset()
                     }
+                    NoteEvent::MidiPitchBend { value, .. } => {
+                        self.bass.set_wheel(wheel_position(value))
+                    }
                     _ => {}
                 }
 
@@ -258,6 +287,23 @@ mod tests {
         let (params, defaults) = (BassSynthParams::default().settings(), BassSettings::default());
         assert!((params.volume_db - defaults.volume_db).abs() < 0.001);
         assert_eq!(BassSettings { volume_db: defaults.volume_db, ..params }, defaults);
+    }
+
+    #[test]
+    fn test_the_wheel_is_exactly_centred_and_reaches_its_ends() {
+        let raw = |value: u16| value as f32 / 16383.0;
+        assert_eq!(wheel_position(raw(8192)), 0.0);
+        assert_eq!(wheel_position(raw(0)), -1.0);
+        assert_eq!(wheel_position(raw(16383)), 1.0);
+        assert_eq!(wheel_position(0.5), 0.0);
+        assert!((wheel_position(raw(4096)) + 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_no_voice_moves_the_bend_range() {
+        for voice in Voice::ALL {
+            assert_eq!(voice.settings().bend, BassSettings::default().bend, "{:?}", voice);
+        }
     }
 
     #[test]
