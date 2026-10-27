@@ -39,6 +39,7 @@ use crate::order::ChainOrder;
 use crate::presets::{self, Edit, MATCH_TOLERANCE, PRESETS};
 use crate::user_cab;
 use crate::{Amp, GuitarAmpParams};
+use suite_common::dsp::NoteValue;
 
 /// Set this to a folder to have the presets kept there instead of in Documents
 pub const FOLDER_ENV: &str = "HOJT_PRESETS_DIR";
@@ -176,6 +177,7 @@ enum Control<'a> {
     Switch(&'a BoolParam),
     Amp(&'a EnumParam<Amp>),
     Mic(&'a EnumParam<MicType>),
+    Note(&'a EnumParam<NoteValue>),
 }
 
 impl Control<'_> {
@@ -186,6 +188,7 @@ impl Control<'_> {
             Control::Switch(param) => f32::from(u8::from(param.unmodulated_plain_value())),
             Control::Amp(param) => param.unmodulated_plain_value().to_index() as f32,
             Control::Mic(param) => param.unmodulated_plain_value().to_index() as f32,
+            Control::Note(param) => param.unmodulated_plain_value().to_index() as f32,
         }
     }
 
@@ -195,6 +198,7 @@ impl Control<'_> {
             Control::Switch(param) => f32::from(u8::from(param.default_plain_value())),
             Control::Amp(param) => param.default_plain_value().to_index() as f32,
             Control::Mic(param) => param.default_plain_value().to_index() as f32,
+            Control::Note(param) => param.default_plain_value().to_index() as f32,
         }
     }
 
@@ -204,6 +208,7 @@ impl Control<'_> {
             Control::Switch(param) => param.preview_normalized(plain >= 0.5),
             Control::Amp(param) => param.preview_normalized(Amp::from_index(plain as usize)),
             Control::Mic(param) => param.preview_normalized(MicType::from_index(plain as usize)),
+            Control::Note(param) => param.preview_normalized(NoteValue::from_index(plain as usize)),
         }
     }
 
@@ -213,6 +218,7 @@ impl Control<'_> {
             Control::Switch(param) => param.unmodulated_normalized_value(),
             Control::Amp(param) => param.unmodulated_normalized_value(),
             Control::Mic(param) => param.unmodulated_normalized_value(),
+            Control::Note(param) => param.unmodulated_normalized_value(),
         }
     }
 
@@ -222,6 +228,7 @@ impl Control<'_> {
             Control::Switch(param) => Edit::of(param, plain >= 0.5),
             Control::Amp(param) => Edit::of(param, Amp::from_index(plain as usize)),
             Control::Mic(param) => Edit::of(param, MicType::from_index(plain as usize)),
+            Control::Note(param) => Edit::of(param, NoteValue::from_index(plain as usize)),
         }
     }
 
@@ -232,6 +239,7 @@ impl Control<'_> {
             Control::Switch(_) => if plain >= 0.5 { "on" } else { "off" }.to_owned(),
             Control::Amp(_) => enum_id::<Amp>(plain as usize).to_owned(),
             Control::Mic(_) => enum_id::<MicType>(plain as usize).to_owned(),
+            Control::Note(_) => enum_id::<NoteValue>(plain as usize).to_owned(),
         }
     }
 
@@ -246,6 +254,7 @@ impl Control<'_> {
             },
             Control::Amp(_) => enum_index::<Amp>(text).map(|index| index as f32),
             Control::Mic(_) => enum_index::<MicType>(text).map(|index| index as f32),
+            Control::Note(_) => enum_index::<NoteValue>(text).map(|index| index as f32),
         }
     }
 }
@@ -260,8 +269,8 @@ fn enum_index<T: Enum>(id: &str) -> Option<usize> {
 
 /// Every parameter a preset holds, by its id: all of them but `LEFT_ALONE`. The amp comes
 /// first, so the host hears it change before its dials do
-fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 43] {
-    use Control::{Knob, Mic, Switch};
+fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 45] {
+    use Control::{Knob, Mic, Note, Switch};
     [
         ("amp", Control::Amp(&params.amp)),
         ("gain", Knob(&params.gain)),
@@ -303,6 +312,8 @@ fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 43] {
         ("delay_time", Knob(&params.delay_time)),
         ("delay_feedback", Knob(&params.delay_feedback)),
         ("delay_mix", Knob(&params.delay_mix)),
+        ("delay_sync", Switch(&params.delay_sync)),
+        ("delay_note", Note(&params.delay_note)),
         ("reverb_on", Switch(&params.reverb_on)),
         ("reverb_decay", Knob(&params.reverb_decay)),
         ("reverb_mix", Knob(&params.reverb_mix)),
@@ -636,6 +647,7 @@ pub(crate) mod tests {
             Control::Switch(param) => param.as_ptr(),
             Control::Amp(param) => param.as_ptr(),
             Control::Mic(param) => param.as_ptr(),
+            Control::Note(param) => param.as_ptr(),
         }
     }
 
@@ -681,7 +693,7 @@ pub(crate) mod tests {
             assert!(text.lines().any(|each| each == line), "{line} is not in\n{text}");
         }
         // Every parameter is written out, also those at their defaults
-        assert_eq!(text.lines().filter(|line| line.contains(" = ")).count(), 45);
+        assert_eq!(text.lines().filter(|line| line.contains(" = ")).count(), 47);
         assert_eq!(UserPreset::parse(&params, &text), saved);
     }
 
@@ -739,6 +751,32 @@ pub(crate) mod tests {
         params.order.put(ChainOrder::default());
         *params.cabinet.lock().unwrap() = "speaker:test".to_owned();
         assert!(!now.matches(&params));
+    }
+
+    #[test]
+    fn test_a_preset_from_before_sync_opens_with_sync_off_and_a_new_one_keeps_it() {
+        let params = GuitarAmpParams::default();
+        // Saved before there was Sync: it names neither, and reads the delay off the knob
+        let old = UserPreset::parse(&params, SAVED);
+        assert_eq!(old.value(&params, "delay_sync"), 0.0);
+        assert_eq!(old.value(&params, "delay_note"), NoteValue::DottedEighth.to_index() as f32);
+        // Saved now: both are written, and read back
+        let text = format!("{SAVED}delay_sync = on\ndelay_note = eighth_triplet\n");
+        let synced = UserPreset::parse(&params, &text);
+        assert_eq!(synced.value(&params, "delay_sync"), 1.0);
+        assert_eq!(synced.value(&params, "delay_note"), NoteValue::EighthTriplet.to_index() as f32);
+        let written = synced.to_text(&params);
+        for line in ["delay_sync = on", "delay_note = eighth_triplet"] {
+            assert!(written.lines().any(|each| each == line), "{line} is not in\n{written}");
+        }
+        assert_eq!(UserPreset::parse(&params, &written), synced);
+        // Either one moved is an edit of the sound as it stands
+        let now = UserPreset::capture(&params);
+        for line in ["delay_sync = on", "delay_note = sixteenth"] {
+            let moved = UserPreset::parse(&params, &format!("{}{line}\n", now.to_text(&params)));
+            assert_ne!(moved, now, "{line}");
+            assert!(!moved.matches(&params), "{line}");
+        }
     }
 
     #[test]

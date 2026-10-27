@@ -559,7 +559,7 @@ impl Preset {
     }
 
     /// Every switch the preset holds, with the position it gets
-    fn switches<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a BoolParam, bool); 11] {
+    fn switches<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a BoolParam, bool); 12] {
         [
             (&params.gate_on, self.gate.0),
             (&params.fuzz_on, self.fuzz.0),
@@ -571,6 +571,9 @@ impl Preset {
             (&params.drive_on, self.drive.0),
             (&params.cab_on, self.cab.0),
             (&params.delay_on, self.delay.0),
+            // The factory presets keep the delay on its Time knob's ms. The note it would
+            // pick is left as it is, like the microphone: it is not heard while Sync is off
+            (&params.delay_sync, false),
             (&params.reverb_on, self.reverb.0),
         ]
     }
@@ -885,6 +888,17 @@ mod tests {
         for preset in &PRESETS[1..] {
             assert!(!preset.matches(&params), "{} equals the defaults", preset.name);
             assert_eq!(preset.display_name(&params), format!("{}*", preset.name));
+        }
+    }
+
+    #[test]
+    fn test_factory_presets_keep_the_delay_off_the_songs_tempo() {
+        // Each sets Sync off, so it sounds as it did before there was Sync
+        let params = GuitarAmpParams::default();
+        for preset in &PRESETS {
+            let switches = preset.switches(&params);
+            let sync = switches.iter().find(|(param, _)| std::ptr::eq(*param, &params.delay_sync));
+            assert_eq!(sync.map(|&(_, on)| on), Some(false), "{}", preset.name);
         }
     }
 

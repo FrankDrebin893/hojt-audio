@@ -259,6 +259,8 @@ How it behaves:
 | Delay Time (`delay_time`) | 20-1000 ms | 350 ms | Time between repeats |
 | Delay Feedback (`delay_feedback`) | 0-90 % | 35 % | Level of each repeat against the one before |
 | Delay Mix (`delay_mix`) | 0-100 % | 25 % | Level of the repeats |
+| Delay Sync (`delay_sync`) | on / off | off | The repeats follow the song's tempo: the Time knob picks Delay Note, and the time is `60000 / bpm` times the note's beats, kept to 20-1000 ms. With no tempo from the host, the Time knob's ms. Factory presets set it off |
+| Delay Note (`delay_note`) | 1/4, 1/8 dotted, 1/8, 1/8 triplet, 1/16 | 1/8 dotted | The note value while Sync is on (`suite_common::dsp::NoteValue`). Variant ids `quarter`, `dotted_eighth`, `eighth`, `eighth_triplet`, `sixteenth`; a new one goes at the end |
 | Reverb (`reverb_on`) | on / off | off | Stereo reverb behind the delay |
 | Reverb Decay (`reverb_decay`) | 0.3-6.0 s | 1.5 s | Time for the tail to fall by 60 dB |
 | Reverb Mix (`reverb_mix`) | 0-100 % | 20 % | Level of the tail |

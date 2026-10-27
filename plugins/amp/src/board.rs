@@ -11,7 +11,9 @@
 use nih_plug_egui::egui::{vec2, Id, Painter, Pos2, Rect, Ui};
 use suite_common::ui::{self, BENCH_MARGIN, PLUG_Y};
 
-use crate::editor::{Jacks, Pedals, GATE_SLOT, PEDAL_HEIGHT, PEDAL_TOP, PEDAL_WIDTH, STACK_TOP};
+use crate::editor::{
+    Jacks, Pedals, DELAY_SLOT, GATE_SLOT, PEDAL_HEIGHT, PEDAL_TOP, PEDAL_WIDTH, STACK_TOP,
+};
 use crate::order::{self, ChainOrder};
 
 // Ten pedals and the stack
@@ -78,7 +80,7 @@ impl Pedal {
             Pedal::Gate => GATE_SLOT,
             Pedal::Drive => 1,
             Pedal::Stack => return None,
-            Pedal::Delay => 2,
+            Pedal::Delay => DELAY_SLOT,
             Pedal::Reverb => 3,
             Pedal::Comp => 4,
             Pedal::Chorus => 5,

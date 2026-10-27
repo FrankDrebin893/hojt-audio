@@ -192,6 +192,10 @@ const TRIO_KNOBS: [Vec2; 3] = [vec2(-45.0, 71.0), vec2(45.0, 71.0), vec2(0.0, 16
 pub(crate) const GATE_SLOT: usize = 0;
 const GATE_LAMP: Vec2 = vec2(60.0, 164.0);
 
+// While the Delay follows the song's tempo (Sync), its Time knob, the first, picks the note
+// value in the same place, and its tape shows the note
+pub(crate) const DELAY_SLOT: usize = 2;
+
 /// Where the patch cables go into the stack: the head's input and the cabinet's output
 #[derive(Clone, Copy)]
 pub(crate) struct Jacks {
@@ -308,8 +312,12 @@ impl Pedals<'_> {
         } else {
             (PAIR_RADIUS, &PAIR_KNOBS[..])
         };
-        for (&(param, caption), &offset) in knobs.iter().zip(places) {
-            param_knob(ui, setter, param, top + offset, radius, caption, None);
+        for (index, (&(param, caption), &offset)) in knobs.iter().zip(places).enumerate() {
+            if slot == DELAY_SLOT && index == 0 && params.delay_sync.value() {
+                param_knob(ui, setter, &params.delay_note, top + offset, radius, caption, None);
+            } else {
+                param_knob(ui, setter, param, top + offset, radius, caption, None);
+            }
         }
         param_switch(ui, setter, on, top + PEDAL_SWITCH, top + PEDAL_LED);
 

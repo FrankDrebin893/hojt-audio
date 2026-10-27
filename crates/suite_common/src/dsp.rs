@@ -1,5 +1,6 @@
 //! Building blocks the instruments share. Nothing here allocates after `set_sample_rate`.
 
+use nih_plug::prelude::Enum;
 use std::f32::consts::{PI, TAU};
 
 pub fn db_to_gain(level_db: f32) -> f32 {
@@ -24,6 +25,58 @@ pub fn sine(phase: f32) -> f32 {
 pub fn advance(phase: &mut f32, step: f32) {
     *phase += step;
     *phase -= phase.floor();
+}
+
+/// A note value a delay's Time knob picks while the delay follows the song's tempo.
+// Frozen: the variant ids and their order are what DAW projects store. A new value goes at
+// the end
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NoteValue {
+    #[id = "quarter"]
+    #[name = "1/4"]
+    Quarter,
+    #[id = "dotted_eighth"]
+    #[name = "1/8 ."]
+    DottedEighth,
+    #[id = "eighth"]
+    #[name = "1/8"]
+    Eighth,
+    #[id = "eighth_triplet"]
+    #[name = "1/8 T"]
+    EighthTriplet,
+    #[id = "sixteenth"]
+    #[name = "1/16"]
+    Sixteenth,
+}
+
+impl NoteValue {
+    /// How long the note is, in quarter notes (beats of the tempo)
+    pub fn beats(self) -> f64 {
+        match self {
+            NoteValue::Quarter => 1.0,
+            NoteValue::DottedEighth => 0.75,
+            NoteValue::Eighth => 0.5,
+            NoteValue::EighthTriplet => 1.0 / 3.0,
+            NoteValue::Sixteenth => 0.25,
+        }
+    }
+}
+
+/// A delay's time in ms: `knob_ms` as it is, or with `sync` the note it names at `tempo_bpm`,
+/// kept to `min_ms..=max_ms`. With no tempo (a host that gives none) the knob's ms stand
+pub fn delay_time_ms(
+    knob_ms: f32,
+    sync: Option<NoteValue>,
+    tempo_bpm: Option<f64>,
+    min_ms: f32,
+    max_ms: f32,
+) -> f32 {
+    match (sync, tempo_bpm) {
+        (Some(note), Some(bpm)) if bpm.is_finite() && bpm > 0.0 => {
+            ((60_000.0 / bpm * note.beats()) as f32).clamp(min_ms, max_ms)
+        }
+        _ => knob_ms,
+    }
 }
 
 /// White noise in -1.0..1.0 (xorshift)
@@ -290,6 +343,47 @@ mod tests {
     use super::*;
 
     const SAMPLE_RATE: f32 = 44100.0;
+
+    #[test]
+    fn test_a_synced_delay_is_the_note_at_the_tempo() {
+        use NoteValue::*;
+        let at = |note, bpm| delay_time_ms(350.0, Some(note), Some(bpm), 20.0, 1000.0);
+        let notes = [Quarter, DottedEighth, Eighth, EighthTriplet, Sixteenth];
+        for (note, ms) in notes.into_iter().zip([500.0, 375.0, 250.0, 166.666_67, 125.0]) {
+            assert!((at(note, 120.0) - ms).abs() < 1e-3, "{note:?}: {}", at(note, 120.0));
+        }
+        assert!((at(Quarter, 90.0) - 666.666_7).abs() < 1e-3);
+        assert!((at(DottedEighth, 90.0) - 500.0).abs() < 1e-3);
+        // Slower than the delay reaches: its longest time. The amp's goes to 1000 ms (a 1/4
+        // under 60 bpm), the bells' to 1500 ms (under 40 bpm)
+        let bells = |bpm| delay_time_ms(350.0, Some(Quarter), Some(bpm), 50.0, 1500.0);
+        assert_eq!(at(Quarter, 50.0), 1000.0);
+        assert_eq!(bells(50.0), 1200.0);
+        assert_eq!(bells(30.0), 1500.0);
+        // Faster than it reaches: its shortest
+        assert_eq!(at(Sixteenth, 1000.0), 20.0);
+    }
+
+    #[test]
+    fn test_without_sync_or_a_tempo_the_knob_stands() {
+        for tempo in [None, Some(120.0), Some(0.0), Some(f64::NAN)] {
+            assert_eq!(delay_time_ms(350.0, None, tempo, 20.0, 1000.0), 350.0);
+        }
+        // A host that gives no tempo, or one that is no tempo
+        for tempo in [None, Some(0.0), Some(-120.0), Some(f64::NAN), Some(f64::INFINITY)] {
+            assert_eq!(delay_time_ms(350.0, Some(NoteValue::Quarter), tempo, 20.0, 1000.0), 350.0);
+        }
+    }
+
+    #[test]
+    fn test_note_values_keep_their_order_and_ids() {
+        // Frozen: projects store the index and the id
+        assert_eq!(
+            NoteValue::ids().unwrap(),
+            &["quarter", "dotted_eighth", "eighth", "eighth_triplet", "sixteenth"]
+        );
+        assert_eq!(NoteValue::variants(), &["1/4", "1/8 .", "1/8", "1/8 T", "1/16"]);
+    }
 
     fn shape() -> HallShape {
         HallShape {
