@@ -38,8 +38,8 @@ public partial class PianoKeyboardControl : UserControl
     /// 3D bullnose overhang, vertical skirt, and scale mark; the black-key baseline sits on the
     /// raised satin playing surface above the sloped front nose crest.
     /// </remarks>
-    private const double WhiteLabelBaseline = WhiteKeyHeight - 24;
-    private const double BlackLabelBaseline = BlackKeyHeight - 19;
+    private const double WhiteLabelBaseline = WhiteKeyHeight - 25;
+    private const double BlackLabelBaseline = BlackKeyHeight - 23;
 
     /// <summary>The theme's body face (Font.Body), resolved when the keyboard is built.</summary>
     private FontFamily _labelFont = new("Segoe UI");
@@ -582,7 +582,7 @@ public partial class PianoKeyboardControl : UserControl
     /// </remarks>
     private static Rectangle CreateScaleMark(double x, PianoKey key)
     {
-        double inset = HintInset(key);
+        double inset = key.IsBlack ? BlackTopInset + 1.0 : HintInset(key);
         var mark = new Rectangle
         {
             Width = KeyboardLayout.KeyWidth(key.NoteNumber) - (2 * inset),
@@ -687,7 +687,7 @@ public partial class PianoKeyboardControl : UserControl
                 KeyRole.OutOfKey => key.IsBlack ? p.BlackOutOfKey : p.WhiteOutOfKey,
                 _ => key.IsBlack ? p.Black : p.White
             };
-        v.Body.Opacity = outOfKey ? (key.IsBlack ? 0.18 : 0.15) : 1.0;
+        v.Body.Opacity = 1.0;
 
         if (key.IsBlack)
         {
@@ -701,7 +701,7 @@ public partial class PianoKeyboardControl : UserControl
 
             if (v.BlackContactShadow is { } contactShadow)
             {
-                contactShadow.Opacity = outOfKey ? 0.0 : 1.0;
+                contactShadow.Opacity = outOfKey ? 0.65 : 1.0;
                 double shadowRight = BlackKeyWidth + (held ? 1.1 : 1.8);
                 double shadowBottom = BlackKeyHeight + (held ? 1.4 : 2.2);
                 contactShadow.Points = new PointCollection
@@ -717,7 +717,7 @@ public partial class PianoKeyboardControl : UserControl
 
             if (v.BlackLeftWall is { } leftWall)
             {
-                leftWall.Opacity = outOfKey ? 0.0 : 1.0;
+                leftWall.Opacity = 1.0;
                 leftWall.Fill = held ? p.BlackLeftWallHeld : outOfKey ? p.BlackLeftWallOutOfKey : p.BlackLeftWall;
                 leftWall.Points = new PointCollection
                 {
@@ -730,7 +730,7 @@ public partial class PianoKeyboardControl : UserControl
 
             if (v.BlackRightWall is { } rightWall)
             {
-                rightWall.Opacity = outOfKey ? 0.0 : 1.0;
+                rightWall.Opacity = 1.0;
                 rightWall.Fill = held ? p.BlackRightWallHeld : outOfKey ? p.BlackRightWallOutOfKey : p.BlackRightWall;
                 rightWall.Points = new PointCollection
                 {
@@ -743,7 +743,7 @@ public partial class PianoKeyboardControl : UserControl
 
             if (v.BlackTop is { } top)
             {
-                top.Opacity = outOfKey ? 0.10 : 1.0;
+                top.Opacity = 1.0;
                 Canvas.SetTop(top, topY);
                 top.Height = topH;
                 top.Fill = held
@@ -761,7 +761,7 @@ public partial class PianoKeyboardControl : UserControl
 
             if (v.BlackNose is { } nose)
             {
-                nose.Opacity = outOfKey ? 0.0 : 1.0;
+                nose.Opacity = 1.0;
                 nose.Fill = held
                     ? p.BlackNoseHeld
                     : outOfKey
@@ -780,14 +780,14 @@ public partial class PianoKeyboardControl : UserControl
 
             if (v.BlackNoseCrest is { } noseCrest)
             {
-                noseCrest.Opacity = outOfKey ? 0.0 : 1.0;
+                noseCrest.Opacity = 1.0;
                 noseCrest.Fill = outOfKey ? p.BlackNoseCrestOutOfKey : p.BlackNoseCrest;
                 Canvas.SetTop(noseCrest, noseTopY - 0.8);
             }
 
             if (v.BlackLeftFacetLine is { } leftFacet)
             {
-                leftFacet.Opacity = outOfKey ? 0.15 : 1.0;
+                leftFacet.Opacity = outOfKey ? 0.5 : 1.0;
                 leftFacet.Stroke = outOfKey ? p.BlackRidgeOutOfKey : p.BlackRidge;
                 leftFacet.Y1 = noseTopY;
                 leftFacet.Y2 = bottomY;
@@ -795,14 +795,14 @@ public partial class PianoKeyboardControl : UserControl
 
             if (v.BlackRightFacetLine is { } rightFacet)
             {
-                rightFacet.Opacity = outOfKey ? 0.15 : 1.0;
+                rightFacet.Opacity = outOfKey ? 0.5 : 1.0;
                 rightFacet.Y1 = noseTopY;
                 rightFacet.Y2 = bottomY;
             }
 
             if (v.BlackRidgeLine is { } ridge)
             {
-                ridge.Opacity = outOfKey ? 0.15 : 1.0;
+                ridge.Opacity = outOfKey ? 0.5 : 1.0;
                 ridge.Stroke = outOfKey ? p.BlackRidgeOutOfKey : p.BlackRidge;
                 ridge.Y1 = noseTopY;
                 ridge.Y2 = noseTopY;
@@ -818,39 +818,39 @@ public partial class PianoKeyboardControl : UserControl
             if (v.ShadowEffect is { } shadow)
             {
                 shadow.ShadowDepth = held ? 1.0 : 2.5;
-                shadow.Opacity = outOfKey ? 0.0 : (held ? 0.35 : 0.55);
+                shadow.Opacity = outOfKey ? 0.35 : (held ? 0.35 : 0.55);
             }
 
             if (v.Chamfer is { } chamfer)
             {
                 chamfer.Height = skirtTop;
-                chamfer.Opacity = outOfKey ? 0.0 : 1.0;
+                chamfer.Opacity = outOfKey ? 0.45 : 1.0;
             }
 
             if (v.Skirt is { } skirt)
             {
                 skirt.Height = skirtH;
-                skirt.Opacity = outOfKey ? 0.12 : 1.0;
+                skirt.Opacity = 1.0;
                 skirt.Fill = held ? p.WhiteSkirtHeld : outOfKey ? p.WhiteSkirtOutOfKey : p.WhiteSkirt;
                 Canvas.SetTop(skirt, skirtTop);
             }
 
             if (v.Undercut is { } undercut)
             {
-                undercut.Opacity = outOfKey ? 0.0 : 1.0;
+                undercut.Opacity = 1.0;
                 Canvas.SetTop(undercut, skirtTop + 1.4);
             }
 
             if (v.Bullnose is { } bullnose)
             {
-                bullnose.Opacity = outOfKey ? 0.12 : 1.0;
+                bullnose.Opacity = 1.0;
                 bullnose.Fill = held ? p.WhiteBullnoseHeld : outOfKey ? p.WhiteBullnoseOutOfKey : p.WhiteBullnose;
                 Canvas.SetTop(bullnose, skirtTop - 1.2);
             }
 
             if (v.WhiteRidgeLine is { } whiteRidge)
             {
-                whiteRidge.Opacity = outOfKey ? 0.12 : 1.0;
+                whiteRidge.Opacity = outOfKey ? 0.45 : 1.0;
                 whiteRidge.Y1 = skirtTop + WhiteBullnoseHeight - 1.2;
                 whiteRidge.Y2 = skirtTop + WhiteBullnoseHeight - 1.2;
             }
@@ -860,12 +860,14 @@ public partial class PianoKeyboardControl : UserControl
         }
 
         // Physical hardware Light Guide LED window at the top edge of held or pedal-sustained keys.
+        // On white keys, only the radial blue light wash (LedGlow) is shown so black keys never clip
+        // a dark rectangular housing in half; on black keys, the inset top LED bar and glow light up.
         if (held || ringing)
         {
             v.LedBar.Fill = held ? p.KeyLedHeld : p.KeyLedRinging;
             v.LedBar.Height = held ? (key.IsBlack ? 4.4 : 5.0) : (key.IsBlack ? 3.8 : 4.2);
-            v.LedHousing.Visibility = Visibility.Visible;
-            v.LedBar.Visibility = Visibility.Visible;
+            v.LedHousing.Visibility = key.IsBlack ? Visibility.Visible : Visibility.Collapsed;
+            v.LedBar.Visibility = key.IsBlack ? Visibility.Visible : Visibility.Collapsed;
             v.LedGlow.Visibility = held ? Visibility.Visible : Visibility.Collapsed;
         }
         else
@@ -902,17 +904,19 @@ public partial class PianoKeyboardControl : UserControl
         mark.Fill = onIvory
             ? (tonic ? _palette.TonicMarkIvory : _palette.InKeyMarkIvory)
             : (tonic ? _palette.TonicMark : _palette.InKeyMark);
-        mark.Height = tonic ? 4.0 : 2.5;
-        double inset = HintInset(key);
+        mark.Height = key.IsBlack ? (tonic ? 3.6 : 2.6) : (tonic ? 4.8 : 3.2);
+        double blackNoseH = key.IsPressed ? BlackNosePressedHeight : BlackNoseHeight;
         double skirtH = key.IsPressed ? WhiteSkirtPressedHeight : WhiteSkirtHeight;
-        Canvas.SetTop(mark, key.IsBlack ? inset : WhiteKeyHeight - skirtH - mark.Height - 1.5);
+        Canvas.SetTop(mark, key.IsBlack
+            ? BlackKeyHeight - blackNoseH - mark.Height - 2.0
+            : WhiteKeyHeight - skirtH - mark.Height - 1.5);
     }
 
     /// <summary>
     /// Three label roles. A sounding key's name is what you're reading, so it gets the
     /// high-contrast pair for its blue fill; one under a finger also gets a heavier weight and a
-    /// step up in size, while one the pedal holds stays quieter. Idle, the Cs are landmarks (with
-    /// the octave), and the other keys are labelled only with "All note names".
+    /// step up in size, while one the pedal holds stays quieter. Idle, the Cs and the active
+    /// Tonic are landmarks, and the other keys are labelled only with "All note names".
     /// </summary>
     private void ApplyKeyLabel(PianoKey key)
     {
@@ -921,15 +925,16 @@ public partial class PianoKeyboardControl : UserControl
 
         bool held = key.IsPressed;
         bool sounding = held || key.IsSustained;
-        bool show = sounding || IsOctaveC(key) || _viewModel?.ShowAllNoteNames == true;
+        bool tonic = key.ScaleRole == KeyRole.Tonic;
+        bool show = sounding || IsOctaveC(key) || tonic || _viewModel?.ShowAllNoteNames == true;
         label.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         if (!show) return;
 
         var p = _palette;
         bool outOfKey = !sounding && key.ScaleRole == KeyRole.OutOfKey;
-        label.Opacity = outOfKey ? 0.25 : 1.0;
+        label.Opacity = 1.0;
         label.Text = LabelTextFor(key);
-        label.FontWeight = held ? FontWeights.SemiBold : FontWeights.Medium;
+        label.FontWeight = (held || tonic) ? FontWeights.SemiBold : FontWeights.Medium;
         if (key.IsBlack)
         {
             label.Foreground = sounding ? p.BlackLabelHeld : outOfKey ? p.BlackLabelOutOfKey : p.BlackLabel;
@@ -938,7 +943,7 @@ public partial class PianoKeyboardControl : UserControl
         else
         {
             label.Foreground = sounding ? p.LabelHeld : outOfKey ? p.LabelOutOfKey : p.Label;
-            label.FontSize = held ? 11 : IsOctaveC(key) ? 10 : 9;
+            label.FontSize = held ? 11 : (IsOctaveC(key) || tonic) ? 10 : 9;
         }
 
         double baseline = key.IsBlack ? BlackLabelBaseline : WhiteLabelBaseline;
@@ -1014,6 +1019,8 @@ public partial class PianoKeyboardControl : UserControl
         public Brush PressedRecess { get; }
         public Brush KeyLedHousing { get; }
         public Brush KeyLedOff { get; }
+        public Brush KeyLedInKey { get; }
+        public Brush KeyLedTonic { get; }
         public Brush KeyLedHeld { get; }
         public Brush KeyLedRinging { get; }
         public Brush KeyLedGlow { get; }
@@ -1086,6 +1093,8 @@ public partial class PianoKeyboardControl : UserControl
             PressedRecess = Find("Brush.Key.PressedRecess");
             KeyLedHousing = Find("Brush.Key.Led.Housing");
             KeyLedOff = Find("Brush.Key.Led.Off");
+            KeyLedInKey = Find("Brush.Key.Led.InKey");
+            KeyLedTonic = Find("Brush.Key.Led.Tonic");
             KeyLedHeld = Find("Brush.Key.Led.Held");
             KeyLedRinging = Find("Brush.Key.Led.Ringing");
             KeyLedGlow = Find("Brush.Key.Led.Glow");

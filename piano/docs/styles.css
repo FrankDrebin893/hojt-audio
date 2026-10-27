@@ -746,8 +746,8 @@ img {
 }
 
 .swatch-tonic { background-color: var(--amber); }
-.swatch-chord { background-color: var(--hit-green); }
-.swatch-dimmed { background-color: transparent; border: 1px dashed var(--legend-faint); }
+.swatch-chord { background-color: var(--held-blue); }
+.swatch-dimmed { background-color: var(--legend-muted); border: 1px solid var(--legend-faint); }
 
 /* Interactive Piano Keys Strip */
 .interactive-keybed {
@@ -818,17 +818,21 @@ img {
 
 .key-white.is-chord,
 .key-black.is-chord {
-  background-color: var(--hit-green) !important;
+  background-color: var(--held-blue) !important;
   color: var(--ink) !important;
-  border-color: #6DC252 !important;
+  border-color: var(--held-blue) !important;
 }
 
 .key-white.is-dimmed {
-  opacity: 0.18 !important;
+  background-color: var(--legend-muted) !important;
+  color: var(--ink) !important;
+  border-color: var(--legend-faint) !important;
 }
 
 .key-black.is-dimmed {
-  opacity: 0.18 !important;
+  background-color: var(--disabled-fill) !important;
+  color: var(--legend-faint) !important;
+  border-color: var(--rubber-raised) !important;
 }
 
 .interactive-chord-selector {

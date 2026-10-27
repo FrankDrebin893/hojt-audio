@@ -1144,8 +1144,8 @@
                            FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
                 <ListBox ItemsSource="{Binding MidiLog}"
                          Background="{StaticResource Brush.Console}" Foreground="{StaticResource Brush.Log.Text}"
-                         FontFamily="Consolas" FontSize="11"
-                         BorderThickness="0"
+                         FontFamily="{StaticResource Font.Data}" FontSize="11"
+                         BorderBrush="{StaticResource Brush.Panel.RecessRim}" BorderThickness="1"
                          x:Name="MidiLogList"
                          ScrollViewer.HorizontalScrollBarVisibility="Auto">
                     <ListBox.ItemContainerStyle>

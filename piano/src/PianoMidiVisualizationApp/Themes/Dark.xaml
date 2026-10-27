@@ -618,34 +618,36 @@
         <GradientStop Color="#F4F5F6" Offset="0.82"/>
         <GradientStop Color="#E0E2E5" Offset="1"/>
     </LinearGradientBrush>
-    <!-- In the key: subtle warm ivory sheen; the front lip mark below carries the role. -->
+    <!-- In the key: luminous concert-ivory keytop; the refined front lip mark carries the role. -->
     <LinearGradientBrush x:Key="Brush.Key.White.InKey" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#C4C3BE" Offset="0"/>
-        <GradientStop Color="#F2F2EE" Offset="0.06"/>
+        <GradientStop Color="#C8C7C2" Offset="0"/>
+        <GradientStop Color="#F6F6F2" Offset="0.06"/>
         <GradientStop Color="#FFFFFF" Offset="0.22"/>
-        <GradientStop Color="#FFFFFF" Offset="0.38"/>
-        <GradientStop Color="#F8F8F5" Offset="0.74"/>
-        <GradientStop Color="#EAE9E3" Offset="0.90"/>
-        <GradientStop Color="#DDDCD4" Offset="1"/>
+        <GradientStop Color="#FFFFFF" Offset="0.42"/>
+        <GradientStop Color="#FAF9F5" Offset="0.74"/>
+        <GradientStop Color="#ECEBE4" Offset="0.90"/>
+        <GradientStop Color="#DFDED6" Offset="1"/>
     </LinearGradientBrush>
-    <!-- The tonic: plain glossy ivory like every key; its thick dark front lip marks it. -->
+    <!-- The tonic (root note of the selected key): subtle warm pearl-ivory sheen paired with a
+         bold scarlet-crimson front lip inlay and bold tonic note label. -->
     <LinearGradientBrush x:Key="Brush.Key.White.Tonic" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#C4C3BE" Offset="0"/>
-        <GradientStop Color="#F2F2EE" Offset="0.06"/>
+        <GradientStop Color="#CCC6B8" Offset="0"/>
+        <GradientStop Color="#FCF9F2" Offset="0.06"/>
         <GradientStop Color="#FFFFFF" Offset="0.22"/>
-        <GradientStop Color="#FFFFFF" Offset="0.38"/>
-        <GradientStop Color="#F8F8F5" Offset="0.74"/>
-        <GradientStop Color="#EAE9E3" Offset="0.90"/>
-        <GradientStop Color="#DDDCD4" Offset="1"/>
+        <GradientStop Color="#FFFDF7" Offset="0.48"/>
+        <GradientStop Color="#FBF4E4" Offset="0.76"/>
+        <GradientStop Color="#F2E6CE" Offset="0.91"/>
+        <GradientStop Color="#E5D5B5" Offset="1"/>
     </LinearGradientBrush>
-    <!-- Outside the selected key: clearly dimmed warm-charcoal/slate keytop so in-key keys stand out immediately. -->
+    <!-- Outside the selected key: 100% solid, shaded cool stone-ivory keytop (~80% lightness) so
+         out-of-key white keys step cleanly into soft shadow while still reading unmistakably as white keys. -->
     <LinearGradientBrush x:Key="Brush.Key.White.OutOfKey" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#787772" Offset="0"/>
-        <GradientStop Color="#9A9994" Offset="0.08"/>
-        <GradientStop Color="#A6A59F" Offset="0.30"/>
-        <GradientStop Color="#9E9D97" Offset="0.74"/>
-        <GradientStop Color="#8E8D87" Offset="0.90"/>
-        <GradientStop Color="#7E7D78" Offset="1"/>
+        <GradientStop Color="#9E9C96" Offset="0"/>
+        <GradientStop Color="#C2C0BA" Offset="0.07"/>
+        <GradientStop Color="#CECCC6" Offset="0.28"/>
+        <GradientStop Color="#C8C6C0" Offset="0.72"/>
+        <GradientStop Color="#BCB9B3" Offset="0.90"/>
+        <GradientStop Color="#AEABA5" Offset="1"/>
     </LinearGradientBrush>
     <SolidColorBrush x:Key="Brush.Key.White.Border" Color="#141210"/>
 
@@ -656,9 +658,9 @@
         <GradientStop Color="#CCCBC2" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.White.Bullnose.OutOfKey" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#B0AFA8" Offset="0"/>
-        <GradientStop Color="#9E9D96" Offset="0.55"/>
-        <GradientStop Color="#7A7972" Offset="1"/>
+        <GradientStop Color="#D6D4CE" Offset="0"/>
+        <GradientStop Color="#C2C0BA" Offset="0.55"/>
+        <GradientStop Color="#A2A09A" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.White.Bullnose.Held" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#F0F5FA" Offset="0"/>
@@ -677,10 +679,10 @@
         <GradientStop Color="#84837A" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.White.Skirt.OutOfKey" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#787770" Offset="0"/>
-        <GradientStop Color="#8C8B84" Offset="0.32"/>
-        <GradientStop Color="#74736C" Offset="0.74"/>
-        <GradientStop Color="#4E4D48" Offset="1"/>
+        <GradientStop Color="#96948E" Offset="0"/>
+        <GradientStop Color="#AEACA6" Offset="0.32"/>
+        <GradientStop Color="#989690" Offset="0.74"/>
+        <GradientStop Color="#6E6C66" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.White.Skirt.Held" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#B0BAC6" Offset="0"/>
@@ -704,13 +706,24 @@
         <GradientStop Color="#70000000" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- Hardware Light Guide LED diffuser window at the top of every key (visible unlit as a dark lens,
-         glowing vivid blue when held or pedal-sustained). -->
+    <!-- Hardware Light Guide LED diffuser window at the top of every key (visible unlit as a dark lens
+         on out-of-key keys, warm ivory on in-key degrees, golden amber on the tonic, and glowing vivid
+         blue when held or pedal-sustained). -->
     <SolidColorBrush x:Key="Brush.Key.Led.Housing" Color="#1A1A1D"/>
     <LinearGradientBrush x:Key="Brush.Key.Led.Off" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#323236" Offset="0"/>
-        <GradientStop Color="#202024" Offset="0.5"/>
-        <GradientStop Color="#151518" Offset="1"/>
+        <GradientStop Color="#28282C" Offset="0"/>
+        <GradientStop Color="#1B1B1E" Offset="0.5"/>
+        <GradientStop Color="#121214" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Led.InKey" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#FFFFFF" Offset="0"/>
+        <GradientStop Color="#E8E6E0" Offset="0.45"/>
+        <GradientStop Color="#B8B5AE" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="Brush.Key.Led.Tonic" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#FFF6DC" Offset="0"/>
+        <GradientStop Color="#F0C06A" Offset="0.42"/>
+        <GradientStop Color="#D88E24" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.Led.Held" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#FFFFFF" Offset="0"/>
@@ -793,27 +806,27 @@
         <GradientStop Color="#58534D" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.Black.Top.InKey" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#363330" Offset="0"/>
-        <GradientStop Color="#524E48" Offset="0.16"/>
-        <GradientStop Color="#383532" Offset="0.48"/>
-        <GradientStop Color="#2E2B28" Offset="0.82"/>
-        <GradientStop Color="#48443E" Offset="0.96"/>
-        <GradientStop Color="#68625B" Offset="1"/>
+        <GradientStop Color="#3A3632" Offset="0"/>
+        <GradientStop Color="#56514A" Offset="0.16"/>
+        <GradientStop Color="#3C3834" Offset="0.48"/>
+        <GradientStop Color="#302D2A" Offset="0.82"/>
+        <GradientStop Color="#4A4640" Offset="0.96"/>
+        <GradientStop Color="#6C665E" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.Black.Top.Tonic" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#3E3A37" Offset="0"/>
-        <GradientStop Color="#5A554F" Offset="0.16"/>
-        <GradientStop Color="#403C38" Offset="0.48"/>
-        <GradientStop Color="#34312D" Offset="0.82"/>
-        <GradientStop Color="#504B45" Offset="0.96"/>
-        <GradientStop Color="#726C64" Offset="1"/>
+        <GradientStop Color="#4C4338" Offset="0"/>
+        <GradientStop Color="#706250" Offset="0.16"/>
+        <GradientStop Color="#52483B" Offset="0.48"/>
+        <GradientStop Color="#423A30" Offset="0.82"/>
+        <GradientStop Color="#625646" Offset="0.96"/>
+        <GradientStop Color="#8A7963" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.Black.Top.OutOfKey" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#0E0D0C" Offset="0"/>
-        <GradientStop Color="#161514" Offset="0.16"/>
-        <GradientStop Color="#11100F" Offset="0.55"/>
-        <GradientStop Color="#0D0C0B" Offset="0.85"/>
-        <GradientStop Color="#141312" Offset="1"/>
+        <GradientStop Color="#121110" Offset="0"/>
+        <GradientStop Color="#1C1B19" Offset="0.16"/>
+        <GradientStop Color="#151413" Offset="0.55"/>
+        <GradientStop Color="#100F0E" Offset="0.85"/>
+        <GradientStop Color="#1A1816" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.Black.Top.Held" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#62ACF8" Offset="0"/>
@@ -886,31 +899,28 @@
     </LinearGradientBrush>
     <SolidColorBrush x:Key="Brush.Key.Black.Border" Color="#040303"/>
 
-    <!-- Edge marks, so a key's role never rests on colour alone: the top edge of an in-key
+    <!-- Edge marks, so a key's role never rests on colour alone: the front crest of an in-key
          black key, and the front lip of every in-key white key. On ebony or a held key the mark
-         is light; on an unheld white key it is a dark amber lip against the wash. The tonic's
-         mark is stronger and thicker. -->
-    <!-- Neutral, not amber: the keys stay black and white. Light marks on ebony and held keys,
-         dark ones on white; the tonic's mark is the strongest and thickest. The lip on a white
-         key clears 3:1 against it. -->
-    <SolidColorBrush x:Key="Brush.Key.InKey.Mark"       Color="#B8B8B4"/>
-    <SolidColorBrush x:Key="Brush.Key.Tonic.Mark"       Color="#FFFFFF"/>
-    <SolidColorBrush x:Key="Brush.Key.InKey.Mark.Ivory" Color="#70706C"/>
-    <SolidColorBrush x:Key="Brush.Key.Tonic.Mark.Ivory" Color="#1E1E1C"/>
+         is warm ivory (or bright gold on the tonic); on an unheld white key it is a quiet
+         architectural slate lip for scale degrees and a bold scarlet-crimson inlay on the tonic. -->
+    <SolidColorBrush x:Key="Brush.Key.InKey.Mark"       Color="#F4F0E8"/>
+    <SolidColorBrush x:Key="Brush.Key.Tonic.Mark"       Color="#F5C469"/>
+    <SolidColorBrush x:Key="Brush.Key.InKey.Mark.Ivory" Color="#8A867E"/>
+    <SolidColorBrush x:Key="Brush.Key.Tonic.Mark.Ivory" Color="#B8141E"/>
 
     <!-- Hint outline and dot, with a deep keyline inside so the outline still separates from
          a light fill (ivory, amber, held blue) whose brightness is close to the magenta's. -->
     <SolidColorBrush x:Key="Brush.Key.Hint"         Color="{StaticResource Color.Target}"/>
     <SolidColorBrush x:Key="Brush.Key.Hint.Keyline" Color="#3D0A24"/>
 
-    <!-- Labels. Idle keys show only the Cs (every key with "All note names"); a held key's
+    <!-- Labels. Idle keys show the Cs and the active Tonic (every key with "All note names"); a held key's
          label switches to the held pair, spelled for the selected key. -->
-    <SolidColorBrush x:Key="Brush.Key.Label"              Color="#47423B"/>
-    <SolidColorBrush x:Key="Brush.Key.Label.OutOfKey"     Color="#383530"/>
-    <SolidColorBrush x:Key="Brush.Key.Label.Held"         Color="#2A2620"/>
-    <SolidColorBrush x:Key="Brush.Key.Black.Label"        Color="#9A948A"/>
-    <SolidColorBrush x:Key="Brush.Key.Black.Label.OutOfKey" Color="#5C5852"/>
-    <SolidColorBrush x:Key="Brush.Key.Black.Label.Held"   Color="#C8D9EC"/>
+    <SolidColorBrush x:Key="Brush.Key.Label"              Color="#3D3830"/>
+    <SolidColorBrush x:Key="Brush.Key.Label.OutOfKey"     Color="#4A4640"/>
+    <SolidColorBrush x:Key="Brush.Key.Label.Held"         Color="#182232"/>
+    <SolidColorBrush x:Key="Brush.Key.Black.Label"        Color="#DCD6CC"/>
+    <SolidColorBrush x:Key="Brush.Key.Black.Label.OutOfKey" Color="#8E8A82"/>
+    <SolidColorBrush x:Key="Brush.Key.Black.Label.Held"   Color="#EBF4FF"/>
 
     <!-- ================= Song practice (falling notes) =================
          The lane is a piano roll: notes are flat slots cut in a deep lacquer well, bar numbers

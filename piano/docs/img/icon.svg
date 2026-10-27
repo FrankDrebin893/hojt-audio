@@ -1,1 +1,46 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#1c1a18"/><circle cx="32" cy="32" r="17" fill="none" stroke="#eadfc8" stroke-width="6"/><line x1="15.9" y1="54.9" x2="48.1" y2="9.1" stroke="#e2581e" stroke-width="5"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="HØJT Piano Icon">
+  <defs>
+    <linearGradient id="chassis" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#C82830"/>
+      <stop offset="55%" stop-color="#A8131C"/>
+      <stop offset="100%" stop-color="#7D0C13"/>
+    </linearGradient>
+  </defs>
+  <!-- Brushed Scarlet Hardware Tile -->
+  <rect x="8" y="8" width="240" height="240" rx="54" fill="url(#chassis)" stroke="#D94149" stroke-width="2"/>
+  <!-- Recessed OLED Bezel & Glass -->
+  <rect x="31" y="31" width="194" height="108" rx="22" fill="#0B0B0D"/>
+  <rect x="38" y="38" width="180" height="94" rx="16" fill="#020203"/>
+  <!-- OLED Readout Bars -->
+  <rect x="53" y="57" width="87" height="26" rx="7" fill="#FFFFFF"/>
+  <rect x="53" y="95" width="65" height="10" rx="5" fill="#C4C4C4"/>
+  <rect x="53" y="112" width="47" height="8" rx="4" fill="#6E6E6E"/>
+  <!-- Rotary Encoder Halo Dots -->
+  <circle cx="161" cy="108" r="5.5" fill="#4AE371"/>
+  <circle cx="154" cy="95" r="5.5" fill="#4AE371"/>
+  <circle cx="153" cy="81" r="5.5" fill="#4AE371"/>
+  <circle cx="158" cy="67" r="5.5" fill="#4AE371"/>
+  <circle cx="170" cy="58" r="5.5" fill="#4AE371"/>
+  <circle cx="184" cy="55" r="5.5" fill="#4AE371"/>
+  <circle cx="198" cy="58" r="5.5" fill="#F6B93B"/>
+  <circle cx="209" cy="68" r="5.5" fill="#F6B93B"/>
+  <circle cx="214" cy="81" r="5.5" fill="#F6B93B"/>
+  <circle cx="213" cy="95" r="5.5" fill="#3B2322"/>
+  <circle cx="205" cy="108" r="5.5" fill="#3B2322"/>
+  <!-- Rotary Encoder Cap & Pointer -->
+  <circle cx="184" cy="85" r="19.5" fill="#2A2A2A"/>
+  <line x1="184" y1="85" x2="196" y2="76" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="square"/>
+  <!-- Keybed Shadow Rail -->
+  <rect x="31" y="149" width="194" height="4" fill="#0E0E10"/>
+  <!-- 5 White Keys (middle key held with blue Light Guide bar) -->
+  <rect x="32" y="153" width="36" height="77" rx="6" fill="#F8F7F4"/>
+  <rect x="71" y="153" width="36" height="77" rx="6" fill="#F8F7F4"/>
+  <rect x="110" y="153" width="36" height="77" rx="6" fill="#CFD5DC"/>
+  <rect x="110" y="153" width="36" height="6" fill="#4FA3FF"/>
+  <rect x="149" y="153" width="36" height="77" rx="6" fill="#F8F7F4"/>
+  <rect x="188" y="153" width="36" height="77" rx="6" fill="#F8F7F4"/>
+  <!-- 3 Black Keys -->
+  <rect x="58" y="153" width="22" height="45" rx="4" fill="#121214"/>
+  <rect x="97" y="153" width="22" height="45" rx="4" fill="#121214"/>
+  <rect x="175" y="153" width="22" height="45" rx="4" fill="#121214"/>
+</svg>

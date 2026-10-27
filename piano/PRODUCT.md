@@ -59,10 +59,11 @@ piano rolls show which notes to play. This app tells you what they are.
 - **See:** a 61-key keyboard (C2–C7) that scales with the window, beneath a recessed OLED
   display that spans the full width of the keys, with a right-hand hardware panel housing the
   volume and click halo knobs, twelve shortcut panel keys, and the vector `HØJT` hardware badge.
-  There are 12 scales; when a key is selected, out-of-key white and black keys become
-  transparent, in-key keys carry a crisp edge marker with the tonic set apart, and note names
-  switch to sharps or flats to suit the key. "Mute out-of-key" silences wrong notes but still
-  shows them. A key the pedal holds stays lit and still counts toward the chord name.
+  There are 12 scales; when a key is selected, out-of-key white and black keys step into solid
+  shaded stone and matte ebony, in-key keys carry a crisp front edge marker with the tonic set
+  apart by a scarlet front inlay and bold label, and note names switch to sharps or flats to
+  suit the key. "Mute out-of-key" silences wrong notes but still shows them. A key the pedal
+  holds stays lit and still counts toward the chord name.
 - **Understand:** the chord readout (which latches for two seconds after releasing the keys,
   dimming), grand staff, circle of fifths (click to change key) and diatonic chord strip (click
   to play).

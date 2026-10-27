@@ -68,7 +68,7 @@
 
         <Style x:Key="Style.SongValue" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource Brush.Text.Secondary}"/>
-            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontFamily" Value="{StaticResource Font.Data}"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="TextAlignment" Value="Center"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -191,8 +191,10 @@
         <!-- ===================== Transport =====================
              The practice toolbar sits in a flat row above this (see MainWindow), so the left/right
              14px margins align with the practice toolbar above and the keybed well below. -->
-        <Border Grid.Row="0" Margin="14,2,14,6" Padding="10,4" CornerRadius="6"
-                Background="{StaticResource Brush.Surface}" SnapsToDevicePixels="True">
+        <Border Grid.Row="0" Margin="14,0,14,6" Padding="14,4" CornerRadius="6"
+                Background="{StaticResource Brush.Panel.Recess}"
+                BorderBrush="{StaticResource Brush.Panel.RecessRim}" BorderThickness="1"
+                SnapsToDevicePixels="True">
             <Grid x:Name="BarGrid" SizeChanged="BarGrid_SizeChanged">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
