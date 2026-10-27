@@ -121,7 +121,7 @@ const DECLICK_S: f32 = 0.0015;
 // Time constant of the smoothing of the bend, so that a wheel sending coarse steps does not
 // zipper
 const BEND_SMOOTHING_S: f32 = 0.005;
-// How far the bend moves before the loop's gain and damping follow it
+// How far the bend moves before the loop's gain follows it
 const BEND_FOLLOW_ST: f32 = 0.01;
 
 /// The loop's low-pass and what it does at one pitch
@@ -203,7 +203,7 @@ pub struct Bass {
     bend_st: f32,
     bend_ratio: f32,
     bend_smoothing: f32,
-    // The bend the loop's gain and damping were last worked out for, and its ratio
+    // The bend the loop's gain was last worked out for, and its ratio
     followed_bend_st: f32,
     followed_ratio: f32,
 
@@ -377,8 +377,9 @@ impl Bass {
         self.wheel = wheel.clamp(-1.0, 1.0);
     }
 
-    /// The loop's gain and damping follow the bend once it has moved far enough to matter,
-    /// so that Sustain is the same T60 on a bent note. Once per block: on every sample it
+    /// The loop's gain, and what its low-pass adds to the loop's length, follow the bend once
+    /// it has moved far enough to matter, so that Sustain is the same T60 on a bent note. The
+    /// low-pass stays the one the note was plucked with. Once per block: on every sample it
     /// would make the level jump
     fn follow_bend(&mut self) {
         // Or once it has got where the wheel is, wherever that is
@@ -1312,7 +1313,7 @@ mod tests {
         bass.note_on(33, 0.9);
         let output = play(&mut bass, &Voice::Metal.settings(), SAMPLE_RATE, 0.5);
         let cents = cents_off(&output, SAMPLE_RATE, 0.2, note_hz(33.0));
-        assert!(cents.abs() < 6.0, "{} cents off", cents);
+        assert!(cents.abs() < 2.0, "{} cents off", cents);
     }
 
     /// Level, pitch error and brightness per voice and note. Then, with Sub at 0: from what the

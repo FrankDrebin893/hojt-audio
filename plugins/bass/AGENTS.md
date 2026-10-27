@@ -21,8 +21,9 @@ How it behaves:
 - The pitch-bend wheel (`MidiPitchBend`, 8192 exactly centre) bends whatever note is sounding
   by up to Bend semitones either way. The bend is smoothed (5 ms) and divides the loop's length,
   sliding or not, so a slide and a bend add up; the sine under the string follows. The loop's
-  gain and damping follow the bend once a block when it has moved 1 cent or settled, so Sustain
-  is the same T60 on a bent note. A pluck starts at the bent pitch; all sound off and a host's
+  gain (and what its low-pass adds to the length, at the bent pitch) follows the bend once a
+  block when it has moved 1 cent or settled, so Sustain is the same T60 on a bent note; the
+  low-pass itself stays the one the note was plucked with. A pluck starts at the bent pitch; all sound off and a host's
   reset put the wheel back at centre. At centre the string is exactly as it was without it
 - Slide at 0 ms plucks every note. Above 0, a note that starts while another is held slides
   to it without a new pluck, in the Slide time
