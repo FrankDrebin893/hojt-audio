@@ -112,7 +112,7 @@ fn jazz() -> KitPreset {
             freq_hz: 76.0,
             sweep_semitones: 8.0,
             sweep_ms: 25.0,
-            decay_ms: 210.0,
+            decay_ms: 170.0,
             shell_level: 0.35,
             click_level: 0.1,
             click_freq_hz: 1100.0,
