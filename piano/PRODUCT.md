@@ -57,7 +57,7 @@ piano rolls show which notes to play. This app tells you what they are.
 - **See:** a 61-key keyboard (C2–C7) that scales with the window, beneath a recessed OLED
   display that spans the full width of the keys, with a right-hand hardware panel housing the
   volume and click halo knobs and twelve shortcut panel keys. There are 12 scales; when a key
-  is selected, out-of-key white and black keys are visually dimmed, in-key keys carry a crisp
+  is selected, out-of-key white and black keys become transparent, in-key keys carry a crisp
   edge marker with the tonic set apart, and note names switch to sharps or flats to suit the
   key. "Mute out-of-key" silences wrong notes but still shows them. A key the pedal holds stays
   lit and still counts toward the chord name.
@@ -111,7 +111,7 @@ and 08255c7).
 - `README.md`: the feature list, shortcuts, requirements and getting started.
 - `docs/screenshots/`: off-screen renders of the real UI (main window, song practice, recorder,
   zen mode, settings, first-run).
-- `docs/index.html`: GitHub Pages landing page (`https://frankdrebin893.github.io/PianoVisualization/`).
+- `docs/index.html`: GitHub Pages landing page (`https://hojte.net/hojt-audio-piano-viz/`).
 - `.impeccable/critique/`: the Impeccable critique snapshot from 2026-09-27 (24/40).
 - There are no user counts, testimonials, reviews, download figures or press. Don't invent
   any.

@@ -42,7 +42,14 @@ colors:
   halo-off: "#2A1214"
   danger-red: "#C42B1C"
   danger-text: "#F0736A"
+  hojt-panel: "#1C1A18"
+  hojt-silk: "#EADFC8"
+  hojt-orange: "#E2581E"
 typography:
+  brand:
+    fontFamily: "Bebas Neue"
+    fontSize: "20px"
+    fontWeight: 400
   display:
     fontFamily: "Inter Tight"
     fontSize: "72px"
@@ -263,7 +270,7 @@ A `Border` in the left column of the stage grid behind the readout and chord str
 A `RangeBase` drawn in code: a 104px recess, 15 level LEDs on a 270° sweep from the bottom left, and a black cap whose white pointer follows the value. LEDs light from the start up to the value, the first nine green, the next three amber, the last three red. Drag up or down (200 DIPs is the full range) or scroll (5% a notch). Never focusable; the sliders in Settings set the same values from the keyboard. Two instances in the right-hand hardware panel (`FrontPanel`): **VOLUME** (`Settings.Volume`) and **CLICK** (`Settings.MetronomeVolume`), each with a bold legend and its value as a percentage below.
 
 ### Keyboard (signature)
-Neutral white keytops and beveled ebony sharps. When a key signature is active, out-of-key white and black keys are visually dimmed (`KeyRole.OutOfKey`), while in-key white keys carry a thin mid-grey front lip (#70706C), the tonic a thicker near-black one (#1E1E1C), and in-key and tonic black keys carry a light grey or white top edge. A held key shades down and lights a blue back edge. Hints are magenta outlines and dots with a deep keyline. A crimson felt strip runs above the keys across the keybed well (hidden in song practice).
+Neutral white keytops and beveled ebony sharps. When a key signature is active, out-of-key white and black keys become transparent (`KeyRole.OutOfKey`), while in-key white keys carry a thin mid-grey front lip (#70706C), the tonic a thicker near-black one (#1E1E1C), and in-key and tonic black keys carry a light grey or white top edge. A held key shades down and lights a blue back edge. Hints are magenta outlines and dots with a deep keyline. A crimson felt strip runs above the keys across the keybed well (hidden in song practice).
 
 ### Front Panel Keys (signature, `Style.PanelKey`)
 Twelve 52x34 black rubber keys in a 4x3 grid under the knobs in the right-hand hardware panel: `key ◂`, `key ▸` (a step down or up the circle of fifths), `scale` (the next scale on the same tonic), `mute` (out-of-key), `metro`, `tap`, `−` and `+` (tempo), `rec`, `play` and `loop` (the selected take), and `notes` (All Note Names). Each has a 2px black skirt, a lit top edge, an LED bar set into its top (`Style.PanelLed`) and a lowercase legend under it (`Style.PanelLegend`). An LED lights white for a state that is on (mute, metronome, playing, looping, all note names), and red while recording is armed. Never focusable; every key does something the toolbar, a shortcut or a menu also does.

@@ -2,7 +2,7 @@
 
 ## Workflow
 - Always commit and push changes after completing work.
-- Remote: https://github.com/FrankDrebin893/PianoVisualization.git
+- Remote: https://github.com/FrankDrebin893/hojt-audio-piano-viz.git
 - **Always publish to the desktop after completing work**, so the icon runs the new
   code. See Publish below. `dotnet build` alone never updates it.
 

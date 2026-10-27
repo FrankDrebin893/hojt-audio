@@ -86,6 +86,7 @@
          a different entry assembly, finds them too. -->
     <FontFamily x:Key="Font.Body">pack://application:,,,/PianoMidiVisualizationApp;component/Fonts/#Inter Tight</FontFamily>
     <FontFamily x:Key="Font.Data">pack://application:,,,/PianoMidiVisualizationApp;component/Fonts/#JetBrains Mono</FontFamily>
+    <FontFamily x:Key="Font.Brand">pack://application:,,,/PianoMidiVisualizationApp;component/Fonts/#Bebas Neue</FontFamily>
 
     <!-- ================= The panel =================
          The brushed anodising itself is Brush.Window, Brush.TitleBar and Brush.Surface below:

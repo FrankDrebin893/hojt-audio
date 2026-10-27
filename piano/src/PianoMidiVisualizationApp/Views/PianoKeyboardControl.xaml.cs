@@ -687,6 +687,7 @@ public partial class PianoKeyboardControl : UserControl
                 KeyRole.OutOfKey => key.IsBlack ? p.BlackOutOfKey : p.WhiteOutOfKey,
                 _ => key.IsBlack ? p.Black : p.White
             };
+        v.Body.Opacity = outOfKey ? (key.IsBlack ? 0.18 : 0.15) : 1.0;
 
         if (key.IsBlack)
         {
@@ -700,6 +701,7 @@ public partial class PianoKeyboardControl : UserControl
 
             if (v.BlackContactShadow is { } contactShadow)
             {
+                contactShadow.Opacity = outOfKey ? 0.0 : 1.0;
                 double shadowRight = BlackKeyWidth + (held ? 1.1 : 1.8);
                 double shadowBottom = BlackKeyHeight + (held ? 1.4 : 2.2);
                 contactShadow.Points = new PointCollection
@@ -715,6 +717,7 @@ public partial class PianoKeyboardControl : UserControl
 
             if (v.BlackLeftWall is { } leftWall)
             {
+                leftWall.Opacity = outOfKey ? 0.0 : 1.0;
                 leftWall.Fill = held ? p.BlackLeftWallHeld : outOfKey ? p.BlackLeftWallOutOfKey : p.BlackLeftWall;
                 leftWall.Points = new PointCollection
                 {
@@ -727,6 +730,7 @@ public partial class PianoKeyboardControl : UserControl
 
             if (v.BlackRightWall is { } rightWall)
             {
+                rightWall.Opacity = outOfKey ? 0.0 : 1.0;
                 rightWall.Fill = held ? p.BlackRightWallHeld : outOfKey ? p.BlackRightWallOutOfKey : p.BlackRightWall;
                 rightWall.Points = new PointCollection
                 {
@@ -739,6 +743,7 @@ public partial class PianoKeyboardControl : UserControl
 
             if (v.BlackTop is { } top)
             {
+                top.Opacity = outOfKey ? 0.10 : 1.0;
                 Canvas.SetTop(top, topY);
                 top.Height = topH;
                 top.Fill = held
@@ -756,6 +761,7 @@ public partial class PianoKeyboardControl : UserControl
 
             if (v.BlackNose is { } nose)
             {
+                nose.Opacity = outOfKey ? 0.0 : 1.0;
                 nose.Fill = held
                     ? p.BlackNoseHeld
                     : outOfKey
@@ -774,12 +780,14 @@ public partial class PianoKeyboardControl : UserControl
 
             if (v.BlackNoseCrest is { } noseCrest)
             {
+                noseCrest.Opacity = outOfKey ? 0.0 : 1.0;
                 noseCrest.Fill = outOfKey ? p.BlackNoseCrestOutOfKey : p.BlackNoseCrest;
                 Canvas.SetTop(noseCrest, noseTopY - 0.8);
             }
 
             if (v.BlackLeftFacetLine is { } leftFacet)
             {
+                leftFacet.Opacity = outOfKey ? 0.15 : 1.0;
                 leftFacet.Stroke = outOfKey ? p.BlackRidgeOutOfKey : p.BlackRidge;
                 leftFacet.Y1 = noseTopY;
                 leftFacet.Y2 = bottomY;
@@ -787,12 +795,14 @@ public partial class PianoKeyboardControl : UserControl
 
             if (v.BlackRightFacetLine is { } rightFacet)
             {
+                rightFacet.Opacity = outOfKey ? 0.15 : 1.0;
                 rightFacet.Y1 = noseTopY;
                 rightFacet.Y2 = bottomY;
             }
 
             if (v.BlackRidgeLine is { } ridge)
             {
+                ridge.Opacity = outOfKey ? 0.15 : 1.0;
                 ridge.Stroke = outOfKey ? p.BlackRidgeOutOfKey : p.BlackRidge;
                 ridge.Y1 = noseTopY;
                 ridge.Y2 = noseTopY;
@@ -808,33 +818,39 @@ public partial class PianoKeyboardControl : UserControl
             if (v.ShadowEffect is { } shadow)
             {
                 shadow.ShadowDepth = held ? 1.0 : 2.5;
-                shadow.Opacity = held ? 0.35 : 0.55;
+                shadow.Opacity = outOfKey ? 0.0 : (held ? 0.35 : 0.55);
             }
 
             if (v.Chamfer is { } chamfer)
             {
                 chamfer.Height = skirtTop;
-                chamfer.Opacity = outOfKey ? 0.25 : 1.0;
+                chamfer.Opacity = outOfKey ? 0.0 : 1.0;
             }
 
             if (v.Skirt is { } skirt)
             {
                 skirt.Height = skirtH;
+                skirt.Opacity = outOfKey ? 0.12 : 1.0;
                 skirt.Fill = held ? p.WhiteSkirtHeld : outOfKey ? p.WhiteSkirtOutOfKey : p.WhiteSkirt;
                 Canvas.SetTop(skirt, skirtTop);
             }
 
             if (v.Undercut is { } undercut)
+            {
+                undercut.Opacity = outOfKey ? 0.0 : 1.0;
                 Canvas.SetTop(undercut, skirtTop + 1.4);
+            }
 
             if (v.Bullnose is { } bullnose)
             {
+                bullnose.Opacity = outOfKey ? 0.12 : 1.0;
                 bullnose.Fill = held ? p.WhiteBullnoseHeld : outOfKey ? p.WhiteBullnoseOutOfKey : p.WhiteBullnose;
                 Canvas.SetTop(bullnose, skirtTop - 1.2);
             }
 
             if (v.WhiteRidgeLine is { } whiteRidge)
             {
+                whiteRidge.Opacity = outOfKey ? 0.12 : 1.0;
                 whiteRidge.Y1 = skirtTop + WhiteBullnoseHeight - 1.2;
                 whiteRidge.Y2 = skirtTop + WhiteBullnoseHeight - 1.2;
             }
@@ -911,6 +927,7 @@ public partial class PianoKeyboardControl : UserControl
 
         var p = _palette;
         bool outOfKey = !sounding && key.ScaleRole == KeyRole.OutOfKey;
+        label.Opacity = outOfKey ? 0.25 : 1.0;
         label.Text = LabelTextFor(key);
         label.FontWeight = held ? FontWeights.SemiBold : FontWeights.Medium;
         if (key.IsBlack)

@@ -20,7 +20,7 @@ pushes the tag, and then confirms the release came out right.
 60 requests an hour) with PowerShell's `Invoke-RestMethod`, which parses the JSON.
 
 ```powershell
-$api = 'https://api.github.com/repos/FrankDrebin893/PianoVisualization'
+$api = 'https://api.github.com/repos/FrankDrebin893/hojt-audio-piano-viz'
 ```
 
 ## 1. Check that main is releasable
@@ -127,9 +127,9 @@ already have fetched it. The usual fix is a new commit and the next patch versio
 ## 6. Report
 
 Give the user:
-- the release page, `https://github.com/FrankDrebin893/PianoVisualization/releases/tag/vX.Y.Z`
+- the release page, `https://github.com/FrankDrebin893/hojt-audio-piano-viz/releases/tag/vX.Y.Z`
 - the link that always points to the newest release, which is the one to share:
-  `https://github.com/FrankDrebin893/PianoVisualization/releases/latest`
+  `https://github.com/FrankDrebin893/hojt-audio-piano-viz/releases/latest`
 - the version and a one-line summary of what's new since the last release
 
 A release changes no code, so there's nothing to publish to the desktop afterwards.

@@ -35,7 +35,7 @@ right-hand hardware deck holds the rotary volume and click knobs and panel keys.
   inversion, voicing (close, open, shell or drop 2), each note, and its interval above the root.
 - **Keys and scales**: pick a key centre and one of 12 scales: major, natural, harmonic and
   melodic minor, the five other modes, major and minor pentatonic, and blues. When a key is
-  selected, out-of-key white and black keys are visually dimmed, while in-key keys carry a crisp
+  selected, out-of-key white and black keys become transparent, while in-key keys carry a crisp
   edge marker and the tonic stands out with a thick border, so scale degrees are clear at a glance.
   Note names switch between sharps and flats to suit the key.
 - **Mute out-of-key**: out-of-key notes go silent but still light up and still count toward the
@@ -141,7 +141,7 @@ right-hand hardware deck holds the rotary volume and click knobs and panel keys.
 
 ## Download
 
-Get the latest `win-x64.zip` from the [project website](https://frankdrebin893.github.io/PianoVisualization/) or [GitHub Releases](https://github.com/FrankDrebin893/PianoVisualization/releases/latest), unzip it and run `PianoMidiVisualizationApp.exe`. It's self-contained, so no .NET install is needed. The app isn't code-signed yet, so Windows may show "Windows protected your PC" — click **More info → Run anyway**.
+Get the latest `win-x64.zip` from the [project website](https://hojte.net/hojt-audio-piano-viz/) or [GitHub Releases](https://github.com/FrankDrebin893/hojt-audio-piano-viz/releases/latest), unzip it and run `PianoMidiVisualizationApp.exe`. It's self-contained, so no .NET install is needed. The app isn't code-signed yet, so Windows may show "Windows protected your PC" — click **More info → Run anyway**.
 
 ## Requirements
 
