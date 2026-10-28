@@ -6,6 +6,8 @@ What each script in this folder does, and the detail behind the rules in `AGENTS
 - `check.sh` - What CI runs, run before a push (see Testing); `quick` is format and clippy
 - `make-art.py` - Makes the pedals' artwork in `crates/suite_common/assets/art/`
 - `screenshots.ps1` - Takes the page's screenshots (`site/img/`) of the standalone windows, on Windows
+- `site-shots.sh` - Screenshots of the site's own pages at 1440 and 390 wide into `target/shots/`, for
+  `/design` and `/page` to look at (not published; needs Node with Playwright)
 - `package.sh` - Packs the bundles into the zips of a release
 - `site-audio.sh` - Makes the page's sound examples from the render tests
 - `sound-reports.sh` - The sound reports without their timings, for comparing two builds

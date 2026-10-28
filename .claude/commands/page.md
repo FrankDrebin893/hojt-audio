@@ -74,8 +74,10 @@ gates. The page must describe exactly that version.
 
 1. `scripts/page-check.sh links`: every local link, image, sound, anchor and download holds.
    Fix what it reports.
-2. If the page changed, open `site/dsp/index.html` (and `site/index.html` if it changed) in a browser (Claude Code: the preview,
-   `preview_start` with its `file://` URL) at desktop and phone width and look at what changed.
+2. If the page changed, `scripts/site-shots.sh` (the pages that changed, or all) and look at the
+   shots in `target/shots/` at desktop and phone width: what changed, and the named rules of
+   `site-design/DESIGN.md` (No Native Chrome, Body Text Never on Paint...). A change to the look
+   itself, not to a fact, goes through `/design`.
 3. `scripts/page-check.sh mark`, last, so the end-of-session hook knows the page was looked at
    for the changes as they are now. A later edit asks for `/page` again.
 4. Say in one or two lines what changed on the page, what waits in the changelog for the

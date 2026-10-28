@@ -18,7 +18,11 @@ in AGENTS.md.
    - **What changes** for the player, then in the code (modules, not line by line)
    - **Ids**: parameters added with their `#[id]`, range and default; persisted fields. Never
      a renamed or removed id (Versioning)
-   - **Look**: where it sits on the pedal by the style guide; "none" if nothing is drawn
+   - **Look**: where it sits on the pedal by the style guide; "none" if nothing is drawn. For a
+     change to the look of the site, the piano viz or an editor: the surface's source of truth
+     and references (`/design`), and whether it needs an explore step (a new section, layout or
+     component does; a spacing or colour fix does not). Done when includes the renders and the
+     design reviewer's accept
    - **Proof**: the tests to add and the reports to compare before and after
    - **Done when**: acceptance criteria somebody can check, including a listen for a sound change
    - **Risks and size**: S (an hour), M (a session), L (several: say how it splits into sub-issues)

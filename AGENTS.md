@@ -45,10 +45,11 @@ detail lives. Each detail is next to what it governs.
   `site/hojt.css`, with the plugins' colours and fonts; the favicon is the whole HØJT badge
   (`site/favicon.svg`). Fonts, screenshots (`site/img/`) and sounds (`site/audio/`) stay at the root.
   The old address, https://hojte.net/hojt-audio-piano-viz/, is served by the old repository.
-  `site-sources/` - what is played in a sound example when it is our own playing; not published
+  `site-sources/` - what is played in a sound example when it is our own playing; not published.
+  `site-design/DESIGN.md` - the site's look: its tokens, named rules, voice and references; not published
 - `scripts/` - Build, install, check, page and release tools; see `scripts/README.md`
 - `.agents/skills/` - The agent's skills (`/issue`, `/spec`, `/next`, `/groom`, `/release`, `/page`,
-  `/scout`, `/specwriter`, and the piano viz's `/piano-release` and `/piano-readme`).
+  `/design`, `/scout`, `/specwriter`, and the piano viz's `/piano-release` and `/piano-readme`).
   `.claude/commands/` mirrors them for Claude Code (`xtask/tests/skills_mirror.rs` holds it);
   `.claude/settings.json` has the hooks
 - `.github/workflows/` - `ci.yml` (tests), `release.yml` (the plugins, on `vX.Y.Z`), `piano.yml` (builds
@@ -104,6 +105,22 @@ Every plugin is a painted stompbox, one enclosure per window. Paint, print, font
 rest of the style guide are in `crates/suite_common/src/ui/STYLE.md`; new shared pieces go in
 `suite_common::ui`, not in a plugin's editor. After changing an editor, run it standalone and look at
 it before bundling.
+
+Each surface has one source of truth for its look: the editors `STYLE.md`, the piano viz
+`piano/DESIGN.md`, the site `site-design/DESIGN.md`. A change to the look goes through `/design`
+(`.agents/skills/design/SKILL.md`):
+
+- **Explore** (only for a structural change: a new section, layout or component): three directions
+  that differ in kind, rendered and posted on the issue. Rasmus picks; the agent never picks for him
+- **Build** one piece at a time against the pick: render, list the differences, fix. Stop at zero
+  differences or four rounds
+- **Review** by a fresh reviewer given only the renders, the source of truth and
+  `.agents/skills/design/REVIEW.md`; its verdict goes in the pull request
+- **Polish** last, as a narrow named command (impeccable's `typeset`, `normalize`...), never as a
+  loop: repeated critique and polish passes drift back to the average
+
+Nothing about a look is claimed that was not rendered: the site with `scripts/site-shots.sh`, an
+editor standalone, the piano viz with its off-screen harness (`piano/tools/readme-screenshots/`)
 
 ## How work flows
 
