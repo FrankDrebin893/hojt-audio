@@ -107,5 +107,5 @@ jobs:
         run: |
           ls -l dist
           gh release create "$GITHUB_REF_NAME" dist/*.zip \
-            --title "HØJT Pedals ${GITHUB_REF_NAME#v}" \
+            --title "HØJT DSP ${GITHUB_REF_NAME#v}" \
             --notes-file notes.md

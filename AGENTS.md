@@ -2,10 +2,10 @@
 
 The brand is **HØJT** (Danish for "loud" and "high"), and two products live here:
 
-- **HØJT Pedals**: a suite of VST3/CLAP plugins built with Rust and the nih-plug framework,
+- **HØJT DSP**: a suite of VST3/CLAP plugins built with Rust and the nih-plug framework,
   everything below but `piano/`. The vendor string is the ASCII form `Hojt Audio` and lives in one
   place (`crates/suite_common/src/lib.rs`); it is what a DAW lists them under and never changes,
-  while "HØJT Pedals" is their name on the page, the releases and the README.
+  while "HØJT DSP" is their name on the page, the releases and the README.
 - **Piano MIDI Visualization** (the piano viz): a Windows app for practising piano with a MIDI
   keyboard, in C# / WPF, in `piano/`. Its rules, build and release are in `piano/AGENTS.md`. It
   shares the repository, the backlog, `main`'s protection and the page with the plugins, and has

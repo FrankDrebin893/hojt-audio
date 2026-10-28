@@ -1,5 +1,5 @@
 ---
-description: Prepare a release of the HØJT Pedals plugins; stops before the tag. Use when cutting a new plugin version (the piano viz has its own, /piano-release).
+description: Prepare a release of the HØJT DSP plugins; stops before the tag. Use when cutting a new plugin version (the piano viz has its own, /piano-release).
 argument-hint: <version, e.g. 0.4.0>
 ---
 

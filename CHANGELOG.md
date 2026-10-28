@@ -7,7 +7,7 @@ GitHub release.
 
 ### Every plugin
 
-- The plugins have a name of their own, HØJT Pedals, on the page and on the releases. The DAW
+- The plugins have a name of their own, HØJT DSP, on the page and on the releases. The DAW
   still lists them under Hojt Audio, and projects open as before. The page also links the
   Piano MIDI Visualization, a free app for practising piano, which now lives beside them
 - A window that sits still costs next to nothing: it is drawn again only when something in

@@ -1,7 +1,7 @@
 # Piano MIDI Visualization
 
 The piano viz: a Windows desktop app for practising piano with a MIDI keyboard (C# / WPF). It
-lives in `piano/` of the HØJT repository, beside the HØJT Pedals plugins, and has its own build,
+lives in `piano/` of the HØJT repository, beside the HØJT DSP plugins, and has its own build,
 release and licence (MIT, `piano/LICENSE`). The repository's rules in the root `AGENTS.md` hold
 here too: work goes in on a branch through a pull request, since `main` is protected. Product
 truth is in `PRODUCT.md`, the look in `DESIGN.md`. Its history before it moved in is in this

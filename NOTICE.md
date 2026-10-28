@@ -1,4 +1,4 @@
-# HØJT Pedals
+# HØJT DSP
 
 The plugins. (The piano app in `piano/` of the source is not one of them: it has its own licence and notices there.)
 

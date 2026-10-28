@@ -2,7 +2,7 @@
 
 HØJT is Danish for loud, and for high. Two things are made here:
 
-- **HØJT Pedals**: free audio plugins for guitar, drums, bass and keys, each drawn as a
+- **HØJT DSP**: free audio plugins for guitar, drums, bass and keys, each drawn as a
   stompbox. VST3 and CLAP, for Windows, macOS and Linux. The rest of this page is about them.
 - **[Piano MIDI Visualization](piano/)**: a free Windows app for practising piano with a MIDI
   keyboard, which names the chords under your hands as you play
@@ -18,7 +18,7 @@ HØJT is Danish for loud, and for high. Two things are made here:
 | [![The Drum Synth](site/img/drum-synth.png)](https://hojte.net/hojt-audio/#drum-synth) | [![The Pitch Shifter](site/img/pitch-shifter.png)](https://hojte.net/hojt-audio/#pitch-shifter) | [![The Bass Synth](site/img/bass-synth.png)](https://hojte.net/hojt-audio/#bass-synth) |
 | [![The Shimmer Pad](site/img/shimmer-pad.png)](https://hojte.net/hojt-audio/#shimmer-pad) | [![The Glass Bells](site/img/glass-bells.png)](https://hojte.net/hojt-audio/#glass-bells) | |
 
-## The HØJT Pedals
+## The HØJT DSP plugins
 
 **Guitar Amp** (`plugins/amp`). A whole rig: four amps of our own design, each with its own
 cabinet (Klar: clean, Brøl: crunch, Torden: high gain, Glød: warm, at the edge of breakup), and
