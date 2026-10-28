@@ -1,0 +1,321 @@
+/* The Piano Chord Atlas: its controls, legend, cards and keyboards. The page's header, paint
+   and the chord colours are in ../resources.css. */
+
+:root {
+  --white-key: #f4efe4;
+  --black-key: #0b0a09;
+  --key-edge: #8a8170;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+.controls {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr;
+}
+.ctl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.ctl-lab {
+  flex: 0 0 76px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--silk-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.seg {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--panel);
+}
+.seg button {
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: transparent;
+  padding: 6px 0;
+  min-height: 38px;
+  cursor: pointer;
+  font-size: 15px;
+  white-space: nowrap;
+}
+.seg button:first-child {
+  border-left: 0;
+}
+.seg button[aria-pressed="true"] {
+  background: var(--root);
+  color: #000;
+}
+.seg button:hover:not([aria-pressed="true"]) {
+  background: var(--tape);
+}
+.seg button:focus-visible {
+  outline-offset: -3px;
+}
+.roots {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+.roots button {
+  font-family: var(--mono);
+}
+.invs {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  max-width: 360px;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+.chips button {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 999px;
+  padding: 5px 13px;
+  min-height: 34px;
+  cursor: pointer;
+  font-size: 15px;
+}
+.chips button[aria-pressed="true"] {
+  background: var(--silk);
+  color: var(--ink);
+  border-color: var(--silk);
+  font-weight: 700;
+}
+.chips button:hover:not([aria-pressed="true"]) {
+  border-color: var(--silk-dim);
+}
+@media (min-width: 1000px) {
+  .controls {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    column-gap: 24px;
+  }
+  .ctl.root-ctl {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 640px) {
+  .roots {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .roots button:nth-child(7) {
+    border-left: 0;
+  }
+  .roots button:nth-child(n + 7) {
+    border-top: 1px solid var(--line);
+  }
+  .ctl {
+    align-items: flex-start;
+  }
+  .ctl-lab {
+    flex-basis: 64px;
+    padding-top: 9px;
+  }
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  align-items: center;
+  margin: 20px 0 8px;
+  font-size: 15px;
+  color: var(--silk-dim);
+}
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.sw {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+.sw.root {
+  background: var(--root);
+}
+.sw.tone {
+  background: var(--tone);
+}
+.sw.ext {
+  background: var(--color);
+}
+.legend .tag {
+  font-family: var(--mono);
+  color: var(--silk);
+}
+.hint {
+  margin: 0 0 4px;
+  font-size: 15px;
+  color: var(--silk-dim);
+}
+
+section.fam {
+  margin-top: 32px;
+}
+section.fam h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0 0 14px;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+section.fam h2 small {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--silk-dim);
+}
+.grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+}
+.grid.wide {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 430px), 1fr));
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px 16px 14px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.card:hover {
+  border-color: var(--silk-dim);
+}
+.card.playing {
+  border-color: var(--root);
+}
+.card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+/* A chord's name keeps its case (m is minor, M is not), so it is set in the body face, not in
+   the display faces, which print only capitals */
+.cname {
+  margin: 0;
+  font-family: var(--body);
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+.cname .cs {
+  color: var(--silk-dim);
+  font-weight: 600;
+}
+.tname {
+  font-size: 14px;
+  color: var(--silk-dim);
+}
+.formula,
+.notes {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+.formula b {
+  color: var(--color);
+  font-weight: inherit;
+}
+.notes {
+  color: var(--silk-dim);
+}
+.notes .rt {
+  color: var(--root);
+}
+.use {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+}
+figure {
+  margin: 6px 0 0;
+}
+figcaption {
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: var(--silk-dim);
+}
+figcaption .mono,
+.finger .mono {
+  font-family: var(--mono);
+}
+.note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--silk-dim);
+}
+.finger {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+.finger .k {
+  margin-right: 6px;
+  font-size: 13px;
+  color: var(--silk-dim);
+}
+svg.kb {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.kb .w {
+  fill: var(--white-key);
+  stroke: var(--key-edge);
+  stroke-width: 1;
+}
+.kb .b {
+  fill: var(--black-key);
+}
+.kb .r-root {
+  fill: var(--root);
+}
+.kb .r-tone {
+  fill: var(--tone);
+}
+.kb .r-ext {
+  fill: var(--color);
+}
+.kb text {
+  font-family: var(--mono);
+  text-anchor: middle;
+}
+.kb .lab {
+  fill: var(--on-dot);
+}
+.kb .hand {
+  fill: var(--silk);
+  font-size: 11px;
+}
+.kb .hand.L {
+  fill: var(--silk-dim);
+}

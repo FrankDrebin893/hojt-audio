@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guitar Chord Atlas: 34 chord types in every key</title>
+<meta name="description" content="34 guitar chord types in all 12 keys, in standard tuning: movable shapes rooted on the 6th, 5th and 4th string, open shapes, formulas, notes, and fingers, intervals or note names on every dot. Free, from HØJT.">
+<meta property="og:title" content="Guitar Chord Atlas">
+<meta property="og:description" content="34 guitar chord types in all 12 keys: movable and open shapes, formulas and notes.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://hojte.net/hojt-audio/og-hojt.png">
+<meta name="theme-color" content="#121110">
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../../favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<link rel="stylesheet" href="../../hojt.css">
+<link rel="stylesheet" href="../resources.css">
+<link rel="stylesheet" href="atlas.css">
+</head>
+<body>
+
+<header class="site-bar">
+  <div class="wrap">
+    <a class="home" href="../../"><img src="../../hojt.svg" width="63" height="34" alt="HØJT, home"></a>
+    <nav aria-label="Products">
+      <a class="dsp" href="../../dsp/">HØJT DSP</a>
+      <a class="piano" href="../../piano/">Piano viz</a>
+      <a class="resources" href="../" aria-current="page">Resources</a>
+      <a class="source" href="https://github.com/FrankDrebin893/hojt-audio/tree/main/site/resources">Source</a>
+    </nav>
+  </div>
+</header>
+
+<div class="tool-top">
+  <div class="wrap">
+    <p class="crumb"><a href="../">Resources</a></p>
+    <div class="titlerow">
+      <h1>Guitar Chord Atlas<small>Standard tuning E A D G B E</small></h1>
+      <div class="tog" role="group" aria-label="Dot labels">
+        <span class="ctl-label">Show</span>
+        <span class="grp" id="labelTog"></span>
+      </div>
+    </div>
+    <div class="seg" id="rootPicker" role="group" aria-label="Root note"></div>
+    <div class="row2">
+      <div class="chips" id="famChips" role="group" aria-label="Chord family"></div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <div class="legend" aria-label="Legend">
+    <span><i class="k-root"></i>Root</span>
+    <span><i class="k-tone"></i>Chord tone (3rd, 5th, 7th)</span>
+    <span><i class="k-color"></i>Extension or altered tone</span>
+    <span><i class="k-bar"></i>Barre</span>
+    <span><b class="sym">○</b>Open string</span>
+    <span><b class="sym">×</b>Muted string</span>
+  </div>
+
+  <div id="atlas"></div>
+
+  <p class="about">Pick a root, then read every chord type on it: the formula, the notes spelled
+    for that key, what it is used for, and its shapes. The movable shapes are rooted on the 6th,
+    5th or 4th string; the open shapes are there for C, A, G, E and D. The dots show the fingers,
+    the intervals or the note names. Your root, family and labels are remembered in this browser.</p>
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <nav aria-label="Project">
+      <a href="../">All resources</a>
+      <a href="../piano-chords/">Piano Chord Atlas</a>
+      <a href="https://github.com/FrankDrebin893/hojt-audio/issues/new/choose">Report a problem</a>
+    </nav>
+    <p>© 2026 Rasmus Højte. Part of <a href="https://github.com/FrankDrebin893/hojt-audio">HØJT</a>;
+      the name HØJT and its logo are not part of any licence:
+      <a href="https://github.com/FrankDrebin893/hojt-audio/blob/main/NOTICE.md">notice</a>.</p>
+  </div>
+</footer>
+
+<script src="atlas.js"></script>
+</body>
+</html>
