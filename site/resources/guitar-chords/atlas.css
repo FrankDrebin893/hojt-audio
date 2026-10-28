@@ -331,3 +331,10 @@ svg .dt {
     transition: background-color 0.15s ease, color 0.15s ease;
   }
 }
+
+.togs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  align-items: center;
+}

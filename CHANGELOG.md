@@ -5,6 +5,14 @@ GitHub release.
 
 ## Unreleased
 
+### Resources
+
+- The Guitar Chord Atlas has eight more chord types (m6/9, maj7♯5, 9sus4, 13sus4, m9♭5, 9♯5, 9♭5
+  and 7♭13, 42 in all) and, on every chord, more voicings: shapes rooted on the 3rd string and
+  inversions with the 3rd, 5th or 7th in the bass, and more open shapes. A Voicings switch
+  shows All voicings or the Essential shapes only. `scripts/check-guitar-chords.js` plays every
+  fingering in all 12 keys against its chord and the hand
+
 ### Every plugin
 
 - The plugins have a name of their own, HØJT DSP, on the page and on the releases. The DAW
