@@ -821,7 +821,7 @@ mod tests {
                     signal.iter().map(|&sample| single.process(sample)).collect();
                 let mut output: Vec<f32> =
                     signal[..lead].iter().map(|&sample| paired.process(sample)).collect();
-                for pair in signal[lead..].chunks_exact(2) {
+                for pair in signal[lead..].as_chunks::<2>().0 {
                     let clipped = paired.process_pair(Pair::new(pair[0] as f64, pair[1] as f64));
                     output.extend([clipped.first() as f32, clipped.second() as f32]);
                 }
@@ -847,7 +847,7 @@ mod tests {
             assert_eq!(fine.process(sample), expected as f32);
         }
 
-        for pair in signal.chunks_exact(2) {
+        for pair in signal.as_chunks::<2>().0 {
             let expected = [asym_clip(pair[0], 1.2, 0.9), asym_clip(pair[1], 1.2, 0.9)];
             assert_eq!(asym_clip_pair([pair[0], pair[1]], 1.2, 0.9), expected);
         }

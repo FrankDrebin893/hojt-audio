@@ -315,7 +315,7 @@ pub fn tuner_display(
             Pos2::new(divider, window.top() + BEZEL + 3.0),
             Pos2::new(divider, window.bottom() - BEZEL - 3.0),
         ],
-        nih_plug_egui::egui::Stroke::new(1.0, AMBER_DIM),
+        nih_plug_egui::egui::Stroke::new(1.0_f32, AMBER_DIM),
     );
 
     let lamps = 17;

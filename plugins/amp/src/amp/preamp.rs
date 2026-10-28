@@ -137,8 +137,8 @@ impl Stage {
     /// bit, in less time. Two samples are worked on at once, so that their divisions and
     /// square roots, which is much of what a stage costs, go to the processor in pairs
     fn process(&mut self, block: &mut [f32]) {
-        let mut pairs = block.chunks_exact_mut(2);
-        for pair in &mut pairs {
+        let (pairs, remainder) = block.as_chunks_mut::<2>();
+        for pair in pairs {
             let share = (self.fine_share.value(), self.fine_share.target());
             let finer = share == (1.0, 1.0);
             if !finer && share != (0.0, 0.0) {
@@ -163,7 +163,7 @@ impl Stage {
             pair[0] = -self.lowpass.process(clipped[0] - rest[0]);
             pair[1] = -self.lowpass.process(clipped[1] - rest[1]);
         }
-        for sample in pairs.into_remainder() {
+        for sample in remainder {
             *sample = self.process_sample(*sample);
         }
     }

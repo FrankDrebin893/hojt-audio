@@ -120,11 +120,11 @@ impl Oversampler {
     pub fn upsample(&mut self, input: &[f32], output: &mut [f32]) {
         debug_assert_eq!(output.len(), input.len() * self.factor);
         if self.factor == 2 {
-            for (&sample, out) in input.iter().zip(output.chunks_exact_mut(2)) {
+            for (&sample, out) in input.iter().zip(output.as_chunks_mut::<2>().0) {
                 (out[0], out[1]) = self.up_1.up(sample);
             }
         } else {
-            for (&sample, out) in input.iter().zip(output.chunks_exact_mut(MAX_FACTOR)) {
+            for (&sample, out) in input.iter().zip(output.as_chunks_mut::<MAX_FACTOR>().0) {
                 let (even, odd) = self.up_1.up(sample);
                 (out[0], out[1]) = self.up_2.up(even);
                 (out[2], out[3]) = self.up_2.up(odd);
@@ -136,11 +136,11 @@ impl Oversampler {
     pub fn downsample(&mut self, input: &[f32], output: &mut [f32]) {
         debug_assert_eq!(input.len(), output.len() * self.factor);
         if self.factor == 2 {
-            for (frame, out) in input.chunks_exact(2).zip(output.iter_mut()) {
+            for (frame, out) in input.as_chunks::<2>().0.iter().zip(output.iter_mut()) {
                 *out = self.down_1.down(frame[0], frame[1]);
             }
         } else {
-            for (frame, out) in input.chunks_exact(MAX_FACTOR).zip(output.iter_mut()) {
+            for (frame, out) in input.as_chunks::<MAX_FACTOR>().0.iter().zip(output.iter_mut()) {
                 let even = self.down_2.down(frame[0], frame[1]);
                 let odd = self.down_2.down(frame[2], frame[3]);
                 *out = self.down_1.down(even, odd);
@@ -176,7 +176,7 @@ mod tests {
         let mut filter = HalfBand::new(coeffs);
         let input = sine(freq_ratio, 1.0, 1.0, LEN);
         let output: Vec<f32> =
-            input.chunks_exact(2).map(|pair| filter.down(pair[0], pair[1])).collect();
+            input.as_chunks::<2>().0.iter().map(|pair| filter.down(pair[0], pair[1])).collect();
         to_db(rms(&output[LEN / 4..]) / rms(&input))
     }
 
