@@ -22,7 +22,7 @@ This folder is not part of the page: only `site/` is published.
    it is for. For the pitch shifter and the drums the render's name changes too
    (`input_<shift>.wav`, `drums_<kit>_input.wav`); the comment above the table says how
 3. Run `scripts/site-audio.sh <plugin>` and listen to the MP3 in `site/audio/`
-4. A new example also needs its line in `site/index.html`
+4. A new example also needs its line in `site/dsp/index.html`
 
 ## Files
 

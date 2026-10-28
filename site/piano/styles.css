@@ -1,1201 +1,669 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter+Tight:ital,wght@0,400;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
-
-@font-face {
-  font-family: 'Bebas Neue';
-  src: url('fonts/BebasNeue-Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* ==========================================================================
-   Piano MIDI Visualization — Hardware Stage Instrument Design System
-   Matches DESIGN.md: Scarlet Anodised Panel · Recessed OLED · Ivory & Ebony Keys
-   ========================================================================== */
+/* The piano viz's page (piano/). The shared look, colours and fonts are in ../hojt.css; this
+   adds the piano viz's own paint, the scarlet of its chassis, and the parts only this page has:
+   the screenshot tour, the chord inspector with its keybed, releases and the setup steps. */
 
 :root {
-  /* Palette Tokens from DESIGN.md */
-  --well-deep: #060606;
-  --oled-black: #000000;
-  --bezel: #0C0C0C;
-  --rubber-raised: #1C1C1C;
-  --rubber-hover: #2E2E2E;
-  --rubber-line: #3E3E3E;
-  --panel-scarlet: #A8131C;
-  --panel-scarlet-deep: #780D13;
-  --ivory-key: #FCFCFB;
-  --legend-primary: #FFFFFF;
-  --legend-secondary: #F0EEEC;
-  --legend-tertiary: #DCDAD8;
-  --legend-muted: #D0CECC;
-  --legend-faint: #8E8C8A;
-  --ink: #0A0A0A;
-  --amber: #F0C06A;
-  --amber-strong: #EDA73C;
-  --amber-border: #8A6A30;
-  --amber-fill: #2A2215;
-  --held-blue: #4FA3FF;
-  --hit-green: #8BE36B;
-  --record-red: #F04A3E;
-  --right-hand-teal: #3FC1B0;
-  --left-hand-violet: #B39DDB;
-
-  /* Typography */
-  --font-display: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-body: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
-
-  /* Elevation & Borders — Declared ONCE per element (never both border and shadow) */
-  --line-hairline: 1px solid var(--rubber-line);
-  --line-amber: 1px solid var(--amber-border);
-  --line-scarlet: 1px solid var(--panel-scarlet);
-  --line-subtle: 1px solid #242424;
-
-  /* Radii (Hardware radii: 4px, 6px, 8px, 10px, 12px) */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-panel: 10px;
-  --radius-stage: 12px;
-}
-
-/* --------------------------------------------------------------------------
-   Reset & Base Surfaces
-   -------------------------------------------------------------------------- */
-
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html {
-  font-family: var(--font-body);
-  font-size: 16px;
-  line-height: 1.55;
-  color: var(--legend-secondary);
-  background-color: var(--well-deep);
-  scroll-behavior: smooth;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-body {
-  min-height: 100vh;
-  background-color: var(--well-deep);
-  color: var(--legend-secondary);
-  display: flex;
-  flex-direction: column;
-  overflow-x: hidden;
-}
-
-/* Browser Surfaces Theming */
-::selection {
-  background-color: var(--amber);
-  color: var(--ink);
-}
-
-:focus-visible {
-  outline: 2px solid var(--amber);
-  outline-offset: 2px;
-}
-
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-  background: var(--well-deep);
-}
-
-::-webkit-scrollbar-track {
-  background: var(--bezel);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--rubber-line);
-  border-radius: var(--radius-sm);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--amber-border);
-}
-
-a {
-  color: var(--amber);
-  text-decoration-line: underline;
-  text-underline-offset: 0.25em;
-  transition: color 0.15s ease;
-}
-
-a:hover {
-  color: var(--amber-strong);
-}
-
-img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-}
-
-/* --------------------------------------------------------------------------
-   Layout & Scaffolding
-   -------------------------------------------------------------------------- */
-
-.shell {
-  width: 100%;
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 0 1.5rem;
-}
-
-.hardware-strip {
-  width: 100%;
-  background-color: var(--panel-scarlet);
-  color: var(--legend-primary);
-  border-bottom: 1px solid var(--panel-scarlet-deep);
-}
-
-.section {
-  padding: 5rem 0;
-  border-bottom: 1px solid #1A1A1A;
-}
-
-.section-stage {
-  padding-top: 3.5rem;
-  padding-bottom: 5.5rem;
+  --paint: var(--paint-scarlet);
+  --scarlet-deep: #780d13;
+  --oled: #060606;
+  --ivory-key: #fcfcfb;
+  /* The app's own readout colours, used where the page shows what the app shows */
+  --held-blue: #4fa3ff;
+  --amber: #f0c06a;
 }
 
 .measure {
-  max-width: 68ch;
+  max-width: 44em;
+}
+code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  color: var(--tape-text);
+  overflow-wrap: anywhere;
+}
+strong {
+  color: var(--tape-text);
 }
 
-.measure-wide {
-  max-width: 78ch;
+.section {
+  padding-block: 72px 0;
 }
-
-.tabular {
-  font-variant-numeric: tabular-nums;
-  font-family: var(--font-mono);
+.section-head {
+  margin-bottom: 30px;
 }
-
-/* --------------------------------------------------------------------------
-   Top Hardware Header Bar
-   -------------------------------------------------------------------------- */
-
-.top-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 0;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+.section-head.sub {
+  margin: 56px 0 18px;
 }
-
-.brand-group {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.hojt-badge {
-  display: inline-flex;
-  align-items: center;
-  line-height: 0;
-  text-decoration: none;
-  flex-shrink: 0;
-}
-
-.hojt-badge svg {
-  width: 63px;
-  height: 33.8px;
-  display: block;
-}
-
-.brand-title {
-  font-size: 1.125rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--legend-primary);
-  text-decoration: none;
-}
-
-.status-beacon {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: var(--panel-scarlet-deep);
-  color: var(--legend-secondary);
-  padding: 0.25rem 0.625rem;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  font-weight: 500;
-  letter-spacing: 0.05em;
+.section-title {
+  margin: 0 0 14px;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(38px, 5.4vw, 58px);
+  line-height: 1;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
 }
-
-.beacon-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: var(--hit-green);
-  display: inline-block;
+.subsection-title {
+  margin: 0 0 8px;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 30px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.section-lead {
+  margin: 0;
+  color: var(--silk);
 }
 
-.top-nav {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
+/* Top */
+
+.section-stage {
+  padding-top: 56px;
 }
-
-.nav-link {
-  color: var(--legend-secondary);
-  text-decoration: none;
-  font-size: 0.875rem;
-  font-weight: 600;
-  transition: color 0.15s ease;
+.hero-content .band {
+  margin-bottom: 30px;
 }
-
-.nav-link:hover {
-  color: var(--legend-primary);
+.hero-content .say {
+  margin: 0 0 12px;
+  font-family: var(--display);
+  font-size: clamp(42px, 6.6vw, 76px);
+  line-height: 0.95;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
-
-.header-cta-group {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-/* --------------------------------------------------------------------------
-   Buttons & Hardware Controls
-   -------------------------------------------------------------------------- */
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  font-family: var(--font-body);
-  font-size: 0.875rem;
-  font-weight: 700;
-  line-height: 1.2;
-  text-decoration: none;
-  cursor: pointer;
-  border-radius: var(--radius-md);
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.btn-ivory {
-  background-color: var(--ivory-key);
-  color: var(--ink);
-  border: none;
-}
-
-.btn-ivory:hover {
-  background-color: #EDECE8;
-  color: var(--ink);
-}
-
-.btn-rubber {
-  background-color: var(--rubber-raised);
-  color: var(--legend-secondary);
-  border: 1px solid var(--rubber-line);
-}
-
-.btn-rubber:hover {
-  background-color: var(--rubber-hover);
-  color: var(--legend-primary);
-}
-
-.btn-amber {
-  background-color: var(--amber-fill);
-  color: var(--amber);
-  border: 1px solid var(--amber-border);
-}
-
-.btn-amber:hover {
-  background-color: #3A2E1B;
-  color: var(--amber-strong);
-}
-
-.btn-large {
-  padding: 0.875rem 1.75rem;
-  font-size: 1rem;
-}
-
-/* --------------------------------------------------------------------------
-   Hero Stage (#stage)
-   -------------------------------------------------------------------------- */
-
-.hero-content {
-  margin-bottom: 2.5rem;
-}
-
-.hero-heading {
-  font-size: clamp(1.75rem, 4.5vw, 4.5rem);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.08;
-  color: var(--legend-primary);
-  text-wrap: balance;
-  margin-bottom: 1.25rem;
-}
-
 .hero-lead {
-  font-size: 1.125rem;
-  line-height: 1.6;
-  color: var(--legend-secondary);
-  margin-bottom: 1.75rem;
+  margin: 0;
+  font-size: 19px;
 }
-
-.hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
 .hero-badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
-  font-size: 0.8125rem;
-  color: var(--legend-muted);
+  gap: 8px 10px;
+  margin-top: 26px;
 }
-
 .badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.25rem 0.5rem;
-  background-color: var(--bezel);
-  border: 1px solid #242424;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
+  padding: 5px 12px 4px;
+  border-radius: 3px;
+  background: var(--tape);
+  border: 1px solid var(--line);
+  color: var(--tape-text);
+  font-family: var(--mono);
+  font-size: 14px;
+  letter-spacing: 0.02em;
 }
-
-/* Hero Screenshot Frame (elevation declared with 1px border only, no shadow) */
-.screenshot-hardware-chassis {
-  background-color: var(--bezel);
-  border: 1px solid var(--rubber-line);
-  border-radius: var(--radius-stage);
-  overflow: hidden;
-  margin-top: 1.5rem;
-}
-
-.chassis-header {
-  background-color: var(--panel-scarlet);
-  padding: 0.5rem 1rem;
+.hero-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--panel-scarlet-deep);
+  flex-wrap: wrap;
+  gap: 14px 12px;
+  margin-top: 30px;
 }
-
-.chassis-title {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 600;
+.button svg {
+  display: inline-block;
+  margin: -4px 8px 0 0;
+  vertical-align: middle;
+}
+.jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+  margin-top: 26px;
+  font-family: var(--display);
+  font-size: 22px;
   letter-spacing: 0.08em;
-  color: var(--legend-primary);
   text-transform: uppercase;
 }
 
+/* The main window, on the scarlet of the app's own chassis */
+
+.screenshot-hardware-chassis {
+  margin-top: 48px;
+  padding: 18px 20px 24px;
+  border-radius: 14px;
+  background: var(--paint);
+  box-shadow: 0 22px 40px -24px rgba(0, 0, 0, 0.9);
+}
+.chassis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.chassis-title {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--silk);
+}
 .chassis-screws {
   display: flex;
-  gap: 0.5rem;
+  gap: 8px;
 }
-
 .screw-dot {
-  width: 6px;
-  height: 6px;
-  background-color: var(--panel-scarlet-deep);
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #d9d3c7, #6e6a63);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
 }
-
 .chassis-viewport {
-  background-color: var(--oled-black);
-  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--oled);
+  box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.8);
 }
-
 .chassis-viewport img {
   width: 100%;
-  height: auto;
-  display: block;
 }
-
-/* Callout Specs Layout below Hero Screenshot */
 .chassis-spec-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2rem;
-  padding: 1.75rem;
-  background-color: var(--bezel);
-  border-top: 1px solid #1E1E1E;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 22px;
 }
-
-.spec-cell {
-  padding: 0.25rem 0;
-}
-
 .spec-title {
-  font-size: 0.9375rem;
-  font-weight: 700;
-  color: var(--legend-primary);
-  margin-bottom: 0.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  margin-bottom: 6px;
+  font-family: var(--display);
+  font-size: 24px;
+  line-height: 1.05;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--silk);
 }
-
 .spec-desc {
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: var(--legend-muted);
+  margin: 0;
+  font-size: 15px;
+  color: var(--tape-text);
+}
+.spec-desc strong {
+  color: #fff;
 }
 
-/* --------------------------------------------------------------------------
-   Headings & Section Intros
-   -------------------------------------------------------------------------- */
-
-.section-head {
-  margin-bottom: 2.5rem;
-}
-
-.section-title {
-  font-size: clamp(1.75rem, 3vw, 2.75rem);
-  font-weight: 800;
-  letter-spacing: -0.025em;
-  color: var(--legend-primary);
-  margin-bottom: 0.75rem;
-}
-
-.subsection-title {
-  font-size: 1.5rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--legend-primary);
-  margin-bottom: 0.75rem;
-}
-
-.section-lead {
-  font-size: 1.125rem;
-  line-height: 1.6;
-  color: var(--legend-secondary);
-}
-
-/* --------------------------------------------------------------------------
-   Interactive Screenshot Mode Switcher (#tour)
-   -------------------------------------------------------------------------- */
-
-.tour-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
+/* Tour: one screenshot at a time, picked from a row of keys */
 
 .tour-switcher-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  background-color: var(--bezel);
-  border: 1px solid var(--rubber-line);
-  padding: 0.5rem;
-  border-radius: var(--radius-lg);
+  gap: 8px;
+  margin-bottom: 16px;
 }
-
-.tour-btn {
-  background-color: var(--rubber-raised);
-  color: var(--legend-tertiary);
-  border: 1px solid var(--rubber-line);
-  border-radius: var(--radius-sm);
-  padding: 0.5rem 0.875rem;
-  font-family: var(--font-body);
-  font-size: 0.8125rem;
-  font-weight: 600;
+.tour-btn,
+.chord-btn {
+  padding: 8px 14px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--tape);
+  color: var(--tape-text);
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.15s, border-color 0.15s;
 }
-
-.tour-btn:hover {
-  background-color: var(--rubber-hover);
-  color: var(--legend-primary);
+.tour-btn:hover,
+.chord-btn:hover {
+  border-color: var(--silk-dim);
 }
-
-.tour-btn.active {
-  background-color: var(--amber-fill);
-  color: var(--amber);
-  border: 1px solid var(--amber-border);
+.tour-btn.active,
+.chord-btn.active {
+  background: var(--paint);
+  border-color: var(--paint);
+  color: #fff;
 }
-
 .tour-display-chassis {
-  background-color: var(--oled-black);
-  border: 1px solid var(--rubber-line);
-  border-radius: var(--radius-stage);
-  overflow: hidden;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--panel);
 }
-
 .tour-meta-row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
   flex-wrap: wrap;
-  gap: 1rem;
-  padding: 1rem 1.25rem;
-  background-color: var(--bezel);
-  border-top: 1px solid var(--rubber-line);
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px 16px;
+  margin-top: 16px;
 }
-
 .tour-meta-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--legend-primary);
+  font-family: var(--display);
+  font-size: 26px;
+  line-height: 1.05;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
-
 .tour-meta-dim {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--amber);
-  background-color: var(--amber-fill);
-  padding: 0.25rem 0.5rem;
-  border: 1px solid var(--amber-border);
-  border-radius: var(--radius-sm);
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--silk-dim);
+  font-variant-numeric: tabular-nums;
 }
-
 .tour-description {
-  padding: 1.25rem;
-  background-color: var(--rubber-raised);
-  border-top: 1px solid var(--rubber-line);
-  font-size: 0.9375rem;
-  line-height: 1.55;
-  color: var(--legend-secondary);
+  max-width: 52em;
+  margin: 8px 0 4px;
 }
 
-/* 2-Column Gallery Grid */
 .gallery-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
-  margin-top: 2rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 36px 28px;
+  margin-top: 56px;
 }
-
-.gallery-card {
-  background-color: var(--bezel);
-  border: 1px solid var(--rubber-line);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+.gallery-thumb-wrap img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  object-position: top;
+  border-radius: 6px;
 }
-
-.gallery-thumb-wrap {
-  background-color: var(--oled-black);
-  border-bottom: 1px solid #1E1E1E;
-}
-
-.gallery-card-body {
-  padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-}
-
 .gallery-card-title {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: var(--legend-primary);
-  margin-bottom: 0.375rem;
+  margin: 14px 0 6px;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 23px;
+  line-height: 1.05;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
-
 .gallery-card-desc {
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: var(--legend-muted);
+  margin: 0;
+  font-size: 15px;
+  color: var(--silk-dim);
 }
 
-/* --------------------------------------------------------------------------
-   Live Voicing & Key Dimming Inspector (#architecture)
-   -------------------------------------------------------------------------- */
+/* The chord inspector: the app's OLED readout, played from the buttons below it */
 
 .architecture-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 40px;
   align-items: start;
 }
-
 .oled-readout-deck {
-  background-color: var(--oled-black);
-  border: 1px solid var(--rubber-line);
-  border-radius: var(--radius-panel);
-  padding: 1.5rem;
+  padding: 20px;
+  border-radius: 12px;
+  background: var(--oled);
+  border: 1px solid var(--line);
 }
-
 .oled-screen-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #1F1F1F;
-  padding-bottom: 0.75rem;
-  margin-bottom: 1.25rem;
+  gap: 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--silk-dim);
 }
-
-.oled-screen-tag {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--amber);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.oled-metric {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--hit-green);
-}
-
 .oled-chord-display {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 16px;
+  margin: 18px 0 20px;
 }
-
 .chord-hero-name {
-  font-size: 2.75rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--legend-primary);
+  font-family: var(--body);
+  font-weight: 700;
+  font-size: 64px;
   line-height: 1;
+  letter-spacing: -0.02em;
+  color: #fff;
 }
-
 .chord-roman-tag {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--amber-strong);
-  font-family: var(--font-mono);
+  padding: 3px 8px 2px;
+  border-radius: 3px;
+  background: #fff;
+  color: #000;
+  font-family: var(--mono);
+  font-size: 13px;
 }
-
 .oled-data-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  border-top: 1px solid #1F1F1F;
-  padding-top: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 20px;
 }
-
-.oled-cell {
-  padding: 0.25rem 0;
-}
-
 .oled-label {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: var(--legend-faint);
-  letter-spacing: 0.05em;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  margin-bottom: 0.25rem;
+  color: var(--silk-dim);
 }
-
 .oled-value {
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--legend-secondary);
+  margin-top: 2px;
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--tape-text);
+}
+.interactive-chord-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 22px;
 }
 
-/* Virtual 1-Octave Keyboard Deck */
 .virtual-keyboard-wrap {
-  background-color: var(--bezel);
-  border: 1px solid var(--rubber-line);
-  border-radius: var(--radius-panel);
-  padding: 1.25rem;
+  margin-top: 22px;
 }
-
 .keyboard-title-row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.875rem;
+  gap: 6px 16px;
+  margin-bottom: 10px;
 }
-
 .keyboard-title {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: var(--legend-primary);
+  font-family: var(--display);
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
-
 .keyboard-legend {
   display: flex;
-  gap: 0.75rem;
-  font-size: 0.6875rem;
-  color: var(--legend-muted);
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--silk-dim);
 }
-
 .legend-swatch {
   display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-sm);
-  margin-right: 0.25rem;
+  width: 9px;
+  height: 9px;
+  margin-right: 5px;
+  border-radius: 2px;
 }
-
-.swatch-tonic { background-color: var(--amber); }
-.swatch-chord { background-color: var(--held-blue); }
-.swatch-dimmed { background-color: var(--legend-muted); border: 1px solid var(--legend-faint); }
-
-/* Interactive Piano Keys Strip */
+.swatch-tonic {
+  background: var(--amber);
+}
+.swatch-chord {
+  background: var(--held-blue);
+}
+.swatch-dimmed {
+  background: #8e8c8a;
+}
 .interactive-keybed {
   display: flex;
   position: relative;
   height: 140px;
-  background-color: #0A0A0A;
-  border: 1px solid var(--rubber-line);
-  border-radius: var(--radius-md);
-  padding: 2px 2px 0 2px;
+  padding: 2px 2px 0;
+  border-radius: 6px;
+  background: #0a0a0a;
+  border: 1px solid var(--line);
   user-select: none;
 }
-
+.key-white,
+.key-black {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  border-radius: 0 0 3px 3px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
 .key-white {
   flex: 1;
-  background-color: var(--ivory-key);
-  color: var(--ink);
-  border: 1px solid #D0CECC;
-  border-radius: 0 0 3px 3px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  align-items: center;
   padding-bottom: 6px;
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  cursor: pointer;
-  z-index: 1;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  background: var(--ivory-key);
+  color: #0a0a0a;
+  border: 1px solid #d0cecc;
 }
-
 .key-black {
   position: absolute;
+  z-index: 1;
   width: 7%;
   height: 85px;
-  background-color: #1A1A1A;
-  color: var(--legend-secondary);
-  border: 1px solid #2E2E2E;
-  border-radius: 0 0 3px 3px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  align-items: center;
   padding-bottom: 4px;
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  cursor: pointer;
-  z-index: 2;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  background: #1a1a1a;
+  color: var(--tape-text);
+  border: 1px solid #2e2e2e;
 }
-
-/* Key positions for 1-octave (C to C) */
 .key-black[data-key="Db"] { left: 8.5%; }
 .key-black[data-key="Eb"] { left: 21%; }
 .key-black[data-key="Gb"] { left: 46%; }
 .key-black[data-key="Ab"] { left: 58.5%; }
 .key-black[data-key="Bb"] { left: 71%; }
-
-/* Key States: Active in chord, tonic, or dimmed */
 .key-white.is-tonic,
 .key-black.is-tonic {
-  background-color: var(--amber) !important;
-  color: var(--ink) !important;
-  border-color: var(--amber-strong) !important;
+  background: var(--amber);
+  border-color: #eda73c;
+  color: #0a0a0a;
 }
-
 .key-white.is-chord,
 .key-black.is-chord {
-  background-color: var(--held-blue) !important;
-  color: var(--ink) !important;
-  border-color: var(--held-blue) !important;
+  background: var(--held-blue);
+  border-color: var(--held-blue);
+  color: #0a0a0a;
 }
-
 .key-white.is-dimmed {
-  background-color: var(--legend-muted) !important;
-  color: var(--ink) !important;
-  border-color: var(--legend-faint) !important;
+  background: #8e8c8a;
+  border-color: #6e6c6a;
 }
-
 .key-black.is-dimmed {
-  background-color: var(--disabled-fill) !important;
-  color: var(--legend-faint) !important;
-  border-color: var(--rubber-raised) !important;
+  background: #0e0e0e;
+  border-color: #1c1c1c;
+  color: #6e6c6a;
 }
 
-.interactive-chord-selector {
-  margin-top: 1.25rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
+/* Tables: as on the plugins' page */
 
-.chord-btn {
-  background-color: var(--rubber-raised);
-  color: var(--legend-secondary);
-  border: 1px solid var(--rubber-line);
-  border-radius: var(--radius-sm);
-  padding: 0.4rem 0.75rem;
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.chord-btn:hover {
-  background-color: var(--rubber-hover);
-  color: var(--legend-primary);
-}
-
-.chord-btn.active {
-  background-color: var(--panel-scarlet);
-  color: var(--legend-primary);
-  border: 1px solid var(--panel-scarlet-deep);
-}
-
-/* Theory Table */
-.theory-table-wrap {
-  background-color: var(--bezel);
-  border: 1px solid var(--rubber-line);
-  border-radius: var(--radius-panel);
-  padding: 0.75rem;
+.theory-table-wrap,
+.shortcuts-table-wrap {
   overflow-x: auto;
 }
-
 .theory-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
-  text-align: left;
+  font-size: 15px;
 }
-
-.theory-table th {
-  background-color: var(--rubber-raised);
-  color: var(--legend-primary);
-  font-weight: 700;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--rubber-line);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
+.theory-table th,
 .theory-table td {
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid #1E1E1E;
-  color: var(--legend-secondary);
+  padding: 9px 14px 9px 0;
+  border-top: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.theory-table th {
+  border-top: 0;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--silk-dim);
+}
+.theory-table td:first-child {
+  white-space: nowrap;
+}
+.theory-table-wrap .theory-table td:first-child {
+  white-space: normal;
+  min-width: 9em;
+}
+.kbd {
+  display: inline-block;
+  padding: 2px 7px 1px;
+  border-radius: 4px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 0 var(--line);
+  color: var(--tape-text);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
 
-.theory-table tr:last-child td {
-  border-bottom: none;
-}
-
-/* --------------------------------------------------------------------------
-   Releases & Downloads Console (#releases)
-   -------------------------------------------------------------------------- */
+/* Releases */
 
 .releases-layout {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr;
-  gap: 2rem;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 28px;
   align-items: start;
 }
-
 .release-main-card {
-  background-color: var(--bezel);
-  border: 1px solid var(--rubber-line);
-  border-radius: var(--radius-panel);
-  padding: 2rem;
+  padding: 28px;
+  border-radius: 14px;
+  background: var(--panel);
 }
-
 .release-tag-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
+  gap: 8px 14px;
 }
-
 .release-version-pill {
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
-  font-weight: 700;
-  color: var(--amber);
-  background-color: var(--amber-fill);
-  padding: 0.25rem 0.625rem;
-  border: 1px solid var(--amber-border);
-  border-radius: var(--radius-sm);
+  padding: 5px 12px 4px;
+  border-radius: 3px;
+  background: var(--paint);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
 }
-
 .release-date {
-  font-size: 0.8125rem;
-  color: var(--legend-faint);
-  font-family: var(--font-mono);
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--silk-dim);
 }
-
 .release-heading {
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: var(--legend-primary);
-  letter-spacing: -0.02em;
-  margin-bottom: 0.75rem;
+  margin: 18px 0 8px;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
-
 .release-notes-body {
-  font-size: 0.9375rem;
-  line-height: 1.6;
-  color: var(--legend-secondary);
-  margin-bottom: 1.75rem;
+  margin: 0;
 }
-
-.release-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.875rem;
-  margin-bottom: 1.5rem;
-}
-
 .release-asset-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  background-color: var(--rubber-raised);
-  border-top: 1px solid var(--rubber-line);
-  border-bottom: 1px solid var(--rubber-line);
-  padding: 0.875rem 1rem;
+  gap: 16px;
+  margin-top: 22px;
+  padding: 16px;
+  border-radius: 6px;
+  background: var(--tape);
+  border: 1px solid var(--line);
 }
-
 .asset-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
 }
-
 .asset-name {
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--legend-primary);
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--tape-text);
+  overflow-wrap: anywhere;
 }
-
 .asset-meta {
-  font-size: 0.75rem;
-  color: var(--legend-faint);
-  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--silk-dim);
 }
-
+.release-main-card .hero-actions {
+  margin-top: 22px;
+}
 .requirements-card {
-  background-color: var(--rubber-raised);
-  border: 1px solid var(--rubber-line);
-  border-radius: var(--radius-panel);
-  padding: 1.75rem;
+  padding-top: 4px;
 }
-
 .requirements-title {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: var(--legend-primary);
-  margin-bottom: 1rem;
+  margin: 0 0 14px;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 26px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
-
 .req-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
   list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 0.875rem;
-  font-size: 0.875rem;
+  font-size: 15px;
 }
-
 .req-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.625rem;
-  color: var(--legend-secondary);
+  position: relative;
+  padding-left: 20px;
+}
+.req-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  background: var(--paint);
 }
 
-.req-bullet {
-  color: var(--amber);
-  margin-top: 0.125rem;
-  flex-shrink: 0;
-}
-
-/* --------------------------------------------------------------------------
-   3-Step Getting Started & Keyboard Shortcuts (#setup)
-   -------------------------------------------------------------------------- */
+/* Setup: three steps in order, then the shortcuts */
 
 .setup-steps-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2rem;
-  margin-bottom: 3.5rem;
-  border-top: 1px solid var(--rubber-line);
-  border-bottom: 1px solid var(--rubber-line);
-  padding: 2rem 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
 }
-
 .step-card {
-  display: flex;
-  flex-direction: column;
+  padding-top: 16px;
+  border-top: 3px solid var(--paint);
 }
-
 .step-number {
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
-  font-weight: 700;
-  color: var(--legend-primary);
-  background-color: var(--panel-scarlet-deep);
-  border: 1px solid var(--panel-scarlet);
-  border-radius: var(--radius-sm);
-  padding: 0.25rem 0.5rem;
-  width: fit-content;
-  margin-bottom: 1rem;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--silk-dim);
 }
-
 .step-title {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: var(--legend-primary);
-  margin-bottom: 0.5rem;
+  margin: 8px 0 8px;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 26px;
+  line-height: 1.05;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
-
 .step-desc {
-  font-size: 0.875rem;
-  line-height: 1.55;
-  color: var(--legend-muted);
+  margin: 0;
+  font-size: 15px;
 }
 
-.shortcuts-table-wrap {
-  background-color: var(--bezel);
-  border: 1px solid var(--rubber-line);
-  border-radius: var(--radius-panel);
-  padding: 0.75rem;
-  overflow-x: auto;
-}
-
-.kbd {
-  display: inline-block;
-  padding: 0.2rem 0.45rem;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--legend-primary);
-  background-color: var(--rubber-raised);
-  border: 1px solid var(--rubber-line);
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
-}
-
-/* --------------------------------------------------------------------------
-   Footer
-   -------------------------------------------------------------------------- */
-
-.site-footer {
-  background-color: var(--bezel);
-  border-top: 1px solid #1E1E1E;
-  padding: 3rem 0;
-  font-size: 0.8125rem;
-  color: var(--legend-faint);
-}
-
-.footer-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.footer-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.footer-links {
-  display: flex;
-  gap: 1.25rem;
-}
-
-.footer-bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
-  border-top: 1px solid #1A1A1A;
-  padding-top: 1.5rem;
-  font-size: 0.75rem;
-}
-
-/* --------------------------------------------------------------------------
-   Responsive Media Queries
-   -------------------------------------------------------------------------- */
-
-@media (max-width: 1024px) {
-  .chassis-spec-grid {
-    grid-template-columns: 1fr;
-  }
-
+@media (max-width: 900px) {
   .architecture-layout,
   .releases-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
-
+  .gallery-grid,
+  .chassis-spec-grid,
   .setup-steps-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
-}
-
-@media (max-width: 768px) {
-  .top-bar {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .top-nav {
-    flex-wrap: wrap;
-    gap: 1rem;
-  }
-
   .gallery-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .btn {
-    width: 100%;
-  }
-
-  .oled-data-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
+@media (max-width: 560px) {
+  .section-stage {
+    padding-top: 36px;
   }
-
-  *, *::before, *::after {
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
+  .gallery-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .screenshot-hardware-chassis {
+    padding: 14px 12px 20px;
+  }
+  .chassis-screws {
+    display: none;
+  }
+  .chord-hero-name {
+    font-size: 48px;
+  }
+  .release-main-card {
+    padding: 20px 16px;
   }
 }

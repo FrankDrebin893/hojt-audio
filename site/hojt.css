@@ -1,0 +1,306 @@
+/* HØJT: the look every page of the site shares. The colours and fonts are the plugins' own
+   (crates/suite_common/src/ui/theme.rs): a dark bench, silk print, the orange of the Ø, and one
+   paint per product. A page adds only what is its own, in its own stylesheet. */
+@font-face {
+  font-family: "Bebas Neue";
+  src: url("fonts/BebasNeue-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Bowlby One SC";
+  src: url("fonts/BowlbyOneSC-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("fonts/IBMPlexMono-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark;
+
+  --bench: #121110;
+  --panel: #1c1a18;
+  --tape: #141210;
+  --tape-text: #f4efe4;
+  --silk: #eadfc8;
+  --silk-dim: #b9af9b;
+  --ink: #2a2622;
+  --line: #3a3530;
+  --brand-orange: #e2581e;
+  --paint-orange: #de561e;
+  --paint-teal: #1d8282;
+  --paint-oxblood: #7c1c20;
+  --paint-cobalt: #1e409c;
+  --paint-plum: #602c78;
+  --paint-pine: #1c683c;
+  /* The piano viz's chassis (piano/DESIGN.md) */
+  --paint-scarlet: #a8131c;
+  --led-on: #ff3b24;
+
+  --display: "Bebas Neue", "Arial Narrow", Impact, sans-serif;
+  --model: "Bowlby One SC", "Arial Black", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --body: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  scrollbar-color: var(--line) var(--bench);
+}
+
+body {
+  margin: 0;
+  background: var(--bench);
+  color: var(--silk);
+  font-family: var(--body);
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+::selection {
+  background: var(--brand-orange);
+  color: #000;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+a {
+  color: var(--silk);
+  text-decoration-color: color-mix(in srgb, var(--silk) 45%, transparent);
+  text-underline-offset: 3px;
+}
+a:hover {
+  color: #fff;
+  text-decoration-color: currentColor;
+}
+:focus-visible {
+  outline: 2px solid var(--silk);
+  outline-offset: 3px;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+}
+
+/* The bar on top of every page: the logo goes home, then the two products */
+
+.site-bar {
+  border-bottom: 1px solid var(--line);
+  background: var(--bench);
+}
+.site-bar .wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px 28px;
+  min-height: 64px;
+  flex-wrap: wrap;
+}
+.site-bar .home {
+  display: block;
+  flex: none;
+  border-radius: 6px;
+}
+.site-bar .home img {
+  width: 76px;
+  height: auto;
+}
+.site-bar nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 22px;
+  flex: 1;
+  font-family: var(--display);
+  font-size: 21px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.site-bar nav a {
+  display: inline-block;
+  padding: 10px 0 6px;
+  border-bottom: 3px solid transparent;
+  color: var(--silk-dim);
+  text-decoration: none;
+}
+.site-bar nav a:hover {
+  color: var(--silk);
+}
+.site-bar nav a[aria-current="page"] {
+  color: var(--silk);
+  border-bottom-color: var(--mark, var(--brand-orange));
+}
+.site-bar nav .dsp {
+  --mark: var(--brand-orange);
+}
+.site-bar nav .piano {
+  --mark: var(--paint-scarlet);
+}
+.site-bar nav .source {
+  margin-left: auto;
+}
+
+/* Label tape: short facts, in the mono of the plugins' labels */
+
+.tape,
+.facts li {
+  padding: 5px 12px 4px;
+  border-radius: 3px;
+  background: var(--tape);
+  border: 1px solid var(--line);
+  color: var(--tape-text);
+  font-family: var(--mono);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin: 26px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The name of a thing, printed on a strip of cream tape stuck on its paint */
+
+.band {
+  display: inline-block;
+  margin: 0;
+  padding: 6px 26px 2px;
+  background: var(--silk);
+  color: var(--ink);
+  font-family: var(--model);
+  font-weight: 400;
+  font-size: clamp(34px, 6.4vw, 62px);
+  line-height: 1.15;
+  transform: rotate(-2deg);
+  transform-origin: left center;
+}
+
+.caption {
+  margin: 22px 0 0;
+  font-family: var(--display);
+  font-size: 22px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--silk-dim);
+}
+.caption b {
+  font-weight: 400;
+  color: var(--silk);
+}
+
+/* Buttons: cream keys that sit on a ridge of their product's paint */
+
+.button {
+  display: inline-block;
+  padding: 12px 22px 8px;
+  border-radius: 6px;
+  background: var(--silk);
+  color: var(--ink);
+  text-decoration: none;
+  font-family: var(--display);
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  box-shadow: 0 4px 0 var(--paint, var(--line));
+  transition: background-color 0.15s;
+}
+.button:hover {
+  background: #fff;
+  color: var(--ink);
+}
+.button:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--paint, var(--line));
+}
+.button small {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+/* The second choice beside a button: printed on the bench, not a key */
+.button.plain {
+  background: transparent;
+  color: var(--silk);
+  box-shadow: inset 0 0 0 2px var(--line);
+}
+.button.plain:hover {
+  box-shadow: inset 0 0 0 2px var(--silk);
+}
+.button.plain:active {
+  transform: none;
+}
+
+/* Bottom of every page */
+
+.bottom {
+  margin-top: 72px;
+  padding-block: 48px 72px;
+  border-top: 1px solid var(--line);
+  color: var(--silk-dim);
+  font-size: 15px;
+}
+.bottom p {
+  max-width: 46em;
+  margin: 0 0 10px;
+}
+.bottom nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-bottom: 22px;
+  font-family: var(--display);
+  font-size: 22px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 560px) {
+  .site-bar .wrap {
+    padding-block: 10px;
+  }
+  .site-bar nav {
+    flex-basis: 100%;
+    gap: 4px 18px;
+    font-size: 19px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
