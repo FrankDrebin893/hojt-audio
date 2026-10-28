@@ -313,10 +313,11 @@ impl Cymbal {
         let [first, second] = &mut self.state;
         let (previous, next) = if self.newest == 0 { (&*first, second) } else { (&*second, first) };
         let mut sums = [0.0; BATCH];
-        let batches = next[..count]
-            .chunks_exact_mut(BATCH)
-            .zip(previous[..count].chunks_exact(BATCH))
-            .zip(self.a1[..count].chunks_exact(BATCH).zip(self.a2[..count].chunks_exact(BATCH)));
+        let (next, _) = next[..count].as_chunks_mut::<BATCH>();
+        let (previous, _) = previous[..count].as_chunks::<BATCH>();
+        let (a1, _) = self.a1[..count].as_chunks::<BATCH>();
+        let (a2, _) = self.a2[..count].as_chunks::<BATCH>();
+        let batches = next.iter_mut().zip(previous).zip(a1.iter().zip(a2));
         for ((next, previous), (a1, a2)) in batches {
             for k in 0..BATCH {
                 next[k] = a1[k] * previous[k] - a2[k] * next[k];

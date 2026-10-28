@@ -153,7 +153,7 @@ impl Voice {
         // the bias moves once per pair. A block is always of an even length here: the amp's
         // oversampling or the pedal's own make it so
         debug_assert!(block.len().is_multiple_of(2));
-        for pair in block.chunks_exact_mut(2) {
+        for pair in block.as_chunks_mut::<2>().0 {
             let bias = -BIAS_PULL * self.bias;
             let driven = Pair::new((pair[0] + bias) as f64, (pair[1] + bias) as f64);
             let clipped = self.clip_pair(driven);

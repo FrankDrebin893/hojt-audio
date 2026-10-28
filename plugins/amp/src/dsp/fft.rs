@@ -143,7 +143,7 @@ impl RealFft {
             self.work_im[to] = -scale * (even_im + odd_re);
         }
         self.passes();
-        for (index, pair) in samples.chunks_exact_mut(2).enumerate() {
+        for (index, pair) in samples.as_chunks_mut::<2>().0.iter_mut().enumerate() {
             pair[0] = self.work_re[index];
             pair[1] = -self.work_im[index];
         }

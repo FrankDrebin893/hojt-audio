@@ -38,7 +38,7 @@ check_linux_packages() {
     fi
 }
 
-# The toolchain of the lint job ("dtolnay/rust-toolchain@1.93.0"), as `+1.93.0` if rustup has it.
+# The toolchain of the lint job ("dtolnay/rust-toolchain@1.99.1"), as `+1.99.1` if rustup has it.
 lint_toolchain() {
     local version
     version="$(grep -o 'rust-toolchain@[0-9][0-9.]*' "$ci" | head -1 | cut -d@ -f2)"

@@ -132,8 +132,8 @@ impl Drive {
             return;
         }
         // Two samples at a time, for the clipper: see `AsymClipper::process_pair`
-        let mut pairs = block.chunks_exact_mut(2);
-        for pair in &mut pairs {
+        let (pairs, rest) = block.as_chunks_mut::<2>();
+        for pair in pairs {
             let (first_dry, second_dry) = (pair[0], pair[1]);
             let first = (self.body.process(first_dry) * self.gain.next()) as f64;
             let second = (self.body.process(second_dry) * self.gain.next()) as f64;
@@ -141,7 +141,7 @@ impl Drive {
             pair[0] = self.finish(first_dry, clipped.first() as f32);
             pair[1] = self.finish(second_dry, clipped.second() as f32);
         }
-        for sample in pairs.into_remainder() {
+        for sample in rest {
             let dry = *sample;
             let clipped = self.clipper.process(self.body.process(dry) * self.gain.next());
             *sample = self.finish(dry, clipped);

@@ -207,7 +207,7 @@ pub fn lifted(painter: &Painter, rect: Rect) -> Rect {
 /// to it and goes in at its top.
 pub fn patch_cable(painter: &Painter, jack: Pos2, side: Pos2, outward: f32) {
     // The jack: a nut on the face and the plug in it, seen end on
-    let ring = Stroke::new(1.0, Color32::from_black_alpha(110));
+    let ring = Stroke::new(1.0_f32, Color32::from_black_alpha(110));
     painter.circle_filled(jack, JACK_RADIUS, CHROME_DARK);
     painter.circle_filled(jack, JACK_RADIUS - 2.0, CHROME);
     painter.circle_stroke(jack, JACK_RADIUS, ring);
@@ -235,7 +235,7 @@ pub fn patch_cable(painter: &Painter, jack: Pos2, side: Pos2, outward: f32) {
 /// the right edge of the one on the left (`left`) to the left edge of the next (`right`), at
 /// the height `y` of the plugs in their sides
 pub fn coupler(painter: &Painter, left: f32, right: f32, y: f32) {
-    let ring = Stroke::new(1.0, Color32::from_black_alpha(110));
+    let ring = Stroke::new(1.0_f32, Color32::from_black_alpha(110));
     let barrel =
         Rect::from_min_max(Pos2::new(left - 2.0, y - 4.0), Pos2::new(right + 2.0, y + 4.0));
     painter.rect_filled(barrel.translate(vec2(0.0, 2.0)), 1.5, SHADOW);
@@ -250,7 +250,7 @@ pub fn coupler(painter: &Painter, left: f32, right: f32, y: f32) {
 /// An angled plug in the side of a pedal at `edge`: its barrel, and the housing the cable
 /// leaves upwards
 fn angled_plug(painter: &Painter, edge: f32, housing: Rect) {
-    let ring = Stroke::new(1.0, Color32::from_black_alpha(110));
+    let ring = Stroke::new(1.0_f32, Color32::from_black_alpha(110));
     let center = housing.center();
     let barrel = Rect::from_min_max(
         Pos2::new(edge.min(center.x), center.y - 3.5),
@@ -423,8 +423,8 @@ fn name_band(
     hardware::paint_paper(painter, corners, vec2(enclosure.width(), BAND_HEIGHT));
     // Ink line along each edge, then a thin cream line outside it
     for side in [-1.0, 1.0] {
-        painter.line_segment(edge(side * (half - 1.5)), Stroke::new(3.0, INK));
-        painter.line_segment(edge(side * (half + 6.5)), Stroke::new(3.0, SILK));
+        painter.line_segment(edge(side * (half - 1.5)), Stroke::new(3.0_f32, INK));
+        painter.line_segment(edge(side * (half + 6.5)), Stroke::new(3.0_f32, SILK));
     }
 
     // Name, with a second print in the paint colour offset behind it
@@ -474,7 +474,7 @@ fn name_band(
 
 /// Four strings, the thickest at the top
 fn strings(painter: &Painter, center: Pos2) {
-    for (row, width) in [(-10.5, 4.0), (-3.5, 3.2), (3.5, 2.4), (10.5, 1.6)] {
+    for (row, width) in [(-10.5, 4.0_f32), (-3.5, 3.2), (3.5, 2.4), (10.5, 1.6)] {
         let at = center + vec2(0.0, row);
         painter.line_segment([at - vec2(13.0, 0.0), at + vec2(13.0, 0.0)], Stroke::new(width, INK));
     }
@@ -493,7 +493,7 @@ fn waves(painter: &Painter, center: Pos2) {
                     )
             })
             .collect();
-        painter.add(Shape::line(points, Stroke::new(2.8, INK)));
+        painter.add(Shape::line(points, Stroke::new(2.8_f32, INK)));
     }
 }
 
@@ -524,7 +524,7 @@ fn glints(painter: &Painter, center: Pos2, lean: f32) {
 
 /// Three stacked chevrons. `direction` is -1 for up, 1 for down
 fn chevrons(painter: &Painter, center: Pos2, direction: f32) {
-    let stroke = Stroke::new(3.2, INK);
+    let stroke = Stroke::new(3.2_f32, INK);
     for row in [-7.0, 0.0, 7.0] {
         let tip = center + vec2(0.0, row + direction * 4.0);
         let left = center + vec2(-9.0, row - direction * 4.0);
@@ -534,8 +534,8 @@ fn chevrons(painter: &Painter, center: Pos2, direction: f32) {
 }
 
 fn rings(painter: &Painter, center: Pos2) {
-    painter.circle_stroke(center, 12.5, Stroke::new(2.6, INK));
-    painter.circle_stroke(center, 7.0, Stroke::new(2.6, INK));
+    painter.circle_stroke(center, 12.5, Stroke::new(2.6_f32, INK));
+    painter.circle_stroke(center, 7.0, Stroke::new(2.6_f32, INK));
     painter.circle_filled(center, 2.4, INK);
 }
 
@@ -551,7 +551,7 @@ fn bolt(painter: &Painter, center: Pos2, lean: f32) {
         painter.add(Shape::convex_polygon(half.to_vec(), INK, Stroke::NONE));
     }
     // Covers the seam left by the soft edges of the two halves
-    painter.line_segment([upper_inner, lower_inner], Stroke::new(1.5, INK));
+    painter.line_segment([upper_inner, lower_inner], Stroke::new(1.5_f32, INK));
 }
 
 #[cfg(test)]

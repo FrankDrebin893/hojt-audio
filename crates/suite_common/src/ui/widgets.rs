@@ -161,7 +161,7 @@ fn chicken_wing(
     painter.add(Shape::convex_polygon(
         wing(center),
         body,
-        Stroke::new(1.0, Color32::from_white_alpha(28)),
+        Stroke::new(1.0_f32, Color32::from_white_alpha(28)),
     ));
     painter.line_segment(
         [polar(center, radius * 0.1, angle), polar(center, radius * 0.92, angle)],
@@ -608,7 +608,7 @@ pub fn drop_panel(ui: &Ui, top_center: Pos2, columns: &[Column], id_source: &str
             let painter = ui.painter().clone();
             painter.rect_filled(rect.translate(vec2(0.0, 5.0)).expand(2.0), 7.0, SHADOW);
             painter.rect_filled(rect, 5.0, PANEL);
-            painter.rect_stroke(rect, 5.0, Stroke::new(1.0, CHROME_DARK), StrokeKind::Inside);
+            painter.rect_stroke(rect, 5.0, Stroke::new(1.0_f32, CHROME_DARK), StrokeKind::Inside);
 
             let top = rect.top() + DROP_PADDING + DROP_TITLE_HEIGHT;
             let mut left = rect.left() + DROP_PADDING;
@@ -919,7 +919,7 @@ pub fn chrome_button(ui: &mut Ui, center: Pos2, id_source: &str) -> Response {
 
 fn push_button(painter: &Painter, center: Pos2, engraving: Engraving, pressed: bool) {
     let radius = STEPPER_BUTTON_RADIUS;
-    let ring = Stroke::new(1.0, Color32::from_black_alpha(110));
+    let ring = Stroke::new(1.0_f32, Color32::from_black_alpha(110));
     painter.circle_filled(center + vec2(0.0, 2.5), radius + 0.5, SHADOW);
     painter.circle_filled(center, radius, CHROME_LIGHT);
     painter.circle_stroke(center, radius, ring);
@@ -1046,7 +1046,12 @@ pub fn print_label(painter: &Painter, center: Pos2, text: &str, size: f32, print
 
 /// Screen-printed frame around a group of controls, with its title set into the top line
 pub fn silk_frame(painter: &Painter, rect: Rect, title: &str, paint: Color32) {
-    painter.rect_stroke(rect, CornerRadius::same(12), Stroke::new(2.0, SILK), StrokeKind::Middle);
+    painter.rect_stroke(
+        rect,
+        CornerRadius::same(12),
+        Stroke::new(2.0_f32, SILK),
+        StrokeKind::Middle,
+    );
 
     let galley = layout(painter, &title.to_uppercase(), display(14.0), SILK, 0.2);
     let title_rect = Rect::from_min_size(
@@ -1077,7 +1082,7 @@ pub fn badge(painter: &Painter, right_bottom: Pos2, size: f32) {
     );
     painter.rect_filled(plate.translate(vec2(0.0, 3.0)), 6.0, SHADOW);
     painter.rect_filled(plate, 6.0, PANEL);
-    painter.rect_stroke(plate.shrink(2.0), 4.0, Stroke::new(1.5, SILK), StrokeKind::Inside);
+    painter.rect_stroke(plate.shrink(2.0), 4.0, Stroke::new(1.5_f32, SILK), StrokeKind::Inside);
 
     // Bebas Neue's capitals sit a little above the middle of the line
     let mid_y = plate.center().y;
