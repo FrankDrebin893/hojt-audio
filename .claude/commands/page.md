@@ -5,8 +5,11 @@ argument-hint: [release <version>]
 
 # /page
 
-Keep https://hojte.net/hojt-audio/ (`site/index.html`, published from `main` by `pages.yml`)
-true to what a player can download. The rules are in `.agents/skills/release/RELEASING.md`; the ones that
+Keep the plugins' page, https://hojte.net/hojt-audio/dsp/ (`site/dsp/index.html`, published
+from `main` by `pages.yml`), true to what a player can download. The landing page
+(`site/index.html`) names the two products and links their pages; it changes only when a
+product's one-line description, its count of plugins or its screenshot does. The look all the
+pages share is `site/hojt.css`. The rules are in `.agents/skills/release/RELEASING.md`; the ones that
 decide this skill:
 
 - **The page describes the latest release.** It is published the moment a branch merges, and
@@ -29,7 +32,7 @@ Without an argument, run the **end of session** steps. With `release <version>`,
 2. **Sort** every change a player can notice:
    - **True of the release now:** the page is wrong or missing something about what can be
      downloaded today (a fact, a range, a link, an install step, an issue template that was
-     renamed, a fix to the page itself). Edit `site/index.html` now.
+     renamed, a fix to the page itself). Edit `site/dsp/index.html` now.
    - **Not released yet:** leave the page alone. Make sure `CHANGELOG.md` under `Unreleased`
      says it in the house voice and gives what the page will need at release: the names of new
      controls with their ranges, new kits, voices or MIDI notes, a new plugin's model number,
@@ -37,7 +40,9 @@ Without an argument, run the **end of session** steps. With `release <version>`,
    - **Nothing a player notices** (tests, refactors, tools, the harness): nothing to do.
 3. **Edit** with the page as it is: the same markup per plugin section, the same classes, the
    same order of headings. Keep the counts in the header, `<title>` and the meta and Open
-   Graph descriptions right ("Three plugins") when a section is added or removed.
+   Graph descriptions right ("Three plugins") when a section is added or removed, and the
+   landing page's (`site/index.html`: its description, the board of plugins in the HØJT DSP
+   unit, and the redirect list of old anchors in its `<script>`).
 4. Go to the checks.
 
 ## Release
@@ -51,8 +56,8 @@ gates. The page must describe exactly that version.
      the paint band, a caption (`<b>model number</b> / Effect or Instrument / what goes in and
      out`, from its `PedalStyle` and jack captions), What it is, Listen, Download (the three
      zips, named by `bundler.toml`), and a Controls table. A jump link in the header, in the
-     order of the sections. Its paint as `--paint-<name>` and a section class in
-     `site/style.css`, taken from its `PAINT_*` in `crates/suite_common/src/ui/theme.rs`
+     order of the sections, and a square on the landing page's board. Its paint as
+     `--paint-<name>` in `site/hojt.css` and a section class in `site/dsp/style.css`, taken from its `PAINT_*` in `crates/suite_common/src/ui/theme.rs`
    - **Controls tables** match the plugin's parameters in `plugins/<name>/src/lib.rs`: every
      control a player sees, named as the window names it, with the range the parameter really
      has. MIDI tables match the note map in the plugin's `AGENTS.md`
@@ -69,7 +74,7 @@ gates. The page must describe exactly that version.
 
 1. `scripts/page-check.sh links`: every local link, image, sound, anchor and download holds.
    Fix what it reports.
-2. If the page changed, open `site/index.html` in a browser (Claude Code: the preview,
+2. If the page changed, open `site/dsp/index.html` (and `site/index.html` if it changed) in a browser (Claude Code: the preview,
    `preview_start` with its `file://` URL) at desktop and phone width and look at what changed.
 3. `scripts/page-check.sh mark`, last, so the end-of-session hook knows the page was looked at
    for the changes as they are now. A later edit asks for `/page` again.

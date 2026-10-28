@@ -1,0 +1,231 @@
+/* The landing page: the logo, then the two products side by side as two enclosures on the
+   bench, each with its own paint. Everything shared is in hojt.css. */
+
+.hero {
+  padding-block: 64px 56px;
+}
+.hero .wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  align-items: center;
+  gap: 32px 56px;
+}
+.hero .logo {
+  width: 100%;
+  max-width: 440px;
+  height: auto;
+  filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.55));
+}
+/* The Ø is a knob: on arrival its pointer turns up to where it stays */
+.hero .pointer {
+  transform-box: view-box;
+  transform-origin: 27.6px 15.4px;
+  animation: turn-up 1.2s var(--ease-out) 0.25s both;
+}
+@keyframes turn-up {
+  from {
+    transform: rotate(-120deg);
+  }
+}
+.hero h1 {
+  margin: 0 0 14px;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(46px, 6.6vw, 84px);
+  line-height: 0.95;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.hero p {
+  max-width: 34em;
+  margin: 0;
+  font-size: 19px;
+}
+
+/* The two enclosures */
+
+.units .wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.unit {
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--panel);
+  box-shadow: 0 22px 40px -24px rgba(0, 0, 0, 0.9);
+}
+.unit.dsp {
+  --paint: var(--brand-orange);
+  --face: #262220;
+}
+.unit.piano {
+  --paint: var(--paint-scarlet);
+  --face: var(--paint-scarlet);
+}
+
+.face {
+  display: block;
+  padding: 26px 26px 0;
+  background: var(--face);
+  text-decoration: none;
+}
+.face .band {
+  font-size: clamp(32px, 4.4vw, 50px);
+  transition: transform 0.4s var(--ease-out);
+}
+.face img {
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  margin-top: 24px;
+  object-fit: cover;
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 -8px 24px -10px rgba(0, 0, 0, 0.7);
+  transition: transform 0.4s var(--ease-out);
+}
+.piano .face img {
+  object-position: center 40%;
+}
+.face:hover .band {
+  transform: rotate(-3deg) translateY(-2px);
+}
+.face:hover img {
+  transform: translateY(-6px);
+}
+.face:focus-visible {
+  outline-offset: -4px;
+}
+
+/* A row of what is in each: the plugins in their own paint, the piano viz's readouts on its
+   scarlet. Two rows of three, like a board */
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--bench);
+  border-block: 2px solid var(--bench);
+}
+.board li {
+  --on-paint: var(--silk);
+  background: var(--paint);
+  color: var(--on-paint);
+  font-family: var(--display);
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: 0.05em;
+}
+.board a,
+.board span {
+  display: block;
+  height: 100%;
+  padding: 12px 14px 9px;
+  color: inherit;
+  text-decoration: none;
+}
+.board a:hover {
+  box-shadow: inset 0 0 0 2px currentColor;
+}
+.board a:focus-visible {
+  outline-offset: -4px;
+  outline-color: currentColor;
+}
+.board small {
+  display: block;
+  margin-top: 5px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+.piano .board li {
+  --paint: #780d13;
+}
+.board .orange {
+  --paint: var(--paint-orange);
+  --on-paint: #000;
+}
+.board .teal {
+  --paint: var(--paint-teal);
+  --on-paint: #000;
+}
+.board .oxblood {
+  --paint: var(--paint-oxblood);
+}
+.board .cobalt {
+  --paint: var(--paint-cobalt);
+}
+.board .plum {
+  --paint: var(--paint-plum);
+}
+.board .pine {
+  --paint: var(--paint-pine);
+}
+
+.unit .body {
+  padding: 4px 26px 30px;
+}
+.unit .body p:not(.caption) {
+  margin: 12px 0 0;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 12px;
+  margin-top: 24px;
+}
+.unit.dsp .button {
+  --paint: var(--brand-orange);
+}
+
+/* Open */
+
+.open {
+  padding-block: 72px 0;
+}
+.open h2 {
+  margin: 0 0 12px;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(36px, 5vw, 52px);
+  line-height: 1;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.open p {
+  max-width: 40em;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .hero .wrap,
+  .units .wrap {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .hero {
+    padding-top: 40px;
+  }
+  .hero .logo {
+    max-width: 300px;
+  }
+}
+@media (max-width: 420px) {
+  .face {
+    padding: 20px 16px 0;
+  }
+  .unit .body {
+    padding: 4px 16px 26px;
+  }
+  .board li {
+    font-size: 19px;
+  }
+  .board a,
+  .board span {
+    padding: 10px 10px 8px;
+  }
+}

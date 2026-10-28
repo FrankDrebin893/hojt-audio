@@ -15,7 +15,7 @@ housekeeping; this is about what the plugins sound, look and play like.
    `from:scout` issues are open in `state:idea` (the backlog has enough to groom): say so and
    file nothing.
 2. **Know the suite.** `plugins/README.md`, each plugin's `AGENTS.md` paragraph on what it
-   does, `CHANGELOG.md` (what just shipped), and the page (`site/index.html`), which says what
+   does, `CHANGELOG.md` (what just shipped), and the page (`site/dsp/index.html`), which says what
    we tell players.
 3. **Know what was said before.** Every issue, open and closed
    (`gh issue list --state all --limit 500 --json number,title,state,stateReason,labels`).

@@ -36,8 +36,12 @@ detail lives. Each detail is next to what it governs.
   the reference for those ports, not built or shipped. Its `README.md` says where a port differs
 - `xtask/` - The bundler (nih-plug's, run from this workspace's own root) and `check-art`;
   `bundler.toml` - bundle name per plugin package
-- `site/` - The public page (plain HTML and CSS, no build step), published by GitHub Pages: the
-  plugins' at the root, the piano viz's in `site/piano/` (https://hojte.net/hojt-audio/piano/).
+- `site/` - The public page (plain HTML and CSS, no build step), published by GitHub Pages: a
+  landing page for both products at the root (https://hojte.net/hojt-audio/), the plugins' in
+  `site/dsp/` (https://hojte.net/hojt-audio/dsp/; the root sends their old `#anchors` there), the
+  piano viz's in `site/piano/` (https://hojte.net/hojt-audio/piano/). One look for all three:
+  `site/hojt.css`, with the plugins' colours and fonts; the favicon is the whole HØJT badge
+  (`site/favicon.svg`). Fonts, screenshots (`site/img/`) and sounds (`site/audio/`) stay at the root.
   The old address, https://hojte.net/hojt-audio-piano-viz/, is served by the old repository.
   `site-sources/` - what is played in a sound example when it is our own playing; not published
 - `scripts/` - Build, install, check, page and release tools; see `scripts/README.md`

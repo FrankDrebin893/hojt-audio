@@ -11,12 +11,12 @@ HØJT is Danish for loud, and for high. Two things are made here:
 **[The page, with sound examples and downloads](https://hojte.net/hojt-audio/)** ·
 **[Latest release](https://github.com/FrankDrebin893/hojt-audio/releases/latest)**
 
-[![The Guitar Amp](site/img/guitar-amp.png)](https://hojte.net/hojt-audio/#guitar-amp)
+[![The Guitar Amp](site/img/guitar-amp.png)](https://hojte.net/hojt-audio/dsp/#guitar-amp)
 
 | | | |
 |---|---|---|
-| [![The Drum Synth](site/img/drum-synth.png)](https://hojte.net/hojt-audio/#drum-synth) | [![The Pitch Shifter](site/img/pitch-shifter.png)](https://hojte.net/hojt-audio/#pitch-shifter) | [![The Bass Synth](site/img/bass-synth.png)](https://hojte.net/hojt-audio/#bass-synth) |
-| [![The Shimmer Pad](site/img/shimmer-pad.png)](https://hojte.net/hojt-audio/#shimmer-pad) | [![The Glass Bells](site/img/glass-bells.png)](https://hojte.net/hojt-audio/#glass-bells) | |
+| [![The Drum Synth](site/img/drum-synth.png)](https://hojte.net/hojt-audio/dsp/#drum-synth) | [![The Pitch Shifter](site/img/pitch-shifter.png)](https://hojte.net/hojt-audio/dsp/#pitch-shifter) | [![The Bass Synth](site/img/bass-synth.png)](https://hojte.net/hojt-audio/dsp/#bass-synth) |
+| [![The Shimmer Pad](site/img/shimmer-pad.png)](https://hojte.net/hojt-audio/dsp/#shimmer-pad) | [![The Glass Bells](site/img/glass-bells.png)](https://hojte.net/hojt-audio/dsp/#glass-bells) | |
 
 ## The HØJT DSP plugins
 

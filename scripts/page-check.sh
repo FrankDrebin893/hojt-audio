@@ -7,7 +7,7 @@
 #                                    exits 1 if /page has not looked at it yet, 0 if it has or
 #                                    nothing changed
 #   scripts/page-check.sh mark       records that /page has looked at what changed as it is now
-#   scripts/page-check.sh links      every local link, image, sound and anchor of the page is
+#   scripts/page-check.sh links      every local link, image, sound and anchor of the pages is
 #                                    there, and every download is a zip a release makes
 #   scripts/page-check.sh hook       the Claude Code Stop hook: asks for /page once if needed
 set -euo pipefail
@@ -62,37 +62,45 @@ status() {
 }
 
 links() {
-    local page=site/index.html bad=0 ref file anchor zip
-    for ref in $(grep -oE '(href|src)="[^"]*"' "$page" | sed -E 's/^(href|src)="//; s/"$//' | sort -u); do
-        case "$ref" in
-            http://* | https://* | mailto:*)
-                case "$ref" in
-                    */releases/latest/download/*)
-                        zip=${ref##*/}
-                        if ! grep -q "\"${zip%-*}\"" bundler.toml || ! [[ $zip =~ -(windows|macos|linux)\.zip$ ]]; then
-                            echo "download $zip is not a zip a release makes (bundler.toml, scripts/package.sh)"
-                            bad=1
-                        fi
-                        ;;
-                esac
-                ;;
-            \#*)
-                anchor=${ref#\#}
-                if ! grep -q "id=\"$anchor\"" "$page"; then
-                    echo "anchor #$anchor has no element with that id"
-                    bad=1
-                fi
-                ;;
-            *)
-                file=site/${ref%%#*}
-                if [ ! -e "$file" ]; then
-                    echo "$ref is not in site/"
-                    bad=1
-                fi
-                ;;
-        esac
+    local page dir bad=0 ref file anchor zip
+    for page in site/index.html site/dsp/index.html site/piano/index.html; do
+        dir=$(dirname "$page")
+        for ref in $(grep -oE '(href|src)="[^"]*"' "$page" | sed -E 's/^(href|src)="//; s/"$//; s/&amp;/\&/g' | sort -u); do
+            case "$ref" in
+                http://* | https://* | mailto:*)
+                    case "$ref" in
+                        */hojt-audio/releases/latest/download/*)
+                            zip=${ref##*/}
+                            if ! grep -q "\"${zip%-*}\"" bundler.toml || ! [[ $zip =~ -(windows|macos|linux)\.zip$ ]]; then
+                                echo "$page: download $zip is not a zip a release makes (bundler.toml, scripts/package.sh)"
+                                bad=1
+                            fi
+                            ;;
+                    esac
+                    ;;
+                \#*)
+                    anchor=${ref#\#}
+                    if ! grep -q "id=\"$anchor\"" "$page"; then
+                        echo "$page: anchor #$anchor has no element with that id"
+                        bad=1
+                    fi
+                    ;;
+                *)
+                    file=$(realpath -m "$dir/${ref%%#*}")
+                    anchor=${ref#*#}
+                    [ -d "$file" ] && file=$file/index.html
+                    if [ ! -e "$file" ]; then
+                        echo "$page: $ref is not in site/"
+                        bad=1
+                    elif [ "$anchor" != "$ref" ] && ! grep -q "id=\"$anchor\"" "$file"; then
+                        echo "$page: $ref has no element with that id"
+                        bad=1
+                    fi
+                    ;;
+            esac
+        done
     done
-    [ $bad = 0 ] && echo "Every link of the page holds."
+    [ $bad = 0 ] && echo "Every link of the pages holds."
     return $bad
 }
 
@@ -110,7 +118,7 @@ case "${1:-}" in
             exit 0
         fi
         if ! out=$(status); then
-            reason="This session changed what the page (site/) may describe. Before ending, run the /page skill: bring site/index.html up to date with what is released, make sure CHANGELOG.md says what is not, and finish with scripts/page-check.sh mark. ${out//$'\n'/ }"
+            reason="This session changed what the page (site/) may describe. Before ending, run the /page skill: bring site/dsp/index.html up to date with what is released, make sure CHANGELOG.md says what is not, and finish with scripts/page-check.sh mark. ${out//$'\n'/ }"
             reason=${reason//\\/\\\\}
             reason=${reason//\"/\\\"}
             printf '{"decision": "block", "reason": "%s"}\n' "$reason"

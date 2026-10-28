@@ -58,8 +58,10 @@ When adding or removing a NuGet package, update `THIRD-PARTY-NOTICES.txt`.
 
 ## Page
 The piano's page is `site/piano/` in the repository (https://hojte.net/hojt-audio/piano/),
-published with the rest of `site/` by the Page workflow. Its screenshots in
-`site/piano/screenshots/` are the README's too.
+published with the rest of `site/` by the Page workflow. It wears the site's shared look
+(`site/hojt.css`: the plugins' bench, silk and fonts) with the app's scarlet as its paint; its own
+parts are in `site/piano/styles.css`. Its screenshots in `site/piano/screenshots/` are the
+README's too.
 
 ## README
 Use `/piano-readme` (`.agents/skills/piano-readme/`) to refresh the README. Its screenshots are
