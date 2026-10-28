@@ -104,11 +104,13 @@ ci="$(jq -nc --argjson main "$(runs 30 --branch main)" --argjson prs "$(runs 60 
 
 # --- Releases ----------------------------------------------------------------------------------
 
-release="$(gh release list --repo "$repo" --limit 1 --json tagName,publishedAt --jq 'first // {}')"
+# The plugins' releases only (vX.Y.Z): the piano viz releases on piano-vX.Y.Z tags in the same repo
+release="$(gh release list --repo "$repo" --limit 20 --json tagName,publishedAt \
+    --jq '[.[] | select(.tagName | startswith("v"))] | first // {}')"
 unreleased="$(awk '/^## Unreleased/ {on = 1; next} /^## / {on = 0} on && /^- / {n++} END {print n + 0}' CHANGELOG.md)"
 # Downloads so far of every file of every published release (GitHub counts each download of an asset)
 downloads="$(gh api "repos/$repo/releases" --paginate \
-    --jq '[.[] | select(.draft | not) | .tag_name as $t | .published_at as $p | .assets[]
+    --jq '[.[] | select((.draft | not) and (.tag_name | startswith("v"))) | .tag_name as $t | .published_at as $p | .assets[]
         | {tag: $t, published: $p, asset: .name, count: .download_count}]' | jq -sc 'add // []')"
 releases="$(jq -nc --argjson r "$release" --arg now "$now" --argjson u "$unreleased" --argjson d "$downloads" "$jqlib"'
     {last_tag: ($r.tagName // null), days_since: (if $r.publishedAt then (hours($r.publishedAt; $now) / 24 | floor) else null end),

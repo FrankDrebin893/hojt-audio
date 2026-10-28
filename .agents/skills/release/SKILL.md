@@ -1,6 +1,6 @@
 ---
 name: release
-description: Prepare a release of the suite; stops before the tag. Use when cutting a new version.
+description: Prepare a release of the HØJT DSP plugins; stops before the tag. Use when cutting a new plugin version (the piano viz has its own, /piano-release).
 argument-hint: <version, e.g. 0.4.0>
 ---
 
@@ -10,7 +10,7 @@ Prepare release $ARGUMENTS by `.agents/skills/release/RELEASING.md`. Start from 
 clean tree (if it is not, stop and say so), on a branch `release/$ARGUMENTS`: `main` is
 protected, so a release goes in through a pull request like any other change.
 
-1. **What is in it.** The last tag: `git describe --tags --abbrev=0`. The pull requests merged
+1. **What is in it.** The last tag: `git describe --tags --abbrev=0 --match 'v*'` (the piano viz's tags are `piano-v*`). The pull requests merged
    since: `gh pr list --state merged --base main --search "merged:>=<date of that tag>" --json number,title,labels`.
    Those with `kind:sound`, and those whose `sound.yml` comment shows a change, decide which
    plugins' sound changed.

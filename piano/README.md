@@ -1,0 +1,208 @@
+# Piano MIDI Visualization
+
+A Windows desktop app for practising piano with a MIDI keyboard. It plays your keyboard through
+any SoundFont (`.sf2`) or SFZ piano with low-latency audio. As you play, it shows the keys you're
+holding, the chord's name and Roman numeral, the notes on a grand staff and where the chord sits
+on the circle of fifths. You can also practise MIDI songs with falling notes, record takes, and
+teach the pedals and pads on your keyboard to run the app so your hands can stay on the keys.
+
+![The main window in C major. A G7 chord over B is held; the recessed OLED display spanning the 61-key keyboard names it G7/B, V65, first inversion, drop 2 voicing. The grand staff, circle of fifths and chord strip follow it, out-of-key keys are dimmed on the keyboard, and the right-hand hardware panel holds the volume and click knobs and twelve rubber panel keys.](../site/piano/screenshots/main-window.png)
+
+*Holding G7/B in C major. The recessed OLED display spans the full width of the 61-key keyboard and
+gives the chord's figured-bass numeral (V65), inversion and voicing. The staff, circle of fifths
+and chord strip all follow it, out-of-key keys are dimmed so scale degrees stand out, and the
+right-hand hardware deck holds the rotary volume and click knobs and panel keys.*
+
+## Features
+
+### Hear and see what you play
+
+- **Any MIDI keyboard**: USB or through a MIDI interface. Held keys go down and light blue along their back edge on a 61-key
+  keyboard (C2–C7) that scales with the window, each labelled with its note spelled for the key
+  (Bb in F, not A#). The other keys label only the Cs; **View → All Note Names** labels every key.
+- **Sustain pedal**: holds the sound in both SoundFont and SFZ pianos. A key the pedal is holding
+  keeps a paler blue edge and still counts toward the chord name.
+- **Soundbank Library (`.sf2` & `.sfz` pianos)**: import multiple SoundFont (`.sf2`, played
+  through the MeltySynth synthesizer) and SFZ (`.sfz`, such as
+  [Salamander Grand Piano](https://sfzinstruments.github.io/pianos/salamander), played through a
+  built-in multi-velocity sample player) pianos into your library and switch instruments with one
+  click.
+- **Low-latency audio**: ASIO output (around 5 ms with a good driver), with WASAPI as a
+  fallback that needs no extra drivers.
+
+### Understand what you play
+
+- **Chord readout**: set into a recessed OLED display that spans the full width of the 61-key
+  keyboard, showing the chord's name (including slash chords, sevenths and extensions), its
+  inversion, voicing (close, open, shell or drop 2), each note, and its interval above the root.
+- **Keys and scales**: pick a key centre and one of 12 scales: major, natural, harmonic and
+  melodic minor, the five other modes, major and minor pentatonic, and blues. When a key is
+  selected, out-of-key white and black keys become transparent, while in-key keys carry a crisp
+  edge marker and the tonic stands out with a thick border, so scale degrees are clear at a glance.
+  Note names switch between sharps and flats to suit the key.
+- **Mute out-of-key**: out-of-key notes go silent but still light up and still count toward the
+  chord name, so you can hear the scale and see your mistakes.
+- **Roman numerals**: the held chord's function in the key, with figured-bass inversions (V65,
+  IVmaj7, viiø7).
+- **Grand staff**: the held notes in standard notation, spelled correctly for the key and shown
+  with its key signature.
+- **Circle of fifths**: highlights the selected key and the current chord's root. Click a
+  segment to change key.
+- **Diatonic chord strip**: every chord in the key as triads or sevenths. The one you're
+  playing lights up, and clicking a tile plays it.
+
+### Play from the piano
+
+![Settings, with Piano controls below the keyboard and sound settings. The soft pedal is learned for Metronome and a pad sending C2 on channel 10 for Record; the other four actions are not set.](../site/piano/screenshots/settings.png)
+
+- **Piano controls**, in **View → Settings…**: teach a key, pad, button or pedal on your
+  keyboard to run any of six actions: record, play the latest take, turn the metronome on or off,
+  tap the tempo, play or pause a song, or restart a song. Click **Learn** next to the action,
+  then press the control.
+- A key you map stops playing its note. **Clear** gives it back. Mappings are saved with your
+  other settings.
+- Each time a control fires, a short note over the stage says what it did, e.g. "Recording
+  armed · starts at your first note".
+
+### Practise songs with falling notes
+
+![Song practice with Ode to Joy in "Wait for me" mode. Right-hand notes fall in teal and left-hand chords in violet, straight onto the keyboard. The song is paused on the next note, C4, which is outlined on the keyboard, with a score of 24 correct, 1 wrong and 0 missed.](../site/piano/screenshots/song-practice.png)
+
+- **Built-in Song Bank & MIDI import**: ships with 6 built-in two-hand classical piano pieces
+  (*Ode to Joy*, Bach's *Prelude in C Major* & *Minuet in G Major*, Satie's *Gymnopédie No. 1*,
+  *Für Elise*, and Pachelbel's *Canon in D*), or click **Import…** (**Ctrl+O**) / drag and drop any
+  `.mid` file into your persistent Song Bank. Two-handed piano tracks are split into right and left
+  hand, each in its own colour.
+- **Tracks**: decide who plays each part: **You play**, **Auto-play** (the app plays it as
+  accompaniment) or **Mute**.
+- **Wait for me**: the song stops at each of your chords until you play it, with the keys to
+  press marked on the keyboard.
+- **Play along**: the song keeps going, and each note is scored as correct, wrong or missed.
+- **Speed** from 25% to 100%, **loop** a range of bars, and restart from the top or from the
+  loop start. If song practice is open when you quit, the song reopens next time.
+
+### Record yourself
+
+![The recorder panel with two takes. Take 2 plays back in an A–B loop, and its notes are drawn on a timeline with the loop region shaded. The keyboard and readout show the A minor chord being played back, and the MIDI log below lists raw note messages.](../site/piano/screenshots/recorder.png)
+
+- Press **Ctrl+R** to arm the recorder. Recording starts at your first note, so there's no
+  silence to trim. The last ten takes are kept. A note held by the sustain pedal is recorded for
+  as long as it sounds.
+- **Play back** at 50%, 75% or 100% speed (**Ctrl+Shift+R**), looping the whole take or just
+  an **A–B** region. Drag across the timeline to set the region, or click it to jump there.
+- **Export** any take as a `.mid` file.
+
+### Keep time
+
+- A **metronome** in the toolbar: 30–240 BPM, **Tap** tempo, and a choice of beats per bar with
+  an accented downbeat. Its beat light follows the audio clock, so it never drifts from the
+  click you hear (**Ctrl+M**).
+
+### Arrange the screen
+
+![Zen mode in F major. Only the chord readout, showing Bbmaj7 as IVmaj7, and the keyboard remain, with out-of-key keys dimmed, in-key notes marked and the tonic F highlighted.](../site/piano/screenshots/zen-mode.png)
+
+- **The front panel**: the recessed OLED display spans the full width of the 61-key keyboard on
+  the left, while the right-hand hardware deck houses two rotary halo knobs for master **Volume**
+  and metronome **Click** (drag or scroll) and twelve rubber panel keys with LEDs that step the key
+  round the circle of fifths, change the scale, mute out-of-key notes, run the metronome and tap
+  tempo, record, play and loop a take, and toggle all note names. The chord strip's tiles have a
+  physical soft key under each one, too.
+
+- Every panel can be shown or hidden from the **View** menu or its shortcut. **Zen mode**
+  (**F11**) hides everything but the chord readout and the keyboard, and F11 again brings your
+  layout back.
+- **Status at a glance**: the title bar shows your keyboard and audio output, e.g. "Digital
+  Piano · ASIO". It turns amber when either isn't ready, its tooltip says why, and clicking it
+  opens Settings.
+- **MIDI log**: a scrolling list of every raw MIDI message, handy when a keyboard misbehaves.
+- **AI Music Assistant** (optional): a chat panel for music theory and practice questions. It
+  knows the chord you're holding and the selected key. It uses Google
+  Gemini (`gemini-2.5-flash-lite`) and needs your own Gemini API key. Your messages and that
+  context are sent to Google.
+- **Everything is remembered**: devices, sound, key, metronome, panel layout, window position
+  and the open song are saved to `%LOCALAPPDATA%\PianoMidiVisualizationApp\settings.json`.
+  MIDI and audio reconnect by themselves on the next launch.
+
+## Keyboard shortcuts
+
+| Shortcut | Action |
+|---|---|
+| **Ctrl+,** | Settings (**Esc** closes them, or cancels **Learn**) |
+| **F11** | Zen mode |
+| **Ctrl+M** | Metronome on/off |
+| **Ctrl+R** | Record / stop recording |
+| **Ctrl+Shift+R** | Play / stop the selected take |
+| **Ctrl+O** | Open a MIDI song |
+| **Shift+F1** | Status bar |
+| **Shift+F2** | AI Music Assistant |
+| **Shift+F3** | MIDI log |
+| **Shift+F5** | Recorder |
+| **Shift+F6** | Circle of fifths |
+| **Shift+F7** | Chord strip |
+| **Shift+F8** | Grand staff |
+| **Shift+F9** | Song practice |
+
+## Download
+
+Get the latest `win-x64.zip` from the [project website](https://hojte.net/hojt-audio/piano/) or [GitHub Releases](https://github.com/FrankDrebin893/hojt-audio/releases?q=piano-v&expanded=true) (the `piano-v…` ones; the others are the HØJT DSP plugins), unzip it and run `PianoMidiVisualizationApp.exe`. It's self-contained, so no .NET install is needed. The app isn't code-signed yet, so Windows may show "Windows protected your PC" — click **More info → Run anyway**.
+
+## Requirements
+
+- Windows 10/11 (64-bit)
+- A MIDI keyboard (connected via USB or MIDI interface)
+- A SoundFont (.sf2) or SFZ (.sfz) piano — none is bundled. Free options include [GeneralUser GS](https://schristiancollins.com/generaluser.php), [FluidR3](https://github.com/musescore/MuseScore/tree/master/share/sound) or [Salamander Grand Piano](https://sfzinstruments.github.io/pianos/salamander)
+- (Optional) An ASIO driver — [ASIO4ALL](https://asio4all.org/) works as a universal option
+- (Optional) A [Google Gemini API key](https://aistudio.google.com/apikey), for the AI Music Assistant
+
+## Getting started
+
+![The first launch. The readout shows a setup checklist: Keyboard connected (Digital Piano, ticked), Choose a piano sound (the next step, highlighted) and Start audio. The title bar reads "Digital Piano · No sound" in amber.](../site/piano/screenshots/first-run.png)
+
+The first time you start the app, the empty readout is a setup checklist: **Connect your
+keyboard**, **Choose a piano sound** and **Start audio**. Click a step to do it. Choosing a
+sound starts audio as well. If a step fails, it says why in amber.
+
+Everything is also in **View → Settings…** (**Ctrl+,**):
+
+1. Select your MIDI keyboard from the **Keyboard** dropdown and click **Connect**.
+2. Choose **ASIO** or **WASAPI** under **Output**, and select your audio device.
+3. Click **Import .sf2 / .sfz…** under **Soundbank Library** to import one or more SoundFont or SFZ pianos, and click any bank in the list to switch to it.
+4. Click **Start audio**.
+
+Then play. You'll hear sound and see the keys light up. Pick a **Key** in the toolbar to turn on
+the Roman numerals, chord strip and key highlighting.
+
+The dot next to **Connect** turns green once the keyboard is connected and flashes when MIDI
+data arrives. **Volume** sets the master volume and **Click** the metronome. To use the AI
+assistant, paste your Gemini API key into **Gemini key**.
+
+## Building
+
+Building from source needs the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0). Run these in `piano/`.
+
+```bash
+dotnet build PianoMidiVisualizationApp.sln
+```
+
+## Running
+
+```bash
+dotnet run --project src/PianoMidiVisualizationApp
+```
+
+## Tech Stack
+
+- **C# / .NET 10 / WPF**: desktop UI framework
+- **NAudio**: MIDI input, ASIO and WASAPI audio output
+- **MeltySynth**: pure C# SoundFont synthesizer
+- **DryWetMIDI**: MIDI file reading and writing (song practice, take export) and chord naming
+- **CommunityToolkit.Mvvm**: MVVM data binding
+
+The screenshots are rendered from the real UI with a small harness in
+[`tools/readme-screenshots`](tools/readme-screenshots). Run
+`dotnet run --project piano/tools/readme-screenshots` from the repository root to regenerate them.
+
+## License
+
+[MIT](LICENSE)

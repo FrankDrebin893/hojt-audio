@@ -7,6 +7,9 @@ GitHub release.
 
 ### Every plugin
 
+- The plugins have a name of their own, HØJT DSP, on the page and on the releases. The DAW
+  still lists them under Hojt Audio, and projects open as before. The page also links the
+  Piano MIDI Visualization, a free app for practising piano, which now lives beside them
 - A window that sits still costs next to nothing: it is drawn again only when something in
   it changes (a knob moved, automation, a lamp, a meter, the tuner), not with every frame of
   the screen. An idle Guitar Amp took up to two thirds of a CPU core and now takes a few percent of

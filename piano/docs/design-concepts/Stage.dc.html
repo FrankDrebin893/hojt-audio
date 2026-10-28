@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Walnut stage piano</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0b0b0b}
+a{color:#bbb}a:hover{color:#fff}
+</style>
+</helmet>
+<div style="width: 1400px; height: 620px; box-sizing: border-box; position: relative; overflow: hidden; background: #0d0d0d; font-family: 'Space Grotesk', sans-serif; color: #eaeaea;">
+
+<div style="position: absolute; left: 0; top: 0; bottom: 0; width: 46px; background: repeating-linear-gradient(88deg, rgba(0,0,0,0.12) 0 2px, transparent 2px 6px, rgba(255,220,180,0.05) 6px 7px, transparent 7px 11px), linear-gradient(90deg, #3a2315 0%, #6b4128 45%, #57341f 70%, #3d2617 100%); box-shadow: inset -2px 0 3px rgba(0,0,0,0.5);"></div>
+<div style="position: absolute; right: 0; top: 0; bottom: 0; width: 46px; background: repeating-linear-gradient(92deg, rgba(0,0,0,0.12) 0 2px, transparent 2px 6px, rgba(255,220,180,0.05) 6px 7px, transparent 7px 11px), linear-gradient(270deg, #3a2315 0%, #6b4128 45%, #57341f 70%, #3d2617 100%); box-shadow: inset 2px 0 3px rgba(0,0,0,0.5);"></div>
+
+<div style="position: absolute; left: 46px; right: 46px; top: 0; height: 278px; background: linear-gradient(180deg, #1c1c1c 0%, #121212 12%, #0e0e0e 100%);">
+
+<div style="position: absolute; left: 24px; right: 24px; top: 0; height: 30px; display: flex; align-items: center; gap: 14px; font-size: 12px; color: #8a8a8a;">
+<span style="font-weight: 700; color: #f0f0f0; letter-spacing: 0.5px;">pmv stage 61</span>
+<span>harmony piano</span>
+<span style="color: #bdbdbd; margin-left: 6px;">view</span>
+<div style="flex-grow: 1;"></div>
+<span style="display: flex; align-items: center; gap: 6px;"><span style="width: 5px; height: 5px; border-radius: 50%; background: #fff;"></span>digital piano</span>
+<span style="display: flex; align-items: center; gap: 6px;"><span style="width: 5px; height: 5px; border-radius: 50%; background: #fff;"></span>asio</span>
+<span style="margin-left: 12px; letter-spacing: 14px;">–□×</span>
+</div>
+
+<div style="position: absolute; left: 24px; right: 24px; top: 36px; height: 150px; border-radius: 4px; background: #000; box-shadow: 0 0 0 1px #2b2b2b, inset 0 0 0 1px #050505, 0 1px 0 2px #1e1e1e; display: flex; align-items: center; gap: 22px; padding: 0 22px; box-sizing: border-box;">
+<svg width="104" height="124" viewBox="0 0 170 220" aria-hidden="true">
+<g style="stroke: #4a4a4a; stroke-width: 1.6;">
+<line x1="6" y1="40" x2="166" y2="40"></line><line x1="6" y1="54" x2="166" y2="54"></line><line x1="6" y1="68" x2="166" y2="68"></line><line x1="6" y1="82" x2="166" y2="82"></line><line x1="6" y1="96" x2="166" y2="96"></line>
+<line x1="6" y1="138" x2="166" y2="138"></line><line x1="6" y1="152" x2="166" y2="152"></line><line x1="6" y1="166" x2="166" y2="166"></line><line x1="6" y1="180" x2="166" y2="180"></line><line x1="6" y1="194" x2="166" y2="194"></line>
+</g>
+<text x="10" y="92" style="fill: #ddd; font: 60px 'Segoe UI Symbol', 'Apple Symbols', serif;">𝄞</text>
+<text x="10" y="178" style="fill: #ddd; font: 46px 'Segoe UI Symbol', 'Apple Symbols', serif;">𝄢</text>
+<g style="fill: #fff;"><circle cx="120" cy="103" r="7"></circle><circle cx="120" cy="173" r="7"></circle><circle cx="135" cy="166" r="7"></circle><circle cx="120" cy="187" r="7"></circle></g>
+</svg>
+<div style="font-weight: 700; font-size: 104px; letter-spacing: -4px; line-height: 1;">G7/B</div>
+<div style="display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; gap: 10px;"><span style="font-family: 'Space Mono', monospace; font-weight: 700; font-size: 20px; color: #000; background: #fff; padding: 0 8px; border-radius: 4px;">V65</span><span style="font-size: 17px; color: #9a9a9a;">1st inversion · drop 2</span></div>
+<div style="display: flex; gap: 6px;">
+<sc-for list="{{notes}}" as="n" hint-placeholder-count="4">
+<div style="{{n.style}}"><span style="font-size: 11px; color: #777;">{{n.iv}}</span><span style="font-size: 18px; font-weight: 700;">{{n.note}}</span></div>
+</sc-for>
+</div>
+</div>
+<div style="flex-grow: 1;"></div>
+<svg width="128" height="128" viewBox="0 0 260 260" aria-hidden="true">
+<sc-for list="{{maj}}" as="s" hint-placeholder-count="12">
+<path d="{{s.d}}" style="{{s.ps}}"></path>
+<text x="{{s.lx}}" y="{{s.ly}}" style="{{s.ts}}">{{s.label}}</text>
+</sc-for>
+<path d="{{rootArc}}" style="fill: none; stroke: #4FA3FF; stroke-width: 6; stroke-linecap: round;"></path>
+<text x="130" y="122" style="fill: #fff; font: 700 40px 'Space Grotesk', sans-serif; text-anchor: middle; dominant-baseline: central;">C</text>
+<text x="130" y="154" style="fill: #888; font: 400 16px 'Space Grotesk', sans-serif; text-anchor: middle; dominant-baseline: central;">major</text>
+</svg>
+<div style="width: 1px; align-self: stretch; margin: 20px 0; background: #262626;"></div>
+<div style="display: flex; flex-direction: column; gap: 6px; width: 250px;">
+<div style="display: flex; justify-content: space-between; font-size: 11px; color: #888;"><span>progression</span><span style="font-family: 'Space Mono', monospace;">4/8 · loop · ♩90</span></div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px;">
+<sc-for list="{{slots}}" as="s" hint-placeholder-count="8">
+<div style="{{s.style}}"><span style="font-weight: 700; font-size: 15px;">{{s.name}}</span><span style="font-family: 'Space Mono', monospace; font-size: 10px; color: #888;">{{s.num}}</span></div>
+</sc-for>
+</div>
+<div style="font-size: 11px; color: #888;">next · <span style="color: #ddd;">I C · vi Am · IV F</span></div>
+</div>
+</div>
+
+<div style="position: absolute; left: 24px; right: 24px; top: 198px; height: 72px; display: flex; align-items: flex-end; gap: 22px;">
+<sc-for list="{{knobs}}" as="k" hint-placeholder-count="2">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+<div style="width: 50px; height: 50px; border-radius: 50%; background: radial-gradient(circle at 40% 30%, #3a3a3a, #121212 70%); box-shadow: 0 3px 6px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.12), 0 0 0 3px #1b1b1b; position: relative;"><div style="{{k.mark}}"></div></div>
+<span style="font-size: 10px; color: #9a9a9a;">{{k.lab}}</span>
+</div>
+</sc-for>
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="5">
+<div style="display: flex; flex-direction: column; gap: 6px;">
+<span style="font-size: 10px; color: #6f6f6f; letter-spacing: 0.5px;">{{g.title}}</span>
+<div style="display: flex; gap: 6px;">
+<sc-for list="{{g.btns}}" as="b" hint-placeholder-count="3">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+<span style="{{b.led}}"></span>
+<div style="{{b.key}}">{{b.lab}}</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="position: absolute; left: 46px; right: 46px; top: 278px; height: 8px; background: linear-gradient(180deg, #5e1b1f, #3d1013);"></div>
+<div style="position: absolute; left: 50px; top: 286px; width: 1300px; height: 326px; background: #0a0a0a;">
+<sc-for list="{{whites}}" as="k" hint-placeholder-count="36">
+<div style="{{k.style}}"><span style="{{k.ls}}">{{k.label}}</span></div>
+</sc-for>
+<sc-for list="{{blacks}}" as="k" hint-placeholder-count="25">
+<div style="{{k.style}}"></div>
+</sc-for>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1400,"height":620}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const A = '#FFB000', B = '#4FA3FF';
+    const WHITE = [0, 2, 4, 5, 7, 9, 11];
+    const held = [47, 53, 55, 62];
+    const W = 1300, H = 326, ww = W / 36, bw = ww * 0.56, bh = H * 0.6;
+    const whites = [], blacks = [];
+    let wi = 0;
+    for (let m = 36; m <= 96; m++) {
+      const pc = m % 12, oct = Math.floor(m / 12) - 1, h = held.includes(m);
+      if (WHITE.includes(pc)) {
+        const bg = h ? 'linear-gradient(180deg,#d6d0c3 0%,#e6e1d6 70%,#d1cabc 100%)' : 'linear-gradient(180deg,#e9e6df 0%,#fbfaf6 14%,#f6f3ec 88%,#e2ded5 100%)';
+        whites.push({
+          label: pc === 0 ? 'C' + oct : '',
+          style: 'position:absolute;top:0;left:' + (wi * ww).toFixed(1) + 'px;width:' + (ww - 1).toFixed(1) + 'px;height:' + (h ? H - 4 : H) + 'px;background:' + bg + ';border-radius:0 0 4px 4px;box-shadow:' + (h ? 'inset 0 5px 6px rgba(0,0,0,0.3)' : 'inset 0 -7px 0 #dcd8ce,0 2px 2px rgba(0,0,0,0.5)') + ';',
+          ls: 'position:absolute;left:0;right:0;bottom:16px;text-align:center;font:500 10px "Space Grotesk",sans-serif;color:#a29d92;'
+        });
+        wi++;
+      } else {
+        const bg = h ? 'linear-gradient(180deg,#050505,#151515 90%,#222)' : 'linear-gradient(180deg,#0c0c0c 0%,#262626 7%,#141414 82%,#333 93%,#0e0e0e 100%)';
+        blacks.push({ style: 'position:absolute;top:0;left:' + (wi * ww - bw / 2).toFixed(1) + 'px;width:' + bw.toFixed(1) + 'px;height:' + (h ? bh - 5 : bh).toFixed(0) + 'px;background:' + bg + ';border-radius:0 0 3px 3px;box-shadow:2px 4px 5px rgba(0,0,0,0.6);' });
+      }
+    }
+    const C = 130;
+    const pt = (r, a) => (C + r * Math.cos(a * Math.PI / 180)).toFixed(2) + ' ' + (C + r * Math.sin(a * Math.PI / 180)).toFixed(2);
+    const arc = (r, i, g) => 'M ' + pt(r, -105 + i * 30 + g) + ' A ' + r + ' ' + r + ' 0 0 1 ' + pt(r, -75 + i * 30 - g);
+    const lab = (r, i) => { const a = (-90 + i * 30) * Math.PI / 180; return { lx: (C + r * Math.cos(a)).toFixed(1), ly: (C + r * Math.sin(a)).toFixed(1) }; };
+    const MAJ = ['C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'D♭', 'A♭', 'E♭', 'B♭', 'F'];
+    const maj = MAJ.map((label, i) => {
+      const sel = i === 0, rel = i === 1 || i === 11;
+      return Object.assign({ label, d: arc(98, i, 1.8), ps: 'fill:none;stroke:' + (sel ? A : (rel ? '#5c4510' : '#222')) + ';stroke-width:30;', ts: 'fill:' + (sel ? '#000' : (rel ? A : '#8a8a8a')) + ';font:700 17px "Space Grotesk",sans-serif;text-anchor:middle;dominant-baseline:central;' }, lab(98, i));
+    });
+    const notes = [['B2', '3'], ['F3', '♭7'], ['G3', 'R'], ['D4', '5']].map(([note, iv]) => ({ note, iv, style: 'width:50px;height:46px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:"Space Mono",monospace;background:#141414;' + (iv === 'R' ? 'box-shadow:inset 0 0 0 1.5px #fff;' : '') }));
+    const saved = [['C', 'I'], ['Am', 'vi'], ['F', 'IV'], ['G7', 'V7']];
+    const slots = [];
+    for (let i = 0; i < 8; i++) {
+      const s = saved[i];
+      slots.push({ name: s ? s[0] : '', num: s ? s[1] : (i + 1) + '', style: 'height:34px;border-radius:7px;padding:0 7px;display:flex;align-items:center;justify-content:space-between;box-sizing:border-box;' + (s ? 'background:#151515;' + (i === 3 ? 'box-shadow:inset 0 0 0 1.5px #fff;' : '') : 'border:1.5px dashed #262626;') });
+    }
+    const mark = (rot) => 'position:absolute;left:24px;top:5px;width:2px;height:11px;border-radius:1px;background:#eee;transform-origin:1px 20px;transform:rotate(' + rot + 'deg);';
+    const knobs = [{ lab: 'volume', mark: mark(40) }, { lab: 'click', mark: mark(-50) }];
+    const led = (c) => 'width:4px;height:4px;border-radius:50%;' + (c ? 'background:' + c + ';box-shadow:0 0 5px ' + c + ';' : 'background:#2a2a2a;');
+    const key = (w, on) => 'min-width:' + w + 'px;height:26px;padding:0 6px;box-sizing:border-box;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;background:linear-gradient(180deg,#262626,#1a1a1a);box-shadow:0 2px 0 #050505,inset 0 1px 0 rgba(255,255,255,0.08);color:' + (on ? '#fff' : '#b5b5b5') + ';';
+    const b = (lab, c, w) => ({ lab, led: led(c), key: key(w || 34, !!c) });
+    const groups = [
+      { title: 'key', btns: [b('◂'), b('C', A, 38), b('▸'), b('major', null, 58)] },
+      { title: 'chords in key', btns: [b('I'), b('ii'), b('iii'), b('IV'), b('V7', B), b('vi'), b('vii°'), b('7ths', '#fff', 42)] },
+      { title: 'metronome', btns: [b('on', '#fff'), b('−'), b('90', null, 38), b('+'), b('tap', null, 38)] },
+      { title: 'recorder', btns: [b('●', null), b('▶'), b('loop')] },
+      { title: 'progression', btns: [b('▶'), b('save', '#fff', 46)] }
+    ];
+    return {
+      notes, whites, blacks, maj, slots, knobs, groups,
+      rootArc: arc(122, 1, 3)
+    };
+  }
+}
+</script>
+</body>
+</html>

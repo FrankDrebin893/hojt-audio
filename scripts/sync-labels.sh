@@ -25,6 +25,7 @@ plugin:bass|2a4fa0|Bass Synth
 plugin:pad|5e2a5e|Shimmer Pad
 plugin:bells|1f5a3a|Glass Bells
 plugin:common|555555|suite_common: shared look and DSP
+app:piano|b8860b|The piano viz (piano/)
 area:site|0075ca|The public page
 area:infra|333333|CI, releases, tooling
 '

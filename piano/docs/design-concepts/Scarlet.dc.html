@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scarlet anodised</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#8f0d15}
+a{color:#fff}a:hover{color:#fff}
+</style>
+</helmet>
+<div style="width: 1400px; height: 620px; box-sizing: border-box; position: relative; overflow: hidden; background: repeating-linear-gradient(90deg, rgba(255,255,255,0.035) 0 1px, rgba(0,0,0,0.045) 1px 2px, transparent 2px 4px), linear-gradient(180deg, {{hi}} 0%, {{mid}} 45%, {{lo}} 100%); font-family: 'Inter Tight', sans-serif; color: #fff7f5;">
+
+<div style="position: absolute; left: 24px; right: 24px; top: 0; height: 32px; display: flex; align-items: center; gap: 14px; font-size: 12px; color: rgba(255,247,245,0.75);">
+<span style="font-weight: 800; font-size: 15px; color: #fff; letter-spacing: 0.5px;">PMV 61</span>
+<span>harmony keyboard</span>
+<span style="color: #fff; margin-left: 6px; font-weight: 600;">view</span>
+<div style="flex-grow: 1;"></div>
+<span style="display: flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #5dff7a; box-shadow: 0 0 6px #5dff7a;"></span>usb midi</span>
+<span style="display: flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #5dff7a; box-shadow: 0 0 6px #5dff7a;"></span>asio</span>
+<span style="margin-left: 12px; letter-spacing: 14px;">–□×</span>
+</div>
+
+<div style="position: absolute; left: 24px; top: 40px; width: 740px; height: 226px; box-sizing: border-box; padding: 6px; border-radius: 10px; background: #0c0c0c; box-shadow: inset 0 1px 2px #000, 0 1px 0 rgba(255,255,255,0.2), 0 -1px 0 rgba(0,0,0,0.3);">
+<div style="position: relative; height: 214px; border-radius: 6px; overflow: hidden; background: #000; display: flex; flex-direction: column; padding: 10px 16px 8px 16px; box-sizing: border-box; gap: 6px;">
+<div style="position: absolute; inset: 0; background: linear-gradient(120deg, rgba(255,255,255,0.07), rgba(255,255,255,0) 30%); pointer-events: none;"></div>
+<div style="display: flex; gap: 14px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8a8a8a;">
+<span style="color: #fff;">C major</span><span>♩ 90</span><span>4/4</span><span>speed 100%</span>
+<div style="flex-grow: 1;"></div><span>progression 4/8 · loop</span>
+</div>
+<div style="flex-grow: 1; display: flex; align-items: center; gap: 18px;">
+<svg width="96" height="120" viewBox="0 0 170 220" aria-hidden="true">
+<g style="stroke: #555; stroke-width: 1.6;">
+<line x1="6" y1="40" x2="166" y2="40"></line><line x1="6" y1="54" x2="166" y2="54"></line><line x1="6" y1="68" x2="166" y2="68"></line><line x1="6" y1="82" x2="166" y2="82"></line><line x1="6" y1="96" x2="166" y2="96"></line>
+<line x1="6" y1="138" x2="166" y2="138"></line><line x1="6" y1="152" x2="166" y2="152"></line><line x1="6" y1="166" x2="166" y2="166"></line><line x1="6" y1="180" x2="166" y2="180"></line><line x1="6" y1="194" x2="166" y2="194"></line>
+</g>
+<text x="10" y="92" style="fill: #ddd; font: 60px 'Segoe UI Symbol', 'Apple Symbols', serif;">𝄞</text>
+<text x="10" y="178" style="fill: #ddd; font: 46px 'Segoe UI Symbol', 'Apple Symbols', serif;">𝄢</text>
+<g style="fill: #fff;"><circle cx="120" cy="103" r="7"></circle><circle cx="120" cy="173" r="7"></circle><circle cx="135" cy="166" r="7"></circle><circle cx="120" cy="187" r="7"></circle></g>
+</svg>
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<div style="font-weight: 800; font-size: 92px; line-height: 0.9; letter-spacing: -3px;">G7/B</div>
+<div style="display: flex; align-items: center; gap: 8px;"><span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 17px; background: #fff; color: #000; padding: 0 7px; border-radius: 4px;">V65</span><span style="font-size: 15px; color: #a8a8a8;">1st inversion · drop 2</span></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px; font-family: 'JetBrains Mono', monospace;">
+<sc-for list="{{notes}}" as="n" hint-placeholder-count="4">
+<div style="display: flex; gap: 10px; align-items: baseline;"><span style="font-size: 18px; font-weight: 700; width: 30px;">{{n.note}}</span><span style="font-size: 12px; color: #8a8a8a;">{{n.iv}}</span></div>
+</sc-for>
+</div>
+<div style="flex-grow: 1;"></div>
+<svg width="150" height="150" viewBox="0 0 260 260" aria-hidden="true">
+<sc-for list="{{maj}}" as="s" hint-placeholder-count="12">
+<path d="{{s.d}}" style="{{s.ps}}"></path>
+<text x="{{s.lx}}" y="{{s.ly}}" style="{{s.ts}}">{{s.label}}</text>
+</sc-for>
+<path d="{{rootArc}}" style="fill: none; stroke: #fff; stroke-width: 5; stroke-linecap: round;"></path>
+<path d="{{rootArc2}}" style="fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round;"></path>
+<text x="130" y="130" style="fill: #fff; font: 800 38px 'Inter Tight', sans-serif; text-anchor: middle; dominant-baseline: central;">C</text>
+</svg>
+</div>
+<div style="display: flex; gap: 6px;">
+<sc-for list="{{strip}}" as="t" hint-placeholder-count="8">
+<div style="{{t.style}}"><span style="font-weight: 700;">{{t.num}}</span><span style="opacity: 0.7;">{{t.name}}</span></div>
+</sc-for>
+</div>
+</div>
+</div>
+
+<div style="position: absolute; left: 30px; top: 274px; width: 728px; display: flex; gap: 6px;">
+<sc-for list="{{strip}}" as="t" hint-placeholder-count="8">
+<div style="flex: 1; height: 16px; border-radius: 3px; background: linear-gradient(180deg, #2a2a2a, #121212); box-shadow: 0 2px 0 #000, inset 0 1px 0 rgba(255,255,255,0.12);"></div>
+</sc-for>
+</div>
+
+<div style="position: absolute; left: 792px; top: 44px; width: 290px; display: flex; justify-content: space-between;">
+<sc-for list="{{halos}}" as="h" hint-placeholder-count="2">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+<div style="position: relative; width: 132px; height: 132px; border-radius: 50%; background: #120708; box-shadow: inset 0 2px 5px #000, 0 1px 0 rgba(255,255,255,0.2);">
+<sc-for list="{{h.segs}}" as="s" hint-placeholder-count="15">
+<span style="{{s.style}}"></span>
+</sc-for>
+<div style="position: absolute; left: 22px; top: 22px; width: 88px; height: 88px; border-radius: 50%; background: conic-gradient(from 0deg, #2b2b2b, #1a1a1a, #333, #161616, #2b2b2b, #1a1a1a, #333, #161616, #2b2b2b); box-shadow: 0 4px 8px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.14);">
+<div style="{{h.mark}}"></div>
+</div>
+</div>
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 1px;">{{h.lab}}</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,247,245,0.75);">{{h.val}}</span>
+</div>
+</sc-for>
+</div>
+
+<div style="position: absolute; left: 1106px; top: 44px; width: 270px; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 8px;">
+<sc-for list="{{btns}}" as="b" hint-placeholder-count="12">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+<div style="{{b.btn}}"><span style="{{b.led}}"></span></div>
+<span style="font-size: 10px; font-weight: 600;">{{b.lab}}</span>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+<span style="font-size: 10px; font-weight: 700; letter-spacing: 1px;">PROGRESSION</span>
+<div style="display: flex; gap: 6px;">
+<sc-for list="{{mem}}" as="m" hint-placeholder-count="8">
+<span style="{{m.style}}"></span>
+</sc-for>
+</div>
+</div>
+</div>
+
+<div style="position: absolute; left: 0; right: 0; top: 304px; height: 26px; background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.25) 100%);"></div>
+<div style="position: absolute; left: 20px; top: 324px; width: 1360px; height: 6px; background: #111;"></div>
+<div style="position: absolute; left: 20px; top: 330px; width: 1360px; height: 282px; background: #0d0d0d;">
+<sc-for list="{{whites}}" as="k" hint-placeholder-count="36">
+<div style="{{k.style}}"><span style="{{k.ls}}">{{k.label}}</span></div>
+</sc-for>
+<sc-for list="{{blacks}}" as="k" hint-placeholder-count="25">
+<div style="{{k.style}}"></div>
+</sc-for>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"finish":{"editor":"enum","default":"scarlet","options":["scarlet","crimson","signal red"]},"$preview":{"width":1400,"height":620}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const FIN = { scarlet: ['#d52a33', '#b5151e', '#8e0d15'], crimson: ['#a8182a', '#8a0f20', '#650a17'], 'signal red': ['#e8402e', '#cc2a1c', '#a51d12'] };
+    const [hi, mid, lo] = FIN[this.props.finish ?? 'scarlet'] || FIN.scarlet;
+    const WHITE = [0, 2, 4, 5, 7, 9, 11];
+    const held = [47, 53, 55, 62];
+    const W = 1360, H = 282, ww = W / 36, bw = ww * 0.57, bh = H * 0.61;
+    const whites = [], blacks = [];
+    let wi = 0;
+    for (let m = 36; m <= 96; m++) {
+      const pc = m % 12, oct = Math.floor(m / 12) - 1, h = held.includes(m);
+      if (WHITE.includes(pc)) {
+        const bg = h ? 'linear-gradient(180deg,#d6d0c4 0%,#e6e1d7 70%,#d0c9bc 100%)' : 'linear-gradient(180deg,#ebe8e2 0%,#fbfaf7 14%,#f6f4ef 88%,#e2ded6 100%)';
+        whites.push({
+          label: pc === 0 ? 'C' + oct : '',
+          style: 'position:absolute;top:0;left:' + (wi * ww).toFixed(1) + 'px;width:' + (ww - 1).toFixed(1) + 'px;height:' + (h ? H - 4 : H) + 'px;background:' + bg + ';border-radius:0 0 4px 4px;box-shadow:' + (h ? 'inset 0 5px 6px rgba(0,0,0,0.3)' : 'inset 0 -6px 0 #dcd8d0,0 2px 2px rgba(0,0,0,0.5)') + ';',
+          ls: 'position:absolute;left:0;right:0;bottom:14px;text-align:center;font:600 10px "Inter Tight",sans-serif;color:#a49f95;'
+        });
+        wi++;
+      } else {
+        const bg = h ? 'linear-gradient(180deg,#060606,#161616 90%,#232323)' : 'linear-gradient(180deg,#0d0d0d 0%,#272727 7%,#151515 82%,#343434 93%,#0f0f0f 100%)';
+        blacks.push({ style: 'position:absolute;top:0;left:' + (wi * ww - bw / 2).toFixed(1) + 'px;width:' + bw.toFixed(1) + 'px;height:' + (h ? bh - 5 : bh).toFixed(0) + 'px;background:' + bg + ';border-radius:0 0 3px 3px;box-shadow:2px 4px 5px rgba(0,0,0,0.6);' });
+      }
+    }
+    const C = 130;
+    const pt = (r, a) => (C + r * Math.cos(a * Math.PI / 180)).toFixed(2) + ' ' + (C + r * Math.sin(a * Math.PI / 180)).toFixed(2);
+    const arc = (r, i, g) => 'M ' + pt(r, -105 + i * 30 + g) + ' A ' + r + ' ' + r + ' 0 0 1 ' + pt(r, -75 + i * 30 - g);
+    const lab = (r, i) => { const a = (-90 + i * 30) * Math.PI / 180; return { lx: (C + r * Math.cos(a)).toFixed(1), ly: (C + r * Math.sin(a)).toFixed(1) }; };
+    const MAJ = ['C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'D♭', 'A♭', 'E♭', 'B♭', 'F'];
+    const maj = MAJ.map((label, i) => {
+      const sel = i === 0, rel = i === 1 || i === 11;
+      return Object.assign({ label, d: arc(98, i, 1.8), ps: 'fill:none;stroke:' + (sel ? '#fff' : (rel ? '#555' : '#1f1f1f')) + ';stroke-width:30;', ts: 'fill:' + (sel ? '#000' : (rel ? '#fff' : '#8a8a8a')) + ';font:700 17px "Inter Tight",sans-serif;text-anchor:middle;dominant-baseline:central;' }, lab(98, i));
+    });
+    const tiles = [['I', 'Cmaj7'], ['ii', 'Dm7'], ['iii', 'Em7'], ['IV', 'Fmaj7'], ['V7', 'G7'], ['vi', 'Am7'], ['viiø', 'Bm7♭5'], ['7ths', 'on']];
+    const strip = tiles.map(([num, name], i) => ({ num, name, style: 'flex:1;height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;' + (i === 4 ? 'background:#fff;color:#000;' : (i === 7 ? 'box-shadow:inset 0 0 0 1.5px #fff;color:#fff;' : 'background:#161616;color:#9a9a9a;')) }));
+    const halo = (lab, val, level, rot) => {
+      const segs = [];
+      for (let i = 0; i < 15; i++) {
+        const a = (-225 + i * (270 / 14)) * Math.PI / 180, on = i < level;
+        const col = i < 9 ? '#5dff7a' : (i < 12 ? '#ffc23a' : '#ff4a3a');
+        const x = 66 + 58 * Math.cos(a) - 4, y = 66 + 58 * Math.sin(a) - 4;
+        segs.push({ style: 'position:absolute;left:' + x.toFixed(1) + 'px;top:' + y.toFixed(1) + 'px;width:8px;height:8px;border-radius:50%;' + (on ? 'background:' + col + ';box-shadow:0 0 7px ' + col + ';' : 'background:#2a1214;') });
+      }
+      return { lab, val, segs, mark: 'position:absolute;left:43px;top:7px;width:3px;height:16px;border-radius:2px;background:#fff;transform-origin:1.5px 37px;transform:rotate(' + rot + 'deg);' };
+    };
+    const halos = [halo('VOLUME', '-6 dB', 10, 40), halo('CLICK', '60%', 7, -20)];
+    const sq = 'width:52px;height:34px;border-radius:5px;background:linear-gradient(180deg,#2a2a2a,#121212);box-shadow:0 2px 0 #000,0 3px 5px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.12);display:flex;align-items:flex-start;justify-content:center;padding-top:5px;box-sizing:border-box;';
+    const led = (c) => 'width:12px;height:3px;border-radius:2px;' + (c ? 'background:' + c + ';box-shadow:0 0 6px ' + c + ';' : 'background:#3a3a3a;');
+    const btns = [['key ◂', null], ['key ▸', null], ['scale', null], ['mute', null], ['metro', '#fff'], ['tap', null], ['−', null], ['+', null], ['rec', null], ['play', null], ['loop', '#fff'], ['save', '#5dff7a']].map(([lab, c]) => ({ lab, btn: sq, led: led(c) }));
+    const mem = [];
+    for (let i = 0; i < 8; i++) mem.push({ style: 'width:8px;height:8px;border-radius:50%;' + (i < 4 ? 'background:#fff;box-shadow:0 0 6px #fff;' + (i === 3 ? '' : 'opacity:0.6;') : 'background:rgba(0,0,0,0.35);') });
+    return {
+      hi, mid, lo, whites, blacks, maj, strip, halos, btns, mem,
+      notes: [{ note: 'B2', iv: '3' }, { note: 'F3', iv: '♭7' }, { note: 'G3', iv: 'R' }, { note: 'D4', iv: '5' }],
+      rootArc: arc(124, 1, 3), rootArc2: arc(76, 1, 3)
+    };
+  }
+}
+</script>
+</body>
+</html>

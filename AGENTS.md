@@ -1,6 +1,16 @@
 # Audio Plugin Suite
 
-A suite of VST3/CLAP plugins built with Rust and the nih-plug framework. The brand is **HØJT** (Danish for "loud" and "high"). The vendor string is the ASCII form `Hojt Audio` and lives in one place (`crates/suite_common/src/lib.rs`).
+The brand is **HØJT** (Danish for "loud" and "high"), and two products live here:
+
+- **HØJT DSP**: a suite of VST3/CLAP plugins built with Rust and the nih-plug framework,
+  everything below but `piano/`. The vendor string is the ASCII form `Hojt Audio` and lives in one
+  place (`crates/suite_common/src/lib.rs`); it is what a DAW lists them under and never changes,
+  while "HØJT DSP" is their name on the page, the releases and the README.
+- **Piano MIDI Visualization** (the piano viz): a Windows app for practising piano with a MIDI
+  keyboard, in C# / WPF, in `piano/`. Its rules, build and release are in `piano/AGENTS.md`. It
+  shares the repository, the backlog, `main`'s protection and the page with the plugins, and has
+  its own licence (MIT) and release tags (`piano-vX.Y.Z`). Its look (`piano/DESIGN.md`) is not
+  yet the plugins' (`ui/STYLE.md`); bringing them together is planned work
 
 This file is the router: the layout, the commands, the rules that hold everywhere and where the
 detail lives. Each detail is next to what it governs.
@@ -13,6 +23,8 @@ detail lives. Each detail is next to what it governs.
 - `plugins/pad/` - Slow ambient pad with a chorus and a shimmering hall (instrument)
 - `plugins/bells/` - Soft glassy bells with a ping-pong delay and a hall (instrument)
 - `plugins/amp/` - Guitar amp simulator (effect). Its notes are in `plugins/amp/AGENTS.md` and `plugins/amp/DESIGN.md`
+- `piano/` - The piano viz (C# / .NET 10 / WPF, `piano/PianoMidiVisualizationApp.sln`), with its own
+  `AGENTS.md`, `README.md`, `LICENSE` and the README's screenshot harness (`piano/tools/`)
 - `crates/suite_common/` - Shared code: `VENDOR` and `BRAND`, `ui` (the look: `ui/STYLE.md`), `dsp`
   (filter, noise and the `Hall` reverb), `measure` (what the tests measure with), `host` (a host for
   tests, and the allocator of the `no_alloc` tests)
@@ -24,14 +36,17 @@ detail lives. Each detail is next to what it governs.
   the reference for those ports, not built or shipped. Its `README.md` says where a port differs
 - `xtask/` - The bundler (nih-plug's, run from this workspace's own root) and `check-art`;
   `bundler.toml` - bundle name per plugin package
-- `site/` - The public page (plain HTML and CSS, no build step), published by GitHub Pages.
+- `site/` - The public page (plain HTML and CSS, no build step), published by GitHub Pages: the
+  plugins' at the root, the piano viz's in `site/piano/` (https://hojte.net/hojt-audio/piano/).
+  The old address, https://hojte.net/hojt-audio-piano-viz/, is served by the old repository.
   `site-sources/` - what is played in a sound example when it is our own playing; not published
 - `scripts/` - Build, install, check, page and release tools; see `scripts/README.md`
 - `.agents/skills/` - The agent's skills (`/issue`, `/spec`, `/next`, `/groom`, `/release`, `/page`,
-  `/scout`, `/specwriter`).
+  `/scout`, `/specwriter`, and the piano viz's `/piano-release` and `/piano-readme`).
   `.claude/commands/` mirrors them for Claude Code (`xtask/tests/skills_mirror.rs` holds it);
   `.claude/settings.json` has the hooks
-- `.github/workflows/` - `ci.yml` (tests), `release.yml`, `pages.yml`, `approval-guard.yml`, `sound.yml`
+- `.github/workflows/` - `ci.yml` (tests), `release.yml` (the plugins, on `vX.Y.Z`), `piano.yml` (builds
+  the piano viz when `piano/` changes, releases it on `piano-vX.Y.Z`), `pages.yml`, `approval-guard.yml`, `sound.yml`
   (what a plugin's reports say changed against `main`), `weekly.yml` (a weekly run that only files
   `state:idea` issues, `scripts/weekly-checks.sh`), `health.yml` (the weekly health numbers, see
   "Automation and health"), `approve-specs.yml` (the approval list), `board-sync.yml` (the board's
@@ -68,6 +83,10 @@ cargo run -p amp --features standalone -- --backend dummy
 cargo run -p bass --features standalone -- --backend dummy
 cargo run -p pad --features standalone -- --backend dummy
 cargo run -p bells --features standalone -- --backend dummy
+
+# The piano viz (Windows, .NET 10 SDK): build, run; more in piano/AGENTS.md
+dotnet build piano/PianoMidiVisualizationApp.sln
+dotnet run --project piano/src/PianoMidiVisualizationApp
 ```
 
 Output location: `target/bundled/<BundleName>.vst3`. Install: `scripts/install.ps1` on Windows, which
@@ -96,7 +115,7 @@ cloud session, set the label with the GitHub tools and `board-sync.yml` moves th
 | `state:building` | Being built on a branch `<kind>/<issue>-<slug>` | Agent (`/next`) |
 | `state:review` | A pull request with `Closes #<issue>` is open | Agent (`/next`) |
 
-Closed means merged, or turned down. Labels `kind:*`, `plugin:*` and `area:*` say what it is
+Closed means merged, or turned down. Labels `kind:*`, `plugin:*` (`app:piano` for the piano viz) and `area:*` say what it is
 and where; `from:user` marks issues from outside the project.
 
 - Only Rasmus (`FrankDrebin893`) approves. Others cannot set labels; `approval-guard.yml`
@@ -167,6 +186,10 @@ The short version: the version is set in `Cargo.toml`, the changelog gets a `## 
 the page is brought up to the release with `/page release <version>`, and the release goes in through
 a `release/<version>` pull request, then a tag `v<version>`, which `release.yml` builds and publishes.
 The page's sound and look (`site/audio/`, `site/img/`) change only in a release commit.
+
+The piano viz releases on its own, with `/piano-release`: a tag `piano-v<version>` on `main`, which
+`piano.yml` builds and publishes. Its releases are never marked latest, since the plugins' page links
+their zips through `releases/latest/download/`, and `scripts/health.sh` counts only the `v*` releases.
 
 ## Plugins
 

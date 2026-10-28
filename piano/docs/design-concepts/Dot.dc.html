@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scarlet case, white dot LCD</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Doto:wght@700;900&amp;family=Saira+Condensed:wght@500;600;700&amp;family=Silkscreen&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#a3121b}
+a{color:#fff}a:hover{color:#fff}
+</style>
+</helmet>
+<div style="width: 1400px; height: 620px; box-sizing: border-box; position: relative; overflow: hidden; background: radial-gradient(rgba(0,0,0,0.06) 0.7px, transparent 1px) 0 0 / 3px 3px, linear-gradient(180deg, #cf2630 0%, #b3161f 50%, #94101a 100%); font-family: 'Saira Condensed', sans-serif; color: #fff4f2;">
+
+<div style="position: absolute; left: 24px; right: 24px; top: 0; height: 32px; display: flex; align-items: center; gap: 14px; font-size: 13px; font-weight: 600; letter-spacing: 1.5px; color: rgba(255,244,242,0.8);">
+<span style="font-weight: 700; font-size: 17px; color: #fff; letter-spacing: 2px;">PMV-61</span>
+<span>HARMONY WORKSTATION</span>
+<span style="color: #fff;">VIEW</span>
+<div style="flex-grow: 1;"></div>
+<span style="display: flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px #fff;"></span>MIDI</span>
+<span style="display: flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px #fff;"></span>ASIO</span>
+<span style="margin-left: 12px; letter-spacing: 14px;">–□×</span>
+</div>
+
+<div style="position: absolute; left: 24px; top: 40px; width: 870px; height: 210px; box-sizing: border-box; padding: 7px; border-radius: 6px; background: #1a0507; box-shadow: inset 0 2px 4px #000, 0 1px 0 rgba(255,255,255,0.25);">
+<div style="position: relative; height: 196px; border-radius: 3px; overflow: hidden; background: radial-gradient(circle, rgba(255,255,255,0.07) 1px, transparent 1.4px) 0 0 / 4px 4px, #060606; color: #fafafa; display: flex; flex-direction: column; padding: 8px 14px; box-sizing: border-box; text-shadow: 0 0 5px rgba(255,255,255,0.45);">
+<div style="display: flex; justify-content: space-between; font-family: Silkscreen, monospace; font-size: 10px; opacity: 0.85;">
+<span>HARMONY · KEY C MAJ</span><span>♩090 · 4/4 · SPD100 · MEM 4/8</span>
+</div>
+<div style="flex-grow: 1; display: flex; align-items: center; gap: 22px;">
+<svg width="100" height="124" viewBox="0 0 170 220" style="filter: drop-shadow(0 0 2px rgba(255,255,255,0.5));" aria-hidden="true">
+<g style="stroke: rgba(255,255,255,0.6); stroke-width: 2.6; stroke-linecap: round; stroke-dasharray: 0 5;">
+<line x1="6" y1="40" x2="166" y2="40"></line><line x1="6" y1="54" x2="166" y2="54"></line><line x1="6" y1="68" x2="166" y2="68"></line><line x1="6" y1="82" x2="166" y2="82"></line><line x1="6" y1="96" x2="166" y2="96"></line>
+<line x1="6" y1="138" x2="166" y2="138"></line><line x1="6" y1="152" x2="166" y2="152"></line><line x1="6" y1="166" x2="166" y2="166"></line><line x1="6" y1="180" x2="166" y2="180"></line><line x1="6" y1="194" x2="166" y2="194"></line>
+</g>
+<text x="8" y="90" style="fill: #fff; font: 900 52px Doto, monospace;">G</text>
+<text x="8" y="182" style="fill: #fff; font: 900 52px Doto, monospace;">F</text>
+<g style="fill: #fff;"><circle cx="122" cy="103" r="7"></circle><circle cx="122" cy="173" r="7"></circle><circle cx="137" cy="166" r="7"></circle><circle cx="122" cy="187" r="7"></circle></g>
+</svg>
+<div style="display: flex; flex-direction: column; gap: 6px;">
+<div style="font-family: Doto, monospace; font-weight: 900; font-size: 104px; line-height: 0.85; letter-spacing: 2px;">G7/B</div>
+<div style="font-family: Doto, monospace; font-weight: 900; font-size: 20px; letter-spacing: 1px;"><span style="background: #fafafa; color: #060606; padding: 0 6px; text-shadow: none;">V65</span> 1ST INV · DROP 2</div>
+</div>
+<div style="display: flex; gap: 14px; font-family: Doto, monospace; font-weight: 900;">
+<sc-for list="{{notes}}" as="n" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; align-items: center; line-height: 1.1;"><span style="font-size: 26px;">{{n.note}}</span><span style="font-size: 16px; opacity: 0.7;">{{n.iv}}</span></div>
+</sc-for>
+</div>
+<div style="flex-grow: 1;"></div>
+<svg width="130" height="130" viewBox="0 0 240 240" style="filter: drop-shadow(0 0 2px rgba(255,255,255,0.5));" aria-hidden="true">
+<sc-for list="{{ring}}" as="l" hint-placeholder-count="24">
+<circle cx="{{l.x}}" cy="{{l.y}}" r="{{l.r}}" style="{{l.style}}"></circle>
+<text x="{{l.tx}}" y="{{l.ty}}" style="{{l.ts}}">{{l.label}}</text>
+</sc-for>
+<text x="120" y="120" style="fill: #fff; font: 900 40px Doto, monospace; text-anchor: middle; dominant-baseline: central;">C</text>
+</svg>
+</div>
+<div style="display: flex; gap: 5px;">
+<sc-for list="{{strip}}" as="t" hint-placeholder-count="8">
+<div style="{{t.style}}">{{t.text}}</div>
+</sc-for>
+</div>
+</div>
+</div>
+
+<div style="position: absolute; left: 24px; top: 260px; width: 870px; display: flex; justify-content: space-between; align-items: flex-start;">
+<sc-for list="{{knobs}}" as="k" hint-placeholder-count="6">
+<div style="display: flex; align-items: center; gap: 10px;">
+<div style="width: 44px; height: 44px; border-radius: 50%; background: conic-gradient(from 20deg, #e9e9e9, #9a9a9a, #f5f5f5, #8a8a8a, #e9e9e9, #a0a0a0, #f2f2f2, #8a8a8a, #e9e9e9); box-shadow: 0 3px 5px rgba(0,0,0,0.45), 0 0 0 3px rgba(0,0,0,0.25); position: relative;"><div style="{{k.mark}}"></div></div>
+<div style="display: flex; flex-direction: column; line-height: 1.1;"><span style="font-size: 12px; font-weight: 700; letter-spacing: 1.2px;">{{k.lab}}</span><span style="font-family: Silkscreen, monospace; font-size: 9px; opacity: 0.8;">{{k.val}}</span></div>
+</div>
+</sc-for>
+</div>
+
+<div style="position: absolute; left: 916px; top: 40px; width: 460px; height: 270px; display: flex; gap: 20px;">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; width: 150px;">
+<div style="width: 130px; height: 130px; border-radius: 50%; background: conic-gradient(from 20deg, #ededed, #9a9a9a, #f7f7f7, #888, #ededed, #a0a0a0, #f4f4f4, #888, #ededed); box-shadow: 0 6px 10px rgba(0,0,0,0.45), 0 0 0 5px rgba(0,0,0,0.22); position: relative;">
+<div style="position: absolute; left: 88px; top: 26px; width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #bbb, #777); box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);"></div>
+</div>
+<span style="font-size: 13px; font-weight: 700; letter-spacing: 2px;">DATA</span>
+<div style="display: flex; gap: 8px;">
+<div style="width: 64px; height: 30px; border-radius: 4px; background: linear-gradient(180deg, #2a0a0c, #160405); box-shadow: 0 2px 0 #000, inset 0 1px 0 rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; letter-spacing: 1.5px;">EXIT</div>
+<div style="width: 64px; height: 30px; border-radius: 4px; background: linear-gradient(180deg, #ffffff, #dedede); box-shadow: 0 2px 0 #7a0c12, inset 0 1px 0 #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: #a3121b;">SAVE</div>
+</div>
+</div>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 8px;">
+<sc-for list="{{btns}}" as="b" hint-placeholder-count="9">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; letter-spacing: 1.2px;"><span style="{{b.led}}"></span>{{b.lab}}</div>
+<div style="height: 26px; border-radius: 4px; background: linear-gradient(180deg, #2a0a0c, #160405); box-shadow: 0 2px 0 #000, inset 0 1px 0 rgba(255,255,255,0.12);"></div>
+</div>
+</sc-for>
+</div>
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; margin-top: 2px;">PROGRESSION 1–8</span>
+<div style="display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 5px;">
+<sc-for list="{{mem}}" as="m" hint-placeholder-count="8">
+<div style="{{m.style}}">{{m.name}}</div>
+</sc-for>
+</div>
+</div>
+</div>
+
+<div style="position: absolute; left: 20px; top: 318px; width: 1360px; height: 14px; background: #0f0304;">
+<sc-for list="{{lights}}" as="l" hint-placeholder-count="5">
+<span style="{{l.style}}"></span>
+</sc-for>
+</div>
+<div style="position: absolute; left: 20px; top: 332px; width: 1360px; height: 280px; background: #0d0d0d;">
+<sc-for list="{{whites}}" as="k" hint-placeholder-count="36">
+<div style="{{k.style}}"><span style="{{k.ls}}">{{k.label}}</span></div>
+</sc-for>
+<sc-for list="{{blacks}}" as="k" hint-placeholder-count="25">
+<div style="{{k.style}}"></div>
+</sc-for>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1400,"height":620}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const WHITE = [0, 2, 4, 5, 7, 9, 11];
+    const held = [47, 53, 55, 62];
+    const W = 1360, H = 280, ww = W / 36, bw = ww * 0.57, bh = H * 0.61;
+    const whites = [], blacks = [], lights = [];
+    let wi = 0;
+    for (let m = 36; m <= 96; m++) {
+      const pc = m % 12, oct = Math.floor(m / 12) - 1, h = held.includes(m), t = pc === 0;
+      if (WHITE.includes(pc)) {
+        const bg = h ? 'linear-gradient(180deg,#d6d0c4 0%,#e6e1d7 70%,#d0c9bc 100%)' : 'linear-gradient(180deg,#ebe8e2 0%,#fbfaf7 14%,#f6f4ef 88%,#e2ded6 100%)';
+        whites.push({
+          label: t ? 'C' + oct : '',
+          style: 'position:absolute;top:0;left:' + (wi * ww).toFixed(1) + 'px;width:' + (ww - 1).toFixed(1) + 'px;height:' + (h ? H - 4 : H) + 'px;background:' + bg + ';border-radius:0 0 4px 4px;box-shadow:' + (h ? 'inset 0 5px 6px rgba(0,0,0,0.3)' : 'inset 0 -6px 0 #dcd8d0,0 2px 2px rgba(0,0,0,0.5)') + ';',
+          ls: 'position:absolute;left:0;right:0;bottom:14px;text-align:center;font:600 11px "Saira Condensed",sans-serif;color:#a49f95;'
+        });
+        if (h) lights.push({ style: 'position:absolute;top:5px;height:4px;border-radius:2px;left:' + (wi * ww + 5).toFixed(1) + 'px;width:' + (ww - 11).toFixed(1) + 'px;background:#fff;box-shadow:0 0 8px #fff;' });
+        if (t) lights.push({ style: 'position:absolute;top:4px;width:6px;height:6px;border-radius:50%;left:' + (wi * ww + ww / 2 - 3).toFixed(1) + 'px;background:#ffb238;box-shadow:0 0 6px #ffb238;' });
+        wi++;
+      } else {
+        const bg = h ? 'linear-gradient(180deg,#060606,#161616 90%,#232323)' : 'linear-gradient(180deg,#0d0d0d 0%,#272727 7%,#151515 82%,#343434 93%,#0f0f0f 100%)';
+        blacks.push({ style: 'position:absolute;top:0;left:' + (wi * ww - bw / 2).toFixed(1) + 'px;width:' + bw.toFixed(1) + 'px;height:' + (h ? bh - 5 : bh).toFixed(0) + 'px;background:' + bg + ';border-radius:0 0 3px 3px;box-shadow:2px 4px 5px rgba(0,0,0,0.6);' });
+      }
+    }
+    const MAJ = ['C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'D♭', 'A♭', 'E♭', 'B♭', 'F'];
+    const at = (r, i) => { const a = (-90 + i * 30) * Math.PI / 180; return [120 + r * Math.cos(a), 120 + r * Math.sin(a)]; };
+    const ring = [];
+    MAJ.forEach((label, i) => {
+      const sel = i === 0, rel = i === 1 || i === 11, root = i === 1;
+      const [x, y] = at(80, i), [tx, ty] = at(104, i);
+      ring.push({ x: x.toFixed(1), y: y.toFixed(1), r: sel ? 11 : 8, style: sel ? 'fill:#fff;' : (rel ? 'fill:rgba(255,255,255,0.45);' : 'fill:none;stroke:rgba(255,255,255,0.45);stroke-width:2;'), label, tx: tx.toFixed(1), ty: ty.toFixed(1), ts: 'fill:#fff;font:900 ' + (sel ? 22 : 18) + 'px Doto,monospace;text-anchor:middle;dominant-baseline:central;' + (root ? 'text-decoration:underline;' : '') });
+      const [rx, ry] = at(56, i);
+      ring.push({ x: rx.toFixed(1), y: ry.toFixed(1), r: 4, style: root ? 'fill:#fff;' : 'fill:rgba(255,255,255,0.18);', label: '', tx: '0', ty: '0', ts: 'display:none;' });
+    });
+    const tiles = [['I', 'CMAJ7'], ['ii', 'DM7'], ['iii', 'EM7'], ['IV', 'FMAJ7'], ['V7', 'G7'], ['vi', 'AM7'], ['viiø', 'BM7♭5'], ['7TH', 'ON']];
+    const strip = tiles.map(([num, name], i) => ({ text: num + ' ' + name, style: 'flex:1;height:22px;display:flex;align-items:center;justify-content:center;font:900 13px Doto,monospace;border:1.5px solid rgba(255,255,255,0.6);' + (i === 4 || i === 7 ? 'background:#fafafa;color:#060606;text-shadow:none;' : '') }));
+    const mark = (rot) => 'position:absolute;left:20px;top:4px;width:4px;height:12px;border-radius:2px;background:#222;transform-origin:2px 18px;transform:rotate(' + rot + 'deg);';
+    const knobs = [['KEY', 'C', 0], ['SCALE', 'MAJOR', -60], ['TEMPO', '90', -30], ['METER', '4/4', 20], ['SPEED', '100%', 135], ['VOLUME', '-6DB', 60]].map(([lab, val, r]) => ({ lab, val, mark: mark(r) }));
+    const led = (c) => 'width:6px;height:6px;border-radius:50%;' + (c ? 'background:' + c + ';box-shadow:0 0 6px ' + c + ';' : 'background:rgba(0,0,0,0.4);');
+    const btns = [['REC', null], ['PLAY', null], ['LOOP', '#fff'], ['METRO', '#fff'], ['TAP', null], ['MUTE', null], ['TAKE', null], ['7THS', '#fff'], ['NAMES', null]].map(([lab, c]) => ({ lab, led: led(c) }));
+    const saved = ['C', 'Am', 'F', 'G7'];
+    const mem = [];
+    for (let i = 0; i < 8; i++) {
+      const s = saved[i];
+      mem.push({ name: s || (i + 1) + '', style: 'height:30px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;' + (s ? (i === 3 ? 'background:#fff;color:#a3121b;' : 'background:rgba(255,255,255,0.88);color:#a3121b;') : 'background:rgba(0,0,0,0.25);color:rgba(255,244,242,0.6);') });
+    }
+    return {
+      notes: [{ note: 'B2', iv: '3' }, { note: 'F3', iv: '♭7' }, { note: 'G3', iv: 'R' }, { note: 'D4', iv: '5' }],
+      whites, blacks, lights, ring, strip, knobs, btns, mem
+    };
+  }
+}
+</script>
+</body>
+</html>

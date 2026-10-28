@@ -1,0 +1,90 @@
+name: Piano
+
+# The piano viz (piano/). Every pull request and push to main that touches it builds the
+# release zip and keeps it as a workflow artifact, so a broken build shows up before anything
+# is tagged. Pushing a tag like piano-v1.1.0 also publishes that zip as a GitHub release.
+#
+# The plugins release on plain vX.Y.Z tags (release.yml), and the page links their zips by
+# releases/latest/download/, so a piano release is never marked latest.
+on:
+  push:
+    branches: [main]
+    tags: ['piano-v*']
+    paths:
+      - 'piano/**'
+      - '.github/workflows/piano.yml'
+  pull_request:
+    paths:
+      - 'piano/**'
+      - '.github/workflows/piano.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (piano)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The tags, to find the last piano release for the release notes
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      # SoundFonts and samples are third-party downloads under their own licenses; users bring
+      # their own. Nothing of the sort may be committed, since it could end up embedded in the exe.
+      - name: Check that no sound banks are committed
+        run: |
+          $found = git ls-files piano | Where-Object { $_ -match '\.(sf2|sf3|sfz|sfark|dls|wav|flac|ogg)$' }
+          if ($found) {
+            $found | ForEach-Object { "::error file=$_::Sound bank and sample files must not be committed" }
+            exit 1
+          }
+
+      - name: Set version
+        run: |
+          $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME -replace '^piano-v', '' } else { "0.0.0-ci.$env:GITHUB_RUN_NUMBER" }
+          "VERSION=$version" >> $env:GITHUB_ENV
+          "ZIP=PianoMidiVisualizationApp-$version-win-x64.zip" >> $env:GITHUB_ENV
+
+      - name: Publish
+        run: dotnet publish piano/src/PianoMidiVisualizationApp/PianoMidiVisualizationApp.csproj -c Release -r win-x64 -p:Version=$env:VERSION -o publish
+
+      # The README screenshot harness is not part of the release, but a change to the app's
+      # view models can break it, so it is built too
+      - name: Build the screenshot harness
+        run: dotnet build piano/tools/readme-screenshots/ReadmeScreenshots.csproj -c Release
+
+      # Allowlist rather than zipping the publish folder, which also holds a .pdb and a macOS .dylib.
+      - name: Package
+        run: |
+          New-Item -ItemType Directory staging | Out-Null
+          Copy-Item publish/PianoMidiVisualizationApp.exe, piano/LICENSE, piano/THIRD-PARTY-NOTICES.txt staging/
+          Compress-Archive staging/* $env:ZIP
+          Get-ChildItem staging | Format-Table Name, Length
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: ${{ env.ZIP }}
+          archive: false
+          retention-days: 14
+
+      # The generated notes start at the last piano tag, not at whatever tag came before (a
+      # plugin release). The first piano release here has none: its notes are only the install
+      # text, and the releases before it are in FrankDrebin893/hojt-audio-piano-viz
+      - name: Create GitHub release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $previous = git tag -l 'piano-v*' --sort=-v:refname | Where-Object { $_ -ne $env:GITHUB_REF_NAME } | Select-Object -First 1
+          $notes = if ($previous) { @('--generate-notes', '--notes-start-tag', $previous) } else { @() }
+          gh release create $env:GITHUB_REF_NAME $env:ZIP --title "Piano MIDI Visualization $env:VERSION" --latest=false @notes --notes-file piano/release-notes.md

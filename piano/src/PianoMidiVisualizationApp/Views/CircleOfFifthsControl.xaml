@@ -1,0 +1,12 @@
+<UserControl x:Class="PianoMidiVisualizationApp.Views.CircleOfFifthsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Focusable="False">
+
+    <!-- The host stretches to whatever space the control is given and exists only to measure
+         it: the code-behind draws the circle at the largest diameter that fits, and aligns it
+         within the host (see CircleAlignment). -->
+    <Grid x:Name="Host" SizeChanged="Host_SizeChanged">
+        <Canvas x:Name="CircleCanvas" VerticalAlignment="Center"/>
+    </Grid>
+</UserControl>

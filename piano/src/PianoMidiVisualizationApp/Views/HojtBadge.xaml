@@ -1,0 +1,36 @@
+<UserControl x:Class="PianoMidiVisualizationApp.Views.HojtBadge"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             IsHitTestVisible="False"
+             UseLayoutRounding="False">
+    <!-- Exact 1:1 vector recreation of hojt-audio's widgets::badge(painter, right_bottom, 22.0)
+         from TransposePlugin (crates/suite_common/src/ui/widgets.rs lines 1062–1103). -->
+    <Viewbox Stretch="Uniform">
+        <Canvas Width="63" Height="33.8">
+            <!-- 3px vertical drop shadow (#50000000) -->
+            <Rectangle Canvas.Left="0" Canvas.Top="3" Width="63" Height="30.8"
+                       RadiusX="6" RadiusY="6" Fill="#50000000"/>
+
+            <!-- Dark hardware plate (#1C1A18) -->
+            <Rectangle Canvas.Left="0" Canvas.Top="0" Width="63" Height="30.8"
+                       RadiusX="6" RadiusY="6" Fill="#1C1A18"/>
+
+            <!-- 2px-inset 1.5px silk border (#EADFC8, StrokeKind::Inside -> center inset 2.75px) -->
+            <Rectangle Canvas.Left="2.75" Canvas.Top="2.75" Width="57.5" Height="25.3"
+                       RadiusX="3.5" RadiusY="3.5" Stroke="#EADFC8" StrokeThickness="1.5"/>
+
+            <!-- Bebas Neue glyphs 'H', 'J', 'T' at 22px in silk (#EADFC8) -->
+            <Path Fill="#EADFC8"
+                  Data="F1M10.142,7.7L12.562,7.7 12.562,13.97 15.158,13.97 15.158,7.7 17.578,7.7 17.578,23.1 15.158,23.1 15.158,16.17 12.562,16.17 12.562,23.1 10.142,23.1 10.142,7.7z M38.774,23.188L38.163,23.166 37.652,23.1 37.652,20.9 38.026,20.966 38.444,20.988 38.784,20.965 39.076,20.897 39.323,20.784 39.522,20.625 39.676,20.419 39.786,20.166 39.852,19.864 39.874,19.514 39.874,7.7 42.294,7.7 42.294,19.448 42.28,19.906 42.24,20.333 42.172,20.731 42.077,21.098 41.955,21.435 41.805,21.742 41.629,22.018 41.425,22.264 40.933,22.668 40.328,22.957 39.608,23.13 38.774,23.188z M48.794,9.9L46.264,9.9 46.264,7.7 53.744,7.7 53.744,9.9 51.214,9.9 51.214,23.1 48.794,23.1 48.794,9.9z"/>
+
+            <!-- 'Ø' knob ring at center (27.6, 15.4), radius 6.6, stroke 2.31 -->
+            <Ellipse Canvas.Left="19.845" Canvas.Top="7.645" Width="15.51" Height="15.51"
+                     Stroke="#EADFC8" StrokeThickness="2.31"/>
+
+            <!-- -55° orange pointer slash (#E2581E), length 22.0, stroke 1.87 -->
+            <Line X1="21.29" Y1="24.41" X2="33.91" Y2="6.39"
+                  Stroke="#E2581E" StrokeThickness="1.87"
+                  StrokeStartLineCap="Flat" StrokeEndLineCap="Flat"/>
+        </Canvas>
+    </Viewbox>
+</UserControl>

@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Melanchall.DryWetMidi" Version="8.0.3" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="MeltySynth" Version="2.4.1" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+  </ItemGroup>
+
+  <!-- The title bar's <Image Source="app.png"/> resolves against the assembly's resources;
+       without this the image fails to load silently and the title bar shows no icon. -->
+  <ItemGroup>
+    <Resource Include="app.png" />
+    <!-- Inter Tight and JetBrains Mono (SIL OFL 1.1, see THIRD-PARTY-NOTICES.txt): the front
+         panel's faces. Static instances; WPF does not read variable-font axes. -->
+    <Resource Include="Fonts\*.ttf" />
+  </ItemGroup>
+
+</Project>
