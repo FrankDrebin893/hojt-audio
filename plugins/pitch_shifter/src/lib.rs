@@ -15,9 +15,14 @@ pub struct GuitarPitchShifterPlugin {
 
 #[derive(Params)]
 pub struct GuitarPitchShifterParams {
-    // Key changed with the pedal layout, so that projects saved with the old window size open at the new one
-    #[persist = "editor-state-pedal"]
+    // Key changed with the pedal layout, so that projects saved with the old window size open at
+    // the new one (the window grew to 400 x 600 when the Blend knob came)
+    #[persist = "editor-state-pedal2"]
     pub editor_state: Arc<EguiState>,
+
+    // The key before it, kept as it was so no saved key goes away. Nothing reads it
+    #[persist = "editor-state-pedal"]
+    old_editor_state: Arc<EguiState>,
 
     #[id = "semitones"]
     pub semitones: IntParam,
@@ -48,6 +53,7 @@ impl Default for GuitarPitchShifterParams {
     fn default() -> Self {
         Self {
             editor_state: editor::default_state(),
+            old_editor_state: editor::default_state(),
 
             semitones: IntParam::new("Semitones", 0, IntRange::Linear { min: -12, max: 12 })
                 .with_unit(" st"),

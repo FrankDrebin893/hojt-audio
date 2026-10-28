@@ -6,7 +6,7 @@ Shift guitar audio by semitones (-12 to +12) with minimal latency for live playi
 
 - `src/lib.rs` - Plugin entry point, parameters, nih-plug integration
 - `src/pitch_shifter.rs` - DSP: circular buffer, variable-rate playback, waveform-matched splices
-- `src/editor.rs` - egui GUI: orange pedal, three knobs, bypass footswitch
+- `src/editor.rs` - egui GUI: orange pedal, four knobs, bypass footswitch (`test_the_controls_do_not_touch` keeps them apart)
 
 Algorithm:
 

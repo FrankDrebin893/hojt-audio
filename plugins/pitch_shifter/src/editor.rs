@@ -1,5 +1,5 @@
 use nih_plug::prelude::*;
-use nih_plug_egui::egui::vec2;
+use nih_plug_egui::egui::{vec2, Vec2};
 use nih_plug_egui::{create_egui_editor, EguiState};
 use std::sync::Arc;
 
@@ -8,7 +8,19 @@ use suite_common::ui::{self, footswitch, led, param_knob, Ornament, PedalStyle};
 use crate::GuitarPitchShifterParams;
 
 const WINDOW_WIDTH: u32 = 400;
-const WINDOW_HEIGHT: u32 = 560;
+const WINDOW_HEIGHT: u32 = 600;
+
+// Where the controls sit, from the window's top left corner: three small knobs in a row over
+// the big Semitones knob, then the name band, the LED and the footswitch
+const LATENCY_AT: Vec2 = vec2(83.0, 80.0);
+const BLEND_AT: Vec2 = vec2(200.0, 80.0);
+const SMOOTHNESS_AT: Vec2 = vec2(317.0, 80.0);
+const SEMITONES_AT: Vec2 = vec2(200.0, 250.0);
+const LED_AT: Vec2 = vec2(200.0, 463.0);
+const FOOTSWITCH_AT: Vec2 = vec2(200.0, 523.0);
+const SMALL_KNOB: f32 = 27.0;
+const BIG_KNOB: f32 = 48.0;
+const SEMITONES_SCALE: Option<[&str; 3]> = Some(["-12", "0", "+12"]);
 
 const STYLE: PedalStyle = PedalStyle {
     name: "Pitch Shifter",
@@ -16,7 +28,7 @@ const STYLE: PedalStyle = PedalStyle {
     paint: ui::theme::PAINT_ORANGE,
     ornament: Ornament::Arrows,
     jacks: ["Out", "In"],
-    band_y: 367.0,
+    band_y: 407.0,
     art: Some(ui::artwork::PITCH_SHIFTER),
 };
 
@@ -34,22 +46,23 @@ pub fn create(
         |egui_ctx, _| ui::install(egui_ctx),
         move |egui_ctx, setter, _state| {
             ui::pedal(egui_ctx, &STYLE, |ui, origin| {
-                // Three knobs in a triangle
+                // Three small knobs in a row over the big one
                 param_knob(
                     ui,
                     setter,
                     &params.latency_ms,
-                    origin + vec2(83.0, 103.0),
-                    27.0,
+                    origin + LATENCY_AT,
+                    SMALL_KNOB,
                     "Max Latency",
                     None,
                 );
+                param_knob(ui, setter, &params.blend, origin + BLEND_AT, SMALL_KNOB, "Blend", None);
                 param_knob(
                     ui,
                     setter,
                     &params.smoothness_ms,
-                    origin + vec2(317.0, 103.0),
-                    27.0,
+                    origin + SMOOTHNESS_AT,
+                    SMALL_KNOB,
                     "Smoothness",
                     None,
                 );
@@ -57,16 +70,16 @@ pub fn create(
                     ui,
                     setter,
                     &params.semitones,
-                    origin + vec2(200.0, 205.0),
-                    48.0,
+                    origin + SEMITONES_AT,
+                    BIG_KNOB,
                     "Semitones",
-                    Some(["-12", "0", "+12"]),
+                    SEMITONES_SCALE,
                 );
 
                 // Bypass switch, lit while the effect is on
                 let bypassed = params.bypass.value();
-                led(ui.painter(), origin + vec2(200.0, 418.0), !bypassed);
-                if footswitch(ui, origin + vec2(200.0, 478.0), "bypass").clicked() {
+                led(ui.painter(), origin + LED_AT, !bypassed);
+                if footswitch(ui, origin + FOOTSWITCH_AT, "bypass").clicked() {
                     setter.begin_set_parameter(&params.bypass);
                     setter.set_parameter(&params.bypass, !bypassed);
                     setter.end_set_parameter(&params.bypass);
@@ -84,5 +97,177 @@ mod tests {
     #[test]
     fn test_the_pedal_is_drawn_with_its_art() {
         assert!(STYLE.art == Some(ui::artwork::PITCH_SHIFTER), "the pedal has lost its art");
+    }
+
+    use nih_plug::context::PluginApi;
+    use nih_plug_egui::egui::{epaint::Shape, Context, Pos2, RawInput, Rect, Ui};
+
+    /// A host that is never asked for anything: no input reaches the knobs
+    struct NoHost;
+    impl GuiContext for NoHost {
+        fn plugin_api(&self) -> PluginApi {
+            PluginApi::Clap
+        }
+        fn request_resize(&self) -> bool {
+            false
+        }
+        unsafe fn raw_begin_set_parameter(&self, _: ParamPtr) {}
+        unsafe fn raw_set_parameter_normalized(&self, _: ParamPtr, _: f32) {}
+        unsafe fn raw_end_set_parameter(&self, _: ParamPtr) {}
+        fn get_state(&self) -> PluginState {
+            unreachable!()
+        }
+        fn set_state(&self, _: PluginState) {}
+    }
+
+    fn collect(shape: &Shape, out: &mut Vec<Shape>) {
+        match shape {
+            Shape::Vec(shapes) => shapes.iter().for_each(|shape| collect(shape, out)),
+            shape => out.push(shape.clone()),
+        }
+    }
+
+    type Draw<'a> = &'a dyn Fn(&mut Ui, &ParamSetter, Pos2);
+
+    /// The shapes `draw` paints in a window of the pedal's size, on the pedal or on the bare
+    /// bench, once the fonts are in
+    fn painted(on_pedal: bool, draw: Draw) -> Vec<Shape> {
+        let ctx = Context::default();
+        ui::install(&ctx);
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let window =
+            Rect::from_min_size(Pos2::ZERO, vec2(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32));
+        let mut shapes = Vec::new();
+        for _ in 0..2 {
+            let input = RawInput { screen_rect: Some(window), ..RawInput::default() };
+            let output = ctx.run(input, |ctx| {
+                if on_pedal {
+                    ui::pedal(ctx, &STYLE, |ui, origin| draw(ui, &setter, origin));
+                } else {
+                    ui::rig(ctx, |ui, origin| draw(ui, &setter, origin));
+                }
+            });
+            shapes.clear();
+            output.shapes.iter().for_each(|clipped| collect(&clipped.shape, &mut shapes));
+        }
+        shapes
+    }
+
+    /// What a control paints, as boxes, without the bench under it
+    fn boxes(draw: Draw) -> Vec<Rect> {
+        painted(false, draw)
+            .iter()
+            .map(|shape| shape.visual_bounding_rect())
+            .filter(|rect| rect.is_positive() && rect.width() < WINDOW_WIDTH as f32 - 10.0)
+            .collect()
+    }
+
+    // Nobody can look at the pedal in CI: every control, with its caption and value tape,
+    // stays clear of the others and of the name band, by the boxes of what egui paints
+    #[test]
+    fn test_the_controls_do_not_touch() {
+        let params = crate::GuitarPitchShifterParams::default();
+        let p = &params;
+        let parts: [(&str, Vec<Rect>); 6] = [
+            (
+                "Max Latency",
+                boxes(&|ui, setter, o| {
+                    param_knob(
+                        ui,
+                        setter,
+                        &p.latency_ms,
+                        o + LATENCY_AT,
+                        SMALL_KNOB,
+                        "Max Latency",
+                        None,
+                    );
+                }),
+            ),
+            (
+                "Blend",
+                boxes(&|ui, setter, o| {
+                    param_knob(ui, setter, &p.blend, o + BLEND_AT, SMALL_KNOB, "Blend", None);
+                }),
+            ),
+            (
+                "Smoothness",
+                boxes(&|ui, setter, o| {
+                    param_knob(
+                        ui,
+                        setter,
+                        &p.smoothness_ms,
+                        o + SMOOTHNESS_AT,
+                        SMALL_KNOB,
+                        "Smoothness",
+                        None,
+                    );
+                }),
+            ),
+            (
+                "Semitones",
+                boxes(&|ui, setter, o| {
+                    let scale = SEMITONES_SCALE;
+                    param_knob(
+                        ui,
+                        setter,
+                        &p.semitones,
+                        o + SEMITONES_AT,
+                        BIG_KNOB,
+                        "Semitones",
+                        scale,
+                    );
+                }),
+            ),
+            ("LED", boxes(&|ui, _, o| led(ui.painter(), o + LED_AT, true))),
+            (
+                "Footswitch",
+                boxes(&|ui, _, o| {
+                    footswitch(ui, o + FOOTSWITCH_AT, "bypass");
+                }),
+            ),
+        ];
+
+        for (i, (a_name, a_boxes)) in parts.iter().enumerate() {
+            assert!(!a_boxes.is_empty(), "{a_name} paints nothing");
+            for (b_name, b_boxes) in &parts[i + 1..] {
+                // The LED sits in the footswitch's shadow, as it did before the knob came
+                if (*a_name, *b_name) == ("LED", "Footswitch") {
+                    continue;
+                }
+                for a in a_boxes {
+                    for b in b_boxes {
+                        assert!(!a.intersects(*b), "{a_name} {a:?} touches {b_name} {b:?}");
+                    }
+                }
+            }
+        }
+
+        // The name band, between the long lines along its edges (ink, and cream outside it)
+        let edges: Vec<[Pos2; 2]> = painted(true, &|_, _, _| {})
+            .into_iter()
+            .filter_map(|shape| match shape {
+                Shape::LineSegment { points, .. } if points[1].x - points[0].x > 300.0 => {
+                    Some(points)
+                }
+                _ => None,
+            })
+            .collect();
+        assert!(edges.len() >= 4, "the band's edges were not found");
+        let height = |edge: &[Pos2; 2], x: f32| {
+            edge[0].y + (edge[1].y - edge[0].y) * (x - edge[0].x) / (edge[1].x - edge[0].x)
+        };
+        // Half the width of the cream line
+        let margin = 2.0;
+        for (name, part) in &parts {
+            for b in part {
+                for x in [b.left(), b.right()] {
+                    let top = edges.iter().map(|edge| height(edge, x)).fold(f32::MAX, f32::min);
+                    let bottom = edges.iter().map(|edge| height(edge, x)).fold(f32::MIN, f32::max);
+                    let clear = b.bottom() < top - margin || b.top() > bottom + margin;
+                    assert!(clear, "{name} {b:?} touches the name band at x {x}");
+                }
+            }
+        }
     }
 }

@@ -8,3 +8,4 @@ param latency
 param semitones
 param smoothness
 persist editor-state-pedal
+persist editor-state-pedal2
