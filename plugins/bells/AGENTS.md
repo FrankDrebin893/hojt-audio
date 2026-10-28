@@ -21,8 +21,8 @@ How it behaves:
 - A new bell takes a voice that has rung out, or else the one struck longest ago
 - All sound off stops bells and tails at once
 - The delay time glides when its knob is turned, and when the song's tempo moves while Sync is
-  on. The tempo is read from the host only while Sync is on; with none, the Time knob's ms. The footswitches fade in 10 ms; with Delay
-  off the echoes are out of the hall as well
+  on. The tempo is read from the host only while Sync is on; with none, the Time knob's ms.
+  The footswitches fade in 10 ms; with Delay off the echoes are out of the hall as well
 
 | Parameter (id) | Range | Default | Description |
 |-----------|-------|---------|-------------|
