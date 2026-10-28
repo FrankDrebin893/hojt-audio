@@ -90,6 +90,9 @@ pub struct PitchShifter {
     // Playback rate (1.0 = normal, 2.0 = octave up, 0.5 = octave down)
     playback_rate: f64,
 
+    // How much of the output is the shifted head (1.0) rather than the dry input (0.0)
+    blend: f32,
+
     // Parameters
     sample_rate: f32,
     latency_ms: f32,
@@ -164,6 +167,7 @@ impl PitchShifter {
             fade_remaining: 0,
             fade_match: 1.0,
             playback_rate: 1.0,
+            blend: 1.0,
             sample_rate: 44100.0,
             latency_ms: 15.0,
             smoothness_ms: 2.0,
@@ -215,6 +219,13 @@ impl PitchShifter {
             self.playback_rate = playback_rate;
             self.update_timing();
         }
+    }
+
+    /// Mix of the dry input (0.0) and the shifted one (1.0). The dry part is the input at the
+    /// minimum delay, where a shift of 0 passes it through, so at a shift of 0 the two are the
+    /// same signal and the mix leaves it as it is.
+    pub fn set_blend(&mut self, blend: f32) {
+        self.blend = blend.clamp(0.0, 1.0);
     }
 
     pub fn reset(&mut self) {
@@ -308,6 +319,11 @@ impl PitchShifter {
             self.update_splice();
         }
 
+        // No shift, settled on the minimum delay and no splice running: the head reads the
+        // input back untouched
+        let passthrough =
+            self.playback_rate == 1.0 && self.fade_remaining == 0 && self.delay == MIN_DELAY;
+
         let mut output = [0.0; 2];
         if self.fade_remaining > 0 {
             let (fade_out, fade_in) = self.fade_gains();
@@ -320,6 +336,16 @@ impl PitchShifter {
         } else {
             for channel in 0..channels {
                 output[channel] = self.read_cubic(channel, self.delay);
+            }
+        }
+
+        // Blend the dry input back in. In the passthrough state the output already is the
+        // dry input, so it is left bit-exact.
+        if self.blend < 1.0 && !passthrough {
+            let dry_idx = self.write_pos.wrapping_sub(1 + MIN_DELAY as usize) & BUFFER_MASK;
+            for channel in 0..channels {
+                let dry = self.buffers[channel][dry_idx];
+                output[channel] = (1.0 - self.blend) * dry + self.blend * output[channel];
             }
         }
 
@@ -767,6 +793,160 @@ mod tests {
         let delay = MIN_DELAY as usize;
         for i in 20000 + shifter.crossfade_len + 1..input.len() {
             assert_eq!(output[i], input[i - delay], "Sample {} was altered", i);
+        }
+    }
+
+    /// Level of one frequency in a signal, in dB (Hann-windowed single-bin transform)
+    fn level_at_db(signal: &[f32], sample_rate: f32, frequency: f64) -> f64 {
+        let len = signal.len();
+        let omega = 2.0 * PI64 * frequency / sample_rate as f64;
+        let (mut re, mut im, mut weight) = (0.0, 0.0, 0.0);
+        for (i, &sample) in signal.iter().enumerate() {
+            let w = 0.5 - 0.5 * (2.0 * PI64 * i as f64 / len as f64).cos();
+            let (sin, cos) = (omega * i as f64).sin_cos();
+            re += w * sample as f64 * cos;
+            im += w * sample as f64 * sin;
+            weight += w;
+        }
+        20.0 * (2.0 * (re * re + im * im).sqrt() / weight).max(1e-12).log10()
+    }
+
+    /// Runs a shifter with the blend set every sample, as the plugin does
+    fn process_blended(shifter: &mut PitchShifter, input: &[f32], blend: f32) -> Vec<f32> {
+        input
+            .iter()
+            .map(|&s| {
+                shifter.set_blend(blend);
+                shifter.process_sample(s)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_full_blend_is_the_shifted_output_unchanged() {
+        // 100 % is the default and the sound from before the knob, bit for bit
+        let input = generate_harmonic_tone(110.0, 10, NUM_SAMPLES);
+        for semitones in [-12, -5, 7, 12] {
+            let without_knob = process_buffer(&mut new_shifter(semitones), &input);
+            let at_full = process_blended(&mut new_shifter(semitones), &input, 1.0);
+            for (i, (a, b)) in without_knob.iter().zip(&at_full).enumerate() {
+                assert_eq!(
+                    a.to_bits(),
+                    b.to_bits(),
+                    "Semitones={}: sample {} changed",
+                    semitones,
+                    i
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_no_blend_is_the_dry_input_at_every_shift() {
+        let input = generate_harmonic_tone(110.0, 10, 20000);
+        let delay = MIN_DELAY as usize;
+        for semitones in -12..=12 {
+            let output = process_blended(&mut new_shifter(semitones), &input, 0.0);
+            assert!(output[..delay].iter().all(|&s| s == 0.0));
+            for i in delay..input.len() {
+                assert_eq!(
+                    output[i].to_bits(),
+                    input[i - delay].to_bits(),
+                    "Semitones={}: sample {} is not the dry input",
+                    semitones,
+                    i
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_no_shift_passes_through_at_any_blend() {
+        let input = generate_harmonic_tone(110.0, 10, 4000);
+        let delay = MIN_DELAY as usize;
+        for blend in [0.0, 0.3, 0.5, 1.0] {
+            let output = process_blended(&mut new_shifter(0), &input, blend);
+            for i in delay..input.len() {
+                assert_eq!(
+                    output[i],
+                    input[i - delay],
+                    "Blend={}: sample {} was altered",
+                    blend,
+                    i
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_bypass_returns_to_passthrough_at_any_blend() {
+        // Bypass is a shift of 0: after one crossfade back it is bit-exact whatever the blend
+        let input = generate_harmonic_tone(110.0, 10, 30000);
+        let delay = MIN_DELAY as usize;
+        for blend in [0.0, 0.3, 0.5, 1.0] {
+            let mut shifter = new_shifter(-12);
+            let mut output = process_blended(&mut shifter, &input[..20000], blend);
+            shifter.set_semitones(0);
+            output.extend(process_blended(&mut shifter, &input[20000..], blend));
+            for i in 20000 + shifter.crossfade_len + 1..input.len() {
+                assert_eq!(
+                    output[i],
+                    input[i - delay],
+                    "Blend={}: sample {} was altered",
+                    blend,
+                    i
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_half_blend_is_a_two_note_harmony() {
+        // A fifth up on a 110 Hz sine: both notes at the same level, and no more artifacts
+        // than the shifted note has on its own
+        let input = generate_sine_wave(110.0, SAMPLE_RATE, NUM_SAMPLES);
+        let shifted = 110.0 * shift_ratio(7);
+        let mixed = process_blended(&mut new_shifter(7), &input, 0.5);
+        let alone = process_buffer(&mut new_shifter(7), &input);
+
+        let dry_db = level_at_db(&mixed[SETTLE..], SAMPLE_RATE, 110.0);
+        let wet_db = level_at_db(&mixed[SETTLE..], SAMPLE_RATE, shifted);
+        assert!(
+            (dry_db - wet_db).abs() < 1.0,
+            "110 Hz at {:.2} dB, {:.1} Hz at {:.2} dB",
+            dry_db,
+            shifted,
+            wet_db
+        );
+
+        let mixed_artifacts = artifact_ratio_db(&mixed[SETTLE..], SAMPLE_RATE, &[110.0, shifted]);
+        let alone_artifacts = artifact_ratio_db(&alone[SETTLE..], SAMPLE_RATE, &[shifted]);
+        assert!(
+            mixed_artifacts <= alone_artifacts,
+            "Artifacts at {:.1} dB blended, {:.1} dB shifted alone",
+            mixed_artifacts,
+            alone_artifacts
+        );
+    }
+
+    #[test]
+    fn test_no_clicks_when_turning_blend() {
+        // Blend swept 0 to 100 % and back over 50 ms while shifting an octave down
+        let mut shifter = new_shifter(-12);
+        let input = generate_sine_wave(220.0, SAMPLE_RATE, 60000);
+        let sweep = (SAMPLE_RATE * 0.05) as usize;
+        let mut previous = 0.0;
+        for (i, &sample) in input.iter().enumerate() {
+            let phase = (i % (2 * sweep)) as f32 / sweep as f32;
+            shifter.set_blend(if phase < 1.0 { phase } else { 2.0 - phase });
+
+            let output = shifter.process_sample(sample);
+            assert!(output.is_finite() && output.abs() < 1.5, "Sample {}: output {}", i, output);
+
+            // The same measure as test_no_clicks_on_parameter_changes
+            let step = (output - previous).abs();
+            assert!(step < 0.25, "Sample {}: jumped by {}", i, step);
+            previous = output;
         }
     }
 

@@ -15,9 +15,14 @@ pub struct GuitarPitchShifterPlugin {
 
 #[derive(Params)]
 pub struct GuitarPitchShifterParams {
-    // Key changed with the pedal layout, so that projects saved with the old window size open at the new one
-    #[persist = "editor-state-pedal"]
+    // Key changed with the pedal layout, so that projects saved with the old window size open at
+    // the new one (the window grew to 400 x 600 when the Blend knob came)
+    #[persist = "editor-state-pedal2"]
     pub editor_state: Arc<EguiState>,
+
+    // The key before it, kept as it was so no saved key goes away. Nothing reads it
+    #[persist = "editor-state-pedal"]
+    old_editor_state: Arc<EguiState>,
 
     #[id = "semitones"]
     pub semitones: IntParam,
@@ -30,6 +35,9 @@ pub struct GuitarPitchShifterParams {
 
     #[id = "bypass"]
     pub bypass: BoolParam,
+
+    #[id = "blend"]
+    pub blend: FloatParam,
 }
 
 impl Default for GuitarPitchShifterPlugin {
@@ -45,6 +53,7 @@ impl Default for GuitarPitchShifterParams {
     fn default() -> Self {
         Self {
             editor_state: editor::default_state(),
+            old_editor_state: editor::default_state(),
 
             semitones: IntParam::new("Semitones", 0, IntRange::Linear { min: -12, max: 12 })
                 .with_unit(" st"),
@@ -70,6 +79,14 @@ impl Default for GuitarPitchShifterParams {
             .with_value_to_string(formatters::v2s_f32_rounded(1)),
 
             bypass: BoolParam::new("Bypass", false).make_bypass(),
+
+            // All dry (0 %) to all shifted (100 %). The default is how the pedal sounded
+            // before it had the knob, so a saved project is unchanged
+            blend: FloatParam::new("Blend", 1.0, FloatRange::Linear { min: 0.0, max: 1.0 })
+                .with_smoother(SmoothingStyle::Linear(20.0))
+                .with_unit(" %")
+                .with_value_to_string(formatters::v2s_f32_percentage(0))
+                .with_string_to_value(formatters::s2v_f32_percentage()),
         }
     }
 }
@@ -140,6 +157,8 @@ impl Plugin for GuitarPitchShifterPlugin {
         let num_channels = buffer.channels();
 
         for mut frame in buffer.iter_samples() {
+            // Read per sample, so turning the knob does not click
+            self.pitch_shifter.set_blend(self.params.blend.smoothed.next());
             if num_channels >= 2 {
                 let left = *frame.get_mut(0).unwrap();
                 let right = *frame.get_mut(1).unwrap();

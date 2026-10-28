@@ -156,6 +156,17 @@ GitHub release.
   goes at its end, up and down; the voice footswitches leave it where it is. With the wheel at
   centre the sound is exactly as before
 
+### Pitch Shifter
+
+- A Blend knob, 0 to 100 %, mixes the guitar as you play it with the shifted one. At 100 %, the
+  default, you hear only the shifted guitar, as before, so a saved project sounds the same.
+  Turn it down for an octave under your note, or a fifth or a fourth beside it for a two-note
+  harmony; in the middle both are at the same level. The dry guitar is not audibly delayed, and
+  Bypass still gives the plain guitar at any Blend. At a shift of one or two semitones the
+  shifted guitar can be heard a moment behind the dry one, as a short doubling
+- The pedal's window is taller (400 x 600, as tall as the other pedals) to make room for the
+  fourth knob: Max Latency, Blend and Smoothness in a row over Semitones
+
 ## 0.2.1
 
 ### Guitar Amp
