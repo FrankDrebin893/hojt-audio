@@ -1,12 +1,16 @@
 use nih_plug::prelude::*;
 use nih_plug_egui::EguiState;
 use std::sync::Arc;
+use suite_common::dsp::NoteValue;
 
 mod bells;
 mod editor;
 #[cfg(test)]
 mod no_alloc;
 use bells::{BellSettings, GlassBells};
+
+// The note the delay's Time knob picks when Sync is first switched on
+const DELAY_NOTE: NoteValue = NoteValue::DottedEighth;
 
 pub struct GlassBellsPlugin {
     params: Arc<GlassBellsParams>,
@@ -44,6 +48,14 @@ pub struct GlassBellsParams {
 
     #[id = "delay_mix"]
     pub delay_mix: FloatParam,
+
+    /// The delay follows the song's tempo: the Time knob picks `delay_note`, and `delay_time`
+    /// keeps its ms for when Sync is off
+    #[id = "delay_sync"]
+    pub delay_sync: BoolParam,
+
+    #[id = "delay_note"]
+    pub delay_note: EnumParam<NoteValue>,
 
     #[id = "reverb_on"]
     pub reverb_on: BoolParam,
@@ -124,6 +136,9 @@ impl Default for GlassBellsParams {
                 bells::FEEDBACK_MAX,
             ),
             delay_mix: percent_param("Delay Mix", defaults.delay_mix, 1.0),
+            // Off, so a project from before sounds as it did
+            delay_sync: BoolParam::new("Delay Sync", false),
+            delay_note: EnumParam::new("Delay Note", DELAY_NOTE),
 
             reverb_on: BoolParam::new("Reverb", defaults.reverb_on),
 
@@ -159,14 +174,21 @@ fn seconds_param(name: &str, default: f32, min: f32, max: f32) -> FloatParam {
 }
 
 impl GlassBellsParams {
-    fn settings(&self) -> BellSettings {
+    /// What the knobs say now, with the song at `tempo_bpm` (`None` where the host gives
+    /// no tempo)
+    fn settings(&self, tempo_bpm: Option<f64>) -> BellSettings {
         BellSettings {
             brightness: self.brightness.value(),
             decay_s: self.decay.value(),
             attack_ms: self.attack.value(),
             dry: self.dry.value(),
             delay_on: self.delay_on.value(),
-            delay_ms: self.delay_time.value(),
+            delay_ms: delay_time_ms(
+                self.delay_time.value(),
+                self.delay_sync.value(),
+                self.delay_note.value(),
+                tempo_bpm,
+            ),
             delay_feedback: self.delay_feedback.value(),
             delay_mix: self.delay_mix.value(),
             reverb_on: self.reverb_on.value(),
@@ -174,6 +196,18 @@ impl GlassBellsParams {
             reverb_mix: self.reverb_mix.value(),
         }
     }
+}
+
+/// The delay's time: the Time knob's ms, or with Sync on the note it picks at the song's tempo,
+/// kept to the delay's range. A tempo that changes glides as a turn of the knob does
+fn delay_time_ms(knob_ms: f32, sync: bool, note: NoteValue, tempo_bpm: Option<f64>) -> f32 {
+    suite_common::dsp::delay_time_ms(
+        knob_ms,
+        sync.then_some(note),
+        tempo_bpm,
+        bells::DELAY_MIN_MS,
+        bells::DELAY_MAX_MS,
+    )
 }
 
 impl Plugin for GlassBellsPlugin {
@@ -213,7 +247,7 @@ impl Plugin for GlassBellsPlugin {
         buffer_config: &BufferConfig,
         _context: &mut impl InitContext<Self>,
     ) -> bool {
-        self.bells.set(&self.params.settings());
+        self.bells.set(&self.params.settings(None));
         self.bells.set_sample_rate(buffer_config.sample_rate);
         true
     }
@@ -228,7 +262,10 @@ impl Plugin for GlassBellsPlugin {
         _aux: &mut AuxiliaryBuffers,
         context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
-        self.bells.set(&self.params.settings());
+        // The song's tempo is only asked for while the delay follows it
+        let tempo_bpm =
+            if self.params.delay_sync.value() { context.transport().tempo } else { None };
+        self.bells.set(&self.params.settings(tempo_bpm));
 
         let mut next_event = context.next_event();
 
@@ -290,7 +327,58 @@ mod tests {
 
     #[test]
     fn test_parameter_defaults_are_those_of_the_dsp() {
-        assert_eq!(GlassBellsParams::default().settings(), BellSettings::default());
+        assert_eq!(GlassBellsParams::default().settings(None), BellSettings::default());
+    }
+
+    #[test]
+    fn test_a_synced_delay_repeats_on_the_note_at_the_songs_tempo() {
+        let synced = |bpm| delay_time_ms(445.0, true, NoteValue::DottedEighth, Some(bpm));
+        let at_120 = bells::tests::first_echo_ms(synced(120.0));
+        assert!((at_120 - 375.0).abs() <= 1.0, "a dotted 1/8 at 120 bpm repeats at {at_120} ms");
+        let at_90 = bells::tests::first_echo_ms(synced(90.0));
+        assert!((at_90 - 500.0).abs() <= 1.0, "a dotted 1/8 at 90 bpm repeats at {at_90} ms");
+        // Slower than the delay reaches: its longest time. With no tempo, the knob
+        assert_eq!(delay_time_ms(445.0, true, NoteValue::Quarter, Some(30.0)), bells::DELAY_MAX_MS);
+        assert_eq!(delay_time_ms(445.0, true, NoteValue::Quarter, None), 445.0);
+    }
+
+    #[test]
+    fn test_without_sync_the_delay_is_as_it_was_at_any_tempo() {
+        for knob_ms in [bells::DELAY_MIN_MS, 445.0, bells::DELAY_MAX_MS] {
+            let before = bells::tests::echoes(knob_ms);
+            for tempo in [None, Some(60.0), Some(120.0), Some(187.5)] {
+                for note in [NoteValue::Quarter, NoteValue::Sixteenth] {
+                    let now = bells::tests::echoes(delay_time_ms(knob_ms, false, note, tempo));
+                    assert!(now == before, "{knob_ms} ms at {tempo:?} bpm");
+                }
+            }
+        }
+        // The parameters as they start, and as a project from before has them: Sync off
+        let params = GlassBellsParams::default();
+        assert!(!params.delay_sync.value());
+        assert_eq!(params.delay_note.value(), NoteValue::DottedEighth);
+        assert_eq!(params.settings(Some(120.0)), params.settings(None));
+    }
+
+    #[test]
+    fn test_a_project_from_before_opens_with_sync_off() {
+        // A state saved before there was Sync names neither new id. Nothing adds them, so
+        // they stay at what a new plugin starts with: Sync off
+        let mut state = PluginState {
+            version: "0.2.0".to_owned(),
+            params: [
+                ("delay_on", nih_plug::wrapper::state::ParamValue::Bool(true)),
+                ("delay_time", nih_plug::wrapper::state::ParamValue::F32(512.0)),
+            ]
+            .into_iter()
+            .map(|(id, value)| (id.to_owned(), value))
+            .collect(),
+            fields: Default::default(),
+        };
+        GlassBellsPlugin::filter_state(&mut state);
+        assert!(!state.params.contains_key("delay_sync"));
+        assert!(!state.params.contains_key("delay_note"));
+        assert!(!GlassBellsParams::default().delay_sync.default_plain_value());
     }
 }
 
