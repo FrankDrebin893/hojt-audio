@@ -134,14 +134,21 @@ GitHub release.
 - Both voices sound like a bass through a pickup, not a synth. The top of a note fades soon
   after the attack while its low end keeps ringing, on low notes as on high ones, so the low E
   no longer rings with a clang. A fingered note on Groove has the growl of a pickup near the
-  bridge, and a picked note on Metal has a firm attack that is the same every time you play it
-  at the same strength
+  bridge, and a picked note on Metal has a firm attack
+- No two notes in a row are the same, as when a person plays: each is plucked a little nearer
+  to or further from the bridge, a little softer or sharper at the edge, and a hard pluck starts
+  a few cents sharp and settles to pitch within a fraction of a second. A note played again
+  while the last one still rings lands on the moving string instead of cutting it off. Fast
+  repeated notes sound played, not looped, at the same level as before
+- Metal's distortion is hot on the attack and cleans up as the note rings, so the top of a held
+  note dies with the string instead of ringing on through the drive as a metallic clang, and
+  the drive no longer holds a note up longer than the string rings
 - The sine under the string (Sub) starts in step with the string's own low end and dies with
   it, so a held note stays a string to the end instead of turning into an organ tone
 - On Metal the clean lows and the distorted mids now meet without a hollow between them
-- The voices' own settings changed to suit the new sound: Metal is Sub 25 % and Sustain 3 s,
-  Groove is Sub 30 %. The knobs and their ranges are the same, and a saved project keeps its
-  knobs but plays the new sound
+- The voices' own settings changed to suit the new sound: Metal is Drive 40 %, Tone 2600 Hz,
+  Sub 25 % and Sustain 3 s, Groove is Sub 30 %. The knobs and their ranges are the same, and a
+  saved project keeps its knobs but plays the new sound
 - The bass follows the pitch-bend wheel, and pitch bend drawn in the DAW: the ringing note bends
   smoothly up or down and comes back to pitch with the wheel, and a note played with the wheel
   off centre starts bent. The sine under the string bends with it, and a slide and a bend add
@@ -158,6 +165,17 @@ GitHub release.
   Time is milliseconds as before and keeps its setting. New parameters Delay Sync (on / off,
   off) and Delay Note (default 1/8 dotted). A project from before opens with Sync off and
   sounds as it did. The standalone follows its own tempo (120 bpm, or what `--tempo` says)
+
+### Pitch Shifter
+
+- A Blend knob, 0 to 100 %, mixes the guitar as you play it with the shifted one. At 100 %, the
+  default, you hear only the shifted guitar, as before, so a saved project sounds the same.
+  Turn it down for an octave under your note, or a fifth or a fourth beside it for a two-note
+  harmony; in the middle both are at the same level. The dry guitar is not audibly delayed, and
+  Bypass still gives the plain guitar at any Blend. At a shift of one or two semitones the
+  shifted guitar can be heard a moment behind the dry one, as a short doubling
+- The pedal's window is taller (400 x 600, as tall as the other pedals) to make room for the
+  fourth knob: Max Latency, Blend and Smoothness in a row over Semitones
 
 ## 0.2.1
 

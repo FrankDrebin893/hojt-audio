@@ -419,14 +419,14 @@ impl Random {
 fn dot(a: &[f32], b: &[f32]) -> f32 {
     const LANES: usize = 16;
     let mut sums = [0.0f32; LANES];
-    let mut a_chunks = a.chunks_exact(LANES);
-    let mut b_chunks = b.chunks_exact(LANES);
-    for (a_chunk, b_chunk) in (&mut a_chunks).zip(&mut b_chunks) {
+    let (a_chunks, a_rest) = a.as_chunks::<LANES>();
+    let (b_chunks, b_rest) = b.as_chunks::<LANES>();
+    for (a_chunk, b_chunk) in a_chunks.iter().zip(b_chunks) {
         for lane in 0..LANES {
             sums[lane] += a_chunk[lane] * b_chunk[lane];
         }
     }
-    let rest: f32 = a_chunks.remainder().iter().zip(b_chunks.remainder()).map(|(x, y)| x * y).sum();
+    let rest: f32 = a_rest.iter().zip(b_rest).map(|(x, y)| x * y).sum();
     sums.iter().sum::<f32>() + rest
 }
 

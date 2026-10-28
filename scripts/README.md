@@ -54,7 +54,7 @@ changed is `kind:sound` or says why it changed; one that must not change the sou
 none. The renders before and after are the run's `renders` artifact.
 
 **Always run `scripts/check.sh` before pushing.** It runs every step of `ci.yml`: `cargo fmt --all --check`,
-`cargo clippy --workspace --all-targets -- -D warnings` (on Rust 1.93.0, pinned in `ci.yml`, when rustup has it),
+`cargo clippy --workspace --all-targets -- -D warnings` (on Rust 1.99.1, pinned in `ci.yml`, when rustup has it),
 `cargo test --workspace` and `cargo test -p amp --release`. On Linux it first names the packages the build needs
 that are missing. In Claude Code a hook (`.claude/settings.json`) runs `scripts/check.sh quick` before every
 `git commit` and stops a commit that fails it; an agent tool without hooks runs `scripts/check.sh quick` itself

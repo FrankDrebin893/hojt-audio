@@ -6,7 +6,7 @@ Shift guitar audio by semitones (-12 to +12) with minimal latency for live playi
 
 - `src/lib.rs` - Plugin entry point, parameters, nih-plug integration
 - `src/pitch_shifter.rs` - DSP: circular buffer, variable-rate playback, waveform-matched splices
-- `src/editor.rs` - egui GUI: orange pedal, three knobs, bypass footswitch
+- `src/editor.rs` - egui GUI: orange pedal, four knobs, bypass footswitch (`test_the_controls_do_not_touch` keeps them apart)
 
 Algorithm:
 
@@ -29,7 +29,14 @@ Both stereo channels share one read head.
 | Semitones | -12 to +12 | 0 | Pitch shift amount |
 | Max Latency | 2-50 ms | 15 ms | Delay limit = longest period that splices cleanly |
 | Smoothness | 0.5-10 ms | 2 ms | Crossfade length at each splice |
+| Blend | 0-100 % | 100 % | All dry to all shifted, mixed linearly. Smoothed per sample (20 ms) |
 | Bypass | on / off | off | The footswitch. Bypass is a shift of 0 semitones, so it switches without a click |
+
+Blend's dry part is the input at the minimum delay (2 samples), where a shift of 0 passes it
+through, so at a shift of 0 (and in Bypass) the two parts are one signal and the output stays
+bit-exact at any Blend. The shifted part trails the dry one by about one pitch period, the
+latency below: at octaves and fifths that is what a pitch pedal does, at +-1 and +-2 semitones it
+can be heard as a short doubling. That is left as it is.
 
 Actual delay is about one pitch period of the note being played, not the Max Latency value.
 Single notes need Max Latency >= one period of the lowest note (12 ms for low E). Chords have a
@@ -40,7 +47,9 @@ Its CLAP ID and VST3 class ID predate the suite and are kept as they were.
 Measure DSP changes with `quality_report` before judging them by ear.
 
 Pitch shifter tests are in `plugins/pitch_shifter/src/pitch_shifter.rs` and cover:
-- Bit-exact passthrough at 0 semitones
+- Bit-exact passthrough at 0 semitones, and with Bypass, at any Blend
+- Blend: 100 % unchanged from the shifted output, 0 % the dry input, 50 % a two-note harmony,
+  no click while it turns
 - Artifact level of shifted sines, harmonic tones and chords (`artifact_ratio_db`: energy that
   is not at the expected shifted frequencies)
 - Latency following the pitch period, and staying within the limit

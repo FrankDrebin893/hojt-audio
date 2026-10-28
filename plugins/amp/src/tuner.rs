@@ -1830,7 +1830,7 @@ pub(crate) mod tests {
         let mut times = vec![f64::MAX; signal.len() / BLOCK];
         for _ in 0..7 {
             let mut tuner = new_tuner(sample_rate);
-            for (time, block) in times.iter_mut().zip(signal.chunks_exact(BLOCK)) {
+            for (time, block) in times.iter_mut().zip(signal.as_chunks::<BLOCK>().0) {
                 let start = Instant::now();
                 tuner.process(std::hint::black_box(block));
                 *time = time.min(start.elapsed().as_secs_f64() * 1e9);

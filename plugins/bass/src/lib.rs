@@ -276,7 +276,16 @@ impl Vst3Plugin for BassSynthPlugin {
 }
 
 nih_export_clap!(BassSynthPlugin);
-nih_export_vst3!(BassSynthPlugin);
+// vst3-sys's `vtable` macro, which `nih_export_vst3!` expands, ends an expression with a
+// semicolon, which Rust is phasing out (rust-lang/rust#79813). It is in vst3-sys, pinned by
+// nih-plug, not in our code: a fixed vst3-sys, pinned through our nih-plug fork, removes this.
+// An `allow` on the macro call itself is ignored, so it is on a module around it; the
+// factory's `#[no_mangle]` functions are exported from inside a module all the same
+#[allow(semicolon_in_expressions_from_non_local_macros)]
+mod vst3_export {
+    use super::*;
+    nih_export_vst3!(BassSynthPlugin);
+}
 
 #[cfg(test)]
 mod tests {

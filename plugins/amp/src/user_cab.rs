@@ -374,9 +374,11 @@ fn read_wav_f64(path: &Path) -> Result<Recording, LoadError> {
                     }
                 }
                 let samples = bytes[..got / 8 * 8]
-                    .chunks_exact(8)
+                    .as_chunks::<8>()
+                    .0
+                    .iter()
                     .step_by(channels)
-                    .map(|b| f64::from_le_bytes(b.try_into().unwrap()) as f32)
+                    .map(|&b| f64::from_le_bytes(b) as f32)
                     .collect();
                 return Ok(Recording { samples, sample_rate: rate });
             }
