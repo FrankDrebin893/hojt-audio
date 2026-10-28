@@ -1,8 +1,8 @@
 // @@DATA_START
 var OPEN_PC = [4, 9, 2, 7, 11, 4]; // low E -> high E
 var STRING_NAMES = ['E', 'A', 'D', 'G', 'B', 'E'];
-var ROOT_STRING = { E: 0, A: 1, D: 2 };
-var KIND_LABEL = { E: '6th-string root', A: '5th-string root', D: '4th-string root', O: 'Open' };
+var ROOT_STRING = { E: 0, A: 1, D: 2, G: 3 };
+var KIND_LABEL = { E: '6th-string root', A: '5th-string root', D: '4th-string root', G: '3rd-string root', O: 'Open' };
 
 var FAMILIES = [
   { id: 'triads', name: 'Triads & power' },
@@ -27,6 +27,7 @@ var TYPES = [
   { id: '69', sym: '6/9', name: 'Six-nine', fam: 'sixths', iv: [0,4,7,9,14], f: '1 3 5 6 9', use: 'Lush open major; jazz endings' },
   { id: 'add9', sym: 'add9', name: 'Added 9th', fam: 'sixths', iv: [0,4,7,14], f: '1 3 5 9', use: 'Shimmering major; pop and folk' },
   { id: 'madd9', sym: 'm(add9)', name: 'Minor added 9th', fam: 'sixths', iv: [0,3,7,14], f: '1 b3 5 9', use: 'Moody, wistful minor color' },
+  { id: 'm69', sym: 'm6/9', name: 'Minor six-nine', fam: 'sixths', iv: [0,3,7,9,14], f: '1 b3 5 6 9', use: 'Cool minor with a sweet top; bossa and jazz' },
 
   { id: '7', sym: '7', name: 'Dominant 7th', fam: 'sevenths', iv: [0,4,7,10], f: '1 3 5 b7', use: 'Bluesy dominant; wants to resolve' },
   { id: 'maj7', sym: 'maj7', name: 'Major 7th', fam: 'sevenths', iv: [0,4,7,11], f: '1 3 5 7', use: 'Soft, dreamy, jazzy major' },
@@ -37,6 +38,7 @@ var TYPES = [
   { id: '7sus4', sym: '7sus4', name: 'Dominant 7th sus4', fam: 'sevenths', iv: [0,5,7,10], f: '1 4 5 b7', use: 'Dominant with suspense; gospel and funk' },
   { id: '7sharp5', sym: '7♯5', name: 'Augmented 7th', fam: 'sevenths', iv: [0,4,8,10], f: '1 3 #5 b7', use: 'Tense dominant; leans hard into resolution' },
   { id: '7b5', sym: '7♭5', name: 'Dominant 7th flat 5', fam: 'sevenths', iv: [0,4,6,10], f: '1 3 b5 b7', use: 'Edgy whole-tone dominant' },
+  { id: 'maj7sharp5', sym: 'maj7♯5', name: 'Augmented major 7th', fam: 'sevenths', iv: [0,4,8,11], f: '1 3 #5 7', use: 'Shimmering, floating major; Lydian augmented' },
 
   { id: '9', sym: '9', name: 'Dominant 9th', fam: 'extended', iv: [0,4,7,10,14], f: '1 3 5 b7 9', use: 'Full, funky dominant; blues and funk' },
   { id: 'maj9', sym: 'maj9', name: 'Major 9th', fam: 'extended', iv: [0,4,7,11,14], f: '1 3 5 7 9', use: 'Warm, lush major; neo-soul and jazz' },
@@ -46,12 +48,18 @@ var TYPES = [
   { id: '13', sym: '13', name: 'Dominant 13th', fam: 'extended', iv: [0,4,10,14,21], f: '1 3 b7 9 13', opt: '5', use: 'Rich dominant; jazz and big band' },
   { id: 'm13', sym: 'm13', name: 'Minor 13th', fam: 'extended', iv: [0,3,10,14,21], f: '1 b3 b7 9 13', use: 'Dorian minor color; smooth jazz' },
   { id: 'maj13', sym: 'maj13', name: 'Major 13th', fam: 'extended', iv: [0,4,11,14,21], f: '1 3 7 9 13', use: 'Airy, sophisticated major; ballad endings' },
+  { id: '9sus4', sym: '9sus4', name: 'Dominant 9th sus4', fam: 'extended', iv: [0,5,7,10,14], f: '1 4 5 b7 9', use: 'Open, suspended dominant; soul and gospel' },
+  { id: '13sus4', sym: '13sus4', name: 'Dominant 13th sus4', fam: 'extended', iv: [0,5,10,14,21], f: '1 4 b7 9 13', use: 'Wide suspended dominant; gospel and fusion' },
+  { id: 'm9b5', sym: 'm9♭5', name: 'Half-diminished 9th', fam: 'extended', iv: [0,3,6,10,14], f: '1 b3 b5 b7 9', use: 'Half-diminished with a lift; minor ii-V-i' },
 
   { id: '7b9', sym: '7♭9', name: 'Dominant 7th flat 9', fam: 'altered', iv: [0,4,7,10,13], f: '1 3 5 b7 b9', use: 'Dark dominant; resolves to minor' },
   { id: '7sharp9', sym: '7♯9', name: 'Dominant 7th sharp 9', fam: 'altered', iv: [0,4,7,10,15], f: '1 3 5 b7 #9', use: 'Gritty blues-rock dominant; the Hendrix chord' },
   { id: 'maj7sharp11', sym: 'maj7♯11', name: 'Lydian major 7th', fam: 'altered', iv: [0,4,7,11,18], f: '1 3 5 7 #11', use: 'Bright Lydian color; floating, modern' },
   { id: '7sharp11', sym: '7♯11', name: 'Lydian dominant', fam: 'altered', iv: [0,4,7,10,18], f: '1 3 5 b7 #11', use: 'Bright, jazzy dominant tension' },
-  { id: '7alt', sym: '7alt (7♯5♯9)', name: 'Altered dominant', fam: 'altered', iv: [0,4,8,10,15], f: '1 3 #5 b7 #9', use: 'Maximum dominant tension; jazz turnarounds' }
+  { id: '7alt', sym: '7alt (7♯5♯9)', name: 'Altered dominant', fam: 'altered', iv: [0,4,8,10,15], f: '1 3 #5 b7 #9', use: 'Maximum dominant tension; jazz turnarounds' },
+  { id: '9sharp5', sym: '9♯5', name: 'Augmented 9th', fam: 'altered', iv: [0,4,8,10,14], f: '1 3 #5 b7 9', use: 'Whole-tone dominant; Wes Montgomery, Wonder' },
+  { id: '9b5', sym: '9♭5', name: 'Dominant 9th flat 5', fam: 'altered', iv: [0,4,6,10,14], f: '1 3 b5 b7 9', use: 'Whole-tone tension with a 9th on top' },
+  { id: '7b13', sym: '7♭13', name: 'Dominant 7th flat 13', fam: 'altered', iv: [0,4,10,20], f: '1 3 b7 b13', opt: '5', use: 'Warm, bittersweet dominant; resolves to minor' }
 ];
 
 // Movable shapes. frets: relative to the root fret, low E -> high E, x = muted.
@@ -126,6 +134,109 @@ var OPEN_SHAPES = {
   }
 };
 
+// More movable shapes, shown when the voicings are on "All". Same format; a label that is not a string name ("5 in bass")
+// is an inversion, and its 5th item is the string the root is on, to place it by.
+var MORE_SHAPES = {
+  '5': [ ['A','x 0 2 2 x 0','x 1 3 3 x 2','2:2-3:3'], ['D','x x 0 2 3 x','x x 1 2 3 x'], ['5 in bass','0 0 2 2 x x','1 1 2 2 x x','0:0-1:1',1] ],
+  '6': [ ['A','x 0 2 2 2 2','x 1 2 2 2 2','2:2-5:2'], ['D','x x 0 -1 0 x','x x 2 1 3 x'], ['G','x x x 0 0 0','x x x 1 1 1','0:3-5:1'], ['6 in bass','0 2 0 0 0 0','1 2 1 1 1 1','0:0-5:1',3], ['5 in bass','x x 0 0 0 0','x x 1 1 1 1','0:2-5:1',3] ],
+  '7': [ ['A','x 0 2 0 2 x','x 1 2 1 3 x','0:1-3:1'], ['D','x x 0 -1 1 x','x x 2 1 3 x'], ['G','x x x 0 0 1','x x x 1 1 2','0:3-4:1'], ['5 in bass','0 0 2 0 2 0','1 1 2 1 3 1','0:0-5:1',1], ['♭7 in bass','3 0 2 2 2 0','3 1 2 2 2 1','0:1-5:1',1] ],
+  '9': [ ['A','x 0 -1 0 0 x','x 2 1 3 3 x','0:3-4:3'], ['♭7 in bass','1 0 0 0 0 x','2 1 1 1 1 x','0:1-4:1',3], ['9 in bass','x 0 0 0 0 1','x 1 1 1 1 2','0:1-4:1',3] ],
+  '11': [ ['A','x 0 0 0 0 x','x 1 1 1 1 x','0:1-4:1'], ['D','x x 0 0 1 0','x x 1 1 2 1','0:2-5:1'], ['5 in bass','0 0 0 0 0 0','1 1 1 1 1 1','0:0-5:1',1], ['9 in bass','0 0 0 0 1 0','1 1 1 1 2 1','0:0-5:1',2] ],
+  '13': [ ['A','x 0 2 0 2 2','x 1 2 1 3 3','0:1-3:1'], ['13 in bass','0 0 0 0 0 1','1 1 1 1 1 2','0:0-4:1',3], ['♭7 in bass','1 0 0 0 0 0','2 1 1 1 1 1','0:1-5:1',3] ],
+  '69': [ ['A','x 0 -1 -1 0 x','x 2 1 1 3 x','-1:2-3:1'], ['D','x x 0 -1 0 0','x x 2 1 3 3','0:4-5:3'], ['6 in bass','0 0 0 0 0 0','1 1 1 1 1 1','0:0-5:1',3], ['9 in bass','x 0 0 0 0 0','x 1 1 1 1 1','0:1-5:1',3] ],
+  'maj': [ ['A','x 0 2 2 2 x','x 1 2 2 2 x','2:2-4:2'], ['D','x x 0 -1 -2 -2','x x 3 2 1 1','-2:4-5:1'], ['G','x x x 0 0 -2','x x x 2 2 1','0:3-4:2'], ['5 in bass','0 0 2 2 2 0','1 1 2 2 2 1','0:0-5:1',1], ['3 in bass','x 2 0 0 0 x','x 2 1 1 1 x','0:2-4:1',3] ],
+  'min': [ ['A','x 0 2 2 1 x','x 1 3 3 2 x','2:2-3:3'], ['D','x x 0 -2 -2 -2','x x 2 1 1 1','-2:3-5:1'], ['G','x x x 0 -1 -2','x x x 3 2 1'], ['5 in bass','x 0 0 -2 -2 -2','x 2 2 1 1 1','-2:3-5:1',2], ['♭3 in bass','1 0 0 -2 -2 -2','3 2 2 1 1 1','-2:3-5:1',2] ],
+  'sus2': [ ['A','x 0 2 2 0 x','x 1 2 2 1 x','0:1-4:1'], ['D','x x 0 2 3 0','x x 1 2 3 1','0:2-5:1'], ['G','x x x 0 -2 -2','x x x 2 1 1','-2:4-5:1'], ['5 in bass','0 0 2 2 0 0','1 1 2 2 1 1','0:0-5:1',1], ['2 in bass','0 0 0 x x x','1 1 1 x x x','0:0-2:1',2] ],
+  'sus4': [ ['A','x 0 0 2 3 0','x 1 1 2 3 1','0:1-5:1'], ['D','x x 0 0 -2 -2','x x 2 2 1 1','-2:4-5:1'], ['G','x x x 0 1 -2','x x x 2 3 1'], ['5 in bass','0 0 0 x x x','1 1 1 x x x','0:0-2:1',1], ['4 in bass','x -2 0 0 -2 -2','x 1 2 2 1 1','-2:1-5:1',2] ],
+  'aug': [ ['A','x 0 -1 -2 -2 x','x 3 2 1 1 x','-2:3-4:1'], ['D','x x 0 -1 -1 x','x x 2 1 1 x','-1:3-4:1'], ['G','x x x 0 0 -1','x x x 2 2 1','0:3-4:2'], ['♯5 in bass','-1 2 1 0 0 -1','1 4 3 2 2 1','-1:0-5:1',3], ['3 in bass','2 1 0 x x x','3 2 1 x x x',null,2] ],
+  'dim': [ ['A','x 0 1 2 1 -1','x 2 3 4 3 1','1:2-4:3'], ['D','x x 0 -2 -3 x','x x 3 2 1 x'], ['G','x x x 0 -1 -3','x x x 3 2 1'], ['♭5 in bass','x x -1 0 -1 x','x x 1 2 1 x','-1:2-4:1',3], ['♭3 in bass','x 1 -1 0 -1 x','x 3 1 2 1 x','-1:2-4:1',3] ],
+  'm6': [ ['A','x 0 -2 -1 -2 0','x 3 1 2 1 4','-2:2-4:1'], ['D','x x 0 -2 0 -2','x x 2 1 3 1','-2:3-5:1'], ['G','x x x 0 -1 0','x x x 2 1 3'], ['6 in bass','0 1 0 0 x x','1 2 1 1 x x','0:0-3:1',3], ['♭3 in bass','1 0 0 2 0 x','2 1 1 3 1 x','0:1-4:1',2] ],
+  'add9': [ ['A','x 0 -3 -3 -2 -3','x 3 1 1 2 1','-3:2-5:1'], ['D','x x 0 -1 -2 0','x x 3 2 1 4'], ['9 in bass','x 0 0 0 0 x','x 1 1 1 1 x','0:1-4:1',3], ['5 in bass','-2 0 0 0 0 -2','1 2 2 2 2 1','-2:0-5:1',3] ],
+  'madd9': [ ['A','x 0 -2 -3 0 0','x 3 2 1 4 4','0:4-5:4'], ['D','x x 0 -2 -2 0','x x 2 1 1 3','-2:3-4:1'], ['9 in bass','0 0 0 -2 -2 -2','2 2 2 1 1 1','-2:3-5:1',2], ['5 in bass','-2 0 0 0 -1 -2','1 3 3 3 2 1','-2:0-5:1',3] ],
+  'maj7': [ ['A','x 0 -1 -3 -3 -3','x 3 2 1 1 1','-3:3-5:1'], ['D','x x 0 -1 -2 -3','x x 4 3 2 1'], ['G','x x x 0 0 2','x x x 1 1 2','0:3-4:1'], ['7 in bass','2 2 0 0 0 x','2 2 1 1 1 x','0:2-4:1',3], ['3 in bass','-3 0 -1 -3 -3 -3','1 3 2 1 1 1','-3:0-5:1',1] ],
+  'm7': [ ['A','x 0 2 0 1 x','x 1 3 1 2 x','0:1-3:1'], ['D','x x 0 -2 1 -2','x x 2 1 3 1','-2:3-5:1'], ['G','x x x 0 -1 1','x x x 2 1 3'], ['5 in bass','0 0 2 0 1 0','1 1 3 1 2 1','0:0-5:1',1], ['♭7 in bass','1 1 0 0 x x','2 2 1 1 x x','0:2-3:1',3] ],
+  'mmaj7': [ ['A','x 0 -2 -3 -3 x','x 3 2 1 1 x','-3:3-4:1'], ['D','x x 0 2 2 1','x x 1 3 3 2','2:3-4:3'], ['G','x x x 0 -1 2','x x x 2 1 3'], ['5 in bass','0 0 2 1 1 0','1 1 3 2 2 1','0:0-5:1',1], ['7 in bass','-3 0 0 -2 -2 -3','1 3 3 2 2 1','-3:0-5:1',2] ],
+  'm7b5': [ ['A','x 0 -2 0 -2 -1','x 3 1 4 1 2','-2:2-4:1'], ['♭7 in bass','1 1 -1 0 -1 x','3 3 1 2 1 x','-1:2-4:1',3], ['♭5 in bass','-1 0 1 0 1 -1','1 2 3 2 4 1','-1:0-5:1',1] ],
+  'dim7': [ ['A','x 0 -2 -1 -2 -1','x 4 1 2 1 3','-2:2-4:1'], ['♭5 in bass','-1 0 1 -1 1 -1','1 2 3 1 4 1','-1:0-5:1',1], ['♭♭7 in bass','0 1 -1 0 -1 x','2 4 1 3 1 x','-1:2-4:1',3] ],
+  '7sus4': [ ['A','x 0 0 0 x x','x 1 1 1 x x','0:1-3:1'], ['D','x x 0 0 1 x','x x 1 1 2 x','0:2-3:1'], ['G','x x x 0 1 1','x x x 1 2 2','1:4-5:2'], ['5 in bass','0 0 0 0 x x','1 1 1 1 x x','0:0-3:1',1], ['4 in bass','-2 0 0 0 -2 -2','1 2 2 2 1 1','-2:0-5:1',1] ],
+  '7sharp5': [ ['A','x 0 3 0 2 x','x 1 3 1 2 x','0:1-3:1'], ['D','x x 0 3 1 2','x x 1 4 2 3'], ['♭7 in bass','1 2 1 0 0 x','2 3 2 1 1 x','0:3-4:1',3], ['♯5 in bass','x x 1 0 0 1','x x 2 1 1 3','0:3-4:1',3] ],
+  '7b5': [ ['A','x 0 -1 0 2 -1','x 2 1 3 4 1','-1:2-5:1'], ['D','x x 0 1 1 2','x x 1 2 2 3','1:3-4:2'], ['♭5 in bass','-1 0 -1 0 2 -1','1 2 1 3 4 1','-1:0-5:1',1], ['3 in bass','2 -1 0 -1 1 x','4 1 2 1 3 x','-1:1-3:1',2] ],
+  'maj9': [ ['A','x 0 -1 1 0 0','x 2 1 4 3 3','0:4-5:3'], ['9 in bass','0 0 0 2 2 2','1 1 1 2 2 2','0:0-2:1',2], ['7 in bass','2 0 0 0 0 x','2 1 1 1 1 x','0:1-4:1',3] ],
+  'm9': [ ['A','x 0 -2 0 0 x','x 2 1 3 3 x','0:3-4:3'], ['9 in bass','0 0 0 2 1 1','1 1 1 3 2 2','0:0-2:1',2], ['♭7 in bass','1 1 0 0 -2 -2','3 3 2 2 1 1','-2:4-5:1',3] ],
+  'm11': [ ['9 in bass','0 0 0 0 1 1','1 1 1 1 2 2','0:0-3:1',2], ['♭3 in bass','1 0 0 0 1 0','2 1 1 1 3 1','0:1-5:1',2] ],
+  'm13': [ ['13 in bass','0 1 3 0 x x','1 2 3 1 x x','0:0-3:1',3], ['♭7 in bass','1 1 2 0 x x','2 2 3 1 x x','1:0-1:2',3] ],
+  'maj13': [ ['A','x 0 -3 -1 -3 -3','x 3 1 2 1 1','-3:2-5:1'], ['D','x x 0 -1 0 -3','x x 3 2 4 1'], ['7 in bass','2 2 2 0 0 0','2 2 2 1 1 1','0:3-5:1',3], ['13 in bass','0 0 2 0 0 2','1 1 2 1 1 3','0:0-4:1',3] ],
+  '7b9': [ ['A','x 0 -1 0 -1 0','x 2 1 3 1 4','-1:2-4:1'], ['D','x x 0 -1 1 -1','x x 2 1 3 1','-1:3-5:1'], ['♭9 in bass','-1 0 0 -1 1 -1','1 2 2 1 3 1','-1:0-5:1',2], ['5 in bass','0 0 -1 0 -1 x','2 2 1 3 1 x','-1:2-4:1',1] ],
+  '7sharp9': [ ['A','x 0 -1 0 1 0','x 2 1 3 4 3','0:3-5:3'], ['D','x x 0 -1 1 1','x x 2 1 3 3','1:4-5:3'], ['♭7 in bass','1 1 0 0 0 x','2 2 1 1 1 x','0:2-4:1',3], ['♯9 in bass','x 1 0 0 0 1','x 2 1 1 1 3','0:2-4:1',3] ],
+  'maj7sharp11': [ ['A','x 0 1 1 2 0','x 1 2 2 3 1','0:1-5:1'], ['D','x x 0 -1 -3 -3','x x 3 2 1 1','-3:4-5:1'], ['5 in bass','0 0 1 1 2 0','1 1 2 2 3 1','0:0-5:1',1], ['7 in bass','2 2 0 0 2 2','2 2 1 1 3 3','0:2-3:1',3] ],
+  '7sharp11': [ ['A','x 0 1 0 2 0','x 1 2 1 3 1','0:1-5:1'], ['D','x x 0 1 1 2','x x 1 2 2 3','1:3-4:2'], ['5 in bass','0 0 1 0 2 0','1 1 2 1 3 1','0:0-5:1',1], ['3 in bass','2 0 0 1 1 x','3 1 1 2 2 x','0:1-2:1',2] ],
+  '7alt': [ ['♭7 in bass','1 1 1 0 0 x','2 2 2 1 1 x','1:0-2:2',3], ['♯9 in bass','x 1 1 0 0 1','x 2 2 1 1 3','0:3-4:1',3] ],
+  'm69': [ ['E','0 2 2 0 2 2','1 2 2 1 3 3','0:0-3:1'], ['A','x 0 -2 -1 0 0','x 3 1 2 4 4','0:4-5:4'], ['D','x x 0 -2 0 0','x x 2 1 3 3','0:4-5:3'], ['9 in bass','0 0 0 -2 0 -2','2 2 2 1 3 1','-2:3-5:1',2], ['♭3 in bass','1 0 0 2 0 0','2 1 1 3 1 1','0:1-5:1',2] ],
+  'maj7sharp5': [ ['E','0 -1 1 1 1 -1','2 1 3 3 3 1','-1:1-5:1'], ['A','x 0 -1 -2 -3 -3','x 4 3 2 1 1','-3:4-5:1'], ['D','x x 0 -1 -1 -3','x x 3 2 2 1','-1:3-4:2'], ['7 in bass','-3 -3 0 -1 -1 -3','1 1 3 2 2 1','-3:0-5:1',2], ['♯5 in bass','-1 -3 -3 0 0 x','2 1 1 3 3 x','-3:1-2:1',3] ],
+  '9sus4': [ ['E','0 0 0 2 0 2','1 1 1 2 1 3','0:0-4:1'], ['A','x 0 0 0 0 0','x 1 1 1 1 1','0:1-5:1'], ['D','x x 0 0 1 0','x x 1 1 2 1','0:2-5:1'], ['5 in bass','0 0 0 0 0 0','1 1 1 1 1 1','0:0-5:1',1], ['9 in bass','0 0 0 0 1 0','1 1 1 1 2 1','0:0-5:1',2] ],
+  '13sus4': [ ['E','0 0 0 2 2 0','1 1 1 2 2 1','0:0-5:1'], ['A','x 0 0 0 0 2','x 1 1 1 1 2','0:1-4:1'], ['13 in bass','2 0 0 0 0 x','2 1 1 1 1 x','0:1-4:1',1], ['9 in bass','0 2 0 0 1 0','1 3 1 1 2 1','0:0-5:1',2] ],
+  'm9b5': [ ['E','0 -2 0 -1 -1 -2','3 1 4 2 2 1','-2:1-5:1'], ['A','x 0 -2 0 0 -1','x 3 1 4 4 2','0:3-4:4'], ['9 in bass','0 3 0 1 1 1','1 3 1 2 2 2','0:0-2:1',2], ['♭3 in bass','1 3 0 1 1 0','2 4 1 3 3 1','0:2-5:1',2] ],
+  '9sharp5': [ ['E','0 -3 -2 -3 -3 -2','4 1 2 1 1 3','-3:1-4:1'], ['A','x 0 -1 0 0 1','x 2 1 3 3 4','0:3-4:3'], ['♭7 in bass','1 0 1 0 0 x','2 1 3 1 1 x','0:1-4:1',3], ['9 in bass','x 0 1 0 0 1','x 1 2 1 1 3','0:1-4:1',3] ],
+  '9b5': [ ['E','0 -1 0 -1 -1 x','2 1 3 1 1 x','-1:1-4:1'], ['A','x 0 -1 0 0 -1','x 2 1 3 3 1','-1:2-5:1'], ['♭5 in bass','-1 0 -1 0 0 -1','1 2 1 3 3 1','-1:0-5:1',1], ['9 in bass','0 3 0 1 1 2','1 4 1 2 2 3','0:0-2:1',2] ],
+  '7b13': [ ['E','0 2 0 1 1 0','1 3 1 2 2 1','0:0-5:1'], ['A','x 0 3 0 2 0','x 1 3 1 2 1','0:1-5:1'], ['D','x x 0 3 1 2','x x 1 4 2 3'], ['5 in bass','0 0 3 0 2 0','1 1 3 1 2 1','0:0-5:1',1], ['♭13 in bass','1 0 2 0 2 0','2 1 3 1 4 1','0:1-5:1',1] ]
+};
+
+// More open-position shapes, in the same format as OPEN_SHAPES, for chords that have none or a different one there.
+var OPEN_MORE = {
+  0: { // C
+    '9': ['x 3 0 3 3 0','x 1 0 2 2 0','3:3-4:2'], '69': ['x 3 0 2 1 0','x 3 0 2 1 0'],
+    'mmaj7': ['x 3 1 0 0 x','x 2 1 0 0 x'], 'maj9': ['x 3 0 0 0 0','x 1 0 0 0 0'],
+    'maj13': ['x 3 0 2 0 0','x 2 0 1 0 0'], 'maj7sharp11': ['x 3 2 0 0 2','x 3 1 0 0 2'],
+    'maj7sharp5': ['x 3 2 1 0 0','x 3 2 1 0 0']
+  },
+  2: { // D
+    '11': ['x x 0 0 1 0','x x 0 0 1 0'], 'm6': ['x x 0 2 0 1','x x 0 2 0 1'],
+    'dim7': ['x x 0 1 0 1','x x 0 1 0 2'], '7sus4': ['x x 0 0 1 3','x x 0 0 1 2'],
+    '9sus4': ['x x 0 0 1 0','x x 0 0 1 0']
+  },
+  4: { // E
+    '9': ['0 2 0 1 0 2','0 2 0 1 0 3'], '11': ['0 0 0 2 0 2','0 0 0 1 0 2'],
+    '13': ['0 2 0 1 2 0','0 2 0 1 3 0'], 'aug': ['0 3 2 1 1 0','0 3 2 1 1 0','1:3-4:1'],
+    'dim': ['0 1 2 0 x x','0 1 2 0 x x'], 'm6': ['0 2 2 0 2 0','0 1 1 0 2 0','2:1-2:1'],
+    'madd9': ['0 2 2 0 0 2','0 1 1 0 0 2','2:1-2:1'], 'mmaj7': ['0 2 1 0 0 0','0 2 1 0 0 0'],
+    'm7b5': ['0 1 0 0 x x','0 1 0 0 x x'], 'dim7': ['0 1 2 0 2 0','0 1 2 0 3 0'],
+    '7sus4': ['0 0 0 2 0 0','0 0 0 1 0 0'], '7sharp5': ['0 3 0 1 1 0','0 2 0 1 1 0','1:3-4:1'],
+    '7b5': ['0 1 0 1 x x','0 1 0 2 x x'], 'maj9': ['0 2 1 1 0 2','0 2 1 1 0 3','1:2-3:1'],
+    'm9': ['0 2 0 0 0 2','0 1 0 0 0 2'], 'm11': ['0 0 0 0 0 2','0 0 0 0 0 1'],
+    '7b9': ['0 2 0 1 0 1','0 3 0 1 0 2'], '7sharp9': ['0 2 0 1 0 3','0 2 0 1 0 3'],
+    'maj7sharp11': ['0 1 1 1 0 0','0 1 1 1 0 0','1:1-3:1'], '7sharp11': ['0 1 0 1 0 0','0 1 0 2 0 0'],
+    '7alt': ['0 3 0 1 1 3','0 2 0 1 1 3','1:3-4:1'], 'm69': ['0 2 2 0 2 2','0 1 1 0 2 2','2:1-2:1'],
+    'maj7sharp5': ['0 3 1 1 1 0','0 2 1 1 1 0','1:2-4:1'], '9sus4': ['0 0 0 2 0 2','0 0 0 1 0 2'],
+    '13sus4': ['0 0 0 2 2 0','0 0 0 1 1 0','2:3-4:1'], 'm9b5': ['0 1 0 0 3 2','0 1 0 0 3 2'],
+    '9sharp5': ['0 3 0 1 1 2','0 3 0 1 1 2','1:3-4:1'], '9b5': ['0 1 0 1 3 2','0 1 0 2 4 3'],
+    '7b13': ['0 2 0 1 1 0','0 2 0 1 1 0','1:3-4:1']
+  },
+  7: { // G
+    '9': ['3 0 0 0 0 1','2 0 0 0 0 1'], '11': ['3 0 0 0 1 1','2 0 0 0 1 1','1:4-5:1'],
+    '13': ['3 0 3 0 0 0','1 0 2 0 0 0'], '69': ['3 0 0 0 0 0','1 0 0 0 0 0'],
+    'min': ['3 1 0 0 x x','2 1 0 0 x x'], 'aug': ['3 2 1 0 0 x','3 2 1 0 0 x'],
+    'm6': ['3 1 0 0 3 0','2 1 0 0 3 0'], 'madd9': ['3 0 0 3 3 3','1 0 0 2 2 2','3:3-5:2'],
+    'm7': ['3 1 0 0 3 1','3 1 0 0 4 2'], 'mmaj7': ['3 1 0 0 3 2','3 1 0 0 4 2'],
+    'dim7': ['3 1 2 0 2 0','4 1 2 0 3 0'], '7sus4': ['3 3 0 0 1 1','2 2 0 0 1 1','1:4-5:1'],
+    '7sharp5': ['3 2 1 0 0 1','4 3 1 0 0 2'], 'maj9': ['3 0 0 0 0 2','2 0 0 0 0 1'],
+    'm9': ['3 0 0 3 3 1','2 0 0 3 3 1','3:3-4:3'], 'm11': ['3 0 0 3 1 1','2 0 0 3 1 1','1:4-5:1'],
+    'maj13': ['3 0 2 0 0 2','3 0 1 0 0 2'], '7b9': ['3 2 0 1 0 1','4 3 0 1 0 2'],
+    '7sharp9': ['3 1 0 0 0 1','3 1 0 0 0 2'], 'maj7sharp11': ['3 2 0 0 2 2','3 1 0 0 2 2','2:4-5:2'],
+    '7sharp11': ['3 2 0 0 2 1','4 2 0 0 3 1'], '7alt': ['3 1 1 0 0 1','3 1 1 0 0 2','1:1-2:1'],
+    'm69': ['3 0 0 3 3 0','1 0 0 2 2 0','3:3-4:2'], 'maj7sharp5': ['3 2 1 0 0 2','4 2 1 0 0 3'],
+    '9sus4': ['3 0 0 0 1 1','2 0 0 0 1 1','1:4-5:1'], '13sus4': ['3 3 3 0 1 0','2 2 2 0 1 0','3:0-2:2'],
+    '9sharp5': ['3 0 1 0 0 1','3 0 1 0 0 2'], '7b13': ['3 2 1 0 0 1','4 3 1 0 0 2']
+  },
+  9: { // A
+    '11': ['x 0 0 0 0 3','x 0 0 0 0 1'], '13': ['x 0 2 0 2 2','x 0 1 0 2 2','2:4-5:2'],
+    'mmaj7': ['x 0 2 1 1 0','x 0 2 1 1 0','1:3-4:1'], 'm7b5': ['x 0 1 0 1 x','x 0 1 0 2 x'],
+    '7sus4': ['x 0 0 0 3 0','x 0 0 0 1 0'], '7sharp5': ['x 0 3 0 2 x','x 0 2 0 1 x'],
+    '7b5': ['x 0 1 0 2 x','x 0 1 0 2 x'], 'maj7sharp11': ['x 0 1 1 2 0','x 0 1 1 2 0','1:2-3:1'],
+    '7sharp11': ['x 0 1 0 2 0','x 0 1 0 2 0'], '9sus4': ['x 0 0 0 0 3','x 0 0 0 0 1'],
+    '13sus4': ['x 0 0 0 0 2','x 0 0 0 0 1'], '7b13': ['x 0 3 0 2 0','x 0 2 0 1 0']
+  }
+};
+
 function parseList(s) { return s.trim().split(/\s+/).map(function (t) { return t === 'x' ? null : parseInt(t, 10); }); }
 function parseBarre(s) {
   if (!s) return null;
@@ -136,7 +247,7 @@ function parseBarre(s) {
 // Place a movable shape for a root pitch class: lowest position where every fret >= 0.
 function placeShape(spec, rootPc) {
   var kind = spec[0], rel = parseList(spec[1]), fing = parseList(spec[2]), barre = parseBarre(spec[3]);
-  var rs = ROOT_STRING[kind];
+  var rs = spec[4] != null ? spec[4] : ROOT_STRING[kind];
   var base = ((rootPc - OPEN_PC[rs]) % 12 + 12) % 12;
   var minRel = Math.min.apply(null, rel.filter(function (v) { return v !== null; }));
   if (base + minRel < 0) base += 12;
@@ -154,16 +265,20 @@ function placeShape(spec, rootPc) {
       if (b) b.finger -= 1;
     }
   }
-  return { kind: kind, label: KIND_LABEL[kind], frets: frets, fingers: fingers, barre: b, rootString: rs, base: base, rel: rel };
+  return { kind: kind, label: KIND_LABEL[kind] || kind, bass: KIND_LABEL[kind] ? null : kind.replace(' in bass', ''), frets: frets, fingers: fingers, barre: b, rootString: rs, base: base, rel: rel };
 }
 function openShape(spec) {
   var frets = parseList(spec[0]);
   var rs = frets.findIndex(function (f) { return f !== null; });
   return { kind: 'O', label: KIND_LABEL.O, frets: frets, fingers: parseList(spec[1]), barre: parseBarre(spec[2]), rootString: rs, open: true };
 }
-function shapesFor(typeId, rootPc) {
+// all = false: the essential shapes only; true: the extra voicings after them
+function shapesFor(typeId, rootPc, all) {
   var out = (SHAPES[typeId] || []).map(function (s) { return placeShape(s, rootPc); });
+  if (all) out = out.concat((MORE_SHAPES[typeId] || []).map(function (s) { return placeShape(s, rootPc); }));
   var o = OPEN_SHAPES[rootPc] && OPEN_SHAPES[rootPc][typeId];
+  if (o) out.push(openShape(o));
+  o = all && OPEN_MORE[rootPc] && OPEN_MORE[rootPc][typeId];
   if (o) out.push(openShape(o));
   return out;
 }
@@ -239,11 +354,13 @@ function degreesOf(type) {
   var state = {
     root: parseInt(load('gca-root', '0'), 10),
     fam: load('gca-fam', 'all'),
-    show: load('gca-show', 'fingers')
+    show: load('gca-show', 'fingers'),
+    voicings: load('gca-voicings', 'all')
   };
   if (!(state.root >= 0 && state.root < 12)) state.root = 0;
   if (state.fam !== 'all' && !FAMILIES.some(function (f) { return f.id === state.fam; })) state.fam = 'all';
   if (['fingers', 'intervals', 'notes'].indexOf(state.show) === -1) state.show = 'fingers';
+  if (state.voicings !== 'essential') state.voicings = 'all';
 
   // ---------- controls ----------
   var ROOT_LABELS = ['C', ['C♯', 'D♭'], 'D', 'E♭', 'E', 'F', ['F♯', 'G♭'], 'G', 'A♭', 'A', 'B♭', 'B'];
@@ -273,7 +390,15 @@ function degreesOf(type) {
     b.addEventListener('click', function () { state.show = o[0]; save('gca-show', o[0]); syncControls(); render(); });
     tog.appendChild(b);
   });
+  var vtog = document.getElementById('voicingTog');
+  [['essential', 'Essential'], ['all', 'All voicings']].forEach(function (o) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.dataset.voicings = o[0]; b.textContent = o[1];
+    b.addEventListener('click', function () { state.voicings = o[0]; save('gca-voicings', o[0]); syncControls(); render(); });
+    vtog.appendChild(b);
+  });
   function syncControls() {
+    vtog.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.voicings === state.voicings)); });
     picker.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', String(+b.dataset.pc === state.root)); });
     chips.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.fam === state.fam)); });
     tog.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.show === state.show)); });
@@ -392,7 +517,7 @@ function degreesOf(type) {
         var use = document.createElement('p'); use.className = 'use'; use.textContent = t.use;
         card.appendChild(use);
         var dg = document.createElement('div'); dg.className = 'diagrams';
-        shapesFor(t.id, root.pc).forEach(function (s) { dg.appendChild(diagram(s, pcInfo)); });
+        shapesFor(t.id, root.pc, state.voicings === 'all').forEach(function (s) { dg.appendChild(diagram(s, pcInfo)); });
         card.appendChild(dg);
         grid.appendChild(card);
       });

@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Guitar Chord Atlas: 34 chord types in every key</title>
-<meta name="description" content="34 guitar chord types in all 12 keys, in standard tuning: movable shapes rooted on the 6th, 5th and 4th string, open shapes, formulas, notes, and fingers, intervals or note names on every dot. Free, from HØJT.">
+<title>Guitar Chord Atlas: 42 chord types in every key</title>
+<meta name="description" content="42 guitar chord types in all 12 keys, in standard tuning: several voicings of each, rooted on the 6th, 5th, 4th and 3rd string or with another note in the bass, open shapes, formulas, notes, and fingers, intervals or note names on every dot. Free, from HØJT.">
 <meta property="og:title" content="Guitar Chord Atlas">
-<meta property="og:description" content="34 guitar chord types in all 12 keys: movable and open shapes, formulas and notes.">
+<meta property="og:description" content="42 guitar chord types in all 12 keys: several voicings and inversions of each, open shapes, formulas and notes.">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://hojte.net/hojt-audio/og-hojt.png">
 <meta name="theme-color" content="#121110">
@@ -36,9 +36,15 @@
     <p class="crumb"><a href="../">Resources</a></p>
     <div class="titlerow">
       <h1>Guitar Chord Atlas<small>Standard tuning E A D G B E</small></h1>
-      <div class="tog" role="group" aria-label="Dot labels">
-        <span class="ctl-label">Show</span>
-        <span class="grp" id="labelTog"></span>
+      <div class="togs">
+        <div class="tog" role="group" aria-label="Voicings">
+          <span class="ctl-label">Voicings</span>
+          <span class="grp" id="voicingTog"></span>
+        </div>
+        <div class="tog" role="group" aria-label="Dot labels">
+          <span class="ctl-label">Show</span>
+          <span class="grp" id="labelTog"></span>
+        </div>
       </div>
     </div>
     <div class="seg" id="rootPicker" role="group" aria-label="Root note"></div>
@@ -61,9 +67,11 @@
   <div id="atlas"></div>
 
   <p class="about">Pick a root, then read every chord type on it: the formula, the notes spelled
-    for that key, what it is used for, and its shapes. The movable shapes are rooted on the 6th,
-    5th or 4th string; the open shapes are there for C, A, G, E and D. The dots show the fingers,
-    the intervals or the note names. Your root, family and labels are remembered in this browser.</p>
+    for that key, what it is used for, and its shapes. The essential shapes are the movable ones
+    rooted on the 6th, 5th or 4th string, and the open shapes for C, A, G, E and D; All voicings
+    adds more to choose from, on the 3rd string and as inversions with the 3rd, 5th or 7th in
+    the bass. The dots show the fingers, the intervals or the note names. Your root, family,
+    voicings and labels are remembered in this browser.</p>
 </main>
 
 <footer class="bottom">
