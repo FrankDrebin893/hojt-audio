@@ -159,6 +159,9 @@ h3 {
 .site-bar nav .piano {
   --mark: var(--paint-scarlet);
 }
+.site-bar nav .resources {
+  --mark: var(--paint-teal);
+}
 .site-bar nav .source {
   margin-left: auto;
 }

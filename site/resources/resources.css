@@ -1,0 +1,163 @@
+/* Resources (resources/): tools and learning material for playing, beside the products. The
+   shared look is in ../hojt.css; this adds the shelf of resources and what every tool on it
+   shares: its header, its controls and the three colours a chord is drawn in. */
+
+:root {
+  --paint: var(--paint-teal);
+  /* A chord's notes: the root in the orange of the Ø, a chord tone in silk blue, an
+     extension or altered note in teal. Dark print sits on all three */
+  --root: var(--brand-orange);
+  --tone: #8ea6e6;
+  --color: #3fb3a8;
+  --on-dot: #121110;
+}
+
+/* The shelf */
+
+.shelf-head {
+  padding-block: 64px 0;
+}
+.shelf-head .say {
+  max-width: 40em;
+  margin: 22px 0 0;
+  font-size: 19px;
+}
+.shelf {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 22px;
+  margin: 44px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.shelf li {
+  display: flex;
+}
+.shelf a {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--panel);
+  color: var(--silk);
+  text-decoration: none;
+  box-shadow: 0 22px 40px -24px rgba(0, 0, 0, 0.9);
+  transition: transform 0.3s var(--ease-out);
+}
+.shelf a:hover {
+  transform: translateY(-4px);
+  color: var(--silk);
+}
+.shelf .art {
+  display: block;
+  padding: 22px 22px 18px;
+  background: var(--paint);
+}
+.shelf .art svg {
+  display: block;
+  width: 100%;
+  height: 92px;
+}
+.shelf .text {
+  padding: 18px 22px 24px;
+}
+.shelf h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.shelf p {
+  margin: 10px 0 0;
+}
+.shelf .tape {
+  display: inline-block;
+  margin-top: 14px;
+  font-size: 13px;
+}
+.shelf .guitar {
+  --paint: var(--paint-teal);
+}
+.shelf .piano {
+  --paint: var(--paint-scarlet);
+}
+
+/* A tool's page: its name and controls stay on top while its cards scroll under them */
+
+.tool-top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bench);
+  border-bottom: 1px solid var(--line);
+}
+/* minmax(0, 1fr): a row of controls wider than a phone scrolls in itself, not the page */
+.tool-top .wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  padding-block: 14px 12px;
+}
+.tool-top .titlerow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 18px;
+}
+.tool-top h1 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 40px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.tool-top h1 small {
+  margin-left: 10px;
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--silk-dim);
+}
+.crumb {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.crumb a {
+  color: var(--silk-dim);
+  text-decoration: none;
+}
+.crumb a:hover {
+  color: var(--silk);
+}
+/* On a phone the controls would cover half the screen: there they scroll away */
+@media (max-height: 620px), (max-width: 640px) {
+  .tool-top {
+    position: static;
+  }
+}
+@media (max-width: 640px) {
+  .tool-top h1 {
+    font-size: 32px;
+  }
+}
+
+/* Under a tool: a word on what it is */
+
+.about {
+  max-width: 44em;
+  margin-top: 48px;
+  color: var(--silk-dim);
+  font-size: 15px;
+}

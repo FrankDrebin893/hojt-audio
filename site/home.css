@@ -183,11 +183,23 @@
   --paint: var(--brand-orange);
 }
 
-/* Open */
+/* Resources, and Open */
 
+.more {
+  padding-block: 72px 0;
+}
+.more .links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 12px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
 .open {
   padding-block: 72px 0;
 }
+.more h2,
 .open h2 {
   margin: 0 0 12px;
   font-family: var(--display);
@@ -197,6 +209,7 @@
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
+.more p,
 .open p {
   max-width: 40em;
   margin: 0;

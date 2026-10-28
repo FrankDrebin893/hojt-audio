@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Piano Chord Atlas: 34 chord types in every key</title>
+<meta name="description" content="34 piano chord types in all 12 keys: each on a keyboard in root position or any inversion, two-hand voicings for the sevenths and up, formulas, notes, fingering, and a tap to hear it. Free, from HØJT.">
+<meta property="og:title" content="Piano Chord Atlas">
+<meta property="og:description" content="34 piano chord types in all 12 keys: inversions, two-hand voicings, fingering, and a tap to hear each one.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://hojte.net/hojt-audio/og-hojt.png">
+<meta name="theme-color" content="#121110">
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../../favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<link rel="stylesheet" href="../../hojt.css">
+<link rel="stylesheet" href="../resources.css">
+<link rel="stylesheet" href="atlas.css">
+</head>
+<body>
+
+<header class="site-bar">
+  <div class="wrap">
+    <a class="home" href="../../"><img src="../../hojt.svg" width="63" height="34" alt="HØJT, home"></a>
+    <nav aria-label="Products">
+      <a class="dsp" href="../../dsp/">HØJT DSP</a>
+      <a class="piano" href="../../piano/">Piano viz</a>
+      <a class="resources" href="../" aria-current="page">Resources</a>
+      <a class="source" href="https://github.com/FrankDrebin893/hojt-audio/tree/main/site/resources">Source</a>
+    </nav>
+  </div>
+</header>
+
+<div class="tool-top">
+  <div class="wrap">
+    <p class="crumb"><a href="../">Resources</a></p>
+    <div class="titlerow">
+      <h1>Piano Chord Atlas<small>34 chord types in all 12 keys. Tap a card to hear it.</small></h1>
+    </div>
+    <div class="controls">
+      <div class="ctl root-ctl"><span class="ctl-lab" id="lab-root">Root</span><div class="seg roots" id="roots" role="group" aria-labelledby="lab-root"></div></div>
+      <div class="ctl"><span class="ctl-lab" id="lab-fam">Family</span><div class="chips" id="fams" role="group" aria-labelledby="lab-fam"></div></div>
+      <div class="ctl"><span class="ctl-lab" id="lab-inv">Inversion</span><div class="seg invs" id="invs" role="group" aria-labelledby="lab-inv"></div></div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <div class="legend" aria-label="Key colours">
+    <span><i class="sw root"></i>Root</span>
+    <span><i class="sw tone"></i>Chord tone</span>
+    <span><i class="sw ext"></i>Extension or alteration</span>
+    <span><span class="tag">L</span>/<span class="tag">R</span> under a key: left or right hand</span>
+  </div>
+  <p class="hint">The inversion toggle re-voices every card. Two-hand voicings stay fixed.</p>
+
+  <div id="out"></div>
+
+  <p class="about">Pick a root, then read every chord type on it: the formula, the notes spelled
+    for that key, what it is used for, and the keys to press. The sevenths, extended and altered
+    chords also get a two-hand voicing, the root and the 7th in the left hand. Tap or press Enter
+    on a card to hear it. Your root, family and inversion are remembered in this browser. To see
+    the chord you are playing named as you play it, try the <a href="../../piano/">piano viz</a>.</p>
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <nav aria-label="Project">
+      <a href="../">All resources</a>
+      <a href="../guitar-chords/">Guitar Chord Atlas</a>
+      <a href="https://github.com/FrankDrebin893/hojt-audio/issues/new/choose">Report a problem</a>
+    </nav>
+    <p>© 2026 Rasmus Højte. Part of <a href="https://github.com/FrankDrebin893/hojt-audio">HØJT</a>;
+      the name HØJT and its logo are not part of any licence:
+      <a href="https://github.com/FrankDrebin893/hojt-audio/blob/main/NOTICE.md">notice</a>.</p>
+  </div>
+</footer>
+
+<script src="atlas.js"></script>
+</body>
+</html>

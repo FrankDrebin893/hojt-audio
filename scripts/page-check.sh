@@ -63,7 +63,7 @@ status() {
 
 links() {
     local page dir bad=0 ref file anchor zip
-    for page in site/index.html site/dsp/index.html site/piano/index.html; do
+    for page in site/index.html site/dsp/index.html site/piano/index.html site/resources/index.html site/resources/*/index.html; do
         dir=$(dirname "$page")
         for ref in $(grep -oE '(href|src)="[^"]*"' "$page" | sed -E 's/^(href|src)="//; s/"$//; s/&amp;/\&/g' | sort -u); do
             case "$ref" in
