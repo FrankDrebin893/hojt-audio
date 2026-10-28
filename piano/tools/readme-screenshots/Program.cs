@@ -8,8 +8,9 @@ namespace ReadmeScreenshots;
 /// <summary>
 /// Usage: ReadmeScreenshots [--out DIR] [--scale N] [scene ...]
 /// Renders every scene (or just the named ones) to DIR/&lt;scene&gt;.png. DIR defaults to
-/// docs/screenshots in the repository. Exits non-zero if any scene failed or logged a
-/// binding error, so a broken screenshot is never committed by accident.
+/// site/piano/screenshots in the repository, which the README and the page share. Exits
+/// non-zero if any scene failed or logged a binding error, so a broken screenshot is never
+/// committed by accident.
 /// </summary>
 internal static class Program
 {
@@ -29,7 +30,7 @@ internal static class Program
                 default: only.Add(args[i]); break;
             }
         }
-        outDir ??= Path.Combine(FindRepoRoot(), "docs", "screenshots");
+        outDir ??= Path.Combine(FindPianoRoot(), "..", "site", "piano", "screenshots");
 
         var unknown = only.Where(name => Scenes.All.All(s => !s.Name.Equals(name, StringComparison.OrdinalIgnoreCase))).ToList();
         if (unknown.Count > 0)
@@ -77,14 +78,14 @@ internal static class Program
         return failures == 0 ? 0 : 1;
     }
 
-    private static string FindRepoRoot()
+    private static string FindPianoRoot()
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
         {
             if (File.Exists(Path.Combine(dir.FullName, "PianoMidiVisualizationApp.sln")))
                 return dir.FullName;
         }
-        throw new InvalidOperationException("Could not find the repository root; pass --out.");
+        throw new InvalidOperationException("Could not find piano/ (PianoMidiVisualizationApp.sln); pass --out.");
     }
 }
 

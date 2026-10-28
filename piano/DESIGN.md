@@ -164,7 +164,7 @@ components:
     height: "16px"
 ---
 
-<!-- Provenance: recorded from the shipped artifact on 2026-10-20 (commits e7ec2fd, 98a1f0c and the full-panel commit after them, branch feature/app-design-concepts-1467dc). Direction: concept K, "Scarlet anodised", picked by the user from three rounds of hardware-display concepts (docs/design-concepts/Scarlet.dc.html; the live canvas is linked from docs/design-concepts/README.md). It replaced a phosphor-scope trial (commits 30a6ba0, 08255c7), which replaced "piano character" (shipped 2026-09-28). The Impeccable sidecar, .impeccable/design.json, still describes piano character and needs regenerating. Product truth lives in PRODUCT.md and is not repeated here. -->
+<!-- Provenance: recorded from the shipped artifact on 2026-10-20 (commits 9c2f246, 27ff8be and the full-panel commit after them, branch feature/app-design-concepts-1467dc). Direction: concept K, "Scarlet anodised", picked by the user from three rounds of hardware-display concepts (docs/design-concepts/Scarlet.dc.html; the live canvas is linked from docs/design-concepts/README.md). It replaced a phosphor-scope trial (commits 7e386eb, eaf7d4b), which replaced "piano character" (shipped 2026-09-28). The Impeccable sidecar, .impeccable/design.json, still describes piano character and needs regenerating. Product truth lives in PRODUCT.md and is not repeated here. -->
 
 # Design System: Piano MIDI Visualization
 

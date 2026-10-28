@@ -9,7 +9,7 @@ https://claude.ai/artifact/A1vkXJUVwwK3oD11wKC69h
 
 | File | Concept | Status |
 |---|---|---|
-| `Scope.dc.html` | **E · Phosphor scope**: a curved CRT with a graticule, scanlines and green phosphor glow; the chord drawn as a live waveform trace; a wireframe keyboard; instrument knobs and tape-labelled memory buttons | Tried in the app 2026-10-19, replaced by K (git history: 30a6ba0, 08255c7) |
+| `Scope.dc.html` | **E · Phosphor scope**: a curved CRT with a graticule, scanlines and green phosphor glow; the chord drawn as a live waveform trace; a wireframe keyboard; instrument knobs and tape-labelled memory buttons | Tried in the app 2026-10-19, replaced by K (git history: 7e386eb, eaf7d4b) |
 | `VFD.dc.html` | A · VFD workstation: smoked glass with cyan phosphor, an amber key centre, rubber buttons and a data wheel | Kept for later |
 | `LCD.dc.html` | B · Backlit LCD with real keys: a yellow-green pixel LCD, soft keys under on-screen tabs, real ivory keys with an LED above each | Kept for later |
 | `OLED.dc.html` | C · OLED module: pure black OLED in aluminium, geometric type, a ring dial and coloured encoders | Kept for later |

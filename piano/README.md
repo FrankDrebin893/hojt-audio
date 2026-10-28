@@ -6,7 +6,7 @@ holding, the chord's name and Roman numeral, the notes on a grand staff and wher
 on the circle of fifths. You can also practise MIDI songs with falling notes, record takes, and
 teach the pedals and pads on your keyboard to run the app so your hands can stay on the keys.
 
-![The main window in C major. A G7 chord over B is held; the recessed OLED display spanning the 61-key keyboard names it G7/B, V65, first inversion, drop 2 voicing. The grand staff, circle of fifths and chord strip follow it, out-of-key keys are dimmed on the keyboard, and the right-hand hardware panel holds the volume and click knobs and twelve rubber panel keys.](docs/screenshots/main-window.png)
+![The main window in C major. A G7 chord over B is held; the recessed OLED display spanning the 61-key keyboard names it G7/B, V65, first inversion, drop 2 voicing. The grand staff, circle of fifths and chord strip follow it, out-of-key keys are dimmed on the keyboard, and the right-hand hardware panel holds the volume and click knobs and twelve rubber panel keys.](../site/piano/screenshots/main-window.png)
 
 *Holding G7/B in C major. The recessed OLED display spans the full width of the 61-key keyboard and
 gives the chord's figured-bass numeral (V65), inversion and voicing. The staff, circle of fifths
@@ -53,7 +53,7 @@ right-hand hardware deck holds the rotary volume and click knobs and panel keys.
 
 ### Play from the piano
 
-![Settings, with Piano controls below the keyboard and sound settings. The soft pedal is learned for Metronome and a pad sending C2 on channel 10 for Record; the other four actions are not set.](docs/screenshots/settings.png)
+![Settings, with Piano controls below the keyboard and sound settings. The soft pedal is learned for Metronome and a pad sending C2 on channel 10 for Record; the other four actions are not set.](../site/piano/screenshots/settings.png)
 
 - **Piano controls**, in **View → Settings…**: teach a key, pad, button or pedal on your
   keyboard to run any of six actions: record, play the latest take, turn the metronome on or off,
@@ -66,7 +66,7 @@ right-hand hardware deck holds the rotary volume and click knobs and panel keys.
 
 ### Practise songs with falling notes
 
-![Song practice with Ode to Joy in "Wait for me" mode. Right-hand notes fall in teal and left-hand chords in violet, straight onto the keyboard. The song is paused on the next note, C4, which is outlined on the keyboard, with a score of 24 correct, 1 wrong and 0 missed.](docs/screenshots/song-practice.png)
+![Song practice with Ode to Joy in "Wait for me" mode. Right-hand notes fall in teal and left-hand chords in violet, straight onto the keyboard. The song is paused on the next note, C4, which is outlined on the keyboard, with a score of 24 correct, 1 wrong and 0 missed.](../site/piano/screenshots/song-practice.png)
 
 - **Built-in Song Bank & MIDI import**: ships with 6 built-in two-hand classical piano pieces
   (*Ode to Joy*, Bach's *Prelude in C Major* & *Minuet in G Major*, Satie's *Gymnopédie No. 1*,
@@ -83,7 +83,7 @@ right-hand hardware deck holds the rotary volume and click knobs and panel keys.
 
 ### Record yourself
 
-![The recorder panel with two takes. Take 2 plays back in an A–B loop, and its notes are drawn on a timeline with the loop region shaded. The keyboard and readout show the A minor chord being played back, and the MIDI log below lists raw note messages.](docs/screenshots/recorder.png)
+![The recorder panel with two takes. Take 2 plays back in an A–B loop, and its notes are drawn on a timeline with the loop region shaded. The keyboard and readout show the A minor chord being played back, and the MIDI log below lists raw note messages.](../site/piano/screenshots/recorder.png)
 
 - Press **Ctrl+R** to arm the recorder. Recording starts at your first note, so there's no
   silence to trim. The last ten takes are kept. A note held by the sustain pedal is recorded for
@@ -100,7 +100,7 @@ right-hand hardware deck holds the rotary volume and click knobs and panel keys.
 
 ### Arrange the screen
 
-![Zen mode in F major. Only the chord readout, showing Bbmaj7 as IVmaj7, and the keyboard remain, with out-of-key keys dimmed, in-key notes marked and the tonic F highlighted.](docs/screenshots/zen-mode.png)
+![Zen mode in F major. Only the chord readout, showing Bbmaj7 as IVmaj7, and the keyboard remain, with out-of-key keys dimmed, in-key notes marked and the tonic F highlighted.](../site/piano/screenshots/zen-mode.png)
 
 - **The front panel**: the recessed OLED display spans the full width of the 61-key keyboard on
   the left, while the right-hand hardware deck houses two rotary halo knobs for master **Volume**
@@ -145,7 +145,7 @@ right-hand hardware deck holds the rotary volume and click knobs and panel keys.
 
 ## Download
 
-Get the latest `win-x64.zip` from the [project website](https://hojte.net/hojt-audio-piano-viz/) or [GitHub Releases](https://github.com/FrankDrebin893/hojt-audio-piano-viz/releases/latest), unzip it and run `PianoMidiVisualizationApp.exe`. It's self-contained, so no .NET install is needed. The app isn't code-signed yet, so Windows may show "Windows protected your PC" — click **More info → Run anyway**.
+Get the latest `win-x64.zip` from the [project website](https://hojte.net/hojt-audio/piano/) or [GitHub Releases](https://github.com/FrankDrebin893/hojt-audio/releases?q=piano-v&expanded=true) (the `piano-v…` ones; the others are the HØJT Pedals plugins), unzip it and run `PianoMidiVisualizationApp.exe`. It's self-contained, so no .NET install is needed. The app isn't code-signed yet, so Windows may show "Windows protected your PC" — click **More info → Run anyway**.
 
 ## Requirements
 
@@ -157,7 +157,7 @@ Get the latest `win-x64.zip` from the [project website](https://hojte.net/hojt-a
 
 ## Getting started
 
-![The first launch. The readout shows a setup checklist: Keyboard connected (Digital Piano, ticked), Choose a piano sound (the next step, highlighted) and Start audio. The title bar reads "Digital Piano · No sound" in amber.](docs/screenshots/first-run.png)
+![The first launch. The readout shows a setup checklist: Keyboard connected (Digital Piano, ticked), Choose a piano sound (the next step, highlighted) and Start audio. The title bar reads "Digital Piano · No sound" in amber.](../site/piano/screenshots/first-run.png)
 
 The first time you start the app, the empty readout is a setup checklist: **Connect your
 keyboard**, **Choose a piano sound** and **Start audio**. Click a step to do it. Choosing a
@@ -179,7 +179,7 @@ assistant, paste your Gemini API key into **Gemini key**.
 
 ## Building
 
-Building from source needs the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
+Building from source needs the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0). Run these in `piano/`.
 
 ```bash
 dotnet build PianoMidiVisualizationApp.sln
@@ -200,8 +200,8 @@ dotnet run --project src/PianoMidiVisualizationApp
 - **CommunityToolkit.Mvvm**: MVVM data binding
 
 The screenshots are rendered from the real UI with a small harness in
-[`.claude/skills/update-readme/screenshots`](.claude/skills/update-readme/screenshots). Run
-`dotnet run --project .claude/skills/update-readme/screenshots` to regenerate them.
+[`tools/readme-screenshots`](tools/readme-screenshots). Run
+`dotnet run --project piano/tools/readme-screenshots` from the repository root to regenerate them.
 
 ## License
 

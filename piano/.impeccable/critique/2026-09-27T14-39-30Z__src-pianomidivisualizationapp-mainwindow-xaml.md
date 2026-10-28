@@ -14,7 +14,7 @@ closed: true
 ---
 ⚠️ DEGRADED: single-context (sub-agents not spawned: the user did not ask for them)
 
-Evidence: the five off-screen renders in docs/screenshots (rendered from the real UI at d7b3183) plus the XAML/C# source. No browser pass: WPF is not viewable in a browser.
+Evidence: the five off-screen renders in docs/screenshots (rendered from the real UI at 1040514) plus the XAML/C# source. No browser pass: WPF is not viewable in a browser.
 
 ## Design Health Score
 

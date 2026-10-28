@@ -86,7 +86,7 @@ piano rolls show which notes to play. This app tells you what they are.
   installer. It isn't code-signed yet. The minimum window size is 900x420.
 - **Design tooling limits:** Impeccable's `detect`, `live` and `generate` are web-only. On XAML,
   `detect` returns `[]`, which means no signal, not clean. UI is verified with the off-screen
-  WPF harness (`.claude/skills/update-readme/screenshots`). Never take desktop or window
+  WPF harness (`tools/readme-screenshots`). Never take desktop or window
   screenshots of this app.
 - **Licensing:** SoundFonts and samples are never committed. Adding or removing a NuGet
   package means updating `THIRD-PARTY-NOTICES.txt`.
@@ -109,15 +109,15 @@ legends; the readout and chord strip sit in a black OLED window with a bezel spa
 width of the 61-key keyboard; the keys are real ivory and ebony, a held key pressed down with a
 blue-lit back edge and out-of-key keys dimmed when a key is active; amber stays the attention
 hue; two halo knobs and twelve panel keys sit on the right-hand hardware panel beside the OLED
-and keyboard. DESIGN.md holds the system. The phosphor build is in git history (commits 30a6ba0
-and 08255c7).
+and keyboard. DESIGN.md holds the system. The phosphor build is in git history (commits 7e386eb
+and eaf7d4b).
 
 ## Evidence on Hand
 
 - `README.md`: the feature list, shortcuts, requirements and getting started.
-- `docs/screenshots/`: off-screen renders of the real UI (main window, song practice, recorder,
+- `../site/piano/screenshots/`: off-screen renders of the real UI (main window, song practice, recorder,
   zen mode, settings, first-run).
-- `docs/index.html`: GitHub Pages landing page (`https://hojte.net/hojt-audio-piano-viz/`).
+- `../site/piano/index.html`: the landing page (`https://hojte.net/hojt-audio/piano/`).
 - `.impeccable/critique/`: the Impeccable critique snapshot from 2026-09-27 (24/40).
 - There are no user counts, testimonials, reviews, download figures or press. Don't invent
   any.

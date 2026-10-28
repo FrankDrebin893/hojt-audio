@@ -15,7 +15,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\src\PianoMidiVisualizationApp\PianoMidiVisualizationApp.csproj" />
+    <ProjectReference Include="..\..\src\PianoMidiVisualizationApp\PianoMidiVisualizationApp.csproj" />
   </ItemGroup>
 
 </Project>

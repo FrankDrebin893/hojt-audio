@@ -1,6 +1,6 @@
 ---
-name: update-readme
-description: Refresh README.md for the Piano MIDI Visualization app. Re-renders the README screenshots from the real WPF UI with an off-screen harness (never a desktop capture), and brings the feature list, shortcuts, requirements, usage and tech stack back in line with the code. Use when asked to update, refresh or rewrite the README, its screenshots or feature docs, or after features were added, removed or renamed.
+name: piano-readme
+description: Refresh piano/README.md for the Piano MIDI Visualization app. Re-renders the README screenshots from the real WPF UI with an off-screen harness (never a desktop capture), and brings the feature list, shortcuts, requirements, usage and tech stack back in line with the code. Use when asked to update, refresh or rewrite the README, its screenshots or feature docs, or after features were added, removed or renamed.
 ---
 
 # Update the README
@@ -22,22 +22,22 @@ with fresh screenshots rendered from the real `MainWindow`.
   If you're unsure a feature exists (sustain pedal? velocity-shaded keys?), grep before you
   write it. If a render shows a bug, such as a blank icon or clipped text, the real app has it
   too. Report it, don't paint over it in the harness.
-- **Screenshots live in `docs/screenshots/`**, one PNG per scene, named after the scene. Don't
-  hand-edit them. Regenerate with the harness.
+- **Screenshots live in `site/piano/screenshots/`**, one PNG per scene, named after the scene,
+  shared by the README and the piano page. Don't hand-edit them. Regenerate with the harness.
 
 ## 1. Find out what changed
 
 Start from what the README last knew:
 
 ```bash
-git log --oneline $(git log -1 --format=%H -- README.md)..HEAD
+git log --oneline $(git log -1 --format=%H -- piano/README.md)..HEAD -- piano
 ```
 
 A commit that only touched the Download or License section resets that range without the
-features having been reviewed. Check `git log -p -- README.md` for when **Features** last
+features having been reviewed. Check `git log -p -- piano/README.md` for when **Features** last
 really changed, and start from there.
 
-Then read the sources of truth. The README should match these, not the other way round:
+Then read the sources of truth, all under `piano/`. The README should match these, not the other way round:
 
 | README section | Source of truth |
 |---|---|
@@ -46,13 +46,13 @@ Then read the sources of truth. The README should match these, not the other way
 | Keyboard range | `PianoKeyboardViewModel` constructor defaults (currently C2–C7, 61 keys). |
 | Scales | `Services/ScaleType.cs` and `SettingsViewModel.ScaleOptions`. |
 | Setup steps | `Views/SettingsPanel.xaml` (labels such as **Piano sound**, **Start audio**). |
-| Download / install text | `.github/release-notes.md`. Keep the two consistent. |
+| Download / install text | `release-notes.md`. Keep the two consistent. |
 | Tech stack | `PackageReference`s in `src/PianoMidiVisualizationApp/PianoMidiVisualizationApp.csproj`. `THIRD-PARTY-NOTICES.txt` must list the same packages. |
 | AI assistant | `Services/ChatService.cs`: which provider and model it calls, and what context it sends. |
 
 ## 2. Update the scenes
 
-Scenes live in `screenshots/Scenes.cs` in this skill's folder. Each one gets a fresh
+Scenes live in `piano/tools/readme-screenshots/Scenes.cs`. Each one gets a fresh
 `MainWindow` over a real `MainViewModel` with fake MIDI and audio (`Fakes.cs`), shown
 off-screen, and sets up only what it shows:
 
@@ -80,16 +80,16 @@ channels and move controllers (`MoveControl`), e.g. to learn a pedal.
 From the repository root:
 
 ```bash
-dotnet run --project .claude/skills/update-readme/screenshots -- main-window song-practice
+dotnet run --project piano/tools/readme-screenshots -- main-window song-practice
 ```
 
-With no scene names it renders all of them. Output goes to `docs/screenshots/` (`--out DIR`
+With no scene names it renders all of them. Output goes to `site/piano/screenshots/` (`--out DIR`
 to change it), at 1.5x (`--scale N`), so the images stay sharp on HiDPI screens. It exits
 non-zero if a scene throws or logs a WPF binding error, and prints each file's size.
 
 - Renders are deterministic, so an unchanged UI gives a byte-identical PNG and git ignores it.
   The exception is `recorder`, whose MIDI log shows the time of day and so always changes.
-  Commit it only when its UI actually changed (`git checkout -- docs/screenshots/recorder.png`).
+  Commit it only when its UI actually changed (`git checkout -- site/piano/screenshots/recorder.png`).
 - **Look at every image you render** with the Read tool. That's safe, because it's a render of
   the app, not the screen. Check that the readout says what the scene intended, nothing is
   clipped, and no panel sits empty or shows leftover state.
@@ -121,19 +121,20 @@ Keep this shape unless there's a reason to change it:
    **Building**, **Running**, **Tech stack**, **License**.
 
 Style: plain, concrete sentences. Name the actual UI labels in bold (**View → Settings…**,
-**Start audio**). Image paths are relative (`docs/screenshots/recorder.png`) with real alt
+**Start audio**). Image paths are relative to `piano/` (`../site/piano/screenshots/recorder.png`) with real alt
 text. Don't promise features that are only planned.
 
 ## 5. Check before committing
 
 ```bash
-grep -o 'docs/screenshots/[a-z-]*\.png' README.md | sort -u | while read f; do [ -f "$f" ] || echo "missing: $f"; done
+cd piano && grep -o '\.\./site/piano/screenshots/[a-z-]*\.png' README.md | sort -u | while read f; do [ -f "$f" ] || echo "missing: $f"; done
 ```
 
-- Every image the README links exists, and every PNG in `docs/screenshots/` is linked. Delete
-  orphans.
+- Every image the README links exists, and every PNG in `site/piano/screenshots/` is linked
+  from the README or `site/piano/index.html`. Delete orphans.
 - Every shortcut in the README appears in `Window_KeyDown` or the View menu.
 - `git status` shows only the README, the screenshots and anything you deliberately touched.
-  No `.sf2`, `.sfz` or `.wav` files. The release workflow fails if any are tracked.
+  No `.sf2`, `.sfz` or `.wav` files. The Piano workflow fails if any are tracked under `piano/`.
 
-Then follow `CLAUDE.md`'s workflow: commit, push, and publish to the desktop.
+Then follow `piano/AGENTS.md`'s workflow: commit, push the branch, open a pull request, and
+publish to the desktop.
