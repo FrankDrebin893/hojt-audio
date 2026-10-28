@@ -1,0 +1,321 @@
+using System.Collections.Specialized;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
+using PianoMidiVisualizationApp.ViewModels;
+
+namespace PianoMidiVisualizationApp;
+
+public partial class MainWindow : Window
+{
+    /// <summary>Full brightness on the click, gone well before the next one (240 BPM is 250 ms).</summary>
+    private static readonly DoubleAnimation BeatFlashFade = CreateBeatFlashFade();
+
+    /// <summary>The echo: in quickly, long enough to read at a glance, then out.</summary>
+    private static readonly DoubleAnimationUsingKeyFrames EchoFade = CreateEchoFade();
+
+    /// <summary>...settling down 6px as it arrives, so it reads as news rather than as furniture.</summary>
+    private static readonly DoubleAnimation EchoSettle = CreateEchoSettle();
+
+    /// <summary>
+    /// True on a short stage, where the panel folds its soft keys away so the keyboard keeps
+    /// its height (the stage has only ~24px to spare at the 900x420 minimum).
+    /// </summary>
+    public static readonly DependencyProperty IsCompactProperty = DependencyProperty.Register(
+        nameof(IsCompact), typeof(bool), typeof(MainWindow), new PropertyMetadata(false));
+
+    public bool IsCompact
+    {
+        get => (bool)GetValue(IsCompactProperty);
+        set => SetValue(IsCompactProperty, value);
+    }
+
+    /// <summary>Below this stage height the soft keys fold away: about a 560px window with no
+    /// panels open, or a taller one with the recorder and log open.</summary>
+    private const double CompactStageHeight = 480;
+
+    /// <summary>The window's corner radius; square while maximised, as Windows draws it.</summary>
+    private const double WindowCornerRadius = 10;
+
+    public MainWindow()
+    {
+        InitializeComponent();
+        Loaded += OnLoaded;
+        WindowFrame.SizeChanged += (_, _) => UpdateWindowClip();
+        Stage.SizeChanged += (_, _) =>
+        {
+            IsCompact = Stage.ActualHeight < CompactStageHeight;
+            UpdateFrontPanelColumn();
+        };
+        FrontPanel.IsVisibleChanged += (_, _) => UpdateFrontPanelColumn();
+        StateChanged += (_, _) => UpdateWindowClip();
+    }
+
+    /// <summary>The front panel's width at full size (250 plus its 18px right margin), and on a short stage.</summary>
+    private const double FrontPanelWidth = 268, CompactFrontPanelWidth = 170;
+
+    /// <summary>
+    /// Sizes the front panel's column in pixels: full width, narrower on a short stage (the
+    /// panel scales down there anyway), nothing while it is hidden. See the column's comment
+    /// in MainWindow.xaml for why it can't simply be Auto.
+    /// </summary>
+    private void UpdateFrontPanelColumn()
+    {
+        double width = FrontPanel.Visibility != Visibility.Visible ? 0
+            : IsCompact ? CompactFrontPanelWidth : FrontPanelWidth;
+        FrontPanelColumn.Width = new GridLength(width);
+        FrontPanelGrid.MinHeight = IsCompact ? 0 : Math.Max(0, Stage.ActualHeight - 14);
+    }
+
+    /// <summary>
+    /// Clips the frame to its rounded shape. The border's CornerRadius rounds only its own
+    /// background; the title bar, panels and status bar inside it would paint square corners
+    /// over it without the clip.
+    /// </summary>
+    private void UpdateWindowClip()
+    {
+        bool maximised = WindowState == WindowState.Maximized;
+        double radius = maximised ? 0 : WindowCornerRadius;
+        WindowFrame.CornerRadius = new CornerRadius(radius);
+        WindowFrame.BorderThickness = new Thickness(maximised ? 0 : 1);
+        var clip = new RectangleGeometry(new Rect(WindowFrame.RenderSize), radius, radius);
+        clip.Freeze();
+        WindowFrame.Clip = clip;
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        // Auto-scroll the MIDI log when new items are added
+        if (MidiLogList.ItemsSource is INotifyCollectionChanged collection)
+        {
+            collection.CollectionChanged += (_, _) => ScrollLogToEnd();
+        }
+
+        // The log is hidden by default, so it can be stale by the time it is shown.
+        MidiLogList.IsVisibleChanged += (_, _) => ScrollLogToEnd();
+
+        if (DataContext is MainViewModel vm)
+        {
+            vm.MetronomeBeat += OnMetronomeBeat;
+            vm.EchoShown += OnEchoShown;
+        }
+    }
+
+    private static DoubleAnimation CreateBeatFlashFade()
+    {
+        var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(180));
+        fade.Freeze();
+        return fade;
+    }
+
+    private static DoubleAnimationUsingKeyFrames CreateEchoFade()
+    {
+        var easeOut = new ExponentialEase { EasingMode = EasingMode.EaseOut, Exponent = 5 };
+        var fade = new DoubleAnimationUsingKeyFrames
+        {
+            KeyFrames =
+            {
+                new EasingDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(140)), easeOut),
+                new DiscreteDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(1500))),
+                new EasingDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(1900))),
+            }
+        };
+        fade.Freeze();
+        return fade;
+    }
+
+    private static DoubleAnimation CreateEchoSettle()
+    {
+        var settle = new DoubleAnimation(-6, 0, TimeSpan.FromMilliseconds(220))
+        {
+            EasingFunction = new ExponentialEase { EasingMode = EasingMode.EaseOut, Exponent = 5 }
+        };
+        settle.Freeze();
+        return settle;
+    }
+
+    /// <summary>Shows the echo afresh, even mid-fade: a second press restarts it at full strength.</summary>
+    private void OnEchoShown(object? sender, EventArgs e)
+    {
+        PianoEcho.BeginAnimation(OpacityProperty, EchoFade);
+        PianoEcho.RenderTransform.BeginAnimation(TranslateTransform.YProperty, EchoSettle);
+    }
+
+    /// <summary>
+    /// Flashes the beat light. Raised per click from the audio thread's beat counter, so the
+    /// light follows the audio clock. Code rather than a XAML trigger because a binding-driven
+    /// EventTrigger also fires once when the binding first attaches, flashing at startup.
+    /// </summary>
+    private void OnMetronomeBeat(object? sender, EventArgs e) =>
+        BeatFlash.BeginAnimation(OpacityProperty, BeatFlashFade);
+
+    // ----- Metronome BPM field -----
+
+    private void MetronomeBpmBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Key.Enter:
+                CommitBpm();
+                // Hand the keyboard back, so Ctrl+M works again without a click.
+                Keyboard.Focus(this);
+                break;
+            case Key.Escape:
+                MetronomeBpmBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+                Keyboard.Focus(this);
+                break;
+            case Key.Up:
+                NudgeBpm(+1);
+                break;
+            case Key.Down:
+                NudgeBpm(-1);
+                break;
+            default:
+                return;
+        }
+
+        e.Handled = true;
+    }
+
+    private void MetronomeBpmBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e) =>
+        CommitBpm();
+
+    private void MetronomeBpmBox_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        NudgeBpm(e.Delta > 0 ? +1 : -1);
+        e.Handled = true;
+    }
+
+    /// <summary>Writes the typed tempo, then reads it back: shows the clamped value, or restores the old one if the text was not a number.</summary>
+    private void CommitBpm()
+    {
+        var binding = MetronomeBpmBox.GetBindingExpression(TextBox.TextProperty);
+        binding?.UpdateSource();
+        binding?.UpdateTarget();
+    }
+
+    /// <summary>Nudges from whatever is typed, so a half-entered tempo is not lost.</summary>
+    private void NudgeBpm(int delta)
+    {
+        if (DataContext is not MainViewModel vm) return;
+        CommitBpm();
+        vm.Settings.MetronomeBpm += delta;
+    }
+
+    private void ScrollLogToEnd()
+    {
+        // Skip the work entirely while the log is collapsed — this runs per MIDI message.
+        if (!MidiLogList.IsVisible || MidiLogList.Items.Count == 0) return;
+
+        MidiLogList.ScrollIntoView(MidiLogList.Items[^1]);
+    }
+
+    private void SettingsScrim_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is MainViewModel vm)
+            vm.CloseSettingsOverlayCommand.Execute(null);
+    }
+
+    // KeyDown rather than PreviewKeyDown, so focused controls get first refusal: an open
+    // ComboBox consumes Esc to close its dropdown before the overlay ever sees it.
+    private void Window_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm) return;
+
+        bool shift = Keyboard.Modifiers == ModifierKeys.Shift;
+        bool ctrl = Keyboard.Modifiers == ModifierKeys.Control;
+        bool ctrlShift = Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift);
+
+        switch (e.Key)
+        {
+            case Key.OemComma when ctrl:
+                vm.ToggleSettingsOverlayCommand.Execute(null);
+                break;
+            // Esc backs out one layer at a time: Learn listening first, then the overlay.
+            case Key.Escape when vm.PianoControls.IsLearning:
+                vm.PianoControls.CancelLearning();
+                break;
+            // Only handled while the overlay is open, so Esc stays available to everything else.
+            case Key.Escape when vm.IsSettingsOverlayVisible:
+                vm.CloseSettingsOverlayCommand.Execute(null);
+                break;
+            case Key.F11:
+                vm.ToggleZenModeCommand.Execute(null);
+                break;
+            case Key.F1 when shift:
+                vm.ToggleStatusBarCommand.Execute(null);
+                break;
+            case Key.F2 when shift:
+                vm.ToggleChatPanelCommand.Execute(null);
+                break;
+            case Key.F3 when shift:
+                vm.ToggleMidiLogCommand.Execute(null);
+                break;
+            case Key.R when ctrl && !IsTextEntryFocused():
+                vm.Recorder.ToggleRecordCommand.Execute(null);
+                break;
+            case Key.R when ctrlShift && !IsTextEntryFocused():
+                vm.Recorder.TogglePlaybackCommand.Execute(null);
+                break;
+            case Key.F5 when shift && !IsTextEntryFocused():
+                vm.ToggleRecorderCommand.Execute(null);
+                break;
+            case Key.F6 when shift && !IsTextEntryFocused():
+                vm.ToggleCircleOfFifthsCommand.Execute(null);
+                break;
+            case Key.F7 when shift && !IsTextEntryFocused():
+                vm.ToggleChordStripCommand.Execute(null);
+                break;
+            case Key.F8 when shift && !IsTextEntryFocused():
+                vm.ToggleGrandStaffCommand.Execute(null);
+                break;
+            case Key.M when ctrl && !IsTextEntryFocused():
+                vm.ToggleMetronomeCommand.Execute(null);
+                break;
+            case Key.O when ctrl && !IsTextEntryFocused():
+                vm.SongPractice.OpenSongCommand.Execute(null);
+                break;
+            case Key.F9 when shift && !IsTextEntryFocused():
+                vm.ToggleSongPracticeCommand.Execute(null);
+                break;
+            default:
+                return;
+        }
+
+        e.Handled = true;
+    }
+
+    /// <summary>True when a text box has focus, so global shortcuts do not interfere while typing.</summary>
+    private static bool IsTextEntryFocused() =>
+        Keyboard.FocusedElement is TextBoxBase or PasswordBox;
+
+    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2)
+        {
+            MaximizeButton_Click(sender, e);
+        }
+        else
+        {
+            DragMove();
+        }
+    }
+
+    private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
+    }
+
+    private void MaximizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    }
+
+    private void CloseButton_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+}

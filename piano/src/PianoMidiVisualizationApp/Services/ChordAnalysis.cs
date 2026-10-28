@@ -1,0 +1,63 @@
+namespace PianoMidiVisualizationApp.Services;
+
+/// <summary>
+/// What the readout shows for the currently held notes. <see cref="Notes"/> and
+/// <see cref="Intervals"/> are index-aligned token-for-token and column-padded, so
+/// rendering them in one monospace size lines each interval up under its note. The readout
+/// sets the two at different sizes, and so reads them as <see cref="Columns"/> instead.
+/// </summary>
+/// <param name="RootPitchClass">
+/// The pitch class (C = 0) that <see cref="Intervals"/> are measured from. Set for every
+/// non-empty analysis: the chord root, the note itself for a single note, or the bass for
+/// a note list that isn't a recognised chord. Null only for <see cref="Empty"/>.
+/// </param>
+/// <param name="Voicing">
+/// Inversion and voicing, e.g. "1st inversion · close". Empty when there's nothing
+/// certain to say (single notes, dyads, unnamed note lists).
+/// </param>
+/// <remarks>
+/// A record struct so value equality suppresses redundant PropertyChanged when the
+/// analysis is unchanged, with no allocation per MIDI event.
+/// </remarks>
+public readonly record struct ChordAnalysis(
+    string Name, string Notes, string Intervals, int? RootPitchClass, string Voicing)
+{
+    public static readonly ChordAnalysis Empty = new("", "", "", null, "");
+
+    /// <summary>
+    /// The bass's role behind <see cref="Voicing"/>, for figured bass. <see cref="ChordInversion.None"/>
+    /// whenever <see cref="Voicing"/> doesn't name an inversion.
+    /// </summary>
+    public ChordInversion Inversion { get; init; }
+
+    /// <summary>
+    /// The chord as a Roman numeral in the selected key, e.g. "V65" or "bVI". Empty with no key
+    /// selected, or when the notes aren't a chord <see cref="RomanNumeralAnalyzer"/> recognises.
+    /// </summary>
+    public string Function { get; init; } = "";
+
+    /// <summary>How <see cref="Function"/> relates to the key. Meaningless while it is empty.</summary>
+    public RomanNumeralKind FunctionKind { get; init; }
+
+    public bool IsEmpty => string.IsNullOrEmpty(Name);
+
+    /// <summary>
+    /// <see cref="Notes"/> and <see cref="Intervals"/> paired token for token, for a readout
+    /// that sets each interval under its own note whatever the two lines' type sizes.
+    /// </summary>
+    public IReadOnlyList<NoteColumn> Columns
+    {
+        get
+        {
+            var notes = Notes.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var intervals = Intervals.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var columns = new NoteColumn[notes.Length];
+            for (int i = 0; i < notes.Length; i++)
+                columns[i] = new NoteColumn(notes[i], i < intervals.Length ? intervals[i] : "");
+            return columns;
+        }
+    }
+}
+
+/// <summary>One held note with the interval it forms above the root, e.g. "B2" over "3".</summary>
+public readonly record struct NoteColumn(string Note, string Interval);

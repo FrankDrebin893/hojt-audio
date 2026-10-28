@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OLED module</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#bfc0bd}
+a{color:#555}a:hover{color:#111}
+</style>
+</helmet>
+<div style="width: 1400px; height: 620px; box-sizing: border-box; position: relative; overflow: hidden; background: radial-gradient(rgba(0,0,0,0.035) 0.6px, transparent 0.9px) 0 0 / 3px 3px, linear-gradient(180deg, #dcdddA 0%, #c9cac7 100%); background-color: #d2d3d0; font-family: 'Space Grotesk', sans-serif; color: #2b2b2b;">
+
+<div style="position: absolute; left: 20px; top: 0; right: 20px; height: 30px; display: flex; align-items: center; gap: 14px; font-size: 12px; color: #4a4a4a;">
+<span style="font-weight: 700; font-size: 14px; color: #1d1d1d;">pmv—61</span>
+<span>harmony module</span>
+<span style="margin-left: 8px; font-weight: 500; color: #333;">view</span>
+<div style="flex-grow: 1;"></div>
+<span style="display: flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #1d1d1d;"></span>digital piano</span>
+<span style="display: flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #1d1d1d;"></span>asio</span>
+<span style="margin-left: 16px; letter-spacing: 14px; color: #666;">–□×</span>
+</div>
+
+<div style="position: absolute; left: 20px; top: 32px; width: 1110px; height: 570px; box-sizing: border-box; border-radius: 14px; background: #000; box-shadow: 0 0 0 2px #8f908d, 0 0 0 3px #eceeea, inset 0 0 0 1px #151515; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; color: #fff;">
+
+<div style="height: 20px; flex: none; display: flex; align-items: center; gap: 8px; font-size: 12px;">
+<span style="background: #fff; color: #000; padding: 2px 10px; border-radius: 10px; font-weight: 700;">harmony</span>
+<span style="color: #777; padding: 2px 8px;">song</span>
+<span style="color: #777; padding: 2px 8px;">record</span>
+<span style="color: #777; padding: 2px 8px;">log</span>
+<div style="flex-grow: 1;"></div>
+<span style="font-family: 'Space Mono', monospace; color: #bbb;"><span style="color: {{amber}};">●</span> C major</span>
+<span style="font-family: 'Space Mono', monospace; color: #bbb; margin-left: 14px;">♩ 90</span>
+<span style="font-family: 'Space Mono', monospace; color: #bbb; margin-left: 14px;">4/4</span>
+<span style="font-family: 'Space Mono', monospace; color: #bbb; margin-left: 14px;">100%</span>
+</div>
+
+<div style="height: 282px; flex: none; display: flex; align-items: center; gap: 14px;">
+<svg width="170" height="220" viewBox="0 0 170 220" aria-hidden="true">
+<g style="stroke: #4a4a4a; stroke-width: 1.2;">
+<line x1="6" y1="40" x2="166" y2="40"></line><line x1="6" y1="54" x2="166" y2="54"></line><line x1="6" y1="68" x2="166" y2="68"></line><line x1="6" y1="82" x2="166" y2="82"></line><line x1="6" y1="96" x2="166" y2="96"></line>
+<line x1="6" y1="138" x2="166" y2="138"></line><line x1="6" y1="152" x2="166" y2="152"></line><line x1="6" y1="166" x2="166" y2="166"></line><line x1="6" y1="180" x2="166" y2="180"></line><line x1="6" y1="194" x2="166" y2="194"></line>
+</g>
+<text x="10" y="92" style="fill: #fff; font: 60px 'Segoe UI Symbol', 'Apple Symbols', serif;">𝄞</text>
+<text x="10" y="178" style="fill: #fff; font: 46px 'Segoe UI Symbol', 'Apple Symbols', serif;">𝄢</text>
+<g style="fill: {{blue}};">
+<circle cx="120" cy="103" r="6.5"></circle>
+<circle cx="120" cy="173" r="6.5"></circle>
+<circle cx="134" cy="166" r="6.5"></circle>
+<circle cx="120" cy="187" r="6.5"></circle>
+</g>
+</svg>
+
+<div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+<div style="font-weight: 700; font-size: 132px; line-height: 0.9; letter-spacing: -5px;">G7/B</div>
+<div style="display: flex; align-items: center; gap: 10px;">
+<span style="font-family: 'Space Mono', monospace; font-weight: 700; font-size: 20px; background: #fff; color: #000; padding: 1px 10px; border-radius: 6px;">V65</span>
+<span style="font-size: 18px; color: #a8a8a8;">1st inversion · drop 2</span>
+</div>
+<div style="display: flex; gap: 8px;">
+<sc-for list="{{notes}}" as="n" hint-placeholder-count="4">
+<div style="{{n.style}}"><span style="font-size: 12px; color: #888;">{{n.iv}}</span><span style="font-size: 20px; font-weight: 700;">{{n.note}}</span></div>
+</sc-for>
+</div>
+<div style="font-size: 12px; color: #777;">space to save</div>
+</div>
+
+<svg width="260" height="260" viewBox="0 0 260 260" aria-hidden="true">
+<sc-for list="{{maj}}" as="s" hint-placeholder-count="12">
+<path d="{{s.d}}" style="{{s.ps}}"></path>
+<text x="{{s.lx}}" y="{{s.ly}}" style="{{s.ts}}">{{s.label}}</text>
+</sc-for>
+<sc-for list="{{min}}" as="s" hint-placeholder-count="12">
+<path d="{{s.d}}" style="{{s.ps}}"></path>
+<text x="{{s.lx}}" y="{{s.ly}}" style="{{s.ts}}">{{s.label}}</text>
+</sc-for>
+<path d="{{rootArc}}" style="fill: none; stroke: {{blue}}; stroke-width: 4; stroke-linecap: round;"></path>
+<text x="130" y="124" style="fill: #fff; font: 700 34px 'Space Grotesk', sans-serif; text-anchor: middle; dominant-baseline: central;">C</text>
+<text x="130" y="150" style="fill: #888; font: 400 12px 'Space Grotesk', sans-serif; text-anchor: middle; dominant-baseline: central;">major</text>
+</svg>
+
+<div style="width: 200px; flex: none; align-self: stretch; display: flex; flex-direction: column; gap: 8px; padding-top: 8px;">
+<div style="display: flex; justify-content: space-between; font-size: 12px; color: #888;"><span>progression</span><span style="font-family: 'Space Mono', monospace;">4/8</span></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;">
+<sc-for list="{{slots}}" as="s" hint-placeholder-count="8">
+<div style="{{s.style}}"><span style="font-weight: 700; font-size: 18px;">{{s.name}}</span><span style="font-family: 'Space Mono', monospace; font-size: 11px; color: #888;">{{s.num}}</span></div>
+</sc-for>
+</div>
+<div style="font-size: 12px; color: #888; margin-top: 4px;">next after V7</div>
+<div style="display: flex; gap: 6px;">
+<sc-for list="{{next}}" as="n" hint-placeholder-count="3">
+<div style="flex: 1; height: 28px; border-radius: 14px; border: 1.5px solid #333; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 13px;"><span style="font-weight: 700;">{{n.num}}</span><span style="color: #888;">{{n.name}}</span></div>
+</sc-for>
+</div>
+</div>
+</div>
+
+<div style="height: 36px; flex: none; display: flex; justify-content: center; align-items: center; gap: 6px;">
+<sc-for list="{{strip}}" as="t" hint-placeholder-count="7">
+<div style="{{t.style}}"><span style="font-weight: 700;">{{t.num}}</span><span style="opacity: 0.7;">{{t.name}}</span></div>
+</sc-for>
+<div style="height: 30px; padding: 0 14px; border-radius: 15px; border: 1.5px solid #fff; display: flex; align-items: center; font-size: 13px; font-weight: 700; margin-left: 8px;">7ths</div>
+</div>
+
+<div style="position: relative; height: 150px; flex: none;">
+<sc-for list="{{whites}}" as="k" hint-placeholder-count="36">
+<div style="{{k.style}}"><span style="{{k.ls}}">{{k.label}}</span></div>
+</sc-for>
+<sc-for list="{{blacks}}" as="k" hint-placeholder-count="25">
+<div style="{{k.style}}"></div>
+</sc-for>
+</div>
+</div>
+
+<div style="position: absolute; left: 1150px; top: 32px; width: 230px; height: 570px; display: flex; flex-direction: column; gap: 18px;">
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 10px; justify-items: center;">
+<sc-for list="{{knobs}}" as="k" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+<div style="width: 84px; height: 84px; border-radius: 50%; background: #bdbebb; box-shadow: inset 0 2px 4px rgba(0,0,0,0.35), 0 1px 0 #f4f5f2; display: flex; align-items: center; justify-content: center;">
+<div style="{{k.cap}}"><div style="{{k.mark}}"></div></div>
+</div>
+<span style="font-size: 12px; color: #3a3a3a;">{{k.lab}}</span>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; justify-content: space-between; padding: 0 6px;">
+<sc-for list="{{transport}}" as="b" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+<div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(180deg, #2f2f2f, #1a1a1a); box-shadow: 0 2px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center;"><div style="{{b.icon}}"></div></div>
+<span style="font-size: 11px; color: #3a3a3a;">{{b.lab}}</span>
+</div>
+</sc-for>
+</div>
+<div style="height: 46px; border-radius: 23px; background: linear-gradient(180deg, #fafaf8, #e4e4e1); box-shadow: 0 2px 3px rgba(0,0,0,0.3), inset 0 -2px 0 rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; font-weight: 700; color: #1d1d1d;">save chord <span style="font-family: 'Space Mono', monospace; font-weight: 400; font-size: 11px; color: #777;">space</span></div>
+<div style="flex-grow: 1; border-radius: 12px; background: radial-gradient(circle, #6f706d 1.6px, transparent 2px) 0 0 / 9px 9px; opacity: 0.8;"></div>
+<div style="font-size: 11px; color: #555; display: flex; justify-content: space-between;"><span>saved chord: G7</span><span>v2.6</span></div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"blue":{"editor":"color","default":"#3D8BFF","options":["#3D8BFF","#22D3EE","#FFFFFF"]},"$preview":{"width":1400,"height":620}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const B = this.props.blue ?? '#3D8BFF';
+    const A = '#FFB000';
+    const NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
+    const WHITE = [0, 2, 4, 5, 7, 9, 11];
+    const held = [47, 53, 55, 62];
+    const W = 1070, H = 150, ww = W / 36, bw = ww * 0.6, bh = H * 0.58;
+    const whites = [], blacks = [];
+    let wi = 0;
+    for (let m = 36; m <= 96; m++) {
+      const pc = m % 12, oct = Math.floor(m / 12) - 1, h = held.includes(m), t = pc === 0;
+      if (WHITE.includes(pc)) {
+        const bg = h ? B : '#171717';
+        whites.push({
+          label: h ? NAMES[pc] : (t ? 'C' + oct : ''),
+          style: 'position:absolute;top:0;left:' + (wi * ww + 1.5).toFixed(1) + 'px;width:' + (ww - 3).toFixed(1) + 'px;height:' + H + 'px;box-sizing:border-box;background:' + bg + ';border-radius:6px;' + (t && !h ? 'box-shadow:inset 0 -4px 0 ' + A + ';' : ''),
+          ls: 'position:absolute;left:0;right:0;bottom:12px;text-align:center;font:700 10px "Space Grotesk",sans-serif;color:' + (h ? '#fff' : (t ? A : '#777')) + ';'
+        });
+        wi++;
+      } else {
+        blacks.push({ style: 'position:absolute;top:0;left:' + (wi * ww - bw / 2 - 2).toFixed(1) + 'px;width:' + (bw + 4).toFixed(1) + 'px;height:' + (bh + 2).toFixed(0) + 'px;box-sizing:border-box;border:2px solid #000;border-top:none;background:' + (h ? B : '#3b3b3b') + ';border-radius:0 0 7px 7px;' });
+      }
+    }
+    const C = 130;
+    const pt = (r, a) => (C + r * Math.cos(a * Math.PI / 180)).toFixed(2) + ' ' + (C + r * Math.sin(a * Math.PI / 180)).toFixed(2);
+    const arc = (r, i, g) => 'M ' + pt(r, -105 + i * 30 + g) + ' A ' + r + ' ' + r + ' 0 0 1 ' + pt(r, -75 + i * 30 - g);
+    const lab = (r, i) => { const a = (-90 + i * 30) * Math.PI / 180; return { lx: (C + r * Math.cos(a)).toFixed(1), ly: (C + r * Math.sin(a)).toFixed(1) }; };
+    const MAJ = ['C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'D♭', 'A♭', 'E♭', 'B♭', 'F'];
+    const MIN = ['a', 'e', 'b', 'f♯', 'c♯', 'g♯', 'e♭', 'b♭', 'f', 'c', 'g', 'd'];
+    const maj = MAJ.map((label, i) => {
+      const sel = i === 0, rel = i === 1 || i === 11;
+      const col = sel ? A : (rel ? '#5c4510' : '#232323');
+      const tc = sel ? '#000' : (rel ? A : '#9a9a9a');
+      return Object.assign({ label, d: arc(100, i, 1.6), ps: 'fill:none;stroke:' + col + ';stroke-width:26;', ts: 'fill:' + tc + ';font:700 14px "Space Grotesk",sans-serif;text-anchor:middle;dominant-baseline:central;' }, lab(100, i));
+    });
+    const min = MIN.map((label, i) => {
+      const rel = i === 0 || i === 1 || i === 11;
+      return Object.assign({ label, d: arc(68, i, 2.2), ps: 'fill:none;stroke:' + (rel ? '#3a2c0a' : '#151515') + ';stroke-width:22;', ts: 'fill:' + (rel ? A : '#777') + ';font:500 12px "Space Grotesk",sans-serif;text-anchor:middle;dominant-baseline:central;' }, lab(68, i));
+    });
+    const rootArc = arc(122, 1, 3);
+    const notes = [['B2', '3'], ['F3', '♭7'], ['G3', 'R'], ['D4', '5']].map(([note, iv]) => ({ note, iv, style: 'width:52px;height:52px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:"Space Mono",monospace;background:#151515;' + (iv === 'R' ? 'box-shadow:inset 0 0 0 1.5px #fff;' : '') }));
+    const tiles = [['Imaj7', 'Cmaj7'], ['ii7', 'Dm7'], ['iii7', 'Em7'], ['IVmaj7', 'Fmaj7'], ['V7', 'G7'], ['vi7', 'Am7'], ['viiø7', 'Bm7♭5']];
+    const strip = tiles.map(([num, name], i) => ({ num, name, style: 'height:30px;padding:0 14px;border-radius:15px;display:flex;align-items:center;gap:6px;font-size:13px;' + (i === 4 ? 'background:' + B + ';color:#fff;' : 'background:#161616;color:#9a9a9a;') }));
+    const saved = [['C', 'I'], ['Am', 'vi'], ['F', 'IV'], ['G7', 'V7']];
+    const slots = [];
+    for (let i = 0; i < 8; i++) {
+      const s = saved[i];
+      slots.push({ name: s ? s[0] : '', num: s ? s[1] : (i + 1) + '', style: 'height:44px;border-radius:10px;padding:0 10px;display:flex;align-items:center;justify-content:space-between;box-sizing:border-box;' + (s ? 'background:#161616;' + (i === 3 ? 'box-shadow:inset 0 0 0 1.5px #fff;' : '') : 'border:1.5px dashed #2a2a2a;') });
+    }
+    const cap = (bg, sh) => 'width:64px;height:64px;border-radius:50%;background:' + bg + ';box-shadow:0 3px 5px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,' + sh + ');position:relative;';
+    const mark = (c, rot) => 'position:absolute;left:30px;top:6px;width:4px;height:14px;border-radius:2px;background:' + c + ';transform-origin:2px 26px;transform:rotate(' + rot + 'deg);';
+    const knobs = [
+      { lab: 'key', cap: cap('radial-gradient(circle at 40% 30%,#ffd166,' + A + ' 60%,#c98800)', 0.4), mark: mark('#3a2a00', 0) },
+      { lab: 'tempo', cap: cap('radial-gradient(circle at 40% 30%,#ffffff,#e9e9e6 60%,#c9c9c6)', 0.6), mark: mark('#222', -40) },
+      { lab: 'speed', cap: cap('radial-gradient(circle at 40% 30%,#4a4a4a,#262626 70%)', 0.15), mark: mark('#ddd', 130) },
+      { lab: 'volume', cap: cap('radial-gradient(circle at 40% 30%,#4a4a4a,#262626 70%)', 0.15), mark: mark('#ddd', 60) }
+    ];
+    const transport = [
+      { lab: 'rec', icon: 'width:12px;height:12px;border-radius:50%;background:#ff4b3e;' },
+      { lab: 'play', icon: 'width:0;height:0;border-left:12px solid #eee;border-top:7px solid transparent;border-bottom:7px solid transparent;margin-left:3px;' },
+      { lab: 'loop', icon: 'width:14px;height:10px;border:2px solid #eee;border-radius:6px;' },
+      { lab: 'metro', icon: 'width:0;height:0;border-bottom:14px solid #eee;border-left:6px solid transparent;border-right:6px solid transparent;' }
+    ];
+    return {
+      blue: B, amber: A, notes, whites, blacks, maj, min, rootArc, strip, slots, knobs, transport,
+      next: [{ num: 'I', name: 'C' }, { num: 'vi', name: 'Am' }, { num: 'IV', name: 'F' }]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,326 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-27T21:47:00Z",
+  "title": "Design System: Piano MIDI Visualization",
+  "provenance": {
+    "source": "src/PianoMidiVisualizationApp/Themes/Dark.xaml, Views/HojtBadge.xaml, and docs/styles.css",
+    "directionContract": ".impeccable/surfaces/src-pianomidivisualizationapp-mainwindow-xaml.md",
+    "platform": "WPF / .NET 10 + GitHub Pages web landing page"
+  },
+  "extensions": {
+    "colorMeta": {
+      "panel-scarlet": {
+        "role": "primary",
+        "displayName": "Panel Scarlet",
+        "canonical": "#A8131C",
+        "tonalRamp": [
+          "#2A1214",
+          "#4A080C",
+          "#780D13",
+          "#A8131C",
+          "#C42B1C",
+          "#E2581E",
+          "#F0736A",
+          "#FFC0AE"
+        ],
+        "note": "Themes/Dark.xaml Color.Lacquer.Chrome; brushed scarlet anodised aluminium front panel."
+      },
+      "oled-black": {
+        "role": "neutral",
+        "displayName": "OLED Black",
+        "canonical": "#000000",
+        "tonalRamp": [
+          "#000000",
+          "#060606",
+          "#0A0A0A",
+          "#0C0C0C",
+          "#111111",
+          "#141414",
+          "#1C1C1C",
+          "#2E2E2E"
+        ],
+        "note": "Themes/Dark.xaml Color.Lacquer.Stage; recessed OLED screen and drawer surfaces."
+      },
+      "well-deep": {
+        "role": "neutral",
+        "displayName": "Well Deep",
+        "canonical": "#060606",
+        "tonalRamp": [
+          "#000000",
+          "#060606",
+          "#0A0A0A",
+          "#0C0C0C",
+          "#141414",
+          "#1C1C1C",
+          "#2E2E2E",
+          "#3E3E3E"
+        ],
+        "note": "Themes/Dark.xaml Color.Lacquer.Deep; falling-notes lane, take timeline, and MIDI log well."
+      },
+      "rubber-raised": {
+        "role": "neutral",
+        "displayName": "Rubber Raised",
+        "canonical": "#1C1C1C",
+        "tonalRamp": [
+          "#060606",
+          "#0C0C0C",
+          "#141414",
+          "#1C1C1C",
+          "#242424",
+          "#2E2E2E",
+          "#3E3E3E",
+          "#7C7A78"
+        ],
+        "note": "Themes/Dark.xaml Color.Lacquer.Raised; black rubber panel keys, buttons, and chord tiles at rest."
+      },
+      "ivory-key": {
+        "role": "neutral",
+        "displayName": "Keytop White",
+        "canonical": "#FCFCFB",
+        "tonalRamp": [
+          "#7C7A78",
+          "#8E8C8A",
+          "#D0CECC",
+          "#DCDAD8",
+          "#F0EEEC",
+          "#F4F2EE",
+          "#FCFCFB",
+          "#FFFFFF"
+        ],
+        "note": "Themes/Dark.xaml Color.Ivory.Key; white keytops, primary actions, and switched-on toggles."
+      },
+      "amber": {
+        "role": "secondary",
+        "displayName": "Attention Amber",
+        "canonical": "#F0C06A",
+        "tonalRamp": [
+          "#1C1609",
+          "#2A2215",
+          "#3A2E1B",
+          "#6E4F1C",
+          "#8A6A30",
+          "#E9C47E",
+          "#EDA73C",
+          "#F0C06A"
+        ],
+        "note": "Themes/Dark.xaml Color.Amber; status chip and first-run checklist while waiting on the player."
+      },
+      "held-blue": {
+        "role": "secondary",
+        "displayName": "Held-Key Blue",
+        "canonical": "#4FA3FF",
+        "tonalRamp": [
+          "#00072F",
+          "#002452",
+          "#004176",
+          "#18619D",
+          "#3681C6",
+          "#4FA3FF",
+          "#81CAFF",
+          "#B2F5FF"
+        ],
+        "note": "Themes/Dark.xaml Color.Blue; held keys, recorded notes, and circle chord-root outline."
+      },
+      "target-magenta": {
+        "role": "secondary",
+        "displayName": "Asking Magenta",
+        "canonical": "#E83E9C",
+        "tonalRamp": [
+          "#2F0012",
+          "#56002D",
+          "#7E004B",
+          "#A8006A",
+          "#D32E8C",
+          "#E83E9C",
+          "#FF87D3",
+          "#FFB9FC"
+        ],
+        "note": "Themes/Dark.xaml Color.Target; Wait-for-Me target keys and chord tile hover outline."
+      },
+      "hit-green": {
+        "role": "tertiary",
+        "displayName": "Hit Green",
+        "canonical": "#8BE36B",
+        "tonalRamp": [
+          "#001300",
+          "#002F00",
+          "#134E00",
+          "#2F6F0F",
+          "#4A912E",
+          "#6DC252",
+          "#8BE36B",
+          "#B6FF99"
+        ],
+        "note": "Themes/Dark.xaml Color.Correct; correct note hits and connected status beacon."
+      },
+      "hojt-panel": {
+        "role": "neutral",
+        "displayName": "HØJT Badge Plate",
+        "canonical": "#1C1A18",
+        "tonalRamp": [
+          "#0A0A0A",
+          "#1C1A18",
+          "#2E2B28",
+          "#4A4540",
+          "#7A736A",
+          "#ADA699",
+          "#EADFC8",
+          "#FCFCFB"
+        ],
+        "note": "Views/HojtBadge.xaml and docs/img/hojt-badge.svg; hardware badge plate (#1C1A18), silk border/glyphs (#EADFC8), and pointer slash (#E2581E)."
+      }
+    },
+    "typographyMeta": {
+      "brand": {
+        "displayName": "HØJT Hardware Badge",
+        "purpose": "Bebas Neue 22px vector glyph outlines inside the 63x33.8 HØJT hardware badge."
+      },
+      "display": {
+        "displayName": "OLED Chord Name",
+        "purpose": "Inter Tight ExtraBold 72px chord name at the centre of the OLED window."
+      },
+      "headline": {
+        "displayName": "Readout Numeral",
+        "purpose": "Inter Tight SemiBold 18px Roman numeral and panel headers."
+      },
+      "body": {
+        "displayName": "Instrument Body",
+        "purpose": "Inter Tight Regular 12px for desktop controls, menus, tiles, and lists."
+      },
+      "legend": {
+        "displayName": "Hardware Legend",
+        "purpose": "Inter Tight SemiBold 11px for front-panel key legends and OLED status headers."
+      },
+      "data": {
+        "displayName": "Musical Data",
+        "purpose": "JetBrains Mono 18px/11px for pitches, intervals, tempo clocks, and MIDI logs."
+      }
+    },
+    "shadows": [
+      {
+        "name": "keytop",
+        "value": "0 1px 2px rgba(0,0,0,0.15)",
+        "purpose": "White keys: WPF DropShadowEffect direction 270, depth 1, blur 2, opacity 0.15."
+      },
+      {
+        "name": "ebony-sharp",
+        "value": "2px 2px 5px rgba(0,0,0,0.5)",
+        "purpose": "Black keys standing proud: DropShadowEffect direction 315, depth 3, blur 5, opacity 0.5."
+      },
+      {
+        "name": "hojt-badge",
+        "value": "0 3px 0 rgba(0,0,0,0.314)",
+        "purpose": "3px vertical drop shadow under the 63x30.8 HØJT hardware plate."
+      }
+    ],
+    "motion": [
+      {
+        "name": "readout-latch-fade",
+        "value": "hold 1 for 150ms; ExponentialEase EaseOut (exponent 4) to 0.4 at 1.6s; linear to 0 at 2s",
+        "purpose": "A latched chord readout dims after keys are released (Style.Readout.Latch)."
+      },
+      {
+        "name": "state-change",
+        "value": "instant",
+        "purpose": "Control hover, press, and on states switch without transitions on desktop."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "window-min",
+        "value": "900x420"
+      },
+      {
+        "name": "web-tablet",
+        "value": "1024px"
+      },
+      {
+        "name": "web-mobile",
+        "value": "768px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Rubber Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Black rubber key with white legend; lifts to Rubber Hover on pointer over.",
+      "html": "<button class=\"ds-btn\">Tap</button>",
+      "css": ".ds-btn { font-family: 'Inter Tight', system-ui, sans-serif; font-size: 12px; background: #1C1C1C; color: #F0EEEC; border: 1px solid #3E3E3E; border-radius: 3px; padding: 3px 10px; cursor: pointer; } .ds-btn:hover { background: #2E2E2E; color: #FFFFFF; }"
+    },
+    {
+      "name": "Primary Ivory Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Switched-on toggle or primary action: white keytop with black ink.",
+      "html": "<button class=\"ds-btn-primary\">Start audio</button>",
+      "css": ".ds-btn-primary { font-family: 'Inter Tight', system-ui, sans-serif; font-size: 12px; font-weight: 600; background: #F4F2EE; color: #0A0A0A; border: none; border-radius: 3px; padding: 3px 10px; cursor: pointer; }"
+    },
+    {
+      "name": "HØJT Hardware Badge",
+      "kind": "custom",
+      "refersTo": "hojt-panel",
+      "description": "Exact 63x33.8 vector hardware badge shared across HØJT Audio instruments.",
+      "html": "<svg viewBox=\"0 0 63 33.8\" width=\"63\" height=\"33.8\"><rect x=\"0\" y=\"3\" width=\"63\" height=\"30.8\" rx=\"6\" ry=\"6\" fill=\"#000000\" fill-opacity=\"0.314\"/><rect x=\"0\" y=\"0\" width=\"63\" height=\"30.8\" rx=\"6\" ry=\"6\" fill=\"#1C1A18\"/><rect x=\"2.75\" y=\"2.75\" width=\"57.5\" height=\"25.3\" rx=\"3.5\" ry=\"3.5\" fill=\"none\" stroke=\"#EADFC8\" stroke-width=\"1.5\"/><path fill=\"#EADFC8\" d=\"M10.142,7.7L12.562,7.7 12.562,13.97 15.158,13.97 15.158,7.7 17.578,7.7 17.578,23.1 15.158,23.1 15.158,16.17 12.562,16.17 12.562,23.1 10.142,23.1 10.142,7.7z M38.774,23.188L38.163,23.166 37.652,23.1 37.652,20.9 38.026,20.966 38.444,20.988 38.784,20.965 39.076,20.897 39.323,20.784 39.522,20.625 39.676,20.419 39.786,20.166 39.852,19.864 39.874,19.514 39.874,7.7 42.294,7.7 42.294,19.448 42.28,19.906 42.24,20.333 42.172,20.731 42.077,21.098 41.955,21.435 41.805,21.742 41.629,22.018 41.425,22.264 40.933,22.668 40.328,22.957 39.608,23.13 38.774,23.188z M48.794,9.9L46.264,9.9 46.264,7.7 53.744,7.7 53.744,9.9 51.214,9.9 51.214,23.1 48.794,23.1 48.794,9.9z\"/><circle cx=\"27.6\" cy=\"15.4\" r=\"6.6\" fill=\"none\" stroke=\"#EADFC8\" stroke-width=\"2.31\"/><line x1=\"21.29\" y1=\"24.41\" x2=\"33.91\" y2=\"6.39\" stroke=\"#E2581E\" stroke-width=\"1.87\" stroke-linecap=\"butt\"/></svg>",
+      "css": ""
+    }
+  ],
+  "narrative": {
+    "northStar": "The Front Panel",
+    "overview": "The window is a piece of hardware with rounded corners. The chrome (title bar, front panel, toolbar, status bar) is one sheet of brushed scarlet aluminium with white legends. Set into it on the left is a black OLED window that spans the full width of the 61-key keyboard and holds everything you read: a status line, the grand staff, the chord name, the circle of fifths and the chord strip. Below the OLED window and practice toolbar, behind a felt strip, sit real white and black keys. In the right-hand hardware column beside the OLED display and keys sit two halo knobs for volume and click, twelve rubber panel keys with LEDs, and the vector HØJT hardware badge.",
+    "keyCharacteristics": [
+      "One scarlet panel, brushed, shared by every chrome surface without seams on a 14px hardware grid.",
+      "One black OLED window with a bezel spans the full width of the 61-key keyboard and holds the readout and diatonic chord strip.",
+      "Real keys, neutral white with no ivory yellowing: a held key goes down and lights blue along its back edge, and out-of-key keys dim when a key signature is active.",
+      "A right-hand hardware front panel of rotary halo knobs, twelve LED rubber keys, and the HØJT hardware badge.",
+      "On means white: a lit toggle, the primary action, and the played chord tile are white with black ink."
+    ],
+    "rules": [
+      {
+        "name": "The One Panel Rule",
+        "body": "Every chrome surface is the same brushed scarlet. Separation inside the chrome comes from black rubber controls and legends, never from a second red.",
+        "section": "colors"
+      },
+      {
+        "name": "The Window Holds the Reading Rule",
+        "body": "Whatever you read mid-phrase (chord, numeral, notes, staff, circle, chord strip) sits in the black OLED window. The panel carries controls and labels only.",
+        "section": "colors"
+      },
+      {
+        "name": "The On Means White Rule",
+        "body": "A switched-on toggle, the one primary action and the played chord tile are white keys with black ink. Amber never means 'on'; blue never means 'on'.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Job Per Hue Rule",
+        "body": "Amber is what waits on you; blue is you playing; magenta is the app asking; teal and violet are your hands; green is hit; red is miss and recording.",
+        "section": "colors"
+      },
+      {
+        "name": "The Data Holds Still Rule",
+        "body": "Monospace is for pitches, intervals, levels, the MIDI log and clocks, so digits don't shift as they change.",
+        "section": "typography"
+      },
+      {
+        "name": "The Set-In Rule",
+        "body": "A surface either sits in the panel (the OLED window, the knob recesses) or is a black key on it. There are no shadows on panels, tiles or inputs.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** build every brush from a `Color.*` token in `Dark.xaml` and resolve it by key in code-behind renderers.",
+      "**Do** put anything read mid-phrase inside the OLED window, and controls and legends on the panel.",
+      "**Do** mark 'on' and the single primary action with a white key and Ink.",
+      "**Do** give disabled controls the Disabled Fill, never the panel brush.",
+      "**Do** keep words at Legend Muted or brighter on the scarlet; Legend Faint draws marks only."
+    ],
+    "donts": [
+      "**Don't** add a second red to the chrome, or a gradient across the panel that makes tiles band.",
+      "**Don't** use amber as decoration or to mean 'on'.",
+      "**Don't** borrow blue for selection or 'on'; blue means you are playing.",
+      "**Don't** use the halos' green-to-red scale anywhere but the halos.",
+      "**Don't** use Unicode look-alike glyphs (✕, ↻, □) for icons; use Segoe MDL2 Assets codes or a drawn path."
+    ]
+  }
+}

@@ -1,0 +1,65 @@
+name: Release
+
+# Every push to main builds the release zip and keeps it as a workflow artifact, so a broken
+# release build shows up before anything is tagged. Pushing a tag like v0.1.0 also publishes
+# that zip as a GitHub Release.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      # SoundFonts and samples are third-party downloads under their own licenses; users bring
+      # their own. Nothing of the sort may be committed, since it could end up embedded in the exe.
+      - name: Check that no sound banks are committed
+        run: |
+          $found = git ls-files | Where-Object { $_ -match '\.(sf2|sf3|sfz|sfark|dls|wav|flac|ogg)$' }
+          if ($found) {
+            $found | ForEach-Object { "::error file=$_::Sound bank and sample files must not be committed" }
+            exit 1
+          }
+
+      - name: Set version
+        run: |
+          $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME.TrimStart('v') } else { "0.0.0-ci.$env:GITHUB_RUN_NUMBER" }
+          "VERSION=$version" >> $env:GITHUB_ENV
+          "ZIP=PianoMidiVisualizationApp-$version-win-x64.zip" >> $env:GITHUB_ENV
+
+      - name: Publish
+        run: dotnet publish src/PianoMidiVisualizationApp/PianoMidiVisualizationApp.csproj -c Release -r win-x64 -p:Version=$env:VERSION -o publish
+
+      # Allowlist rather than zipping the publish folder, which also holds a .pdb and a macOS .dylib.
+      - name: Package
+        run: |
+          New-Item -ItemType Directory staging | Out-Null
+          Copy-Item publish/PianoMidiVisualizationApp.exe, LICENSE, THIRD-PARTY-NOTICES.txt staging/
+          Compress-Archive staging/* $env:ZIP
+          Get-ChildItem staging | Format-Table Name, Length
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: ${{ env.ZIP }}
+          archive: false
+          retention-days: 14
+
+      - name: Create GitHub Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create $env:GITHUB_REF_NAME $env:ZIP --generate-notes --notes-file .github/release-notes.md

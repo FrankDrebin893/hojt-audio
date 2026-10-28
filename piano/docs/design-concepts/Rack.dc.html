@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LED rack unit</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&amp;family=Doto:wght@700;900&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#111}
+a{color:#bbb}a:hover{color:#fff}
+</style>
+</helmet>
+<div style="width: 1400px; height: 620px; box-sizing: border-box; position: relative; overflow: hidden; background: repeating-linear-gradient(90deg, rgba(255,255,255,0.018) 0 1px, rgba(0,0,0,0.05) 1px 2px, transparent 2px 4px), linear-gradient(180deg, #2a2b2e 0%, #1d1e21 100%); font-family: 'Barlow Condensed', sans-serif; color: #d9d6cc;">
+
+<div style="position: absolute; left: 0; top: 0; bottom: 0; width: 44px; background: linear-gradient(90deg, #3a3b3f, #2b2c30); box-shadow: inset -1px 0 0 #111, inset -2px 0 0 #45464a; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 40px 0;">
+<div style="width: 14px; height: 24px; border-radius: 7px; background: #0d0d0e; box-shadow: inset 0 2px 3px #000, 0 1px 0 #4a4b4f;"></div>
+<div style="width: 14px; height: 24px; border-radius: 7px; background: #0d0d0e; box-shadow: inset 0 2px 3px #000, 0 1px 0 #4a4b4f;"></div>
+<div style="width: 14px; height: 24px; border-radius: 7px; background: #0d0d0e; box-shadow: inset 0 2px 3px #000, 0 1px 0 #4a4b4f;"></div>
+</div>
+<div style="position: absolute; right: 0; top: 0; bottom: 0; width: 44px; background: linear-gradient(270deg, #3a3b3f, #2b2c30); box-shadow: inset 1px 0 0 #111, inset 2px 0 0 #45464a; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 40px 0;">
+<div style="width: 14px; height: 24px; border-radius: 7px; background: #0d0d0e; box-shadow: inset 0 2px 3px #000, 0 1px 0 #4a4b4f;"></div>
+<div style="width: 14px; height: 24px; border-radius: 7px; background: #0d0d0e; box-shadow: inset 0 2px 3px #000, 0 1px 0 #4a4b4f;"></div>
+<div style="width: 14px; height: 24px; border-radius: 7px; background: #0d0d0e; box-shadow: inset 0 2px 3px #000, 0 1px 0 #4a4b4f;"></div>
+</div>
+
+<div style="position: absolute; left: 64px; right: 64px; top: 0; height: 32px; display: flex; align-items: center; gap: 16px; font-size: 12px; font-weight: 600; letter-spacing: 2px;">
+<span style="font-size: 16px; font-weight: 700; letter-spacing: 3px; color: #f1eee6;">PMV-61</span>
+<span style="color: #9a978f;">HARMONIC ANALYZER</span>
+<span style="color: #9a978f;">VIEW</span>
+<div style="flex-grow: 1;"></div>
+<span style="display: flex; align-items: center; gap: 6px; color: #9a978f;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #3dff6a; box-shadow: 0 0 6px #3dff6a;"></span>MIDI</span>
+<span style="display: flex; align-items: center; gap: 6px; color: #9a978f;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #3dff6a; box-shadow: 0 0 6px #3dff6a;"></span>ASIO</span>
+<span style="margin-left: 14px; letter-spacing: 16px; color: #77756f;">–□×</span>
+</div>
+
+<div style="position: absolute; left: 64px; top: 38px; width: 1272px; height: 244px; display: flex; gap: 20px; align-items: stretch;">
+
+<div style="width: 236px; flex: none; display: flex; flex-direction: column; align-items: center;">
+<svg width="236" height="226" viewBox="0 0 240 230" aria-hidden="true">
+<sc-for list="{{ring}}" as="l" hint-placeholder-count="24">
+<circle cx="{{l.x}}" cy="{{l.y}}" r="{{l.r}}" style="{{l.style}}"></circle>
+<text x="{{l.tx}}" y="{{l.ty}}" style="{{l.ts}}">{{l.label}}</text>
+</sc-for>
+<circle cx="120" cy="115" r="38" style="fill: #161719; stroke: #000; stroke-width: 2;"></circle>
+<circle cx="120" cy="115" r="32" style="fill: #2e3034; stroke: #45474c; stroke-width: 1;"></circle>
+<line x1="120" y1="88" x2="120" y2="100" style="stroke: #f1eee6; stroke-width: 3; stroke-linecap: round;"></line>
+</svg>
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 2.5px; color: #bdbab1;">KEY · CIRCLE OF FIFTHS</span>
+</div>
+
+<div style="width: 690px; flex: none; box-sizing: border-box; border-radius: 4px; position: relative; overflow: hidden; background: radial-gradient(circle, rgba(255,70,30,0.09) 1.3px, transparent 1.8px) 0 0 / 5px 5px, #080404; box-shadow: inset 0 0 0 1px #000, inset 0 4px 16px rgba(0,0,0,0.95), 0 0 0 3px #111214, 0 1px 0 4px #3a3b3f; display: flex; align-items: center; padding: 0 20px; gap: 10px;">
+<div style="position: absolute; inset: 0; background: linear-gradient(160deg, rgba(255,255,255,0.06), rgba(255,255,255,0) 35%); pointer-events: none;"></div>
+<svg width="150" height="200" viewBox="0 0 150 200" style="filter: drop-shadow(0 0 3px rgba(255,59,31,0.6));" aria-hidden="true">
+<g style="stroke: rgba(255,59,31,0.45); stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 0 5;">
+<line x1="4" y1="30" x2="146" y2="30"></line><line x1="4" y1="42" x2="146" y2="42"></line><line x1="4" y1="54" x2="146" y2="54"></line><line x1="4" y1="66" x2="146" y2="66"></line><line x1="4" y1="78" x2="146" y2="78"></line>
+<line x1="4" y1="120" x2="146" y2="120"></line><line x1="4" y1="132" x2="146" y2="132"></line><line x1="4" y1="144" x2="146" y2="144"></line><line x1="4" y1="156" x2="146" y2="156"></line><line x1="4" y1="168" x2="146" y2="168"></line>
+</g>
+<text x="8" y="74" style="fill: rgba(255,59,31,0.8); font: 900 44px Doto, monospace;">G</text>
+<text x="8" y="160" style="fill: rgba(255,59,31,0.8); font: 900 44px Doto, monospace;">F</text>
+<g style="fill: #ff3b1f;">
+<circle cx="104" cy="84" r="5.5"></circle>
+<circle cx="104" cy="156" r="5.5"></circle>
+<circle cx="116" cy="150" r="5.5"></circle>
+<circle cx="104" cy="168" r="5.5"></circle>
+</g>
+</svg>
+<div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; font-family: Doto, monospace; font-weight: 900; color: #ff3b1f; text-shadow: 0 0 6px rgba(255,59,31,0.75), 0 0 18px rgba(255,59,31,0.35);">
+<div style="font-size: 116px; line-height: 0.95; letter-spacing: 4px;">G7/B</div>
+<div style="font-size: 22px; letter-spacing: 2px; display: flex; gap: 14px;"><span style="color: #ffb23a; text-shadow: 0 0 6px rgba(255,178,58,0.7);">V65</span><span style="color: rgba(255,59,31,0.8);">1ST INV · DROP 2</span></div>
+<div style="display: flex; gap: 18px; margin-top: 2px;">
+<sc-for list="{{notes}}" as="n" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; align-items: center; line-height: 1.1;"><span style="font-size: 26px;">{{n.note}}</span><span style="font-size: 16px; color: rgba(255,59,31,0.7);">{{n.iv}}</span></div>
+</sc-for>
+</div>
+</div>
+</div>
+
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 8px;">
+<div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; letter-spacing: 2.5px; color: #bdbab1;"><span>PROGRESSION MEMORY</span><span>4 / 8</span></div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 8px;">
+<sc-for list="{{slots}}" as="s" hint-placeholder-count="8">
+<div style="display: flex; flex-direction: column; gap: 5px; align-items: stretch;">
+<div style="{{s.win}}">{{s.name}}</div>
+<div style="display: flex; align-items: center; gap: 6px;">
+<div style="flex-grow: 1; height: 20px; border-radius: 3px; background: linear-gradient(180deg, #3c3e43, #26282c); box-shadow: 0 2px 0 #0b0b0c, inset 0 1px 0 rgba(255,255,255,0.1);"></div>
+<span style="{{s.led}}"></span>
+</div>
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 1.5px; color: #8f8c84;">{{s.lab}}</span>
+</div>
+</sc-for>
+</div>
+<div style="font-family: Doto, monospace; font-weight: 900; font-size: 13px; color: rgba(255,178,58,0.85); letter-spacing: 1.5px; margin-top: 2px;">NEXT ▸ I C · vi Am · IV F</div>
+</div>
+</div>
+
+<div style="position: absolute; left: 64px; top: 296px; width: 1272px; height: 62px; display: flex; align-items: flex-end; gap: 8px;">
+<sc-for list="{{strip}}" as="t" hint-placeholder-count="8">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+<div style="{{t.style}}"><span style="font-size: 15px; font-weight: 700;">{{t.num}}</span><span style="font-size: 11px; opacity: 0.8;">{{t.name}}</span></div>
+</div>
+</sc-for>
+<div style="flex-grow: 1;"></div>
+<sc-for list="{{transport}}" as="b" hint-placeholder-count="5">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+<div style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; letter-spacing: 1.6px; color: #9a978f;"><span style="{{b.led}}"></span>{{b.lab}}</div>
+<div style="{{b.key}}"></div>
+</div>
+</sc-for>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin-left: 10px;">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 1.6px; color: #9a978f;">BPM</span>
+<div style="width: 78px; height: 36px; border-radius: 3px; background: radial-gradient(circle, rgba(255,70,30,0.09) 1.2px, transparent 1.6px) 0 0 / 4px 4px, #080404; box-shadow: inset 0 2px 6px #000, 0 0 0 2px #111214; display: flex; align-items: center; justify-content: center; font-family: Doto, monospace; font-weight: 900; font-size: 28px; color: #ff3b1f; text-shadow: 0 0 6px rgba(255,59,31,0.75);">090</div>
+</div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 1.6px; color: #9a978f;">SPEED</span>
+<div style="width: 78px; height: 36px; border-radius: 3px; background: radial-gradient(circle, rgba(255,70,30,0.09) 1.2px, transparent 1.6px) 0 0 / 4px 4px, #080404; box-shadow: inset 0 2px 6px #000, 0 0 0 2px #111214; display: flex; align-items: center; justify-content: center; font-family: Doto, monospace; font-weight: 900; font-size: 28px; color: #ff3b1f; text-shadow: 0 0 6px rgba(255,59,31,0.75);">100</div>
+</div>
+</div>
+
+<div style="position: absolute; left: 64px; top: 374px; width: 1272px; height: 216px;">
+<sc-for list="{{whites}}" as="k" hint-placeholder-count="36">
+<div style="{{k.style}}">
+<sc-for list="{{k.segs}}" as="g" hint-placeholder-count="12">
+<div style="{{g.style}}"></div>
+</sc-for>
+</div>
+</sc-for>
+<sc-for list="{{blacks}}" as="k" hint-placeholder-count="25">
+<div style="{{k.style}}">
+<sc-for list="{{k.segs}}" as="g" hint-placeholder-count="7">
+<div style="{{g.style}}"></div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+<div style="position: absolute; left: 64px; top: 594px; width: 1272px; height: 18px;">
+<sc-for list="{{labels}}" as="l" hint-placeholder-count="6">
+<span style="{{l.style}}">{{l.text}}</span>
+</sc-for>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1400,"height":620}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const R = '#ff3b1f', AM = '#ffb23a';
+    const WHITE = [0, 2, 4, 5, 7, 9, 11];
+    const vel = { 47: 8, 53: 10, 55: 11, 62: 7 };
+    const W = 1272, ww = W / 36, bw = ww * 0.64, SEG = 15, GAP = 3;
+    const segColor = (lvl, n) => { const f = lvl / n; return f > 0.85 ? '#ffe14a' : (f > 0.65 ? AM : R); };
+    const makeSegs = (n, v, black) => {
+      const out = [];
+      for (let s = n; s >= 1; s--) {
+        const on = v && s <= v;
+        const c = on ? segColor(s, 12) : (black ? '#170806' : '#2a0f0a');
+        out.push({ style: 'height:' + SEG + 'px;margin-top:' + GAP + 'px;border-radius:1.5px;background:' + c + ';' + (on ? 'box-shadow:0 0 8px ' + c + ';' : '') });
+      }
+      return out;
+    };
+    const whites = [], blacks = [], labels = [];
+    let wi = 0;
+    for (let m = 36; m <= 96; m++) {
+      const pc = m % 12, oct = Math.floor(m / 12) - 1, v = vel[m];
+      if (WHITE.includes(pc)) {
+        whites.push({ style: 'position:absolute;top:0;left:' + (wi * ww + 2).toFixed(1) + 'px;width:' + (ww - 4).toFixed(1) + 'px;', segs: makeSegs(12, v, false) });
+        if (pc === 0) labels.push({ text: 'C' + oct, style: 'position:absolute;top:0;left:' + (wi * ww).toFixed(1) + 'px;width:' + ww.toFixed(1) + 'px;text-align:center;font:700 12px "Barlow Condensed",sans-serif;letter-spacing:1px;color:' + AM + ';border-top:2px solid ' + AM + ';padding-top:1px;' });
+        wi++;
+      } else {
+        blacks.push({ style: 'position:absolute;top:0;left:' + (wi * ww - bw / 2 - 3).toFixed(1) + 'px;width:' + bw.toFixed(1) + 'px;padding:0 3px 3px 3px;background:#1f2023;border-radius:0 0 3px 3px;', segs: makeSegs(7, v ? Math.max(0, v - 5) : 0, true) });
+      }
+    }
+    const MAJ = ['C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'D♭', 'A♭', 'E♭', 'B♭', 'F'];
+    const MIN = ['a', 'e', 'b', 'f♯', 'c♯', 'g♯', 'e♭', 'b♭', 'f', 'c', 'g', 'd'];
+    const ring = [];
+    const cx = 120, cy = 115;
+    const at = (r, i) => { const a = (-90 + i * 30) * Math.PI / 180; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; };
+    const ledStyle = (c, on) => on ? 'fill:' + c + ';filter:drop-shadow(0 0 4px ' + c + ');' : 'fill:#2a0f0a;stroke:#000;stroke-width:1;';
+    MAJ.forEach((label, i) => {
+      const sel = i === 0, rel = i === 1 || i === 11;
+      const [x, y] = at(84, i), [tx, ty] = at(105, i);
+      ring.push({ x: x.toFixed(1), y: y.toFixed(1), r: 6, style: sel ? ledStyle(AM, true) : (rel ? 'fill:rgba(255,178,58,0.38);stroke:#000;stroke-width:1;' : ledStyle('', false)), label, tx: tx.toFixed(1), ty: ty.toFixed(1), ts: 'fill:' + (sel ? '#f1eee6' : '#a19e95') + ';font:700 13px "Barlow Condensed",sans-serif;text-anchor:middle;dominant-baseline:central;' });
+    });
+    MIN.forEach((label, i) => {
+      const rel = i === 0 || i === 1 || i === 11, root = i === 1;
+      const [x, y] = at(56, i), [tx, ty] = at(56, i + 0.5);
+      ring.push({ x: x.toFixed(1), y: y.toFixed(1), r: 4, style: root ? ledStyle(R, true) : (rel ? 'fill:rgba(255,178,58,0.3);stroke:#000;stroke-width:1;' : ledStyle('', false)), label: '', tx: tx.toFixed(1), ty: ty.toFixed(1), ts: 'display:none;' });
+    });
+    MAJ.forEach((label, i) => {
+      const [x, y] = at(70, i);
+      ring.push({ x: x.toFixed(1), y: y.toFixed(1), r: 3, style: i === 1 ? ledStyle(R, true) : 'fill:#1a0806;', label: '', tx: '0', ty: '0', ts: 'display:none;' });
+    });
+    const saved = ['C', 'Am', 'F', 'G7'];
+    const slots = [];
+    for (let i = 0; i < 8; i++) {
+      const s = saved[i];
+      slots.push({
+        name: s || '--', lab: 'MEM ' + (i + 1),
+        win: 'height:28px;border-radius:2px;background:radial-gradient(circle, rgba(255,70,30,0.09) 1px, transparent 1.4px) 0 0 / 4px 4px,#080404;box-shadow:inset 0 2px 5px #000,0 0 0 2px #111214;display:flex;align-items:center;justify-content:center;font:900 18px Doto,monospace;' + (s ? 'color:' + R + ';text-shadow:0 0 6px rgba(255,59,31,0.7);' : 'color:#2a0f0a;'),
+        led: 'width:6px;height:6px;border-radius:50%;' + (i === 3 ? 'background:' + AM + ';box-shadow:0 0 6px ' + AM + ';' : (s ? 'background:' + R + ';box-shadow:0 0 5px ' + R + ';' : 'background:#2a0f0a;'))
+      });
+    }
+    const tiles = [['I', 'Cmaj7'], ['ii', 'Dm7'], ['iii', 'Em7'], ['IV', 'Fmaj7'], ['V', 'G7'], ['vi', 'Am7'], ['vii', 'Bm7♭5'], ['7TH', 'ON']];
+    const strip = tiles.map(([num, name], i) => {
+      const on = i === 4, seven = i === 7;
+      return { num, name, style: 'width:76px;height:48px;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;box-shadow:0 3px 0 #0b0b0c,inset 0 1px 0 rgba(255,255,255,0.1);' + (on ? 'background:linear-gradient(180deg,#ffcf73,' + AM + ');color:#2a1600;box-shadow:0 3px 0 #0b0b0c,0 0 18px rgba(255,178,58,0.45);' : (seven ? 'background:linear-gradient(180deg,#3c3e43,#26282c);color:' + AM + ';' : 'background:linear-gradient(180deg,#3c3e43,#26282c);color:#cfccc3;')) };
+    });
+    const key = 'width:52px;height:30px;border-radius:3px;background:linear-gradient(180deg,#3c3e43,#26282c);box-shadow:0 3px 0 #0b0b0c,inset 0 1px 0 rgba(255,255,255,0.1);';
+    const led = (c) => c ? 'width:6px;height:6px;border-radius:50%;background:' + c + ';box-shadow:0 0 6px ' + c + ';' : 'width:6px;height:6px;border-radius:50%;background:#2a0f0a;';
+    const transport = [
+      { lab: 'REC', led: led(null), key }, { lab: 'PLAY', led: led(null), key }, { lab: 'LOOP', led: led(AM), key },
+      { lab: 'METRO', led: led('#3dff6a'), key }, { lab: 'TAP', led: led(null), key }
+    ];
+    return {
+      ring, slots, strip, transport, whites, blacks, labels,
+      notes: [{ note: 'B2', iv: '3' }, { note: 'F3', iv: '♭7' }, { note: 'G3', iv: 'R' }, { note: 'D4', iv: '5' }]
+    };
+  }
+}
+</script>
+</body>
+</html>

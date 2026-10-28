@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Blue FSTN workstation</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&amp;family=Silkscreen&amp;family=Tiny5&amp;family=VT323&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#202124}
+a{color:#bbb}a:hover{color:#fff}
+</style>
+</helmet>
+<div style="width: 1400px; height: 620px; box-sizing: border-box; position: relative; overflow: hidden; background: linear-gradient(180deg, #3a3c40 0%, #2c2e31 45%, #242528 100%); font-family: 'Archivo Narrow', sans-serif; color: #d6d4cd;">
+
+<div style="position: absolute; left: 20px; right: 20px; top: 0; height: 30px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid #1b1c1e; font-size: 11px; font-weight: 700; letter-spacing: 2px;">
+<span style="font-size: 16px; font-style: italic; letter-spacing: 1px; color: #f1efe8;">PMV-61</span>
+<span style="color: #a3a19a;">MUSIC WORKSTATION</span>
+<span style="color: #c9c7c0; margin-left: 8px;">VIEW</span>
+<div style="flex-grow: 1;"></div>
+<span style="display: flex; align-items: center; gap: 6px; color: #a3a19a;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #74a9ff; box-shadow: 0 0 6px #74a9ff;"></span>MIDI</span>
+<span style="display: flex; align-items: center; gap: 6px; color: #a3a19a;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #74a9ff; box-shadow: 0 0 6px #74a9ff;"></span>ASIO</span>
+<span style="margin-left: 14px; letter-spacing: 16px; color: #8a8882;">–□×</span>
+</div>
+
+<div style="position: absolute; left: 20px; top: 46px; width: 180px; height: 270px; display: flex; justify-content: space-between;">
+<sc-for list="{{faders}}" as="f" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; width: 40px;">
+<div style="position: relative; width: 40px; height: 210px;">
+<div style="position: absolute; left: 17px; top: 0; width: 6px; height: 210px; border-radius: 3px; background: #101112; box-shadow: inset 0 1px 2px #000, 0 1px 0 #4a4c50;"></div>
+<div style="{{f.cap}}"><div style="height: 2px; margin-top: 8px; background: #f4f2ec;"></div></div>
+</div>
+<span style="font-size: 10px; font-weight: 700; letter-spacing: 1.4px; color: #bfbdb6;">{{f.lab}}</span>
+</div>
+</sc-for>
+</div>
+
+<div style="position: absolute; left: 216px; top: 40px; width: 820px; box-sizing: border-box; padding: 10px; border-radius: 6px; background: linear-gradient(180deg, #1a1b1d, #121314); box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 1px 0 #4a4c50;">
+<div style="height: 232px; border-radius: 2px; position: relative; overflow: hidden; background: repeating-linear-gradient(0deg, rgba(0,0,30,0.12) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(0,0,30,0.12) 0 1px, transparent 1px 3px), radial-gradient(ellipse at 50% 40%, #2c55dc 0%, #1a35a6 75%, #142a86 100%); box-shadow: inset 0 3px 10px rgba(0,0,0,0.55); color: #eef3ff; display: flex; flex-direction: column; text-shadow: 0 0 4px rgba(200,220,255,0.55);">
+
+<div style="height: 18px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; background: #e8efff; color: #1a35a6; font-family: Silkscreen, monospace; font-size: 10px; text-shadow: none;">
+<span>HARMONY ▸ PLAY</span>
+<span>KEY C MAJOR · ♩=090 · 4/4 · SPD 100%</span>
+</div>
+
+<div style="flex-grow: 1; display: flex; align-items: center; gap: 12px; padding: 0 10px; min-height: 0;">
+<svg width="130" height="170" viewBox="0 0 160 190" aria-hidden="true">
+<g style="stroke: rgba(238,243,255,0.75); stroke-width: 1.6;">
+<line x1="8" y1="30" x2="156" y2="30"></line><line x1="8" y1="42" x2="156" y2="42"></line><line x1="8" y1="54" x2="156" y2="54"></line><line x1="8" y1="66" x2="156" y2="66"></line><line x1="8" y1="78" x2="156" y2="78"></line>
+<line x1="8" y1="116" x2="156" y2="116"></line><line x1="8" y1="128" x2="156" y2="128"></line><line x1="8" y1="140" x2="156" y2="140"></line><line x1="8" y1="152" x2="156" y2="152"></line><line x1="8" y1="164" x2="156" y2="164"></line>
+<line x1="8" y1="30" x2="8" y2="164"></line>
+</g>
+<text x="14" y="72" style="fill: #eef3ff; font: 50px 'Segoe UI Symbol', 'Apple Symbols', serif;">𝄞</text>
+<text x="14" y="148" style="fill: #eef3ff; font: 38px 'Segoe UI Symbol', 'Apple Symbols', serif;">𝄢</text>
+<g style="fill: #eef3ff;">
+<rect x="110" y="80" width="13" height="9"></rect><rect x="110" y="124" width="13" height="9"></rect><rect x="124" y="118" width="13" height="9"></rect><rect x="110" y="148" width="13" height="9"></rect>
+</g>
+</svg>
+
+<div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+<div style="font-family: Tiny5, monospace; font-size: 92px; line-height: 0.9; letter-spacing: 3px;">G7/B</div>
+<div style="display: flex; gap: 10px; align-items: baseline; font-family: VT323, monospace; font-size: 24px;"><span style="background: #eef3ff; color: #1a35a6; padding: 0 6px; text-shadow: none;">V65</span><span>1st inversion · drop 2</span></div>
+<div style="display: flex; gap: 18px;">
+<sc-for list="{{notes}}" as="n" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; align-items: center; font-family: VT323, monospace; line-height: 1;"><span style="font-size: 26px;">{{n.note}}</span><span style="font-size: 18px; opacity: 0.7;">{{n.iv}}</span></div>
+</sc-for>
+</div>
+</div>
+
+<svg width="150" height="150" viewBox="0 0 240 240" aria-hidden="true">
+<defs><pattern id="fstnhatch" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="2" height="2" style="fill: rgba(238,243,255,0.5);"></rect><rect x="2" y="2" width="2" height="2" style="fill: rgba(238,243,255,0.5);"></rect></pattern></defs>
+<sc-for list="{{maj}}" as="s" hint-placeholder-count="12">
+<path d="{{s.d}}" style="{{s.ps}}"></path>
+<text x="{{s.lx}}" y="{{s.ly}}" style="{{s.ts}}">{{s.label}}</text>
+</sc-for>
+<sc-for list="{{min}}" as="s" hint-placeholder-count="12">
+<path d="{{s.d}}" style="{{s.ps}}"></path>
+</sc-for>
+<text x="120" y="122" style="fill: #eef3ff; font: 34px VT323, monospace; text-anchor: middle; dominant-baseline: central;">C</text>
+</svg>
+
+<div style="width: 2px; align-self: stretch; margin: 10px 0; background: rgba(238,243,255,0.5);"></div>
+<div style="width: 150px; align-self: stretch; padding: 8px 0; display: flex; flex-direction: column; gap: 2px; font-family: VT323, monospace;">
+<div style="display: flex; justify-content: space-between; font-family: Silkscreen, monospace; font-size: 10px; margin-bottom: 2px;"><span>PROG</span><span>4/8</span></div>
+<sc-for list="{{slots}}" as="s" hint-placeholder-count="8">
+<div style="{{s.style}}"><span style="width: 16px; opacity: 0.7;">{{s.idx}}</span><span style="width: 40px; font-size: 19px;">{{s.name}}</span><span>{{s.num}}</span></div>
+</sc-for>
+</div>
+</div>
+
+<div style="height: 24px; flex: none; display: flex; gap: 6px; padding: 0 8px 2px 8px;">
+<sc-for list="{{strip}}" as="t" hint-placeholder-count="8">
+<div style="{{t.style}}"><span>{{t.num}}</span><span style="opacity: 0.8;">{{t.name}}</span></div>
+</sc-for>
+</div>
+</div>
+</div>
+
+<div style="position: absolute; left: 234px; top: 300px; display: flex; gap: 6px;">
+<sc-for list="{{strip}}" as="t" hint-placeholder-count="8">
+<div style="width: 92px; height: 18px; border-radius: 3px; background: linear-gradient(180deg, #55575c, #3a3c40); box-shadow: 0 2px 0 #151617, inset 0 1px 0 rgba(255,255,255,0.15);"></div>
+</sc-for>
+</div>
+
+<div style="position: absolute; left: 1056px; top: 40px; width: 324px; height: 282px; display: flex; gap: 16px;">
+<div style="display: flex; flex-direction: column; gap: 12px; align-items: center; width: 120px;">
+<div style="width: 112px; height: 112px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #4d4f54, #1d1e20 72%); box-shadow: 0 5px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.14), 0 0 0 5px #1b1c1e, 0 0 0 6px #4a4c50; position: relative;">
+<div style="position: absolute; left: 72px; top: 22px; width: 14px; height: 14px; border-radius: 50%; background: #151617; box-shadow: inset 0 2px 3px #000;"></div>
+</div>
+<span style="font-size: 10px; font-weight: 700; letter-spacing: 2px; color: #bfbdb6;">VALUE</span>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 8px; width: 120px;">
+<sc-for list="{{transport}}" as="b" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; letter-spacing: 1.2px; color: #bfbdb6;"><span style="{{b.led}}"></span>{{b.lab}}</div>
+<div style="{{b.key}}"></div>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 8px;">
+<span style="font-size: 10px; font-weight: 700; letter-spacing: 2px; color: #bfbdb6;">KEY · TEMPO · PROGRESSION</span>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+<sc-for list="{{pad}}" as="p" hint-placeholder-count="12">
+<div style="{{p.style}}">{{p.lab}}</div>
+</sc-for>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 4px;">
+<div style="height: 28px; border-radius: 3px; background: linear-gradient(180deg, #55575c, #3a3c40); box-shadow: 0 2px 0 #151617, inset 0 1px 0 rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; letter-spacing: 1.5px;">EXIT</div>
+<div style="height: 28px; border-radius: 3px; background: linear-gradient(180deg, #5d8cff, #3866d6); box-shadow: 0 2px 0 #1b2f66, inset 0 1px 0 rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #fff;">SAVE</div>
+</div>
+</div>
+</div>
+
+<div style="position: absolute; left: 20px; top: 352px; width: 76px; height: 250px; border-radius: 6px; background: #1b1c1e; box-shadow: inset 0 2px 6px #000; display: flex; justify-content: center; gap: 10px; padding-top: 30px; box-sizing: border-box;">
+<div style="width: 24px; height: 150px; border-radius: 6px; background: linear-gradient(90deg, #2a2b2e, #4a4c51 50%, #2a2b2e); box-shadow: 0 0 0 2px #0e0f10; position: relative;"><div style="position: absolute; left: 0; right: 0; top: 70px; height: 3px; background: #0e0f10;"></div></div>
+<div style="width: 24px; height: 150px; border-radius: 6px; background: linear-gradient(90deg, #2a2b2e, #4a4c51 50%, #2a2b2e); box-shadow: 0 0 0 2px #0e0f10;"></div>
+</div>
+<div style="position: absolute; left: 20px; top: 590px; width: 76px; text-align: center; font-size: 9px; font-weight: 700; letter-spacing: 1.2px; color: #9f9d97;">PITCH · MOD</div>
+
+<div style="position: absolute; left: 110px; top: 342px; width: 1270px; height: 10px;">
+<div style="position: absolute; inset: 0; background: linear-gradient(180deg, #6b1f22, #4a1416);"></div>
+<sc-for list="{{lights}}" as="l" hint-placeholder-count="5">
+<span style="{{l.style}}"></span>
+</sc-for>
+</div>
+<div style="position: absolute; left: 110px; top: 352px; width: 1270px; height: 260px; background: #141312;">
+<sc-for list="{{whites}}" as="k" hint-placeholder-count="36">
+<div style="{{k.style}}"><span style="{{k.ls}}">{{k.label}}</span></div>
+</sc-for>
+<sc-for list="{{blacks}}" as="k" hint-placeholder-count="25">
+<div style="{{k.style}}"></div>
+</sc-for>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1400,"height":620}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const INK = '#eef3ff', BG = '#1a35a6', LIT = '#74a9ff', AMB = '#ffb238';
+    const WHITE = [0, 2, 4, 5, 7, 9, 11];
+    const held = [47, 53, 55, 62];
+    const W = 1270, H = 260, ww = W / 36, bw = ww * 0.58, bh = H * 0.62;
+    const whites = [], blacks = [], lights = [];
+    let wi = 0;
+    for (let m = 36; m <= 96; m++) {
+      const pc = m % 12, oct = Math.floor(m / 12) - 1, h = held.includes(m), t = pc === 0;
+      if (WHITE.includes(pc)) {
+        const bg = h ? 'linear-gradient(180deg,#d3ccbd 0%,#e2dbcd 70%,#cdc5b4 100%)' : 'linear-gradient(180deg,#ece7dc 0%,#fbf8f0 16%,#f6f1e7 86%,#e3ddd0 100%)';
+        whites.push({
+          label: t ? 'C' + oct : '',
+          style: 'position:absolute;top:0;left:' + (wi * ww).toFixed(1) + 'px;width:' + (ww - 1).toFixed(1) + 'px;height:' + (h ? H - 3 : H) + 'px;background:' + bg + ';border-radius:0 0 4px 4px;box-shadow:' + (h ? 'inset 0 4px 5px rgba(0,0,0,0.28)' : 'inset 0 -6px 0 #dad3c5,0 2px 2px rgba(0,0,0,0.4)') + ';',
+          ls: 'position:absolute;left:0;right:0;bottom:14px;text-align:center;font:700 10px "Archivo Narrow",sans-serif;color:#8f897b;'
+        });
+        if (h) lights.push({ style: 'position:absolute;top:3px;height:4px;border-radius:2px;left:' + (wi * ww + 4).toFixed(1) + 'px;width:' + (ww - 9).toFixed(1) + 'px;background:' + LIT + ';box-shadow:0 0 8px ' + LIT + ';' });
+        if (t) lights.push({ style: 'position:absolute;top:2px;width:6px;height:6px;border-radius:50%;left:' + (wi * ww + ww / 2 - 3).toFixed(1) + 'px;background:' + AMB + ';box-shadow:0 0 6px ' + AMB + ';' });
+        wi++;
+      } else {
+        const bg = h ? 'linear-gradient(180deg,#0a0908,#1b1917 90%,#28251f)' : 'linear-gradient(180deg,#121110 0%,#2c2926 8%,#1b1917 80%,#3b3732 92%,#141312 100%)';
+        blacks.push({ style: 'position:absolute;top:0;left:' + (wi * ww - bw / 2).toFixed(1) + 'px;width:' + bw.toFixed(1) + 'px;height:' + (h ? bh - 4 : bh).toFixed(0) + 'px;background:' + bg + ';border-radius:0 0 3px 3px;box-shadow:2px 3px 4px rgba(0,0,0,0.55);' });
+      }
+    }
+    const pt = (r, a) => (120 + r * Math.cos(a * Math.PI / 180)).toFixed(2) + ' ' + (120 + r * Math.sin(a * Math.PI / 180)).toFixed(2);
+    const sector = (r1, r2, i) => { const a0 = -105 + i * 30 + 1.5, a1 = -75 + i * 30 - 1.5; return 'M ' + pt(r2, a0) + ' A ' + r2 + ' ' + r2 + ' 0 0 1 ' + pt(r2, a1) + ' L ' + pt(r1, a1) + ' A ' + r1 + ' ' + r1 + ' 0 0 0 ' + pt(r1, a0) + ' Z'; };
+    const lab = (r, i) => { const a = (-90 + i * 30) * Math.PI / 180; return { lx: (120 + r * Math.cos(a)).toFixed(1), ly: (120 + r * Math.sin(a)).toFixed(1) }; };
+    const MAJ = ['C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'D♭', 'A♭', 'E♭', 'B♭', 'F'];
+    const maj = MAJ.map((label, i) => {
+      const sel = i === 0, rel = i === 1 || i === 11, root = i === 1;
+      return Object.assign({ label, d: sector(80, 116, i), ps: 'fill:' + (sel ? INK : (rel ? 'url(#fstnhatch)' : 'transparent')) + ';stroke:' + INK + ';stroke-width:' + (root ? 5 : 1.5) + ';', ts: 'fill:' + (sel ? BG : INK) + ';font:28px VT323,monospace;text-anchor:middle;dominant-baseline:central;' }, lab(98, i));
+    });
+    const min = MAJ.map((_, i) => ({ d: sector(52, 77, i), ps: 'fill:' + ((i === 0 || i === 1 || i === 11) ? 'url(#fstnhatch)' : 'transparent') + ';stroke:' + INK + ';stroke-width:1;stroke-opacity:0.7;' }));
+    const tiles = [['I', 'Cmaj7'], ['ii', 'Dm7'], ['iii', 'Em7'], ['IV', 'Fmaj7'], ['V7', 'G7'], ['vi', 'Am7'], ['viiø', 'Bm7♭5'], ['7TH', 'ON']];
+    const strip = tiles.map(([num, name], i) => {
+      const on = i === 4 || i === 7;
+      return { num, name, style: 'width:92px;display:flex;align-items:center;justify-content:center;gap:5px;font:19px VT323,monospace;border:2px solid ' + INK + ';border-bottom:none;border-radius:5px 5px 0 0;' + (on ? 'background:' + INK + ';color:' + BG + ';text-shadow:none;' : '') };
+    });
+    const saved = [['C', 'I'], ['Am', 'vi'], ['F', 'IV'], ['G7', 'V7']];
+    const slots = [];
+    for (let i = 0; i < 8; i++) {
+      const s = saved[i];
+      slots.push({ idx: (i + 1) + '', name: s ? s[0] : '--', num: s ? s[1] : '', style: 'height:17px;display:flex;align-items:center;font-size:17px;padding:0 4px;' + (i === 3 ? 'background:' + INK + ';color:' + BG + ';text-shadow:none;' : (s ? '' : 'opacity:0.35;')) });
+    }
+    const faderCap = (pos) => 'position:absolute;left:3px;top:' + pos + 'px;width:34px;height:18px;border-radius:3px;background:linear-gradient(180deg,#6b6d72,#3c3e42);box-shadow:0 3px 4px rgba(0,0,0,0.6),inset 0 1px 0 rgba(255,255,255,0.2);';
+    const faders = [{ lab: 'VOLUME', cap: faderCap(40) }, { lab: 'CLICK', cap: faderCap(90) }, { lab: 'SPEED', cap: faderCap(20) }, { lab: 'TEMPO', cap: faderCap(120) }];
+    const led = (c) => 'width:6px;height:6px;border-radius:50%;' + (c ? 'background:' + c + ';box-shadow:0 0 6px ' + c + ';' : 'background:#5a5c60;box-shadow:inset 0 1px 1px #000;');
+    const key = (bg, sh) => 'height:22px;border-radius:3px;background:' + bg + ';box-shadow:0 2px 0 ' + sh + ',inset 0 1px 0 rgba(255,255,255,0.18);';
+    const grey = key('linear-gradient(180deg,#55575c,#3a3c40)', '#151617');
+    const transport = [
+      { lab: 'REC', led: led(null), key: key('linear-gradient(180deg,#d4473d,#a02f27)', '#55160f') },
+      { lab: 'PLAY', led: led(null), key: grey },
+      { lab: 'LOOP', led: led(LIT), key: grey },
+      { lab: 'METRO', led: led(AMB), key: grey }
+    ];
+    const pad = ['7', '8', '9', '4', '5', '6', '1', '2', '3', 'TAP', '0', '±'].map((lab) => ({ lab, style: 'height:30px;border-radius:3px;background:linear-gradient(180deg,#4a4c50,#323438);box-shadow:0 2px 0 #151617,inset 0 1px 0 rgba(255,255,255,0.14);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#e6e4dd;' }));
+    return {
+      notes: [{ note: 'B2', iv: '3' }, { note: 'F3', iv: '♭7' }, { note: 'G3', iv: 'R' }, { note: 'D4', iv: '5' }],
+      whites, blacks, lights, maj, min, strip, slots, faders, transport, pad
+    };
+  }
+}
+</script>
+</body>
+</html>

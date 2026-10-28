@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>VFD workstation</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&amp;family=Doto:wght@600;800;900&amp;family=Orbitron:wght@600;800;900&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0e0f10}
+a{color:#9a978f}a:hover{color:#d8d4ca}
+</style>
+</helmet>
+<div style="width: 1400px; height: 620px; box-sizing: border-box; position: relative; overflow: hidden; background: linear-gradient(180deg, #1d1f22 0%, #151618 40%, #111214 100%); font-family: 'Barlow Condensed', sans-serif; color: #b9b5ab; display: flex; flex-direction: column;">
+
+<div style="height: 34px; flex: none; display: flex; align-items: center; gap: 18px; padding: 0 16px; border-bottom: 1px solid #0a0a0b; box-shadow: 0 1px 0 #26282b;">
+<div style="display: flex; align-items: baseline; gap: 10px;">
+<span style="font-weight: 700; font-size: 17px; letter-spacing: 3px; color: #e4e0d6;">PMV-61</span>
+<span style="font-weight: 500; font-size: 12px; letter-spacing: 2.5px; color: #8d8a82;">HARMONY DISPLAY WORKSTATION</span>
+</div>
+<span style="font-weight: 600; font-size: 12px; letter-spacing: 2px; color: #a19d94;">VIEW</span>
+<div style="flex-grow: 1;"></div>
+<div style="display: flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: 2px; color: #a19d94; font-weight: 600;">
+<span style="width: 7px; height: 7px; border-radius: 50%; background: {{phosphor}}; box-shadow: 0 0 6px {{phosphor}};"></span>
+MIDI · DIGITAL PIANO
+<span style="width: 7px; height: 7px; border-radius: 50%; background: {{phosphor}}; box-shadow: 0 0 6px {{phosphor}}; margin-left: 10px;"></span>
+AUDIO · ASIO
+</div>
+<div style="display: flex; gap: 22px; margin-left: 20px; font-size: 14px; color: #7d7a73;">
+<span>—</span><span>□</span><span>×</span>
+</div>
+</div>
+
+<div style="flex-grow: 1; display: flex; gap: 14px; padding: 10px 14px 0 14px; min-height: 0;">
+
+<div style="flex-grow: 1; height: 520px; box-sizing: border-box; border-radius: 6px; position: relative; overflow: hidden; background: radial-gradient(circle, rgba(108,245,230,0.045) 0.8px, transparent 1.3px) 0 0 / 4px 4px, radial-gradient(ellipse at 50% 35%, #07110f 0%, #030605 70%); box-shadow: inset 0 0 0 1px #000, inset 0 3px 18px rgba(0,0,0,0.95), 0 0 0 3px #0a0b0c, 0 0 0 4px #2a2c30; padding: 12px 16px; display: flex; flex-direction: column;">
+<div style="position: absolute; inset: 0; background: linear-gradient(125deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 30%); pointer-events: none;"></div>
+
+<div style="height: 236px; flex: none; display: flex; align-items: center; justify-content: space-between;">
+<svg width="210" height="210" viewBox="0 0 210 210" style="filter: drop-shadow(0 0 3px {{phGlow}});" aria-hidden="true">
+<g style="stroke: {{phDim}}; stroke-width: 1;">
+<line x1="14" y1="44" x2="200" y2="44"></line><line x1="14" y1="56" x2="200" y2="56"></line><line x1="14" y1="68" x2="200" y2="68"></line><line x1="14" y1="80" x2="200" y2="80"></line><line x1="14" y1="92" x2="200" y2="92"></line>
+<line x1="14" y1="130" x2="200" y2="130"></line><line x1="14" y1="142" x2="200" y2="142"></line><line x1="14" y1="154" x2="200" y2="154"></line><line x1="14" y1="166" x2="200" y2="166"></line><line x1="14" y1="178" x2="200" y2="178"></line>
+<line x1="14" y1="44" x2="14" y2="178"></line>
+</g>
+<text x="22" y="86" style="fill: {{phosphor}}; font: 52px 'Segoe UI Symbol', 'Apple Symbols', serif;">𝄞</text>
+<text x="22" y="162" style="fill: {{phosphor}}; font: 40px 'Segoe UI Symbol', 'Apple Symbols', serif;">𝄢</text>
+<g style="fill: {{phosphor}};">
+<ellipse cx="150" cy="98" rx="6.8" ry="5" transform="rotate(-20 150 98)"></ellipse>
+<ellipse cx="150" cy="142" rx="6.8" ry="5" transform="rotate(-20 150 142)"></ellipse>
+<ellipse cx="164" cy="136" rx="6.8" ry="5" transform="rotate(-20 164 136)"></ellipse>
+<ellipse cx="150" cy="166" rx="6.8" ry="5" transform="rotate(-20 150 166)"></ellipse>
+</g>
+<text x="14" y="200" style="fill: {{phDim2}}; font: 800 11px Doto, monospace; letter-spacing: 1px;">C MAJOR · NO ♯/♭</text>
+</svg>
+
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; text-shadow: 0 0 8px {{phGlow}}, 0 0 22px {{phGlow2}};">
+<div style="font-family: Orbitron, sans-serif; font-weight: 800; font-size: 104px; line-height: 1; color: {{phosphor}}; letter-spacing: 2px;">G7/B</div>
+<div style="display: flex; align-items: baseline; gap: 12px; font-family: Doto, monospace; font-weight: 800; color: {{phMid}};">
+<span style="font-family: Orbitron, sans-serif; font-size: 22px; color: {{phosphor}};">V65</span>
+<span style="font-size: 17px;">1ST INVERSION · DROP 2</span>
+</div>
+<div style="display: flex; gap: 22px; margin-top: 4px;">
+<sc-for list="{{notes}}" as="n" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 1px; font-family: Doto, monospace; font-weight: 900;">
+<span style="font-size: 24px; color: {{phosphor}};">{{n.note}}</span>
+<span style="font-size: 14px; color: {{phMid}};">{{n.iv}}</span>
+</div>
+</sc-for>
+</div>
+<div style="font-family: Doto, monospace; font-weight: 800; font-size: 12px; color: {{phDim2}}; letter-spacing: 2px; margin-top: 4px; text-shadow: none;">SPACE TO SAVE</div>
+</div>
+
+<svg width="240" height="240" viewBox="0 0 240 240" style="filter: drop-shadow(0 0 3px {{phGlow}});" aria-hidden="true">
+<sc-for list="{{maj}}" as="s" hint-placeholder-count="12">
+<path d="{{s.d}}" style="{{s.ps}}"></path>
+<text x="{{s.lx}}" y="{{s.ly}}" style="{{s.ts}}">{{s.label}}</text>
+</sc-for>
+<sc-for list="{{min}}" as="s" hint-placeholder-count="12">
+<path d="{{s.d}}" style="{{s.ps}}"></path>
+<text x="{{s.lx}}" y="{{s.ly}}" style="{{s.ts}}">{{s.label}}</text>
+</sc-for>
+<text x="120" y="116" style="fill: #FFB547; font: 900 26px Orbitron, sans-serif; text-anchor: middle; dominant-baseline: central;">C</text>
+<text x="120" y="138" style="fill: rgba(255,181,71,0.7); font: 800 10px Doto, monospace; text-anchor: middle; dominant-baseline: central; letter-spacing: 1px;">MAJOR</text>
+</svg>
+</div>
+
+<div style="height: 34px; flex: none; display: flex; justify-content: center; align-items: center; gap: 4px;">
+<sc-for list="{{strip}}" as="t" hint-placeholder-count="7">
+<div style="{{t.style}}"><span style="font-family: Orbitron, sans-serif; font-weight: 800;">{{t.num}}</span><span style="opacity: 0.75;">{{t.name}}</span></div>
+</sc-for>
+<div style="margin-left: 10px; height: 22px; display: flex; align-items: center; padding: 0 9px; font-family: Doto, monospace; font-weight: 900; font-size: 13px; color: #FFB547; border: 1px solid rgba(255,181,71,0.6); border-radius: 2px; text-shadow: 0 0 6px rgba(255,181,71,0.5);">7THS</div>
+</div>
+
+<div style="height: 188px; flex: none; display: flex; align-items: flex-end;">
+<div style="position: relative; width: 1076px; height: 176px; margin: 0 auto;">
+<sc-for list="{{whites}}" as="k" hint-placeholder-count="36">
+<div style="{{k.style}}"><span style="{{k.ls}}">{{k.label}}</span></div>
+</sc-for>
+<sc-for list="{{blacks}}" as="k" hint-placeholder-count="25">
+<div style="{{k.style}}"></div>
+</sc-for>
+</div>
+</div>
+
+<div style="height: 26px; flex: none; display: flex; align-items: flex-end; justify-content: space-between; font-family: Doto, monospace; font-weight: 800; font-size: 13px; color: {{phMid}}; letter-spacing: 1.5px;">
+<span>SAVED CHORD · G7</span>
+<span>♩=90 · 4/4 · SPEED 100% · KEY <span style="color: #FFB547;">C MAJ</span></span>
+</div>
+</div>
+
+<div style="width: 250px; flex: none; height: 520px; box-sizing: border-box; border-radius: 6px; position: relative; overflow: hidden; background: radial-gradient(circle, rgba(108,245,230,0.045) 0.8px, transparent 1.3px) 0 0 / 4px 4px, #030605; box-shadow: inset 0 0 0 1px #000, inset 0 3px 18px rgba(0,0,0,0.95), 0 0 0 3px #0a0b0c, 0 0 0 4px #2a2c30; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; font-family: Doto, monospace; font-weight: 800;">
+<div style="display: flex; justify-content: space-between; font-size: 13px; letter-spacing: 1.5px; color: {{phosphor}}; text-shadow: 0 0 6px {{phGlow}};"><span>PROGRESSION</span><span>4/8</span></div>
+<div style="display: flex; justify-content: space-between; font-size: 11px; color: {{phDim2}}; letter-spacing: 1px; margin-bottom: 4px;"><span>LOOP ON · 1 BAR</span><span>♩=90</span></div>
+<sc-for list="{{slots}}" as="s" hint-placeholder-count="8">
+<div style="{{s.style}}">
+<span style="width: 20px; font-size: 11px; opacity: 0.6;">{{s.idx}}</span>
+<span style="font-family: Orbitron, sans-serif; font-weight: 800; font-size: 15px; width: 46px;">{{s.name}}</span>
+<span style="font-size: 13px; width: 32px;">{{s.num}}</span>
+<span style="font-size: 10px; opacity: 0.6;">{{s.notes}}</span>
+</div>
+</sc-for>
+<div style="flex-grow: 1;"></div>
+<div style="font-size: 11px; color: {{phDim2}}; letter-spacing: 1.5px;">NEXT · AFTER V7</div>
+<div style="display: flex; gap: 6px;">
+<sc-for list="{{next}}" as="n" hint-placeholder-count="3">
+<div style="flex: 1; height: 30px; display: flex; align-items: center; justify-content: center; gap: 5px; border: 1px dashed {{phDim}}; border-radius: 2px; color: {{phMid}};"><span style="font-family: Orbitron, sans-serif; font-weight: 800; font-size: 13px;">{{n.num}}</span><span style="font-size: 11px;">{{n.name}}</span></div>
+</sc-for>
+</div>
+</div>
+</div>
+
+<div style="height: 56px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 20px;">
+<sc-for list="{{buttons}}" as="b" hint-placeholder-count="14">
+<div style="{{b.wrap}}">
+<div style="display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 600; letter-spacing: 1.6px; color: #8f8c84;"><span style="{{b.led}}"></span>{{b.lab}}</div>
+<div style="{{b.key}}">{{b.cap}}</div>
+</div>
+</sc-for>
+<div style="flex-grow: 1;"></div>
+<div style="display: flex; align-items: center; gap: 10px;">
+<span style="font-size: 10px; font-weight: 600; letter-spacing: 1.6px; color: #8f8c84;">DATA</span>
+<div style="width: 44px; height: 44px; border-radius: 50%; background: conic-gradient(from 200deg, #3a3d42, #18191b, #2f3236, #121314, #3a3d42); box-shadow: 0 2px 4px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.12); position: relative;">
+<div style="position: absolute; left: 21px; top: 5px; width: 2px; height: 10px; background: #d8d4ca; border-radius: 1px;"></div>
+</div>
+</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"phosphor":{"editor":"color","default":"#6CF5E6","options":["#6CF5E6","#8DFFB0","#7FB8FF","#F2F2E8"]},"$preview":{"width":1400,"height":620}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const P = this.props.phosphor ?? '#6CF5E6';
+    const A = '#FFB547';
+    const rgba = (hex, a) => { const n = parseInt(hex.slice(1), 16); return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; };
+    const NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
+    const WHITE = [0, 2, 4, 5, 7, 9, 11];
+    const held = [47, 53, 55, 62];
+    const W = 1076, H = 176, ww = W / 36, bw = ww * 0.6, bh = H * 0.6;
+    const whites = [], blacks = [];
+    let wi = 0;
+    for (let m = 36; m <= 96; m++) {
+      const pc = m % 12, oct = Math.floor(m / 12) - 1, h = held.includes(m);
+      if (WHITE.includes(pc)) {
+        const t = pc === 0;
+        let bg = rgba(P, 0.035), bd = rgba(P, 0.3), sh = 'none', tc = rgba(P, 0.55);
+        if (t) { bg = rgba(A, 0.14); bd = rgba(A, 0.75); tc = A; sh = '0 0 8px ' + rgba(A, 0.3); }
+        if (h) { bg = rgba(P, 0.9); bd = P; tc = '#02201c'; sh = '0 0 16px ' + rgba(P, 0.7) + ', 0 0 3px ' + P; }
+        whites.push({
+          label: (t || h) ? NAMES[pc] + (t ? oct : '') : '',
+          style: 'position:absolute;top:0;left:' + (wi * ww + 1.5).toFixed(1) + 'px;width:' + (ww - 3).toFixed(1) + 'px;height:' + H + 'px;box-sizing:border-box;border:1px solid ' + bd + ';background:' + bg + ';box-shadow:' + sh + ';border-radius:0 0 3px 3px;',
+          ls: 'position:absolute;left:0;right:0;bottom:6px;text-align:center;font:900 11px Doto,monospace;color:' + tc + ';'
+        });
+        wi++;
+      } else {
+        let bg = '#020706', bd = rgba(P, 0.5), sh = 'none';
+        if (h) { bg = P; bd = P; sh = '0 0 14px ' + rgba(P, 0.8); }
+        blacks.push({ style: 'position:absolute;top:0;left:' + (wi * ww - bw / 2).toFixed(1) + 'px;width:' + bw.toFixed(1) + 'px;height:' + bh.toFixed(0) + 'px;box-sizing:border-box;border:1px solid ' + bd + ';background:' + bg + ';box-shadow:' + sh + ';border-radius:0 0 2px 2px;' });
+      }
+    }
+    const pt = (r, a) => (120 + r * Math.cos(a * Math.PI / 180)).toFixed(2) + ' ' + (120 + r * Math.sin(a * Math.PI / 180)).toFixed(2);
+    const sector = (r1, r2, i) => { const a0 = -105 + i * 30 + 1.2, a1 = -75 + i * 30 - 1.2; return 'M ' + pt(r2, a0) + ' A ' + r2 + ' ' + r2 + ' 0 0 1 ' + pt(r2, a1) + ' L ' + pt(r1, a1) + ' A ' + r1 + ' ' + r1 + ' 0 0 0 ' + pt(r1, a0) + ' Z'; };
+    const lab = (r, i) => { const a = (-90 + i * 30) * Math.PI / 180; return { lx: (120 + r * Math.cos(a)).toFixed(1), ly: (120 + r * Math.sin(a)).toFixed(1) }; };
+    const MAJ = ['C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'D♭', 'A♭', 'E♭', 'B♭', 'F'];
+    const MIN = ['a', 'e', 'b', 'f♯', 'c♯', 'g♯', 'e♭', 'b♭', 'f', 'c', 'g', 'd'];
+    const maj = MAJ.map((label, i) => {
+      const sel = i === 0, rel = i === 1 || i === 11, root = i === 1;
+      let fill = rgba(P, 0.02), stroke = rgba(P, 0.28), sw = 1, tc = rgba(P, 0.6);
+      if (rel) { fill = rgba(A, 0.1); stroke = rgba(A, 0.5); tc = A; }
+      if (sel) { fill = rgba(A, 0.85); stroke = A; tc = '#1d1200'; }
+      if (root) { stroke = P; sw = 2.4; }
+      return Object.assign({ label, d: sector(76, 116, i), ps: 'fill:' + fill + ';stroke:' + stroke + ';stroke-width:' + sw + ';', ts: 'fill:' + tc + ';font:800 14px Orbitron,sans-serif;text-anchor:middle;dominant-baseline:central;' }, lab(96, i));
+    });
+    const min = MIN.map((label, i) => {
+      const rel = i === 0 || i === 1 || i === 11;
+      const fill = rel ? rgba(A, 0.07) : 'transparent', stroke = rel ? rgba(A, 0.4) : rgba(P, 0.18), tc = rel ? rgba(A, 0.85) : rgba(P, 0.45);
+      return Object.assign({ label, d: sector(44, 73, i), ps: 'fill:' + fill + ';stroke:' + stroke + ';stroke-width:1;', ts: 'fill:' + tc + ';font:900 12px Doto,monospace;text-anchor:middle;dominant-baseline:central;' }, lab(58.5, i));
+    });
+    const tiles = [['Imaj7', 'Cmaj7'], ['ii7', 'Dm7'], ['iii7', 'Em7'], ['IVmaj7', 'Fmaj7'], ['V7', 'G7'], ['vi7', 'Am7'], ['viiø7', 'Bm7♭5']];
+    const strip = tiles.map(([num, name], i) => {
+      const on = i === 4;
+      return { num, name, style: 'height:22px;min-width:64px;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 9px;font:900 13px Doto,monospace;border-radius:2px;border:1px solid ' + (on ? P : rgba(P, 0.14)) + ';color:' + (on ? P : rgba(P, 0.45)) + ';background:' + (on ? rgba(P, 0.1) : 'transparent') + ';' + (on ? 'text-shadow:0 0 6px ' + rgba(P, 0.6) + ';box-shadow:0 0 10px ' + rgba(P, 0.25) + ';' : '') };
+    });
+    const saved = [['C', 'I', 'C3 G3 C4 E4'], ['Am', 'vi', 'A2 E3 A3 C4'], ['F', 'IV', 'F2 A3 C4 F4'], ['G7', 'V7', 'G2 B3 D4 F4']];
+    const slots = [];
+    for (let i = 0; i < 8; i++) {
+      const s = saved[i], last = i === 3;
+      slots.push({ idx: '0' + (i + 1), name: s ? s[0] : '— —', num: s ? s[1] : '', notes: s ? s[2] : '', style: 'height:34px;display:flex;align-items:center;gap:4px;padding:0 8px;border-radius:2px;color:' + (s ? (last ? P : rgba(P, 0.75)) : rgba(P, 0.16)) + ';border:1px solid ' + (last ? rgba(P, 0.55) : 'transparent') + ';' + (last ? 'background:' + rgba(P, 0.08) + ';text-shadow:0 0 6px ' + rgba(P, 0.5) + ';' : '') });
+    }
+    const keyBase = 'height:24px;min-width:38px;padding:0 6px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border-radius:4px;font-size:12px;font-weight:700;letter-spacing:1px;color:#cfcbc1;background:linear-gradient(180deg,#34373c,#202226);box-shadow:0 2px 0 #0b0c0d,0 3px 5px rgba(0,0,0,0.6),inset 0 1px 0 rgba(255,255,255,0.12);';
+    const ledOff = 'width:5px;height:5px;border-radius:50%;background:#2a2c2e;box-shadow:inset 0 1px 1px rgba(0,0,0,0.8);';
+    const led = (c) => 'width:5px;height:5px;border-radius:50%;background:' + c + ';box-shadow:0 0 6px ' + c + ';';
+    const btn = (lab, cap, l, gapBefore) => ({ lab, cap, led: l ? led(l) : ledOff, key: keyBase, wrap: 'display:flex;flex-direction:column;align-items:flex-start;gap:4px;' + (gapBefore ? 'margin-left:22px;' : '') });
+    const buttons = [
+      btn('KEY', '◂ ▸'), btn('SCALE', 'MAJ'), btn('MUTE', 'OOK'),
+      btn('METRO', '♩', P, true), btn('TEMPO', '−'), btn('', '+'), btn('TAP', 'TAP'), btn('METER', '4/4'),
+      btn('REC', '●', '#7a2a22', true), btn('PLAY', '▶'), btn('LOOP', '⟲'), btn('SPEED', '100'),
+      btn('SAVE', 'SPACE', A, true)
+    ];
+    return {
+      phosphor: P, phGlow: rgba(P, 0.55), phGlow2: rgba(P, 0.25), phMid: rgba(P, 0.7), phDim: rgba(P, 0.3), phDim2: rgba(P, 0.45),
+      notes: [{ note: 'B2', iv: '3' }, { note: 'F3', iv: '♭7' }, { note: 'G3', iv: 'R' }, { note: 'D4', iv: '5' }],
+      whites, blacks, maj, min, strip, slots,
+      next: [{ num: 'I', name: 'C' }, { num: 'vi', name: 'Am' }, { num: 'IV', name: 'F' }],
+      buttons
+    };
+  }
+}
+</script>
+</body>
+</html>
