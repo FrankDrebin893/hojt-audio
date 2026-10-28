@@ -261,7 +261,22 @@ impl GlassBells {
         let target = if settings.reverb_on { 1.0 } else { 0.0 };
         self.reverb_gain += (target - self.reverb_gain).clamp(-self.switch_step, self.switch_step);
 
-        // Ping-pong delay: the bells go in on the left and bounce to the right and back
+        let (echo_left, echo_right) = self.ping_pong(left, right);
+        let settings = &self.settings;
+
+        let (hall_left, hall_right) =
+            self.hall.process((left + right) * 0.3 + (echo_left + echo_right) * 0.25);
+
+        let wet = settings.reverb_mix * self.reverb_gain;
+        let left = left * settings.dry + echo_left * settings.delay_mix + hall_left * wet;
+        let right = right * settings.dry + echo_right * settings.delay_mix + hall_right * wet;
+        (self.out_hps[0].process(left).high, self.out_hps[1].process(right).high)
+    }
+
+    /// Ping-pong delay: the bells go in on the left and bounce to the right and back. Returns
+    /// the echoes of this frame, faded by the Delay switch
+    fn ping_pong(&mut self, left: f32, right: f32) -> (f32, f32) {
+        let settings = &self.settings;
         self.echo_time += (self.echo_time_target - self.echo_time) * self.echo_glide;
         self.echo_write = (self.echo_write + 1) & self.echo_mask;
         let whole = self.echo_time.ceil();
@@ -278,25 +293,41 @@ impl GlassBells {
         self.echo_left[self.echo_write] =
             (left + right) * 0.5 + self.echo_damped[1] * settings.delay_feedback;
         self.echo_right[self.echo_write] = self.echo_damped[0] * settings.delay_feedback;
-        let echo_left = self.echo_damped[0] * self.delay_gain;
-        let echo_right = self.echo_damped[1] * self.delay_gain;
-
-        let (hall_left, hall_right) =
-            self.hall.process((left + right) * 0.3 + (echo_left + echo_right) * 0.25);
-
-        let wet = settings.reverb_mix * self.reverb_gain;
-        let left = left * settings.dry + echo_left * settings.delay_mix + hall_left * wet;
-        let right = right * settings.dry + echo_right * settings.delay_mix + hall_right * wet;
-        (self.out_hps[0].process(left).high, self.out_hps[1].process(right).high)
+        (self.echo_damped[0] * self.delay_gain, self.echo_damped[1] * self.delay_gain)
     }
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use suite_common::measure::{brightness, decay_time_s, peak, rms, zero_crossing_freq};
 
     const SAMPLE_RATE: f32 = 48000.0;
+
+    /// Noise through the delay alone at `time_ms`, with its feedback and the darkening of
+    /// each bounce: the left echoes, then the right
+    pub(crate) fn echoes(time_ms: f32) -> (Vec<f32>, Vec<f32>) {
+        let mut noise = suite_common::dsp::Noise::new(7);
+        let input: Vec<f32> = (0..SAMPLE_RATE as usize).map(|_| 0.3 * noise.next()).collect();
+        through_the_delay(time_ms, &input)
+    }
+
+    /// Where the first echo of an impulse lands, in ms, through the delay at `time_ms`
+    pub(crate) fn first_echo_ms(time_ms: f32) -> f32 {
+        let mut impulse = vec![0.0; (1.6 * SAMPLE_RATE) as usize];
+        impulse[0] = 1.0;
+        let (left, _) = through_the_delay(time_ms, &impulse);
+        let first = (1..left.len()).max_by(|&a, &b| left[a].abs().total_cmp(&left[b].abs()));
+        first.unwrap() as f32 / SAMPLE_RATE * 1000.0
+    }
+
+    /// `input`, in the middle, through the ping-pong delay at `time_ms`
+    fn through_the_delay(time_ms: f32, input: &[f32]) -> (Vec<f32>, Vec<f32>) {
+        let settings =
+            BellSettings { delay_ms: time_ms, delay_feedback: 0.45, ..BellSettings::default() };
+        let mut bells = bells(&settings, SAMPLE_RATE);
+        input.iter().map(|&sample| bells.ping_pong(sample, sample)).unzip()
+    }
 
     /// The bells alone
     fn plain() -> BellSettings {

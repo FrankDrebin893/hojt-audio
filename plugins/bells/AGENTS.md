@@ -8,7 +8,8 @@ bell rings out by itself, so note-off does nothing. Ported from `prototypes/jsfx
 - `src/lib.rs` - Plugin entry point, parameters. Reads them once per block into `BellSettings`
 - `src/bells.rs` - `GlassBells`: voices (a sine bent by another at 3.5 times its pitch, and an
   octave partial), ping-pong delay, the hall (`suite_common::dsp::Hall`)
-- `src/editor.rs` - egui GUI: pine green pedal, ten knobs, Delay and Reverb footswitches
+- `src/editor.rs` - egui GUI: pine green pedal, ten knobs, Delay, Sync and Reverb footswitches.
+  While Sync is on, the delay's Time knob, in the same place, picks Delay Note
 
 How it behaves:
 
@@ -19,8 +20,9 @@ How it behaves:
   and bounces them right and back, each bounce a little darker
 - A new bell takes a voice that has rung out, or else the one struck longest ago
 - All sound off stops bells and tails at once
-- The delay time glides when its knob is turned. The footswitches fade in 10 ms; with Delay
-  off the echoes are out of the hall as well
+- The delay time glides when its knob is turned, and when the song's tempo moves while Sync is
+  on. The tempo is read from the host only while Sync is on; with none, the Time knob's ms.
+  The footswitches fade in 10 ms; with Delay off the echoes are out of the hall as well
 
 | Parameter (id) | Range | Default | Description |
 |-----------|-------|---------|-------------|
@@ -31,6 +33,8 @@ How it behaves:
 | Dry (`dry`) | 0-100 % | 55 % | Level of the bells themselves |
 | Delay (`delay_on`) | on / off | on | |
 | Delay Time, Feedback, Mix (`delay_time`, `delay_feedback`, `delay_mix`) | 50-1500 ms, 0-90 %, 0-100 % | 445 ms, 45 %, 35 % | |
+| Delay Sync (`delay_sync`) | on / off | off | The echoes follow the song's tempo: the Time knob picks Delay Note, and the time is `60000 / bpm` times the note's beats (`suite_common::dsp::delay_time_ms`), kept to 50-1500 ms |
+| Delay Note (`delay_note`) | 1/4, 1/8 dotted, 1/8, 1/8 triplet, 1/16 | 1/8 dotted | The note value while Sync is on (`suite_common::dsp::NoteValue`, shared with the amp); a new one goes at the end |
 | Reverb (`reverb_on`) | on / off | on | |
 | Reverb Decay, Mix (`reverb_decay`, `reverb_mix`) | 0.5-20 s, 0-100 % | 6 s, 50 % | |
 

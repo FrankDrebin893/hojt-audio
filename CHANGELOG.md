@@ -156,6 +156,16 @@ GitHub release.
   goes at its end, up and down; the voice footswitches leave it where it is. With the wheel at
   centre the sound is exactly as before
 
+### Glass Bells
+
+- The delay can follow the song's tempo. A third footswitch, Sync, with its LED, stands beside
+  the Delay switch: on, the Time knob picks a note, 1/4, 1/8 dotted, 1/8, 1/8 triplet or 1/16
+  (`1/8 .`, `1/8 T` on its tape), and the echoes land on the beat in the DAW and follow when
+  the tempo changes (between 50 and 1500 ms, so a 1/4 under 40 bpm stays at 1500 ms). Off,
+  Time is milliseconds as before and keeps its setting. New parameters Delay Sync (on / off,
+  off) and Delay Note (default 1/8 dotted). A project from before opens with Sync off and
+  sounds as it did. The standalone follows its own tempo (120 bpm, or what `--tempo` says)
+
 ### Pitch Shifter
 
 - A Blend knob, 0 to 100 %, mixes the guitar as you play it with the shifted one. At 100 %, the

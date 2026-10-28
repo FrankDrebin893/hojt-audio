@@ -7,7 +7,9 @@ param brightness
 param decay
 param delay_feedback
 param delay_mix
+param delay_note
 param delay_on
+param delay_sync
 param delay_time
 param dry
 param reverb_decay
