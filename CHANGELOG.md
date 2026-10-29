@@ -159,9 +159,18 @@ GitHub release.
 - The sine under the string (Sub) starts in step with the string's own low end and dies with
   it, so a held note stays a string to the end instead of turning into an organ tone
 - On Metal the clean lows and the distorted mids now meet without a hollow between them
+- The sine under the string is less than half as loud as it was at the same Sub, and sits under the
+  string instead of being half of the note, so the note is a string you hear clearly rather than
+  a sine with a pluck on it. Saved projects get this too, at the Sub they were saved with
+- The string is plucked and heard at fixed places from the bridge, as on a real bass: each note
+  is played on the highest open string at or below it, so each fret has a colour of its own,
+  rounder up the neck, instead of every note having the same hole in its tone
+- A bass cabinet behind both voices gives the note body in the low mids, definition from a
+  presence rise, and stops where a bass speaker stops. The voices are about a decibel quieter
+  than before, with more attack
 - The voices' own settings changed to suit the new sound: Metal is Drive 40 %, Tone 2600 Hz,
-  Sub 25 % and Sustain 3 s, Groove is Sub 30 %. The knobs and their ranges are the same, and a
-  saved project keeps its knobs but plays the new sound
+  Sub 15 % and Sustain 3 s, Groove is Brightness 50 %, Sub 15 % and Tone 1400 Hz. The knobs and
+  their ranges are the same, and a saved project keeps its knobs but plays the new sound
 - The bass follows the pitch-bend wheel, and pitch bend drawn in the DAW: the ringing note bends
   smoothly up or down and comes back to pitch with the wheel, and a note played with the wheel
   off centre starts bent. The sine under the string bends with it, and a slide and a bend add
