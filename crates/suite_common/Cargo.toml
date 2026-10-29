@@ -12,8 +12,12 @@ nih_plug_egui = { workspace = true }
 # Cargo.toml). Nothing here uses it: egui comes through nih_plug_egui
 egui-baseview = { workspace = true }
 png = "0.17"
+
 # Draws an editor off screen into a picture, for the snapshot tests of `ui::snapshot`. The
-# release matches egui's (0.31.1, through nih_plug_egui): one egui in the tree
+# release matches egui's (0.31.1, through nih_plug_egui): one egui in the tree. Linux only, where
+# the references are drawn: on Windows its wgpu 24 does not build next to nih-plug's cpal, which
+# holds the `windows` crate at 0.54 while wgpu-hal's DirectX 12 backend needs 0.58
+[target.'cfg(target_os = "linux")'.dependencies]
 egui_kittest = { version = "=0.31.1", features = ["wgpu", "snapshot"], optional = true }
 
 [features]

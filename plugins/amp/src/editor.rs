@@ -1174,6 +1174,7 @@ fn draw(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "linux")]
     use suite_common::ui::snapshot::{pedal_harness, Harness, NoHost};
 
     // The picture on the face is compiled in: a build without it is a build of other sources
@@ -1185,6 +1186,7 @@ mod tests {
     /// The window as a snapshot test draws it: with `params`, the tuner hearing `tuner_hz`,
     /// and `view` as it is after the window opened and `open` did what a click would. The
     /// lamps and meters are at rest, the cabinet the amp's own
+    #[cfg(target_os = "linux")]
     fn harness_of<'a>(
         params: &'a GuitarAmpParams,
         setter: &'a ParamSetter<'a>,
@@ -1219,7 +1221,7 @@ mod tests {
     // picture in tests/snapshots/editor.png. On a change it leaves editor.new.png and
     // editor.diff.png there to look at (see suite_common::ui::snapshot)
     #[test]
-    #[cfg_attr(not(target_os = "linux"), ignore = "the snapshots are drawn on Linux")]
+    #[cfg(target_os = "linux")]
     fn test_the_editor_looks_as_it_did() {
         let params = GuitarAmpParams::default();
         let host = NoHost;
@@ -1229,7 +1231,7 @@ mod tests {
 
     // The tuner in the place of the preset display, hearing a low E a little flat
     #[test]
-    #[cfg_attr(not(target_os = "linux"), ignore = "the snapshots are drawn on Linux")]
+    #[cfg(target_os = "linux")]
     fn test_the_tuner_looks_as_it_did() {
         let params = GuitarAmpParams {
             tuner_on: BoolParam::new("Tuner", true).non_automatable(),
@@ -1243,7 +1245,7 @@ mod tests {
     // The preset list dropped open on the factory bank. The presets folder is one that is
     // not there, so the banks are the two every player has, whatever is on this machine
     #[test]
-    #[cfg_attr(not(target_os = "linux"), ignore = "the snapshots are drawn on Linux")]
+    #[cfg(target_os = "linux")]
     fn test_the_preset_menu_looks_as_it_did() {
         let nowhere = std::env::temp_dir().join("hojt-snapshot-no-presets");
         std::env::set_var(user_presets::FOLDER_ENV, &nowhere);

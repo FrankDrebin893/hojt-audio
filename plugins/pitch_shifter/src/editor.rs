@@ -95,7 +95,9 @@ fn draw(ctx: &Context, setter: &ParamSetter, params: &GuitarPitchShifterParams) 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use suite_common::ui::snapshot::{pedal_harness, NoHost};
+    #[cfg(target_os = "linux")]
+    use suite_common::ui::snapshot::pedal_harness;
+    use suite_common::ui::snapshot::NoHost;
 
     // The picture on the face is compiled in: a build without it is a build of other sources
     #[test]
@@ -107,7 +109,7 @@ mod tests {
     // picture in tests/snapshots/editor.png. On a change it leaves editor.new.png and
     // editor.diff.png there to look at (see suite_common::ui::snapshot)
     #[test]
-    #[cfg_attr(not(target_os = "linux"), ignore = "the snapshots are drawn on Linux")]
+    #[cfg(target_os = "linux")]
     fn test_the_editor_looks_as_it_did() {
         let params = crate::GuitarPitchShifterParams::default();
         let host = NoHost;

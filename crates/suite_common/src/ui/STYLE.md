@@ -109,7 +109,7 @@ every parameter at its default and compares the picture with `plugins/<name>/tes
   `<scene>.new.png` and `<scene>.diff.png` beside the reference: open both and look
 - Accept it with `UPDATE_SNAPSHOTS=1 cargo test -p <name> editor`, and only after looking at the
   new picture. A pull request that changes a reference says why; its diff shows the before and after
-- The references are drawn on Linux with Mesa's software Vulkan driver (`mesa-vulkan-drivers`); the
-  tests are ignored on Windows and macOS. A tolerance (`SnapshotOptions`) is raised per test when it
-  must be, never for all
+- The references are drawn on Linux with Mesa's software Vulkan driver (`mesa-vulkan-drivers`), and
+  the tests are only built there: on Windows their wgpu does not build beside nih-plug. A tolerance
+  (`SnapshotOptions`) is raised per test when it must be, never for all
 - Anything that moves on its own (meters, lamps, the tuner) is drawn at rest, or from a fixed input
