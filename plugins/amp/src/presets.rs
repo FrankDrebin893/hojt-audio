@@ -64,10 +64,12 @@ const USUAL_ORDER: &[&str] =
 // Chosen from the amp models' constants and measured with `preset_report` below: nobody
 // has listened to them yet. Master is where their levels were matched, by how loud they
 // are heard (`loudness_lufs`) with a guitar recorded at `REFERENCE_DI_DB`: within 2 LU of
-// each other, leads highest, with the peaks of a guitar recorded 6 dB hotter under the
-// safety clip's knee. A clean preset follows the level of the guitar and one that clips
-// does not, so with a quieter guitar the clean ones come out quieter than the rest, and
-// with a hotter one louder. The first one is every parameter at its default.
+// -13 LUFS and of each other, leads highest, with the peaks of a guitar recorded 6 dB hotter
+// under the safety clip's knee, and 12 dB hotter for most of the presets that clip
+// (`HOLD_HOT_GUITAR`, #131). Kobber is the exception: its peaks only fit at -15.4 LUFS. A
+// clean preset follows the level of the guitar and one that clips does not, so with a
+// quieter guitar the clean ones come out quieter than the rest, and with a hotter one
+// louder. The first one is every parameter at its default.
 //
 // The gates are set by `preset_gate_report`. A threshold of -57 dB is the highest that
 // leaves palm mutes alone when they are played quietly (peaks at -30 dBFS): from -55 dB up
@@ -94,7 +96,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Glas",
         amp: Amp::Klar,
-        dials: [3.5, 4.5, 4.5, 6.0, 6.5, 4.9],
+        dials: [3.5, 4.5, 4.5, 6.0, 6.5, 5.0],
         gate: (ON, -66.0, 250.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [6.0, 5.0]),
@@ -110,7 +112,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Varm",
         amp: Amp::Klar,
-        dials: [4.0, 5.0, 6.5, 3.5, 3.0, 4.8],
+        dials: [4.0, 5.0, 6.5, 3.5, 3.0, 5.5],
         gate: (ON, -66.0, 250.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [3.5, 5.0]),
@@ -142,9 +144,9 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Glød",
         amp: Amp::Klar,
-        dials: [6.5, 4.5, 6.0, 5.5, 5.0, 4.0],
+        dials: [6.5, 4.5, 6.0, 5.5, 5.0, 5.0],
         gate: (ON, -62.0, 150.0),
-        drive: (ON, [5.5, 5.0, 5.5]),
+        drive: (ON, [5.5, 5.0, 7.0]),
         cab: (ON, [5.0, 5.0]),
         delay: (OFF, 350.0, 30.0, 20.0),
         reverb: (ON, 1.5, 15.0),
@@ -158,7 +160,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Kobber",
         amp: Amp::Brol,
-        dials: [1.5, 5.5, 5.5, 6.0, 6.0, 5.3],
+        dials: [1.5, 5.5, 5.5, 6.0, 6.0, 4.3],
         gate: (ON, -64.0, 200.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [5.5, 5.0]),
@@ -173,7 +175,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Grus",
         amp: Amp::Brol,
-        dials: [6.0, 5.0, 6.5, 5.5, 5.5, 5.0],
+        dials: [6.0, 5.0, 6.5, 5.5, 5.5, 4.2],
         gate: (ON, -58.0, 120.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [5.0, 5.0]),
@@ -189,7 +191,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Flamme",
         amp: Amp::Brol,
-        dials: [8.0, 4.5, 7.5, 5.5, 5.0, 4.7],
+        dials: [8.0, 4.5, 7.5, 5.5, 5.0, 4.0],
         gate: (ON, -56.0, 200.0),
         drive: (ON, [2.0, 5.5, 7.0]),
         cab: (ON, [4.5, 5.0]),
@@ -206,7 +208,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Stram",
         amp: Amp::Torden,
-        dials: [5.5, 4.5, 5.0, 6.0, 6.0, 5.0],
+        dials: [5.5, 4.5, 5.0, 6.0, 6.0, 4.5],
         gate: (ON, -56.0, 50.0),
         drive: (ON, [1.0, 6.0, 8.0]),
         cab: (ON, [5.5, 5.0]),
@@ -222,7 +224,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Granit",
         amp: Amp::Torden,
-        dials: [7.5, 6.5, 3.0, 6.5, 6.5, 5.5],
+        dials: [7.5, 6.5, 3.0, 6.5, 6.5, 5.3],
         gate: (ON, -57.0, 60.0),
         drive: (ON, [1.5, 5.5, 7.0]),
         cab: (ON, [5.0, 6.0]),
@@ -238,7 +240,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Dyb",
         amp: Amp::Torden,
-        dials: [6.0, 4.0, 5.5, 6.0, 6.5, 5.0],
+        dials: [6.0, 4.0, 5.5, 6.0, 6.5, 4.3],
         gate: (ON, -57.0, 40.0),
         drive: (ON, [0.5, 6.5, 8.5]),
         cab: (ON, [5.5, 2.5]),
@@ -254,7 +256,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Lyn",
         amp: Amp::Torden,
-        dials: [7.0, 5.0, 6.5, 5.5, 5.5, 5.0],
+        dials: [7.0, 5.0, 6.5, 5.5, 5.5, 4.6],
         gate: (ON, -57.0, 180.0),
         drive: (ON, [2.5, 5.0, 7.0]),
         cab: (ON, [4.5, 5.0]),
@@ -273,7 +275,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Rav",
         amp: Amp::Klar,
-        dials: [3.5, 4.5, 5.0, 6.0, 6.0, 4.5],
+        dials: [3.5, 4.5, 5.0, 6.0, 6.0, 3.5],
         gate: (ON, -66.0, 250.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [5.5, 5.0]),
@@ -288,7 +290,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Puls",
         amp: Amp::Klar,
-        dials: [4.5, 5.0, 5.5, 5.0, 4.5, 4.9],
+        dials: [4.5, 5.0, 5.5, 5.0, 4.5, 7.0],
         gate: (ON, -66.0, 250.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [4.5, 5.0]),
@@ -304,7 +306,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Hvirvel",
         amp: Amp::Brol,
-        dials: [5.5, 5.0, 6.0, 5.5, 5.5, 5.0],
+        dials: [5.5, 5.0, 6.0, 5.5, 5.5, 4.5],
         gate: (ON, -58.0, 150.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [5.0, 5.0]),
@@ -319,7 +321,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Sus",
         amp: Amp::Torden,
-        dials: [6.5, 5.0, 5.5, 5.5, 5.5, 5.0],
+        dials: [6.5, 5.0, 5.5, 5.5, 5.5, 4.5],
         gate: (ON, -57.0, 120.0),
         drive: (ON, [1.5, 5.5, 7.0]),
         cab: (ON, [5.0, 5.0]),
@@ -335,7 +337,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Dis",
         amp: Amp::Klar,
-        dials: [3.0, 4.5, 5.0, 5.5, 5.5, 4.4],
+        dials: [3.0, 4.5, 5.0, 5.5, 5.5, 3.7],
         gate: (ON, -72.0, 500.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [4.5, 5.0]),
@@ -354,7 +356,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Pejs",
         amp: Amp::Glod,
-        dials: [5.0, 5.0, 5.5, 5.0, 5.0, 5.0],
+        dials: [5.0, 5.0, 5.5, 5.0, 5.0, 4.6],
         gate: (ON, -62.0, 150.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [5.0, 5.0]),
@@ -370,7 +372,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Gnist",
         amp: Amp::Glod,
-        dials: [3.5, 4.5, 5.0, 6.5, 6.5, 5.0],
+        dials: [3.5, 4.5, 5.0, 6.5, 6.5, 4.4],
         gate: (ON, -64.0, 200.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [6.0, 5.0]),
@@ -386,7 +388,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Bål",
         amp: Amp::Glod,
-        dials: [7.5, 4.5, 6.5, 5.0, 5.0, 4.8],
+        dials: [7.5, 4.5, 6.5, 5.0, 5.0, 4.5],
         gate: (ON, -58.0, 120.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [4.5, 5.0]),
@@ -402,7 +404,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Mose",
         amp: Amp::Brol,
-        dials: [3.5, 6.0, 6.0, 4.5, 4.5, 5.0],
+        dials: [3.5, 6.0, 6.0, 4.5, 4.5, 3.6],
         gate: (ON, -58.0, 150.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [4.0, 5.5]),
@@ -418,7 +420,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Sværm",
         amp: Amp::Glod,
-        dials: [4.0, 5.0, 6.0, 5.5, 5.5, 5.0],
+        dials: [4.0, 5.0, 6.0, 5.5, 5.5, 2.6],
         gate: (ON, -60.0, 200.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [5.0, 5.0]),
@@ -433,7 +435,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Solo",
         amp: Amp::Sang,
-        dials: [6.0, 4.5, 6.5, 5.5, 5.0, 5.0],
+        dials: [6.0, 4.5, 6.5, 5.5, 5.0, 4.3],
         gate: (ON, -60.0, 200.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [5.0, 5.0]),
@@ -448,7 +450,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Kor",
         amp: Amp::Sang,
-        dials: [4.5, 5.0, 6.0, 5.0, 4.5, 5.0],
+        dials: [4.5, 5.0, 6.0, 5.0, 4.5, 4.3],
         gate: (ON, -62.0, 200.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [4.5, 5.0]),
@@ -463,7 +465,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Tung",
         amp: Amp::Dron,
-        dials: [5.5, 6.5, 4.5, 4.0, 4.0, 6.0],
+        dials: [5.5, 6.5, 4.5, 4.0, 4.0, 4.8],
         gate: (ON, -58.0, 120.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [4.0, 5.5]),
@@ -478,7 +480,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Ørken",
         amp: Amp::Dron,
-        dials: [4.0, 6.0, 5.5, 4.5, 4.5, 4.7],
+        dials: [4.0, 6.0, 5.5, 4.5, 4.5, 4.5],
         gate: (ON, -60.0, 150.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [4.5, 5.0]),
@@ -956,28 +958,57 @@ mod tests {
         assert_eq!(index_or_first(u32::MAX), 0);
     }
 
+    /// The presets whose own clipping holds their peaks: chords from a guitar recorded 12 dB
+    /// over the reference stay under the safety clip's knee too. The clean ones and those
+    /// with effects have too much peak over their loudness for that, and Solo, Hvirvel and
+    /// Bål would have to drop under the leads or out of the 2 LU around `PRESET_LUFS` (#131)
+    const HOLD_HOT_GUITAR: [&str; 11] =
+        ["Flamme", "Stram", "Granit", "Dyb", "Lyn", "Sus", "Mose", "Sværm", "Grus", "Kor", "Tung"];
+
     #[test]
     fn test_presets_leave_the_safety_clip_alone() {
-        // Input and Output are not part of a preset, so a preset has to fit at 0 dB
+        // Input and Output are not part of a preset, so a preset has to fit at 0 dB, with a
+        // guitar recorded 6 dB over the reference
         let chords = power_chords(SAMPLE_RATE, 2.0);
+        let hot = at_rms_db(&chords, REFERENCE_DI_DB + 12.0);
         for preset in &PRESETS {
-            let (left, right) = run(&preset.settings(), &chords);
-            let level = to_db(peak(&left).max(peak(&right)));
+            let top = |input: &[f32]| {
+                let (left, right) = run(&preset.settings(), input);
+                to_db(peak(&left).max(peak(&right)))
+            };
+            let level = top(&chords);
             assert!(level < to_db(OUTPUT_CLIP_KNEE), "{} peaks at {level:.1} dBFS", preset.name);
+            if HOLD_HOT_GUITAR.contains(&preset.name) {
+                let level = top(&hot);
+                assert!(
+                    level < to_db(OUTPUT_CLIP_KNEE),
+                    "{} peaks at {level:.1} dBFS played hot",
+                    preset.name
+                );
+            }
+            let (left, _) = run(&preset.settings(), &chords);
             let loudness = to_db(rms(&left));
             assert!(
-                (-20.0..-12.0).contains(&loudness),
+                (-20.0..-10.0).contains(&loudness),
                 "{} is at {loudness:.1} dBFS RMS",
                 preset.name
             );
         }
     }
 
+    /// How loud every preset is heard with a guitar recorded at the reference level, in
+    /// LUFS: as loud as the drums and the bass of the suite (#131)
+    const PRESET_LUFS: f32 = -13.0;
+
+    /// The leads, heard over the rest
+    const LEADS: [&str; 5] = ["Flamme", "Lyn", "Sus", "Sværm", "Solo"];
+
     #[test]
     fn test_presets_are_about_as_loud_as_each_other() {
         // Stepping from a distorted preset to a clean one keeps the volume: for a guitar
         // recorded at the reference level every preset is heard within 2 LU of the middle
-        // one. The first is not levelled: it is the parameters' defaults
+        // one, and within 2 LU of `PRESET_LUFS`. The first is not levelled: it is the
+        // parameters' defaults
         let recording = guitar_di(SAMPLE_RATE);
         let heard: Vec<f32> = PRESETS[1..]
             .iter()
@@ -990,6 +1021,25 @@ mod tests {
             assert!(
                 (loudness - middle).abs() < 2.0,
                 "{} is at {loudness:.1} LUFS, the middle one at {middle:.1}",
+                preset.name
+            );
+            // Kobber has the most peak over its loudness: with its peaks under the safety
+            // clip's knee it gets to -15.4
+            let under = if preset.name == "Kobber" { 2.5 } else { 2.0 };
+            assert!(
+                (-under..=2.0).contains(&(loudness - PRESET_LUFS)),
+                "{} is at {loudness:.1} LUFS",
+                preset.name
+            );
+        }
+        // Leads highest: the quietest lead over every other preset
+        let (leads, rest): (Vec<_>, Vec<_>) =
+            PRESETS[1..].iter().zip(&heard).partition(|(preset, _)| LEADS.contains(&preset.name));
+        let quietest_lead = leads.iter().map(|(_, &loudness)| loudness).fold(f32::MAX, f32::min);
+        for (preset, &loudness) in rest {
+            assert!(
+                loudness < quietest_lead,
+                "{} is at {loudness:.1} LUFS, the quietest lead at {quietest_lead:.1}",
                 preset.name
             );
         }

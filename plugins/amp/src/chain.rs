@@ -1912,7 +1912,7 @@ mod tests {
 
     #[test]
     fn test_gain_dial_adds_distortion() {
-        let input = sine(220.0, 0.178, SAMPLE_RATE, 19_200);
+        let input = sine(220.0, 2.0 * HELD_NOTE, SAMPLE_RATE, 19_200);
         let distortion = |gain: f32| {
             thd_db(&run(&with_gain(gain), &input, SAMPLE_RATE)[9600..], SAMPLE_RATE, 220.0)
         };
@@ -1935,7 +1935,7 @@ mod tests {
             let quietest = levels.iter().cloned().fold(f32::MAX, f32::min);
             assert!(loudest - quietest < 6.0, "{:?} levels: {:?}", amp, levels);
             assert!(
-                (-19.0..=-13.0).contains(&levels[2]),
+                (-16.0..=-10.0).contains(&levels[2]),
                 "{:?} at the defaults: {:.1} dBFS",
                 amp,
                 levels[2]
@@ -2013,7 +2013,7 @@ mod tests {
 
         // The hottest guitar does not push the clean amp into the output's safety clip,
         // which works at the host's rate: its own power stage rounds the attacks off first
-        let hot = at_rms_db(&clean_di(SAMPLE_RATE), -12.0);
+        let hot = at_rms_db(&clean_di(SAMPLE_RATE), REFERENCE_DI_DB + 12.0);
         for gain in [0.0, 0.5, 1.0] {
             let top = peak(&run(&with_amp(Amp::Klar, gain), &hot, SAMPLE_RATE));
             assert!(to_db(top) < -1.0, "Klar at Gain {}: peak {:.1} dBFS", gain * 10.0, to_db(top));
@@ -2021,7 +2021,7 @@ mod tests {
 
         // And a guitar played softly keeps all of its attack: the power stage is straight
         // up to its knee
-        let soft = at_rms_db(&clean_di(SAMPLE_RATE), -36.0);
+        let soft = at_rms_db(&clean_di(SAMPLE_RATE), REFERENCE_DI_DB - 12.0);
         let crest = |signal: &[f32]| to_db(peak(signal) / rms(signal));
         let lost = crest(&soft) - crest(&run(&with_amp(Amp::Klar, 0.5), &soft, SAMPLE_RATE));
         assert!(lost < 1.5, "Klar takes {lost:.1} dB off the peaks of soft playing");
@@ -2043,10 +2043,10 @@ mod tests {
                 })
                 .collect()
         };
-        // A held note with the gain low, and a sine at -36 dBFS RMS with the gain at
+        // A held note with the gain low, and a sine 12 dB under it with the gain at
         // 5. Louder or with more gain, Brøl and Torden both clip all the way, and which of
         // the two then measures more is a matter of their tone, not of how much they distort
-        for (gain, level) in [(0.0, HELD_NOTE), (0.25, HELD_NOTE), (0.5, 0.0224)] {
+        for (gain, level) in [(0.0, HELD_NOTE), (0.25, HELD_NOTE), (0.5, HELD_NOTE / 4.0)] {
             let amps = distortion(gain, level);
             assert!(amps[0] < amps[1] - 6.0, "Gain {}: Klar and Brøl {:?}", gain * 10.0, amps);
             assert!(amps[1] < amps[2] - 3.0, "Gain {}: Brøl and Torden {:?}", gain * 10.0, amps);
@@ -2091,7 +2091,7 @@ mod tests {
             thd_db(&run(&with_amp(Amp::Klar, gain), &tone, SAMPLE_RATE)[9600..], SAMPLE_RATE, 220.0)
         };
         for gain in [0.0, 0.25, 0.5] {
-            assert!(distortion(gain) < -40.0, "Gain {}: {:.1} dB", gain * 10.0, distortion(gain));
+            assert!(distortion(gain) < -60.0, "Gain {}: {:.1} dB", gain * 10.0, distortion(gain));
         }
         // Breaks up at the top, gently
         let full = distortion(1.0);
@@ -2100,9 +2100,11 @@ mod tests {
 
     #[test]
     fn test_soft_playing_cleans_up_klar_and_brol() {
-        // -36 and -12 dBFS RMS
-        let (soft, hard) =
-            (sine(220.0, 0.0224, SAMPLE_RATE, 19_200), sine(220.0, 0.355, SAMPLE_RATE, 19_200));
+        // 12 dB under a held note and 12 dB over it
+        let (soft, hard) = (
+            sine(220.0, HELD_NOTE / 4.0, SAMPLE_RATE, 19_200),
+            sine(220.0, HELD_NOTE * 4.0, SAMPLE_RATE, 19_200),
+        );
         for amp in [Amp::Klar, Amp::Brol] {
             let distortion = |input: &[f32]| {
                 thd_db(&run(&with_amp(amp, 0.5), input, SAMPLE_RATE)[9600..], SAMPLE_RATE, 220.0)
@@ -2127,15 +2129,16 @@ mod tests {
             })
             .collect();
         // Klar only at the top, where its power stage holds the peaks: up to a held note
-        // it follows what it is given
-        assert!(squeezed[0] < 8.0, "Klar squeezes by {:.1} dB", squeezed[0]);
+        // it follows what it is given. Above that it holds them about as hard as Brøl, so it
+        // can be as loud as the others with its peaks under the safety clip (#131)
+        assert!(squeezed[0] < 10.0, "Klar squeezes by {:.1} dB", squeezed[0]);
         let held = sine(220.0, HELD_NOTE, SAMPLE_RATE, 19_200);
         let level =
             |input: &[f32]| to_db(rms(&run(&with_amp(Amp::Klar, 0.5), input, SAMPLE_RATE)[9600..]));
         let followed = level(&held) - level(&soft);
         assert!((followed - 12.0).abs() < 0.5, "Klar follows 12 dB more with {followed:.1} dB");
         assert!(
-            squeezed[1] > squeezed[0] + 3.0 && squeezed[2] > squeezed[1] + 6.0,
+            squeezed[1] > squeezed[0] - 1.0 && squeezed[2] > squeezed[1] + 6.0,
             "Squeezed: {:?}",
             squeezed
         );
@@ -2478,7 +2481,9 @@ mod tests {
     fn test_switching_amps_does_not_click() {
         let at = 300 * BLOCK;
         let settle = 9600;
-        for input in [sine(220.0, 0.178, SAMPLE_RATE, 48_000), power_chords(SAMPLE_RATE, 1.0)] {
+        for input in
+            [sine(220.0, 2.0 * HELD_NOTE, SAMPLE_RATE, 48_000), power_chords(SAMPLE_RATE, 2.0)]
+        {
             for gain in [0.3, 1.0] {
                 for (from, to) in transitions() {
                     let output =
@@ -2513,7 +2518,9 @@ mod tests {
         // new cabinet's frequencies while the old one still rings. The chords go on long
         // enough for the new amp to be heard on pick attacks of its own after the switch
         let at = 300 * BLOCK;
-        for input in [sine(220.0, 0.178, SAMPLE_RATE, 48_000), power_chords(SAMPLE_RATE, 2.0)] {
+        for input in
+            [sine(220.0, 2.0 * HELD_NOTE, SAMPLE_RATE, 48_000), power_chords(SAMPLE_RATE, 2.0)]
+        {
             for (from, to) in transitions() {
                 let pedals = |amp: Amp| AmpSettings {
                     cab_mic: 1.0,
@@ -2524,7 +2531,7 @@ mod tests {
                 let ratio = step_ratio(&output, at);
                 // With the compressor and the drive in front, Klar is pushed as it starts: until
                 // its power stage has given way, 20 ms later, it is louder than it settles at
-                let limit = if to == Amp::Klar { 2.0 } else { from_rest(to) };
+                let limit = if to == Amp::Klar { 3.0 } else { from_rest(to) };
                 assert!(ratio < limit, "{:?} to {:?}: step {} times its own", from, to, ratio);
             }
         }
@@ -3129,10 +3136,12 @@ mod tests {
         let distortion = |settings: &AmpSettings| {
             thd_db(&run(settings, &tone, SAMPLE_RATE)[9600..], SAMPLE_RATE, 220.0)
         };
+        // Level a little under the centre, so that what is heard is the pedal, not Klar's
+        // power stage
         let clean = distortion(&with_amp(Amp::Klar, 0.3));
-        let low = distortion(&with_drive(Amp::Klar, 0.3, 0.0, 0.5, 0.5));
-        let centre = distortion(&with_drive(Amp::Klar, 0.3, 0.5, 0.5, 0.5));
-        let full = distortion(&with_drive(Amp::Klar, 0.3, 1.0, 0.5, 0.5));
+        let low = distortion(&with_drive(Amp::Klar, 0.3, 0.0, 0.5, 0.4));
+        let centre = distortion(&with_drive(Amp::Klar, 0.3, 0.5, 0.5, 0.4));
+        let full = distortion(&with_drive(Amp::Klar, 0.3, 1.0, 0.5, 0.4));
         assert!(clean < -40.0 && low < -20.0, "Klar alone {:.1} dB, Drive 0 {:.1} dB", clean, low);
         assert!(centre > clean + 15.0 && centre > low + 4.0, "Drive 5: {:.1} dB", centre);
         assert!(full > centre, "Drive 10 at {:.1} dB, Drive 5 at {:.1} dB", full, centre);
@@ -3277,7 +3286,9 @@ mod tests {
     #[test]
     fn test_cabinet_switches_without_a_click_and_keeps_its_level() {
         let at = 300 * BLOCK;
-        for input in [sine(220.0, 0.178, SAMPLE_RATE, 48_000), power_chords(SAMPLE_RATE, 1.0)] {
+        for input in
+            [sine(220.0, 2.0 * HELD_NOTE, SAMPLE_RATE, 48_000), power_chords(SAMPLE_RATE, 2.0)]
+        {
             for amp in Amp::ALL {
                 let on = with_amp(amp, 0.5);
                 let off = AmpSettings { cab_on: false, ..on };
@@ -3291,7 +3302,9 @@ mod tests {
                         after.cab_on,
                         ratio
                     );
-                    // Ends up as if it had been that way all along: the cabinet kept its history
+                    // Ends up as if it had been that way all along, to -70 dB: the cabinet kept
+                    // its history. What is left grows with how hard the power stage is pushed,
+                    // which Brøl's levels raised by 8 dB (#131)
                     let reference = run(after, &input, SAMPLE_RATE);
                     let settled = at + 4800;
                     let difference = output[settled..]
@@ -3300,7 +3313,7 @@ mod tests {
                         .map(|(a, b)| (a - b).abs())
                         .fold(0.0, f32::max);
                     assert!(
-                        difference < 1e-4,
+                        difference < 3e-4,
                         "{:?}, cabinet on {}: off by {}",
                         amp,
                         after.cab_on,
@@ -3310,8 +3323,9 @@ mod tests {
             }
         }
 
-        // Without the cabinet the top is open, and it is about as loud
-        let chords = power_chords(SAMPLE_RATE, 2.0);
+        // Without the cabinet the top is open, and it is about as loud. Played hot, so the
+        // amps that clip make a top for the cabinet to take away
+        let chords = at_rms_db(&power_chords(SAMPLE_RATE, 2.0), REFERENCE_DI_DB + 12.0);
         for amp in Amp::ALL {
             let with = run(&with_amp(amp, 0.5), &chords, SAMPLE_RATE);
             let without =
