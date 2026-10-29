@@ -638,7 +638,7 @@ static BROL: AmpModel = AmpModel {
     ],
     fizz_hz: None,
     lowcut_hz: None,
-    level_db: [34.0, 18.7, 8.0, 3.0, 0.0],
+    level_db: [34.0, 18.7, 7.0, 3.0, 0.0],
     makeup_db: [1.5, 1.0, 0.0, 0.0, 0.0],
     tone: ToneModel {
         bass_hz: 140.0,

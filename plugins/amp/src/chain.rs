@@ -3303,7 +3303,8 @@ mod tests {
                         ratio
                     );
                     // Ends up as if it had been that way all along, to -70 dB: the cabinet kept
-                    // its history
+                    // its history. What is left grows with how hard the power stage is pushed,
+                    // which Brøl's levels raised by 8 dB (#131)
                     let reference = run(after, &input, SAMPLE_RATE);
                     let settled = at + 4800;
                     let difference = output[settled..]

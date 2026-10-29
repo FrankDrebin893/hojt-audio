@@ -64,8 +64,9 @@ const USUAL_ORDER: &[&str] =
 // Chosen from the amp models' constants and measured with `preset_report` below: nobody
 // has listened to them yet. Master is where their levels were matched, by how loud they
 // are heard (`loudness_lufs`) with a guitar recorded at `REFERENCE_DI_DB`: within 2 LU of
-// -13 LUFS and of each other, with the peaks of a guitar recorded 6 dB hotter at most 0.5 dB
-// into the safety clip's knee (#131). A clean preset follows the level of the guitar and one that clips
+// -13 LUFS and of each other, leads highest, with the peaks of a guitar recorded 6 dB hotter
+// under the safety clip's knee, and 12 dB hotter for the presets that clip (#131). Kobber
+// is the exception: its peaks only fit at -15.4 LUFS. A clean preset follows the level of the guitar and one that clips
 // does not, so with a quieter guitar the clean ones come out quieter than the rest, and
 // with a hotter one louder. The first one is every parameter at its default.
 //
@@ -158,7 +159,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Kobber",
         amp: Amp::Brol,
-        dials: [1.5, 5.5, 5.5, 6.0, 6.0, 4.5],
+        dials: [1.5, 5.5, 5.5, 6.0, 6.0, 4.3],
         gate: (ON, -64.0, 200.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [5.5, 5.0]),
@@ -173,7 +174,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Grus",
         amp: Amp::Brol,
-        dials: [6.0, 5.0, 6.5, 5.5, 5.5, 4.3],
+        dials: [6.0, 5.0, 6.5, 5.5, 5.5, 4.5],
         gate: (ON, -58.0, 120.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [5.0, 5.0]),
@@ -206,7 +207,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Stram",
         amp: Amp::Torden,
-        dials: [5.5, 4.5, 5.0, 6.0, 6.0, 5.0],
+        dials: [5.5, 4.5, 5.0, 6.0, 6.0, 4.9],
         gate: (ON, -56.0, 50.0),
         drive: (ON, [1.0, 6.0, 8.0]),
         cab: (ON, [5.5, 5.0]),
@@ -304,7 +305,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Hvirvel",
         amp: Amp::Brol,
-        dials: [5.5, 5.0, 6.0, 5.5, 5.5, 4.4],
+        dials: [5.5, 5.0, 6.0, 5.5, 5.5, 4.5],
         gate: (ON, -58.0, 150.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [5.0, 5.0]),
@@ -956,20 +957,34 @@ mod tests {
         assert_eq!(index_or_first(u32::MAX), 0);
     }
 
+    /// The presets that clip, whose own clipping holds their peaks: chords from a guitar
+    /// recorded 12 dB over the reference stay under the safety clip's knee too. The clean
+    /// ones and those with effects have too much peak over their loudness for that (#131)
+    const HOLD_HOT_GUITAR: [&str; 8] =
+        ["Flamme", "Stram", "Granit", "Dyb", "Lyn", "Sus", "Mose", "Sværm"];
+
     #[test]
     fn test_presets_leave_the_safety_clip_alone() {
-        // Input and Output are not part of a preset, so a preset has to fit at 0 dB. Chords
-        // from a guitar recorded 6 dB over the reference reach at most half a decibel into
-        // the safety clip's knee: the clean presets are held by their power stage first (#131)
+        // Input and Output are not part of a preset, so a preset has to fit at 0 dB, with a
+        // guitar recorded 6 dB over the reference
         let chords = power_chords(SAMPLE_RATE, 2.0);
+        let hot = at_rms_db(&chords, REFERENCE_DI_DB + 12.0);
         for preset in &PRESETS {
-            let (left, right) = run(&preset.settings(), &chords);
-            let level = to_db(peak(&left).max(peak(&right)));
-            assert!(
-                level < to_db(OUTPUT_CLIP_KNEE) + 0.5,
-                "{} peaks at {level:.1} dBFS",
-                preset.name
-            );
+            let top = |input: &[f32]| {
+                let (left, right) = run(&preset.settings(), input);
+                to_db(peak(&left).max(peak(&right)))
+            };
+            let level = top(&chords);
+            assert!(level < to_db(OUTPUT_CLIP_KNEE), "{} peaks at {level:.1} dBFS", preset.name);
+            if HOLD_HOT_GUITAR.contains(&preset.name) {
+                let level = top(&hot);
+                assert!(
+                    level < to_db(OUTPUT_CLIP_KNEE),
+                    "{} peaks at {level:.1} dBFS played hot",
+                    preset.name
+                );
+            }
+            let (left, _) = run(&preset.settings(), &chords);
             let loudness = to_db(rms(&left));
             assert!(
                 (-20.0..-10.0).contains(&loudness),
@@ -982,6 +997,9 @@ mod tests {
     /// How loud every preset is heard with a guitar recorded at the reference level, in
     /// LUFS: as loud as the drums and the bass of the suite (#131)
     const PRESET_LUFS: f32 = -13.0;
+
+    /// The leads, heard over the rest
+    const LEADS: [&str; 5] = ["Flamme", "Lyn", "Sus", "Sværm", "Solo"];
 
     #[test]
     fn test_presets_are_about_as_loud_as_each_other() {
@@ -1003,12 +1021,22 @@ mod tests {
                 "{} is at {loudness:.1} LUFS, the middle one at {middle:.1}",
                 preset.name
             );
+            // Kobber has the most peak over its loudness: with its peaks under the safety
+            // clip's knee it gets to -15.4
+            let under = if preset.name == "Kobber" { 2.5 } else { 2.0 };
             assert!(
-                (loudness - PRESET_LUFS).abs() <= 2.0,
+                (-under..=2.0).contains(&(loudness - PRESET_LUFS)),
                 "{} is at {loudness:.1} LUFS",
                 preset.name
             );
+            // Leads highest: none under the middle, and the loudest preset is one
+            if LEADS.contains(&preset.name) {
+                assert!(*loudness >= middle, "{} is at {loudness:.1} LUFS", preset.name);
+            }
         }
+        let loudest = heard.iter().cloned().fold(f32::MIN, f32::max);
+        let index = heard.iter().position(|&loudness| loudness == loudest).unwrap();
+        assert!(LEADS.contains(&PRESETS[1 + index].name), "{}", PRESETS[1 + index].name);
     }
 
     /// What a preset's gate does to `input`: the gate's gain for every sample
