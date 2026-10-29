@@ -254,6 +254,9 @@ its quick part before each commit. The details, and the sound reports of a pull 
   The pin is our fork `FrankDrebin893/nih-plug`: upstream plus two commits on branch `hojt-vst3-infinite-tail`
   (`Vst3Plugin::VST3_INFINITE_TAIL`, and nih_plug_egui painting a frame only when asked, #23). To move to a
   newer upstream, rebase those commits onto it and pin the result
+- vst3-sys, which nih-plug pulls in, comes from our fork `FrankDrebin893/vst3-sys` (branch `hojt-vtable-semicolon`,
+  tag `hojt-1`: one commit that drops the `vtable!` macro's trailing `;`, rust-lang/rust#79813) through the
+  `[patch]` under the nih-plug pin in the root `Cargo.toml`, so the nih-plug fork stays at its two commits (#161)
 - An editor paints only when something asks for it, not every frame: anything an editor shows
   that changes on its own asks for a repaint in the frame that draws the change. The rule is in
   `crates/suite_common/src/ui/STYLE.md`
