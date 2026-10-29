@@ -556,7 +556,7 @@ static KLAR: AmpModel = AmpModel {
     ],
     fizz_hz: None,
     lowcut_hz: None,
-    level_db: [24.0, 17.0, 8.0, 0.0, -5.5],
+    level_db: [32.5, 25.5, 16.5, 8.5, 0.0],
     // The power stage holds the peaks, so nothing is made up or taken back behind it
     makeup_db: [0.0, 0.0, 0.0, 0.0, 0.0],
     tone: ToneModel {
@@ -574,8 +574,8 @@ static KLAR: AmpModel = AmpModel {
     },
     power: PowerModel {
         drive_db: [-18.5, 1.5, 12.0],
-        volume_db: [-9.0, -9.0, -10.0],
-        clean_to: 0.65,
+        volume_db: [-9.7, -9.7, -10.7],
+        clean_to: 0.9,
         sag: 0.12,
         sag_attack_ms: 20.0,
         sag_release_ms: 100.0,
@@ -638,7 +638,7 @@ static BROL: AmpModel = AmpModel {
     ],
     fizz_hz: None,
     lowcut_hz: None,
-    level_db: [23.0, 9.7, 0.0, -1.5, -2.5],
+    level_db: [34.0, 18.7, 8.0, 3.0, 0.0],
     makeup_db: [1.5, 1.0, 0.0, 0.0, 0.0],
     tone: ToneModel {
         bass_hz: 140.0,
@@ -655,7 +655,7 @@ static BROL: AmpModel = AmpModel {
     },
     power: PowerModel {
         drive_db: [-26.0, -6.0, 14.0],
-        volume_db: [-8.0, -7.0, -7.5],
+        volume_db: [-7.7, -6.7, -7.2],
         clean_to: 0.0,
         sag: 0.15,
         sag_attack_ms: 15.0,
@@ -709,7 +709,7 @@ static GLOD: AmpModel = AmpModel {
     ],
     fizz_hz: None,
     lowcut_hz: None,
-    level_db: [20.0, 12.0, -0.5, -0.5, -3.5],
+    level_db: [28.0, 20.0, 8.5, 5.5, 1.0],
     makeup_db: [0.0, 0.0, 0.0, 0.0, 0.0],
     tone: ToneModel {
         bass_hz: 130.0,
@@ -726,7 +726,7 @@ static GLOD: AmpModel = AmpModel {
     },
     power: PowerModel {
         drive_db: [-22.0, -4.0, 12.0],
-        volume_db: [-8.0, -7.5, -8.0],
+        volume_db: [-7.7, -7.2, -7.7],
         clean_to: 0.0,
         sag: 0.18,
         sag_attack_ms: 18.0,
@@ -799,7 +799,7 @@ static TORDEN: AmpModel = AmpModel {
     ],
     fizz_hz: Some(7500.0),
     lowcut_hz: Some(100.0),
-    level_db: [2.0, 1.2, 0.8, 0.0, 0.0],
+    level_db: [5.0, 3.2, 2.3, 1.0, 0.5],
     makeup_db: [0.0; 5],
     tone: ToneModel {
         bass_hz: 110.0,
@@ -816,7 +816,7 @@ static TORDEN: AmpModel = AmpModel {
     },
     power: PowerModel {
         drive_db: [-26.0, -8.0, 10.0],
-        volume_db: [-8.0, -7.0, -7.5],
+        volume_db: [-6.5, -5.5, -6.0],
         clean_to: 0.0,
         sag: 0.04,
         sag_attack_ms: 10.0,
@@ -878,7 +878,7 @@ static SANG: AmpModel = AmpModel {
     ],
     fizz_hz: Some(8500.0),
     lowcut_hz: None,
-    level_db: [22.0, 10.0, -2.0, -2.0, -3.5],
+    level_db: [24.0, 14.0, 4.0, 1.0, -1.5],
     makeup_db: [1.0, 0.5, 0.0, 0.0, 0.0],
     tone: ToneModel {
         bass_hz: 130.0,
@@ -895,7 +895,7 @@ static SANG: AmpModel = AmpModel {
     },
     power: PowerModel {
         drive_db: [-26.0, -6.0, 12.0],
-        volume_db: [-8.0, -7.5, -8.0],
+        volume_db: [-7.8, -7.3, -7.8],
         clean_to: 0.0,
         sag: 0.08,
         sag_attack_ms: 12.0,
@@ -957,7 +957,7 @@ static DRON: AmpModel = AmpModel {
     ],
     fizz_hz: Some(8000.0),
     lowcut_hz: None,
-    level_db: [18.0, 9.5, 1.0, -0.5, -2.0],
+    level_db: [21.0, 13.0, 7.0, 3.5, 1.0],
     makeup_db: [1.5, 1.0, 0.0, 0.0, 0.0],
     tone: ToneModel {
         bass_hz: 90.0,
@@ -974,7 +974,7 @@ static DRON: AmpModel = AmpModel {
     },
     power: PowerModel {
         drive_db: [-26.0, -6.0, 14.0],
-        volume_db: [-8.0, -7.0, -8.0],
+        volume_db: [-7.8, -6.8, -7.8],
         clean_to: 0.0,
         sag: 0.08,
         sag_attack_ms: 12.0,

@@ -44,7 +44,7 @@ const FIZZ_Q: [f32; 2] = [0.5412, 1.3066];
 const DC_HZ: f32 = 20.0;
 
 // Taken off the output in dB across Fuzz (0, 5, 10), so that the pedal is about as loud as
-// switched off for a guitar recorded at the reference level, at Tone 5
+// switched off for a guitar recorded at -24 dBFS RMS (`PEDAL_DI_DB`), at Tone 5
 const TRIM_DB: [f32; 3] = [-7.4, -9.7, -10.5];
 // Added across Tone (0, 2.5, 5, 7.5, 10): the scoop in the middle takes away what is heard
 // most, and the rest is made as loud as the middle again
@@ -499,8 +499,8 @@ mod tests {
 
     #[test]
     fn test_it_is_about_as_loud_as_switched_off() {
-        // For a guitar recorded at the reference level, whatever the Fuzz and the Tone
-        let recording = at_rms_db(&guitar_di(SAMPLE_RATE), REFERENCE_DI_DB);
+        // For a guitar recorded at the level the pedal was matched at, whatever the Fuzz and the Tone
+        let recording = at_rms_db(&guitar_di(SAMPLE_RATE), PEDAL_DI_DB);
         let off = loudness_lufs(&[&recording], SAMPLE_RATE);
         for fuzz in [0.0, 0.25, 0.5, 0.75, 1.0] {
             for tone in [0.0, 0.25, 0.5, 0.75, 1.0] {
@@ -603,12 +603,13 @@ mod tests {
         assert!(difference.abs() < 0.5, "{difference:.2} dB apart");
     }
 
-    /// The pedal by itself: how loud it is against switched off for a guitar at the
-    /// reference level, per Fuzz and Tone, and what it folds back, per Fuzz, Tone and rate
+    /// The pedal by itself: how loud it is against switched off for a guitar at the level
+    /// the pedal was matched at, per Fuzz and Tone, and what it folds back, per Fuzz, Tone
+    /// and rate
     #[test]
     #[ignore]
     fn fuzz_report() {
-        let recording = at_rms_db(&guitar_di(SAMPLE_RATE), REFERENCE_DI_DB);
+        let recording = at_rms_db(&guitar_di(SAMPLE_RATE), PEDAL_DI_DB);
         let off = loudness_lufs(&[&recording], SAMPLE_RATE);
         println!("Loudness against off, LU (rows Fuzz, columns Tone 0, 2.5, 5, 7.5, 10)");
         for fuzz in [0.0, 0.25, 0.5, 0.75, 1.0] {

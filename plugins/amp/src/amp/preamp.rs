@@ -418,7 +418,7 @@ mod tests {
         for amp in Amp::ALL {
             let loud = run(amp, 1.0, &sine(200.0, 4.0, SAMPLE_RATE, LEN));
             assert!(loud.iter().all(|s| s.is_finite()));
-            assert!(peak(&loud) < 4.0, "{:?} peak: {}", amp, peak(&loud));
+            assert!(peak(&loud) < 8.0, "{:?} peak: {}", amp, peak(&loud));
 
             // A slow, small sine comes out the same way up
             let input = sine(1000.0, 0.01, SAMPLE_RATE, LEN);

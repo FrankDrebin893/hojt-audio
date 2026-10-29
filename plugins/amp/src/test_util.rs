@@ -303,7 +303,7 @@ const DI_PEAK: f32 = 0.9;
 const POWER_CHORD_HZ: [f32; 3] = [82.41, 123.47, 164.81];
 const OPEN_CHORD_HZ: [f32; 6] = [82.41, 123.47, 164.81, 207.65, 246.94, 329.63];
 
-/// A power chord on the low string, struck again every half second, at -18 dBFS RMS
+/// A power chord on the low string, struck again every half second, at -24 dBFS RMS
 pub fn power_chords(sample_rate: f32, seconds: f32) -> Vec<f32> {
     let mut recording = vec![0.0; (seconds * sample_rate) as usize];
     let mut start = 0.0;
@@ -321,7 +321,7 @@ pub fn power_chords(sample_rate: f32, seconds: f32) -> Vec<f32> {
         }
         start += 0.5;
     }
-    set_rms_db(&mut recording, -18.0);
+    set_rms_db(&mut recording, MADE_UP_DB);
     recording
 }
 
@@ -331,7 +331,7 @@ const SAME_CHORDS_TOP_HZ: f32 = 6000.0;
 /// A power chord struck every half second, put together from decaying sines, so it is the
 /// same sound at every sample rate (a plucked string from `pluck` is not: its delay line
 /// has another length). For comparing what the amp does at one rate and at another. At
-/// -18 dBFS RMS
+/// -24 dBFS RMS
 pub fn same_chords(sample_rate: f32, seconds: f32) -> Vec<f32> {
     let len = (seconds * sample_rate) as usize;
     let mut recording = vec![0.0f64; len];
@@ -363,7 +363,7 @@ pub fn same_chords(sample_rate: f32, seconds: f32) -> Vec<f32> {
         }
     }
     let mut recording: Vec<f32> = recording.iter().map(|&sample| sample as f32).collect();
-    set_rms_db(&mut recording, -18.0);
+    set_rms_db(&mut recording, MADE_UP_DB);
     recording
 }
 
@@ -372,7 +372,7 @@ const DROP_ROOTS_HZ: [f32; 2] = [65.41, 73.42];
 const PALM_MUTE_STEP_S: f32 = 0.15;
 
 /// Palm-muted power chords in a drop tuning, a bar of eight on each of two low roots. At
-/// -18 dBFS RMS, or lower if its peaks would not fit
+/// -24 dBFS RMS, or lower if its peaks would not fit
 pub fn palm_mutes(sample_rate: f32, seconds: f32) -> Vec<f32> {
     let mut recording = vec![0.0; (seconds * sample_rate) as usize];
     let mut beat = 0;
@@ -393,7 +393,7 @@ pub fn palm_mutes(sample_rate: f32, seconds: f32) -> Vec<f32> {
         }
         beat += 1;
     }
-    set_rms_db(&mut recording, -18.0);
+    set_rms_db(&mut recording, MADE_UP_DB);
     fit_peak(&mut recording);
     recording
 }
@@ -415,7 +415,7 @@ pub fn boosted(signal: &[f32], sample_rate: f32) -> Vec<f32> {
 }
 
 /// A direct guitar recording, made up: single notes on the low strings, palm-muted power
-/// chords, an open chord that rings out, and a few high notes. At -18 dBFS RMS, or lower
+/// chords, an open chord that rings out, and a few high notes. At -24 dBFS RMS, or lower
 /// if its peaks would not fit
 pub fn guitar_di(sample_rate: f32) -> Vec<f32> {
     let mut recording = vec![0.0; (11.0 * sample_rate) as usize];
@@ -462,7 +462,7 @@ pub fn guitar_di(sample_rate: f32) -> Vec<f32> {
         time += 0.35;
     }
 
-    set_rms_db(&mut recording, -18.0);
+    set_rms_db(&mut recording, MADE_UP_DB);
     fit_peak(&mut recording);
     recording
 }
@@ -570,12 +570,12 @@ mod tests {
     #[test]
     fn test_recordings_are_at_their_level() {
         let chords = power_chords(SAMPLE_RATE, 2.0);
-        assert!((to_db(rms(&chords)) + 18.0).abs() < 0.1);
+        assert!((to_db(rms(&chords)) - MADE_UP_DB).abs() < 0.1);
         assert!(peak(&chords) < 1.0, "Peak: {}", peak(&chords));
 
         let mutes = palm_mutes(SAMPLE_RATE, 2.4);
         assert!(
-            (-24.0..=-17.9).contains(&to_db(rms(&mutes))),
+            (MADE_UP_DB - 6.0..=MADE_UP_DB + 0.1).contains(&to_db(rms(&mutes))),
             "Level: {:.1} dBFS",
             to_db(rms(&mutes))
         );
@@ -584,7 +584,11 @@ mod tests {
         assert!(tight_levels_db(&mutes, SAMPLE_RATE)[0] > tight_levels_db(&chords, SAMPLE_RATE)[0]);
 
         let di = guitar_di(SAMPLE_RATE);
-        assert!((-21.0..=-17.9).contains(&to_db(rms(&di))), "Level: {:.1} dBFS", to_db(rms(&di)));
+        assert!(
+            (MADE_UP_DB - 3.0..=MADE_UP_DB + 0.1).contains(&to_db(rms(&di))),
+            "Level: {:.1} dBFS",
+            to_db(rms(&di))
+        );
         assert!(peak(&di) <= DI_PEAK * 1.001, "Peak: {}", peak(&di));
     }
 }
@@ -712,13 +716,21 @@ pub fn stiff_string(
 }
 
 /// The level of a direct recording the amps are matched at, in dBFS RMS: a guitar recorded
-/// with room to spare, as most are. `guitar_di` and the other made-up recordings are 6 dB
-/// hotter, which is a guitar recorded as loud as it will go
-pub const REFERENCE_DI_DB: f32 = -24.0;
+/// with room to spare, as most are, its peaks around -12 dBFS. `guitar_di` and the other
+/// made-up recordings are 6 dB hotter (`MADE_UP_DB`), a guitar recorded hot
+pub const REFERENCE_DI_DB: f32 = -30.0;
+
+/// The level of `guitar_di` and the other made-up recordings, in dBFS RMS
+pub const MADE_UP_DB: f32 = REFERENCE_DI_DB + 6.0;
+
+/// The level of a direct recording the pedals' own levels were matched at, in dBFS RMS: the
+/// amps' reference before it moved down to -30 (#131). The pedals were left as they were,
+/// so their tests still play them this guitar
+pub const PEDAL_DI_DB: f32 = -24.0;
 
 /// A held note at the level one has in a recording at `REFERENCE_DI_DB`, as the peak of a
-/// sine: -24 dBFS RMS. The clean amp leaves it clean; 6 dB more and its power stage bends it
-pub const HELD_NOTE: f32 = 0.0891;
+/// sine: -30 dBFS RMS. The clean amp leaves it clean
+pub const HELD_NOTE: f32 = 0.0447;
 
 /// The same recording at another level
 pub fn at_rms_db(recording: &[f32], level_db: f32) -> Vec<f32> {
@@ -728,7 +740,7 @@ pub fn at_rms_db(recording: &[f32], level_db: f32) -> Vec<f32> {
 }
 
 /// A direct recording of clean playing, made up: open chords strummed softly and then hard,
-/// a picked arpeggio that rings, and single hard accents. At -18 dBFS RMS, or lower if
+/// a picked arpeggio that rings, and single hard accents. At -24 dBFS RMS, or lower if
 /// its peaks would not fit. What a clean amp is played with: far more peak over its
 /// average than `guitar_di`
 pub fn clean_di(sample_rate: f32) -> Vec<f32> {
@@ -777,7 +789,7 @@ pub fn clean_di(sample_rate: f32) -> Vec<f32> {
         time += 0.75;
     }
 
-    set_rms_db(&mut recording, -18.0);
+    set_rms_db(&mut recording, MADE_UP_DB);
     fit_peak(&mut recording);
     recording
 }

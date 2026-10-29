@@ -146,14 +146,17 @@ How it behaves:
   (`PowerModel.driven_sag`), so no setting of the pedal aliases above -70 dB. With the pedal
   off the output is the same to the bit
 - The amps are matched by loudness (BS.1770, `test_util::loudness_lufs`), not RMS, for a guitar
-  recorded at -24 dBFS RMS (`REFERENCE_DI_DB`). A clean amp follows the guitar dB for dB and
-  one that clips hardly does, so they can only meet at one level: 6 dB quieter the clean
-  settings are 2 to 4 LU under the others, 6 dB hotter as much over. The Input knob is what
-  moves a guitar to that level
+  recorded at -30 dBFS RMS (`REFERENCE_DI_DB`), its peaks around -12 dBFS: every factory
+  preset is heard at -13 LUFS within 2 LU, as loud as the drums and the bass (#131). A clean
+  amp follows the guitar dB for dB and one that clips hardly does, so they can only meet at
+  one level: 6 dB quieter the clean settings are 2 to 4 LU under the others, 6 dB hotter as
+  much over. The Input knob is what moves a guitar to that level
 - Klar's power stage holds its peaks (`PowerModel.clean_to`): straight up to a knee, so a note
-  held at -24 dBFS RMS has no distortion (under -60 dB), and rounding off the attacks that go
-  over. Peaks stay under the safety clip's knee up to a guitar at -12 dBFS RMS. Brøl below
-  Gain 5 is made up in front of its power stage for the same reason
+  held at -30 dBFS RMS has no distortion (under -60 dB), and rounding off the attacks that go
+  over. Chords from a guitar 6 dB over the reference reach at most 0.5 dB into the safety
+  clip's knee on any preset; 12 dB over (-18 dBFS RMS), the clean and effect presets touch
+  it and the Clip lamp says to turn Input down. Brøl below Gain 5 is made up in front of
+  its power stage for the same reason
 - The built-in cabinets are designed at 48 kHz and resampled for every other rate (within
   0.05 dB of each other from 60 Hz to 10 kHz). A rate is designed once and kept
 - `lib.rs` takes every parameter default and range from `AmpSettings::default` and the limits in
@@ -214,10 +217,11 @@ How it behaves:
   output fades to silence in 4.5 ms, the pedals change places, it fades back. A pedal that
   changes sides starts from rest. A list that is damaged or from another build is put right,
   never refused
-- The compressor's Level at 5 is as loud as the pedal off (within 0.3 LU at the reference
+- The pedals were matched for a guitar at -24 dBFS RMS (`PEDAL_DI_DB`), the amps' reference
+  before #131. The compressor's Level at 5 is as loud as the pedal off (within 0.3 LU at that
   level); Sustain 10 adds at most 20 dB to what is quiet, hiss included
-- The fuzz has no Level knob: it is as loud as the pedal off for a guitar at the reference
-  level, within 0.3 LU at any Fuzz and Tone (within 1 LU held by a test). Everything that is
+- The fuzz has no Level knob: it is as loud as the pedal off for a guitar at `PEDAL_DI_DB`,
+  within 0.3 LU at any Fuzz and Tone (within 1 LU held by a test). Everything that is
   not a harmonic is at least 80 dB under the note at any setting and rate (about -92 dB at
   44.1 kHz flat out), and flat out in front of any amp at full gain at most -72 dB, as with
   the drive. It costs about 0.6 % of a core at 48 kHz in front of the amp and 1.2 % behind
