@@ -65,10 +65,11 @@ const USUAL_ORDER: &[&str] =
 // has listened to them yet. Master is where their levels were matched, by how loud they
 // are heard (`loudness_lufs`) with a guitar recorded at `REFERENCE_DI_DB`: within 2 LU of
 // -13 LUFS and of each other, leads highest, with the peaks of a guitar recorded 6 dB hotter
-// under the safety clip's knee, and 12 dB hotter for the presets that clip (#131). Kobber
-// is the exception: its peaks only fit at -15.4 LUFS. A clean preset follows the level of the guitar and one that clips
-// does not, so with a quieter guitar the clean ones come out quieter than the rest, and
-// with a hotter one louder. The first one is every parameter at its default.
+// under the safety clip's knee, and 12 dB hotter for most of the presets that clip
+// (`HOLD_HOT_GUITAR`, #131). Kobber is the exception: its peaks only fit at -15.4 LUFS. A
+// clean preset follows the level of the guitar and one that clips does not, so with a
+// quieter guitar the clean ones come out quieter than the rest, and with a hotter one
+// louder. The first one is every parameter at its default.
 //
 // The gates are set by `preset_gate_report`. A threshold of -57 dB is the highest that
 // leaves palm mutes alone when they are played quietly (peaks at -30 dBFS): from -55 dB up
@@ -95,7 +96,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Glas",
         amp: Amp::Klar,
-        dials: [3.5, 4.5, 4.5, 6.0, 6.5, 5.5],
+        dials: [3.5, 4.5, 4.5, 6.0, 6.5, 5.0],
         gate: (ON, -66.0, 250.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [6.0, 5.0]),
@@ -174,7 +175,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Grus",
         amp: Amp::Brol,
-        dials: [6.0, 5.0, 6.5, 5.5, 5.5, 4.5],
+        dials: [6.0, 5.0, 6.5, 5.5, 5.5, 4.2],
         gate: (ON, -58.0, 120.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [5.0, 5.0]),
@@ -207,7 +208,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Stram",
         amp: Amp::Torden,
-        dials: [5.5, 4.5, 5.0, 6.0, 6.0, 4.9],
+        dials: [5.5, 4.5, 5.0, 6.0, 6.0, 4.5],
         gate: (ON, -56.0, 50.0),
         drive: (ON, [1.0, 6.0, 8.0]),
         cab: (ON, [5.5, 5.0]),
@@ -223,7 +224,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Granit",
         amp: Amp::Torden,
-        dials: [7.5, 6.5, 3.0, 6.5, 6.5, 5.5],
+        dials: [7.5, 6.5, 3.0, 6.5, 6.5, 5.3],
         gate: (ON, -57.0, 60.0),
         drive: (ON, [1.5, 5.5, 7.0]),
         cab: (ON, [5.0, 6.0]),
@@ -239,7 +240,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Dyb",
         amp: Amp::Torden,
-        dials: [6.0, 4.0, 5.5, 6.0, 6.5, 4.7],
+        dials: [6.0, 4.0, 5.5, 6.0, 6.5, 4.3],
         gate: (ON, -57.0, 40.0),
         drive: (ON, [0.5, 6.5, 8.5]),
         cab: (ON, [5.5, 2.5]),
@@ -403,7 +404,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Mose",
         amp: Amp::Brol,
-        dials: [3.5, 6.0, 6.0, 4.5, 4.5, 3.8],
+        dials: [3.5, 6.0, 6.0, 4.5, 4.5, 3.6],
         gate: (ON, -58.0, 150.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [4.0, 5.5]),
@@ -449,7 +450,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Kor",
         amp: Amp::Sang,
-        dials: [4.5, 5.0, 6.0, 5.0, 4.5, 4.7],
+        dials: [4.5, 5.0, 6.0, 5.0, 4.5, 4.3],
         gate: (ON, -62.0, 200.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [4.5, 5.0]),
@@ -464,7 +465,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Tung",
         amp: Amp::Dron,
-        dials: [5.5, 6.5, 4.5, 4.0, 4.0, 5.2],
+        dials: [5.5, 6.5, 4.5, 4.0, 4.0, 4.8],
         gate: (ON, -58.0, 120.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [4.0, 5.5]),
@@ -957,11 +958,12 @@ mod tests {
         assert_eq!(index_or_first(u32::MAX), 0);
     }
 
-    /// The presets that clip, whose own clipping holds their peaks: chords from a guitar
-    /// recorded 12 dB over the reference stay under the safety clip's knee too. The clean
-    /// ones and those with effects have too much peak over their loudness for that (#131)
-    const HOLD_HOT_GUITAR: [&str; 8] =
-        ["Flamme", "Stram", "Granit", "Dyb", "Lyn", "Sus", "Mose", "Sværm"];
+    /// The presets whose own clipping holds their peaks: chords from a guitar recorded 12 dB
+    /// over the reference stay under the safety clip's knee too. The clean ones and those
+    /// with effects have too much peak over their loudness for that, and Solo, Hvirvel and
+    /// Bål would have to drop under the leads or out of the 2 LU around `PRESET_LUFS` (#131)
+    const HOLD_HOT_GUITAR: [&str; 11] =
+        ["Flamme", "Stram", "Granit", "Dyb", "Lyn", "Sus", "Mose", "Sværm", "Grus", "Kor", "Tung"];
 
     #[test]
     fn test_presets_leave_the_safety_clip_alone() {
@@ -1029,14 +1031,18 @@ mod tests {
                 "{} is at {loudness:.1} LUFS",
                 preset.name
             );
-            // Leads highest: none under the middle, and the loudest preset is one
-            if LEADS.contains(&preset.name) {
-                assert!(*loudness >= middle, "{} is at {loudness:.1} LUFS", preset.name);
-            }
         }
-        let loudest = heard.iter().cloned().fold(f32::MIN, f32::max);
-        let index = heard.iter().position(|&loudness| loudness == loudest).unwrap();
-        assert!(LEADS.contains(&PRESETS[1 + index].name), "{}", PRESETS[1 + index].name);
+        // Leads highest: the quietest lead over every other preset
+        let (leads, rest): (Vec<_>, Vec<_>) =
+            PRESETS[1..].iter().zip(&heard).partition(|(preset, _)| LEADS.contains(&preset.name));
+        let quietest_lead = leads.iter().map(|(_, &loudness)| loudness).fold(f32::MAX, f32::min);
+        for (preset, &loudness) in rest {
+            assert!(
+                loudness < quietest_lead,
+                "{} is at {loudness:.1} LUFS, the quietest lead at {quietest_lead:.1}",
+                preset.name
+            );
+        }
     }
 
     /// What a preset's gate does to `input`: the gate's gain for every sample

@@ -37,9 +37,10 @@ GitHub release.
 
 - Louder, so the guitar sits with the drums and the bass: every amp and factory preset is now
   matched for a guitar recorded with room to spare (-30 dBFS RMS, peaks around -12 dBFS), where
-  every preset is heard at about -13 LUFS. The same guitar comes out 4 to 6 dB louder through
-  the clean presets (Glas, Varm, Tåge, Puls, Pejs, Kobber...), 2 to 3 dB through Rav, Glød and
-  the ones that clip. To keep their peaks in, the clean amp holds hard pick attacks a little
+  every preset is heard at about -13 LUFS, the leads a little over the rest. The same guitar
+  comes out 4 to 6 dB louder through the clean presets (Glas, Varm, Tåge, Puls, Pejs,
+  Kobber...), up to 3 dB through Rav, Glød and the ones that clip, and the leads Flamme, Lyn,
+  Sus and Sværm stay about where they were. To keep their peaks in, the clean amp holds hard pick attacks a little
   harder than before. A guitar recorded very hot (-18 dBFS RMS and up) can now light the Clip
   lamp on a clean preset: turn Input down until it stays dark. Saved projects and presets keep
   their dials and are louder with them

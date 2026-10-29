@@ -155,9 +155,9 @@ How it behaves:
 - Klar's power stage holds its peaks (`PowerModel.clean_to`): straight up to a knee, so a note
   held at -30 dBFS RMS has no distortion (under -60 dB), and rounding off the attacks that go
   over. Chords from a guitar 6 dB over the reference stay under the safety clip's knee on
-  every preset; 12 dB over (-18 dBFS RMS) only on the presets that clip
-  (`presets::HOLD_HOT_GUITAR`), and the clean and effect ones touch it: the Clip lamp says
-  to turn Input down. Brøl below Gain 5 is made up in front of
+  every preset; 12 dB over (-18 dBFS RMS) only on most of the presets that clip
+  (`presets::HOLD_HOT_GUITAR`), and the others touch it: the Clip lamp says to turn Input
+  down. Brøl below Gain 5 is made up in front of
   its power stage for the same reason
 - The built-in cabinets are designed at 48 kHz and resampled for every other rate (within
   0.05 dB of each other from 60 Hz to 10 kHz). A rate is designed once and kept
