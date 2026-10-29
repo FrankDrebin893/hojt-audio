@@ -23,7 +23,7 @@ impl Voice {
                 volume_db: -2.0,
                 drive: 0.4,
                 brightness: 0.55,
-                sub: 0.25,
+                sub: 0.15,
                 tone_hz: 2600.0,
                 sustain_s: 3.0,
                 slide_ms: 0.0,
@@ -34,9 +34,9 @@ impl Voice {
                 voice: self,
                 volume_db: -3.0,
                 drive: 0.15,
-                brightness: 0.35,
-                sub: 0.3,
-                tone_hz: 1100.0,
+                brightness: 0.5,
+                sub: 0.15,
+                tone_hz: 1400.0,
                 sustain_s: 3.0,
                 slide_ms: 60.0,
                 transpose: 0.0,
@@ -103,19 +103,37 @@ const TOP_HZ: f32 = 1500.0;
 const TOP_T60_MIN_S: f32 = 0.15;
 const TOP_T60_MAX_S: f32 = 0.8;
 
-// Where the pick, the finger and the pickup are, as parts of the string from the bridge
+// Where the pick, the finger and the pickup are, as parts of the open string from the bridge.
+// They are fixed distances from the bridge, as on an instrument: a note is played on the
+// highest open string at or below it (`OPEN_STRINGS`), and on a fret they are a larger part of
+// the shorter length that rings, `2^(fret/12)` times as large. So the pickup's comb takes out
+// another harmonic on each fret, not always the 5th
 const PICK: f32 = 0.18;
 const FINGER: f32 = 0.12;
 const PICKUP: f32 = 0.2;
+// The four open strings of a bass, E1 A1 D2 G2
+const OPEN_STRINGS: [f32; 4] = [28.0, 33.0, 38.0, 43.0];
+// Up to where the pick, the finger and the pickup move: past the middle of the string the comb
+// and the pluck are as they are as far from the other end
+const ALONG_MOST: f32 = 0.3;
 
 // How loud the string is, before the output stage
 const STRING_GAIN: f32 = 0.7;
-// The sine under the string at Sub 100 %, against the string's own fundamental
-const SUB_GAIN: f32 = 4.0;
+// The sine under the string at Sub 100 %, against the string's own fundamental: it sits under
+// the string rather than being half of it
+const SUB_GAIN: f32 = 1.5;
 // The sine's T60 against the fundamental's: it never outlasts the string
 const SUB_DECAY: f32 = 0.85;
 // Where Metal splits the clean lows from the driven mids
 const CROSSOVER_HZ: f32 = 120.0;
+// The cabinet after each voice's output stage, the same for both: a low-mid lift for the note's
+// body, a presence rise for its definition and a gentle cut where a bass speaker stops, as
+// (Hz, Q, dB) for the two lifts and (Hz, Q) for the cut; and its gain, which keeps the voices
+// about as loud as without it
+const CABINET_BODY: (f32, f32, f32) = (350.0, 0.7, 5.0);
+const CABINET_PRESENCE: (f32, f32, f32) = (1600.0, 0.8, 7.0);
+const CABINET_TOP: (f32, f32) = (4500.0, 0.6);
+const CABINET_GAIN: f32 = 0.7;
 // Time constant of the fade that takes the step out of a new pluck over a ringing string
 const DECLICK_S: f32 = 0.0015;
 // Time constant of the smoothing of the bend, so that a wheel sending coarse steps does not
@@ -188,8 +206,8 @@ impl Damping {
 
 /// One string, one note at a time: a delay line that feeds itself through a low-pass
 /// (Karplus-Strong) and holds how fast the string moves, read by a pickup near the bridge; a
-/// sine at the pitch of the string under it, in phase with its fundamental; and the voice's
-/// output stage. Volume is left to the plugin, which smooths it.
+/// sine at the pitch of the string under it, in phase with its fundamental; the voice's
+/// output stage, and a cabinet behind it. Volume is left to the plugin, which smooths it.
 pub struct Bass {
     sample_rate: f32,
     settings: BassSettings,
@@ -237,6 +255,8 @@ pub struct Bass {
 
     note: Option<u8>,
     held: bool,
+    // Where the pickup reads the ringing note, as a part of the length that rings
+    pickup_at: f32,
     // The voice and velocity the ringing string was plucked with
     string_voice: Voice,
     string_velocity: f32,
@@ -268,6 +288,10 @@ pub struct Bass {
     // Groove's
     tone: Svf,
     dc: Svf,
+    // The cabinet behind both
+    cabinet_body: Svf,
+    cabinet_presence: Svf,
+    cabinet_top: Svf,
 }
 
 impl Bass {
@@ -303,6 +327,7 @@ impl Bass {
             followed_ratio: 1.0,
             note: None,
             held: false,
+            pickup_at: PICKUP,
             string_voice: Voice::Metal,
             string_velocity: 1.0,
             sub_phase: 0.0,
@@ -324,6 +349,9 @@ impl Bass {
             mid_peak: Svf::new(),
             tone: Svf::new(),
             dc: Svf::new(),
+            cabinet_body: Svf::new(),
+            cabinet_presence: Svf::new(),
+            cabinet_top: Svf::new(),
         };
         bass.set_sample_rate(44100.0);
         bass
@@ -343,6 +371,9 @@ impl Bass {
         // Critically damped: the lows and what is left over sum to the input
         self.split_low.set(CROSSOVER_HZ, 0.5, sample_rate);
         self.mid_peak.set(900.0, 1.0, sample_rate);
+        self.cabinet_body.set(CABINET_BODY.0, CABINET_BODY.1, sample_rate);
+        self.cabinet_presence.set(CABINET_PRESENCE.0, CABINET_PRESENCE.1, sample_rate);
+        self.cabinet_top.set(CABINET_TOP.0, CABINET_TOP.1, sample_rate);
         self.declick_decay = decay_coeff(DECLICK_S, sample_rate);
         self.bend_smoothing = 1.0 - decay_coeff(BEND_SMOOTHING_S, sample_rate);
         self.sharp_decay = decay_coeff(SHARP_START_S, sample_rate);
@@ -374,6 +405,9 @@ impl Bass {
             &mut self.mid_peak,
             &mut self.tone,
             &mut self.dc,
+            &mut self.cabinet_body,
+            &mut self.cabinet_presence,
+            &mut self.cabinet_top,
         ] {
             filter.reset();
         }
@@ -572,6 +606,10 @@ impl Bass {
         self.held = true;
         self.string_voice = self.settings.voice;
         self.string_velocity = velocity;
+        // Where the note is played: the pick, the finger and the pickup are further along the
+        // shorter string of a fret
+        let fretted = Self::fretted(note as f32 + self.settings.transpose);
+        self.pickup_at = (PICKUP * fretted).min(ALONG_MOST);
         // The string starts at the bent pitch
         self.followed_bend_st = self.bend_st;
         self.followed_ratio = self.bend_ratio;
@@ -590,18 +628,18 @@ impl Bass {
             Voice::Metal => {
                 // A pick: harder and brighter is a sharper edge
                 let sharpness = 0.6 * brightness + 0.4 * velocity;
-                (PICK, velocity.powf(1.2), sharpness, 0.00012 * (1.0 - 0.85 * sharpness))
+                (PICK * fretted, velocity.powf(1.2), sharpness, 0.00012 * (1.0 - 0.85 * sharpness))
             }
             Voice::Groove => {
                 // A finger, softer
                 let sharpness = velocity * (0.4 + 0.6 * brightness);
-                (FINGER, velocity, sharpness, 0.00015 * (1.0 - 0.5 * sharpness))
+                (FINGER * fretted, velocity, sharpness, 0.00015 * (1.0 - 0.5 * sharpness))
             }
         };
         // No hand plucks twice in the same place or the same way
         self.along_offset = self.away(self.along_offset);
         self.rounding_offset = self.away(self.rounding_offset);
-        along += PLUCK_JITTER_ALONG * self.along_offset;
+        along = (along + PLUCK_JITTER_ALONG * self.along_offset).min(ALONG_MOST);
         rounding_s *= 1.0 + PLUCK_JITTER_ROUNDING * self.rounding_offset;
         let high = 1.0 / along;
         let low = -1.0 / (1.0 - along);
@@ -639,7 +677,7 @@ impl Bass {
 
         // The fundamental of what the pickup will read over the first time round, which the
         // sine under the string starts in phase with
-        let tap = (PICKUP * period).round() as usize;
+        let tap = (self.pickup_at * period).round() as usize;
         let step = std::f32::consts::TAU / period;
         let (step_sin, step_cos) = step.sin_cos();
         let (mut sin, mut cos) = (0.0f32, 1.0f32);
@@ -651,7 +689,7 @@ impl Bass {
             imag -= read * sin;
             (sin, cos) = (sin * step_cos + cos * step_sin, cos * step_cos - sin * step_sin);
         }
-        let pickup_gain = Self::pickup_gain();
+        let pickup_gain = self.pickup_gain();
         let amplitude = 2.0 * (real * real + imag * imag).sqrt() / length as f32 * pickup_gain;
         let phase = imag.atan2(real);
         self.sub_phase =
@@ -676,9 +714,22 @@ impl Bass {
         }
     }
 
+    /// How much longer than the open string's the part of a pick, a finger or the pickup is on
+    /// the note `sounding` (a MIDI note, maybe between two): `2^(fret/12)` on the highest
+    /// open string at or below it. Below the low E it is played open
+    fn fretted(sounding: f32) -> f32 {
+        let open = OPEN_STRINGS
+            .iter()
+            .rev()
+            .find(|&&open| open <= sounding)
+            .copied()
+            .unwrap_or(OPEN_STRINGS[0]);
+        ((sounding - open).max(0.0) / 12.0).exp2()
+    }
+
     /// What makes the fundamental come out of the pickup as loud as it is on the string
-    fn pickup_gain() -> f32 {
-        1.0 / (2.0 * (std::f32::consts::PI * PICKUP).sin())
+    fn pickup_gain(&self) -> f32 {
+        1.0 / (2.0 * (std::f32::consts::PI * self.pickup_at).sin())
     }
 
     /// Where the loop is read: its length, as a slide has it, at the pitch the wheel bends it
@@ -730,13 +781,13 @@ impl Bass {
         let delay = self.read_delay();
 
         // The string, and the pickup: where the string is read now, against what reaches it
-        // a fifth of the way round later
+        // the pickup's part of the way round later
         let string = self.read(delay);
-        let ahead = self.read((delay * (1.0 - PICKUP)).max(1.0));
+        let ahead = self.read((delay * (1.0 - self.pickup_at)).max(1.0));
         self.loop_state += (string - self.loop_state) * self.loop_lp;
         self.line[self.write] = self.loop_state * self.feedback;
         self.write = (self.write + 1) & self.mask;
-        let picked = self.pickup.process((ahead - string) * Self::pickup_gain()).low;
+        let picked = self.pickup.process((ahead - string) * self.pickup_gain()).low;
 
         // The sine under it
         advance(&mut self.sub_phase, freq_hz / rate);
@@ -748,8 +799,26 @@ impl Bass {
         (picked, sub * self.settings.sub * SUB_GAIN)
     }
 
-    /// One sample, the same for both channels, before Volume
+    /// One sample, the same for both channels, before Volume: the voice's output stage, and
+    /// the cabinet behind it
     pub fn process(&mut self) -> f32 {
+        let voiced = self.voice_stage();
+        self.cabinet(voiced)
+    }
+
+    /// The cabinet: two lifts, each the input with a share of its band added, which is the
+    /// lift's gain at its centre, then the cut
+    fn cabinet(&mut self, input: f32) -> f32 {
+        let lift = |filter: &mut Svf, (_, q, db): (f32, f32, f32), input: f32| {
+            input + (10.0f32.powf(db / 20.0) - 1.0) / q * filter.process(input).band
+        };
+        let body = lift(&mut self.cabinet_body, CABINET_BODY, input);
+        let presence = lift(&mut self.cabinet_presence, CABINET_PRESENCE, body);
+        self.cabinet_top.process(presence).low * CABINET_GAIN
+    }
+
+    /// One sample of the voice's output stage
+    fn voice_stage(&mut self) -> f32 {
         let (picked, sub) = self.string_and_sub();
         let mut raw = picked + sub;
         if self.declick_pending {
@@ -1104,6 +1173,109 @@ mod tests {
         10.0 * power.log10()
     }
 
+    // The velocity and the time the note's harmonics are weighed at
+    const WEIGHED_VELOCITY: f32 = 0.8;
+    const WEIGHED_AT_S: f32 = 0.05;
+    // Up to where they are weighed
+    const WEIGHED_UP_TO_HZ: f32 = 6000.0;
+
+    /// The power of each harmonic of a note up to 6 kHz at 50 ms, the fundamental first
+    fn harmonic_powers(samples: &[f32], freq_hz: f32) -> Vec<f32> {
+        (1..)
+            .map(|harmonic| harmonic as f32 * freq_hz)
+            .take_while(|&hz| hz <= WEIGHED_UP_TO_HZ)
+            .map(|hz| 10.0f32.powf(partial_db(samples, WEIGHED_AT_S, hz, freq_hz) / 10.0))
+            .collect()
+    }
+
+    /// How much of a note's harmonic power its fundamental holds, and the power-weighted
+    /// centroid of its harmonics in Hz
+    fn f0_share_and_centroid(samples: &[f32], freq_hz: f32) -> (f32, f32) {
+        let powers = harmonic_powers(samples, freq_hz);
+        let total: f32 = powers.iter().sum();
+        let weighted: f32 =
+            powers.iter().enumerate().map(|(index, power)| (index + 1) as f32 * power).sum();
+        (powers[0] / total, weighted / total * freq_hz)
+    }
+
+    /// What the sine under the string adds to the fundamental at the output at 50 ms, in dB:
+    /// the voice's own settings against the same with Sub at 0
+    fn sine_adds_db(voice: Voice, midi: u8) -> f32 {
+        let freq_hz = note_hz(midi as f32);
+        let with = note(voice, midi, WEIGHED_VELOCITY, 0.3);
+        let without = string_alone(voice, midi, WEIGHED_VELOCITY, 0.3);
+        partial_db(&with, WEIGHED_AT_S, freq_hz, freq_hz)
+            - partial_db(&without, WEIGHED_AT_S, freq_hz, freq_hz)
+    }
+
+    // The centroid of each measured note's harmonics before #167, Metal's and Groove's, in Hz
+    const CENTROID_BEFORE: [(Voice, [f32; 3]); 2] =
+        [(Voice::Metal, [90.0, 112.0, 173.0]), (Voice::Groove, [74.0, 94.0, 155.0])];
+
+    #[test]
+    fn test_the_sine_sits_under_the_string() {
+        // The sine adds at most 2.5 dB to the fundamental, the fundamental holds at most 40 %
+        // of the note's harmonic power, and the harmonics' centroid is at least 1.5 times
+        // where it was when the sine was half of the note
+        for (voice, before) in CENTROID_BEFORE {
+            for (midi, before) in MEASURED.into_iter().zip(before) {
+                let adds = sine_adds_db(voice, midi);
+                assert!(adds <= 2.5, "{:?} note {}: the sine adds {} dB", voice, midi, adds);
+                let output = note(voice, midi, WEIGHED_VELOCITY, 0.3);
+                let (share, centroid) = f0_share_and_centroid(&output, note_hz(midi as f32));
+                assert!(
+                    share <= 0.4,
+                    "{:?} note {}: the fundamental holds {} of the power",
+                    voice,
+                    midi,
+                    share
+                );
+                assert!(
+                    centroid >= 1.5 * before,
+                    "{:?} note {}: the centroid is at {} Hz, {} before",
+                    voice,
+                    midi,
+                    centroid,
+                    before
+                );
+            }
+        }
+    }
+
+    /// Is the 5th the weakest of harmonics 2 to 8 in what the pickup reads?
+    fn fifth_is_weakest(powers: &[f32]) -> bool {
+        powers[1..8].iter().all(|&power| powers[4] <= power)
+    }
+
+    #[test]
+    fn test_the_pickups_notch_moves_with_the_fret() {
+        // The pickup is a fixed distance from the bridge: on the open A (33) its comb takes out
+        // the 5th, on the 4th fret of the A string (37) another harmonic
+        for voice in Voice::ALL {
+            let powers = |midi: u8| {
+                let string = pickup_alone(voice, midi, WEIGHED_VELOCITY, 0.3);
+                harmonic_powers(&string, note_hz(midi as f32))
+            };
+            assert!(
+                fifth_is_weakest(&powers(33)),
+                "{:?}: the open A has no notch at the 5th",
+                voice
+            );
+            assert!(
+                !fifth_is_weakest(&powers(37)),
+                "{:?}: the 4th fret still notches the 5th",
+                voice
+            );
+            // And at the output, through the voice's own output stage and the cabinet
+            let output = note(voice, 37, WEIGHED_VELOCITY, 0.3);
+            assert!(
+                !fifth_is_weakest(&harmonic_powers(&output, note_hz(37.0))),
+                "{:?}: the 4th fret's 5th is the weakest at the output",
+                voice
+            );
+        }
+    }
+
     #[test]
     fn test_the_same_note_sounds_the_same() {
         // Two plucks in a row are not copies: each is plucked a little further from or nearer
@@ -1246,14 +1418,25 @@ mod tests {
                 let freq_hz = note_hz(midi as f32);
                 let period = SAMPLE_RATE / freq_hz;
                 // Cents sharp over the first 20 ms, against the same pluck played at pitch
+                // Measured on the string and the sine under it, before the output stage and the
+                // cabinet: with the sine no longer half of the note, their lift of the attack
+                // over the first period of a low note would be measured as much as its pitch
+                let string = |bass: &mut Bass| -> Vec<f32> {
+                    (0..(0.1 * SAMPLE_RATE) as usize)
+                        .map(|_| {
+                            let (string, sub) = bass.string_and_sub();
+                            string + sub
+                        })
+                        .collect()
+                };
                 let sharp_at = |velocity: f32| {
                     let mut sharp = bass(voice, SAMPLE_RATE);
                     sharp.note_on(midi, velocity);
-                    let sharp = render(&mut sharp, SAMPLE_RATE, 0.1);
+                    let sharp = string(&mut sharp);
                     let mut at_pitch = bass(voice, SAMPLE_RATE);
                     at_pitch.note_on(midi, velocity);
                     at_pitch.sharp_cents = 0.0;
-                    let at_pitch = render(&mut at_pitch, SAMPLE_RATE, 0.1);
+                    let at_pitch = string(&mut at_pitch);
                     1200.0
                         * (period_over_20_ms(&at_pitch, 0.0, period)
                             / period_over_20_ms(&sharp, 0.0, period))
@@ -1285,6 +1468,9 @@ mod tests {
 
     #[test]
     fn test_groove_has_harmonics() {
+        // Harmonics 2 to 4 from 15 dB under the fundamental to 6 dB over it. With the sine under
+        // the string no longer as loud as the string's own fundamental, the 2nd and the 3rd can be
+        // over it, as on a recorded bass
         for midi in MEASURED {
             let output = note(Voice::Groove, midi, 0.9, 0.3);
             let freq_hz = note_hz(midi as f32);
@@ -1293,7 +1479,7 @@ mod tests {
                 let level =
                     partial_db(&output, 0.05, harmonic as f32 * freq_hz, freq_hz) - fundamental;
                 assert!(
-                    (-15.0..=-3.0).contains(&level),
+                    (-15.0..=6.0).contains(&level),
                     "note {} harmonic {}: {} dB",
                     midi,
                     harmonic,
@@ -1467,6 +1653,8 @@ mod tests {
                 bass.set_wheel(0.5);
                 play(&mut bass, &settings, sample_rate, 0.05);
                 bass.note_on(33, 0.9);
+                // Without the hard pluck's sharp start, which has its own test
+                bass.sharp_cents = 0.0;
                 // From its start: half of Bend 2 up
                 let output = play(&mut bass, &settings, sample_rate, 0.25);
                 let cents = cents_off(&output, sample_rate, 0.0, note_hz(34.0));
@@ -1628,6 +1816,28 @@ mod tests {
                     partial_db(&string, 0.05, 3.0 * freq_hz, freq_hz) - fundamental,
                     partial_t60(&out, freq_hz, freq_hz),
                     partial_t60(&out, top_hz, freq_hz),
+                );
+            }
+
+            // The note's harmonics at the output at 50 ms, with the voice's own settings, at
+            // velocity 0.8: what the sine adds to the fundamental, how much of the harmonics'
+            // power the fundamental holds, their centroid, and the 5th against the fundamental
+            println!(
+                "{:<8}{:>10}{:>10}{:>12}{:>10}",
+                "note", "sine dB", "f0 share", "centroid", "h5 dB"
+            );
+            for midi in [28u8, 33, 37, 38, 43, 50, 55] {
+                let output = note(voice, midi, WEIGHED_VELOCITY, 0.3);
+                let freq_hz = note_hz(midi as f32);
+                let (share, centroid) = f0_share_and_centroid(&output, freq_hz);
+                let powers = harmonic_powers(&output, freq_hz);
+                println!(
+                    "{:<8}{:>10.1}{:>9.0}%{:>12.0}{:>10.1}",
+                    midi,
+                    sine_adds_db(voice, midi),
+                    share * 100.0,
+                    centroid,
+                    10.0 * (powers[4] / powers[0]).log10(),
                 );
             }
         }
