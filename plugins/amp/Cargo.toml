@@ -25,5 +25,9 @@ suite_common = { workspace = true }
 # Reads the player's own cabinets (WAV files)
 hound = "3.5"
 
+[dev-dependencies]
+# The snapshot tests of the editor: suite_common::ui::snapshot
+suite_common = { workspace = true, features = ["snapshot"] }
+
 [lints]
 workspace = true

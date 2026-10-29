@@ -12,6 +12,7 @@
 //! - `frame`: the enclosure every editor is drawn on. `pedal` is one stompbox filling the window;
 //!   `rig` is the bare bench for a `strip` with `mini_pedal`s below it,
 //!   joined by `coupler`s and `patch_cable`s
+//! - `snapshot` (feature `snapshot`, tests only): draws an editor off screen into a picture
 
 pub mod amp;
 pub mod art;
@@ -21,6 +22,8 @@ pub mod hardware;
 pub mod host_keys;
 pub mod led;
 pub mod raster;
+#[cfg(feature = "snapshot")]
+pub mod snapshot;
 pub mod theme;
 pub mod widgets;
 

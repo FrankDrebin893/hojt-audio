@@ -24,6 +24,8 @@ nih_plug_egui = { workspace = true }
 suite_common = { workspace = true }
 
 [dev-dependencies]
+# The snapshot tests of the editor: suite_common::ui::snapshot
+suite_common = { workspace = true, features = ["snapshot"] }
 hound = "3.5"
 # Reads a drum part for render_wavs. In tests only: no plugin ships with it
 midly = { version = "0.5", default-features = false, features = ["std", "alloc"] }

@@ -1,5 +1,5 @@
 use nih_plug::prelude::*;
-use nih_plug_egui::egui::{pos2, vec2, Rect};
+use nih_plug_egui::egui::{pos2, vec2, Context, Rect};
 use nih_plug_egui::{create_egui_editor, EguiState};
 use std::sync::Arc;
 
@@ -46,129 +46,92 @@ pub fn create(
         editor_state,
         (),
         |egui_ctx, _| ui::install(egui_ctx),
-        move |egui_ctx, setter, _state| {
-            ui::pedal(egui_ctx, &STYLE, |ui, origin| {
-                // Overall sound
-                let sound_y = 98.0;
-                param_knob(
-                    ui,
-                    setter,
-                    &params.gain,
-                    origin + vec2(130.0, sound_y),
-                    31.0,
-                    "Gain",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.room,
-                    origin + vec2(263.0, sound_y),
-                    31.0,
-                    "Room",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.tune,
-                    origin + vec2(397.0, sound_y),
-                    31.0,
-                    "Tune",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.damping,
-                    origin + vec2(530.0, sound_y),
-                    31.0,
-                    "Damping",
-                    None,
-                );
-
-                // Mixer
-                let frame = Rect::from_min_max(pos2(40.0, 206.0), pos2(620.0, 328.0))
-                    .translate(origin.to_vec2());
-                silk_frame(ui.painter(), frame, "Mixer", STYLE.paint);
-                let mixer_y = 246.0;
-                param_knob(
-                    ui,
-                    setter,
-                    &params.kick,
-                    origin + vec2(100.0, mixer_y),
-                    19.0,
-                    "Kick",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.snare,
-                    origin + vec2(215.0, mixer_y),
-                    19.0,
-                    "Snare",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.toms,
-                    origin + vec2(330.0, mixer_y),
-                    19.0,
-                    "Toms",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.hihat,
-                    origin + vec2(445.0, mixer_y),
-                    19.0,
-                    "Hi-Hat",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.cymbals,
-                    origin + vec2(560.0, mixer_y),
-                    19.0,
-                    "Cymbals",
-                    None,
-                );
-
-                // Kit selector
-                for (kit, label, x) in KIT_SWITCHES {
-                    led(ui.painter(), origin + vec2(x, 452.0), params.kit.value() == kit);
-                    if footswitch(ui, origin + vec2(x, 506.0), label).clicked() {
-                        setter.begin_set_parameter(&params.kit);
-                        setter.set_parameter(&params.kit, kit);
-                        setter.end_set_parameter(&params.kit);
-                    }
-                    silk_label(ui.painter(), origin + vec2(x, 558.0), label, 17.0);
-                }
-
-                // Choke: a note-off on a cymbal damps it
-                led(ui.painter(), origin + vec2(CHOKE_SWITCH_X, 452.0), params.choke.value());
-                if footswitch(ui, origin + vec2(CHOKE_SWITCH_X, 506.0), "Choke").clicked() {
-                    setter.begin_set_parameter(&params.choke);
-                    setter.set_parameter(&params.choke, !params.choke.value());
-                    setter.end_set_parameter(&params.choke);
-                }
-                silk_label(ui.painter(), origin + vec2(CHOKE_SWITCH_X, 558.0), "Choke", 17.0);
-            });
-        },
+        move |egui_ctx, setter, _state| draw(egui_ctx, setter, &params),
     )
+}
+
+/// The whole window, once the fonts are in: what the plugin shows and its snapshot test draws
+fn draw(ctx: &Context, setter: &ParamSetter, params: &DrumSynthParams) {
+    ui::pedal(ctx, &STYLE, |ui, origin| {
+        // Overall sound
+        let sound_y = 98.0;
+        param_knob(ui, setter, &params.gain, origin + vec2(130.0, sound_y), 31.0, "Gain", None);
+        param_knob(ui, setter, &params.room, origin + vec2(263.0, sound_y), 31.0, "Room", None);
+        param_knob(ui, setter, &params.tune, origin + vec2(397.0, sound_y), 31.0, "Tune", None);
+        param_knob(
+            ui,
+            setter,
+            &params.damping,
+            origin + vec2(530.0, sound_y),
+            31.0,
+            "Damping",
+            None,
+        );
+
+        // Mixer
+        let frame =
+            Rect::from_min_max(pos2(40.0, 206.0), pos2(620.0, 328.0)).translate(origin.to_vec2());
+        silk_frame(ui.painter(), frame, "Mixer", STYLE.paint);
+        let mixer_y = 246.0;
+        param_knob(ui, setter, &params.kick, origin + vec2(100.0, mixer_y), 19.0, "Kick", None);
+        param_knob(ui, setter, &params.snare, origin + vec2(215.0, mixer_y), 19.0, "Snare", None);
+        param_knob(ui, setter, &params.toms, origin + vec2(330.0, mixer_y), 19.0, "Toms", None);
+        param_knob(ui, setter, &params.hihat, origin + vec2(445.0, mixer_y), 19.0, "Hi-Hat", None);
+        param_knob(
+            ui,
+            setter,
+            &params.cymbals,
+            origin + vec2(560.0, mixer_y),
+            19.0,
+            "Cymbals",
+            None,
+        );
+
+        // Kit selector
+        for (kit, label, x) in KIT_SWITCHES {
+            led(ui.painter(), origin + vec2(x, 452.0), params.kit.value() == kit);
+            if footswitch(ui, origin + vec2(x, 506.0), label).clicked() {
+                setter.begin_set_parameter(&params.kit);
+                setter.set_parameter(&params.kit, kit);
+                setter.end_set_parameter(&params.kit);
+            }
+            silk_label(ui.painter(), origin + vec2(x, 558.0), label, 17.0);
+        }
+
+        // Choke: a note-off on a cymbal damps it
+        led(ui.painter(), origin + vec2(CHOKE_SWITCH_X, 452.0), params.choke.value());
+        if footswitch(ui, origin + vec2(CHOKE_SWITCH_X, 506.0), "Choke").clicked() {
+            setter.begin_set_parameter(&params.choke);
+            setter.set_parameter(&params.choke, !params.choke.value());
+            setter.end_set_parameter(&params.choke);
+        }
+        silk_label(ui.painter(), origin + vec2(CHOKE_SWITCH_X, 558.0), "Choke", 17.0);
+    });
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "linux")]
+    use suite_common::ui::snapshot::{pedal_harness, NoHost};
 
     // The picture on the face is compiled in: a build without it is a build of other sources
     #[test]
     fn test_the_pedal_is_drawn_with_its_art() {
         assert!(STYLE.art == Some(ui::artwork::DRUMS), "the pedal has lost its art");
+    }
+
+    // What the editor draws in its window, every parameter at its default, against the
+    // picture in tests/snapshots/editor.png. On a change it leaves editor.new.png and
+    // editor.diff.png there to look at (see suite_common::ui::snapshot)
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_editor_looks_as_it_did() {
+        let params = crate::DrumSynthParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let mut harness =
+            pedal_harness(WINDOW_WIDTH, WINDOW_HEIGHT, |ctx| draw(ctx, &setter, &params));
+        harness.snapshot("editor");
     }
 }

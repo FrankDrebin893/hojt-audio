@@ -1,5 +1,5 @@
 use nih_plug::prelude::*;
-use nih_plug_egui::egui::{vec2, Vec2};
+use nih_plug_egui::egui::{vec2, Context, Vec2};
 use nih_plug_egui::{create_egui_editor, EguiState};
 use std::sync::Arc;
 
@@ -44,54 +44,60 @@ pub fn create(
         editor_state,
         (),
         |egui_ctx, _| ui::install(egui_ctx),
-        move |egui_ctx, setter, _state| {
-            ui::pedal(egui_ctx, &STYLE, |ui, origin| {
-                // Three small knobs in a row over the big one
-                param_knob(
-                    ui,
-                    setter,
-                    &params.latency_ms,
-                    origin + LATENCY_AT,
-                    SMALL_KNOB,
-                    "Max Latency",
-                    None,
-                );
-                param_knob(ui, setter, &params.blend, origin + BLEND_AT, SMALL_KNOB, "Blend", None);
-                param_knob(
-                    ui,
-                    setter,
-                    &params.smoothness_ms,
-                    origin + SMOOTHNESS_AT,
-                    SMALL_KNOB,
-                    "Smoothness",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.semitones,
-                    origin + SEMITONES_AT,
-                    BIG_KNOB,
-                    "Semitones",
-                    SEMITONES_SCALE,
-                );
-
-                // Bypass switch, lit while the effect is on
-                let bypassed = params.bypass.value();
-                led(ui.painter(), origin + LED_AT, !bypassed);
-                if footswitch(ui, origin + FOOTSWITCH_AT, "bypass").clicked() {
-                    setter.begin_set_parameter(&params.bypass);
-                    setter.set_parameter(&params.bypass, !bypassed);
-                    setter.end_set_parameter(&params.bypass);
-                }
-            });
-        },
+        move |egui_ctx, setter, _state| draw(egui_ctx, setter, &params),
     )
+}
+
+/// The whole window, once the fonts are in: what the plugin shows and its snapshot test draws
+fn draw(ctx: &Context, setter: &ParamSetter, params: &GuitarPitchShifterParams) {
+    ui::pedal(ctx, &STYLE, |ui, origin| {
+        // Three small knobs in a row over the big one
+        param_knob(
+            ui,
+            setter,
+            &params.latency_ms,
+            origin + LATENCY_AT,
+            SMALL_KNOB,
+            "Max Latency",
+            None,
+        );
+        param_knob(ui, setter, &params.blend, origin + BLEND_AT, SMALL_KNOB, "Blend", None);
+        param_knob(
+            ui,
+            setter,
+            &params.smoothness_ms,
+            origin + SMOOTHNESS_AT,
+            SMALL_KNOB,
+            "Smoothness",
+            None,
+        );
+        param_knob(
+            ui,
+            setter,
+            &params.semitones,
+            origin + SEMITONES_AT,
+            BIG_KNOB,
+            "Semitones",
+            SEMITONES_SCALE,
+        );
+
+        // Bypass switch, lit while the effect is on
+        let bypassed = params.bypass.value();
+        led(ui.painter(), origin + LED_AT, !bypassed);
+        if footswitch(ui, origin + FOOTSWITCH_AT, "bypass").clicked() {
+            setter.begin_set_parameter(&params.bypass);
+            setter.set_parameter(&params.bypass, !bypassed);
+            setter.end_set_parameter(&params.bypass);
+        }
+    });
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "linux")]
+    use suite_common::ui::snapshot::pedal_harness;
+    use suite_common::ui::snapshot::NoHost;
 
     // The picture on the face is compiled in: a build without it is a build of other sources
     #[test]
@@ -99,26 +105,21 @@ mod tests {
         assert!(STYLE.art == Some(ui::artwork::PITCH_SHIFTER), "the pedal has lost its art");
     }
 
-    use nih_plug::context::PluginApi;
-    use nih_plug_egui::egui::{epaint::Shape, Context, Pos2, RawInput, Rect, Ui};
-
-    /// A host that is never asked for anything: no input reaches the knobs
-    struct NoHost;
-    impl GuiContext for NoHost {
-        fn plugin_api(&self) -> PluginApi {
-            PluginApi::Clap
-        }
-        fn request_resize(&self) -> bool {
-            false
-        }
-        unsafe fn raw_begin_set_parameter(&self, _: ParamPtr) {}
-        unsafe fn raw_set_parameter_normalized(&self, _: ParamPtr, _: f32) {}
-        unsafe fn raw_end_set_parameter(&self, _: ParamPtr) {}
-        fn get_state(&self) -> PluginState {
-            unreachable!()
-        }
-        fn set_state(&self, _: PluginState) {}
+    // What the editor draws in its window, every parameter at its default, against the
+    // picture in tests/snapshots/editor.png. On a change it leaves editor.new.png and
+    // editor.diff.png there to look at (see suite_common::ui::snapshot)
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_editor_looks_as_it_did() {
+        let params = crate::GuitarPitchShifterParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let mut harness =
+            pedal_harness(WINDOW_WIDTH, WINDOW_HEIGHT, |ctx| draw(ctx, &setter, &params));
+        harness.snapshot("editor");
     }
+
+    use nih_plug_egui::egui::{epaint::Shape, Pos2, RawInput, Rect, Ui};
 
     fn collect(shape: &Shape, out: &mut Vec<Shape>) {
         match shape {

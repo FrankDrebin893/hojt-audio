@@ -1,5 +1,5 @@
 use nih_plug::prelude::*;
-use nih_plug_egui::egui::{pos2, vec2, Rect};
+use nih_plug_egui::egui::{pos2, vec2, Context, Rect};
 use nih_plug_egui::{create_egui_editor, EguiState};
 use std::sync::Arc;
 
@@ -60,120 +60,115 @@ pub fn create(
         editor_state,
         (),
         |egui_ctx, _| ui::install(egui_ctx),
-        move |egui_ctx, setter, _state| {
-            ui::pedal(egui_ctx, &STYLE, |ui, origin| {
-                // Overall sound
-                let sound_y = 98.0;
-                param_knob(
-                    ui,
-                    setter,
-                    &params.volume,
-                    origin + vec2(130.0, sound_y),
-                    31.0,
-                    "Volume",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.drive,
-                    origin + vec2(263.0, sound_y),
-                    31.0,
-                    "Drive",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.brightness,
-                    origin + vec2(397.0, sound_y),
-                    31.0,
-                    "Brightness",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.sub,
-                    origin + vec2(530.0, sound_y),
-                    31.0,
-                    "Sub",
-                    None,
-                );
-
-                // The string
-                let frame = Rect::from_min_max(pos2(40.0, 206.0), pos2(620.0, 328.0))
-                    .translate(origin.to_vec2());
-                silk_frame(ui.painter(), frame, "String", STYLE.paint);
-                // Five knobs evenly over the frame, Tone at 115 and Bend at 545
-                let string_y = 246.0;
-                let string_x = |index: f32| 115.0 + index * (545.0 - 115.0) / 4.0;
-                param_knob(
-                    ui,
-                    setter,
-                    &params.tone,
-                    origin + vec2(string_x(0.0), string_y),
-                    19.0,
-                    "Tone",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.sustain,
-                    origin + vec2(string_x(1.0), string_y),
-                    19.0,
-                    "Sustain",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.slide,
-                    origin + vec2(string_x(2.0), string_y),
-                    19.0,
-                    "Slide",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.transpose,
-                    origin + vec2(string_x(3.0), string_y),
-                    19.0,
-                    "Transpose",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.bend,
-                    origin + vec2(string_x(4.0), string_y),
-                    19.0,
-                    "Bend",
-                    None,
-                );
-
-                // Voice selector
-                for (voice, label, x) in VOICE_SWITCHES {
-                    led(ui.painter(), origin + vec2(x, 452.0), params.voice.value() == voice);
-                    if footswitch(ui, origin + vec2(x, 506.0), label).clicked() {
-                        pick_voice(setter, &params, voice);
-                    }
-                    silk_label(ui.painter(), origin + vec2(x, 558.0), label, 17.0);
-                }
-            });
-        },
+        move |egui_ctx, setter, _state| draw(egui_ctx, setter, &params),
     )
+}
+
+/// The whole window, once the fonts are in: what the plugin shows and its snapshot test draws
+fn draw(ctx: &Context, setter: &ParamSetter, params: &BassSynthParams) {
+    ui::pedal(ctx, &STYLE, |ui, origin| {
+        // Overall sound
+        let sound_y = 98.0;
+        param_knob(ui, setter, &params.volume, origin + vec2(130.0, sound_y), 31.0, "Volume", None);
+        param_knob(ui, setter, &params.drive, origin + vec2(263.0, sound_y), 31.0, "Drive", None);
+        param_knob(
+            ui,
+            setter,
+            &params.brightness,
+            origin + vec2(397.0, sound_y),
+            31.0,
+            "Brightness",
+            None,
+        );
+        param_knob(ui, setter, &params.sub, origin + vec2(530.0, sound_y), 31.0, "Sub", None);
+
+        // The string
+        let frame =
+            Rect::from_min_max(pos2(40.0, 206.0), pos2(620.0, 328.0)).translate(origin.to_vec2());
+        silk_frame(ui.painter(), frame, "String", STYLE.paint);
+        // Five knobs evenly over the frame, Tone at 115 and Bend at 545
+        let string_y = 246.0;
+        let string_x = |index: f32| 115.0 + index * (545.0 - 115.0) / 4.0;
+        param_knob(
+            ui,
+            setter,
+            &params.tone,
+            origin + vec2(string_x(0.0), string_y),
+            19.0,
+            "Tone",
+            None,
+        );
+        param_knob(
+            ui,
+            setter,
+            &params.sustain,
+            origin + vec2(string_x(1.0), string_y),
+            19.0,
+            "Sustain",
+            None,
+        );
+        param_knob(
+            ui,
+            setter,
+            &params.slide,
+            origin + vec2(string_x(2.0), string_y),
+            19.0,
+            "Slide",
+            None,
+        );
+        param_knob(
+            ui,
+            setter,
+            &params.transpose,
+            origin + vec2(string_x(3.0), string_y),
+            19.0,
+            "Transpose",
+            None,
+        );
+        param_knob(
+            ui,
+            setter,
+            &params.bend,
+            origin + vec2(string_x(4.0), string_y),
+            19.0,
+            "Bend",
+            None,
+        );
+
+        // Voice selector
+        for (voice, label, x) in VOICE_SWITCHES {
+            led(ui.painter(), origin + vec2(x, 452.0), params.voice.value() == voice);
+            if footswitch(ui, origin + vec2(x, 506.0), label).clicked() {
+                pick_voice(setter, params, voice);
+            }
+            silk_label(ui.painter(), origin + vec2(x, 558.0), label, 17.0);
+        }
+    });
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "linux")]
+    use suite_common::ui::snapshot::{pedal_harness, NoHost};
 
     // The picture on the face is compiled in: a build without it is a build of other sources
     #[test]
     fn test_the_pedal_is_drawn_with_its_art() {
         assert!(STYLE.art == Some(ui::artwork::BASS), "the pedal has lost its art");
+    }
+
+    // What the editor draws in its window, every parameter at its default, against the
+    // picture in tests/snapshots/editor.png. On a change it leaves editor.new.png and
+    // editor.diff.png there to look at (see suite_common::ui::snapshot)
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_editor_looks_as_it_did() {
+        let params = crate::BassSynthParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let mut harness =
+            pedal_harness(WINDOW_WIDTH, WINDOW_HEIGHT, |ctx| draw(ctx, &setter, &params));
+        harness.snapshot("editor");
     }
 }
