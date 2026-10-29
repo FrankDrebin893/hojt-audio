@@ -1,5 +1,5 @@
 use nih_plug::prelude::*;
-use nih_plug_egui::egui::{vec2, Color32, Id, Pos2, Rect, Sense, Ui, Vec2};
+use nih_plug_egui::egui::{vec2, Color32, Context, Id, Pos2, Rect, Sense, Ui, Vec2};
 use nih_plug_egui::{create_egui_editor, EguiState};
 use std::path::Path;
 use std::sync::atomic::Ordering;
@@ -222,7 +222,8 @@ pub(crate) struct Pedals<'a> {
     setter: &'a ParamSetter<'a>,
     gate_open: bool,
     cab_loader: &'a CabLoader,
-    async_executor: &'a AsyncExecutor<GuitarAmpPlugin>,
+    /// Has the chosen cabinet read in the background
+    load_cabinet: &'a dyn Fn(),
 }
 
 impl Pedals<'_> {
@@ -403,7 +404,7 @@ impl Pedals<'_> {
             ui.ctx().request_repaint_after(NO_FILES_SHOWN);
         }
         if let Some(step) = stepper(ui, cab + SPEAKER_STEPPER, SPEAKER_WIDTH, &shown, "cabinet") {
-            step_cabinet(params, self.cab_loader, self.async_executor, step == Step::Next);
+            step_cabinet(params, self.cab_loader, self.load_cabinet, step == Step::Next);
         }
 
         // The microphone the cabinet is heard with
@@ -463,7 +464,7 @@ impl HeadPlaces {
 fn step_cabinet(
     params: &GuitarAmpParams,
     cab_loader: &CabLoader,
-    async_executor: &AsyncExecutor<GuitarAmpPlugin>,
+    load_cabinet: &dyn Fn(),
     forward: bool,
 ) {
     let files = match user_cab::cabinets_dir() {
@@ -481,7 +482,7 @@ fn step_cabinet(
     }
     drop(chosen);
     cab_loader.chosen();
-    async_executor.execute_background(Task::LoadCabinet);
+    load_cabinet();
 }
 
 /// What the editor keeps from one frame to the next
@@ -518,7 +519,8 @@ struct PresetDisplay<'a> {
     params: &'a GuitarAmpParams,
     setter: &'a ParamSetter<'a>,
     cab_loader: &'a CabLoader,
-    async_executor: &'a AsyncExecutor<GuitarAmpPlugin>,
+    /// Has the chosen cabinet read in the background
+    load_cabinet: &'a dyn Fn(),
 }
 
 impl PresetDisplay<'_> {
@@ -881,7 +883,7 @@ impl PresetDisplay<'_> {
         };
         if preset.load(self.params, self.setter) {
             self.cab_loader.chosen();
-            self.async_executor.execute_background(Task::LoadCabinet);
+            (self.load_cabinet)();
         }
         self.set_user_preset(file);
     }
@@ -1025,145 +1027,239 @@ pub fn create(
             }
         },
         move |egui_ctx, setter, view| {
-            ui::rig(egui_ctx, |ui, window| {
-                // The update runs with every frame of the window whether it is painted
-                // or not, so this costs two atomic reads per frame, and a repaint only
-                // when a lamp changes
-                let now = ui.input(|input| input.time);
-                if view.lamps.look(&lamp_reading, params.gate_on.value(), now) {
-                    ui.ctx().request_repaint();
-                }
-                // A cabinet file is read in the background, and the cabinet shows whether it
-                // could be used
-                let cab_status = cab_loader.status();
-                if cab_status != view.cab_status {
-                    view.cab_status = cab_status;
-                    ui.ctx().request_repaint();
-                }
-                let (gate_open, clipping) = view.lamps.shown();
-                let [input_db, output_db] = view.lamps.levels();
-
-                let strip = Rect::from_min_size(
-                    window + vec2(BENCH_MARGIN, BENCH_MARGIN),
-                    vec2(WINDOW_WIDTH as f32 - 2.0 * BENCH_MARGIN, STRIP_HEIGHT),
-                );
-                ui::strip(ui, strip, &STYLE);
-                // What is on the strip is placed from here
-                let origin = window;
-
-                let presets = PresetDisplay {
-                    params: &params,
-                    setter,
-                    cab_loader: &cab_loader,
-                    async_executor: &async_executor,
-                };
-                let tuning = params.tuner_on.value();
-                if tuning {
-                    // The tuner takes the place of the preset display, list and all
-                    view.menu = None;
-                    // The note the tuner hears and how far off it is, where the preset was
-                    let note = tuner.hz().map(Note::nearest);
-                    let name = note.map(|note| format!("{}{}", note.name, note.octave));
-                    silk_label(
-                        ui.painter(),
-                        origin + vec2(PRESET_X, PRESET_CAPTION_Y),
-                        "Tuner",
-                        13.0,
-                    );
-                    tuner_display(
-                        ui.painter(),
-                        origin + vec2(PRESET_X, PRESET_Y),
-                        PRESET_CHARS,
-                        name.as_deref(),
-                        note.map(|note| note.cents),
-                    );
-                    // What it hears changes without anyone touching the window
-                    ui.ctx().request_repaint();
-                } else {
-                    presets.draw(ui, origin, view, now);
-                }
-
-                param_knob(
-                    ui,
-                    setter,
-                    &params.out_level,
-                    origin + OUTPUT_KNOB,
-                    OUTPUT_RADIUS,
-                    "Output",
-                    None,
-                );
-                for (place, level, caption) in
-                    [(INPUT_METER, input_db, "Input"), (OUTPUT_METER, output_db, "Output")]
-                {
-                    level_meter(ui.painter(), origin + place, METER_HEIGHT, level);
-                    silk_label(
-                        ui.painter(),
-                        origin + place + METER_CAPTION,
-                        caption,
-                        LAMP_CAPTION_SIZE,
-                    );
-                }
-                signal_lamp(ui.painter(), origin + CLIP_LAMP, clipping);
-                silk_label(
-                    ui.painter(),
-                    origin + CLIP_LAMP + LAMP_CAPTION,
-                    "Clip",
-                    LAMP_CAPTION_SIZE,
-                );
-
-                // Tuner switch, lit while tuning: the amp is silent then
-                rig_led(ui.painter(), origin + vec2(TUNER_X + CAPTION_OFFSET, LED_Y), tuning);
-                silk_label(
-                    ui.painter(),
-                    origin + vec2(TUNER_X + CAPTION_OFFSET, CAPTION_Y),
-                    "Tuner",
-                    CAPTION_SIZE,
-                );
-                if small_footswitch(ui, origin + vec2(TUNER_X, SWITCH_Y), "tuner").clicked() {
-                    setter.begin_set_parameter(&params.tuner_on);
-                    setter.set_parameter(&params.tuner_on, !tuning);
-                    setter.end_set_parameter(&params.tuner_on);
-                }
-
-                // Bypass switch, lit while the amp is on
-                let bypassed = params.bypass.value();
-                rig_led(ui.painter(), origin + vec2(BYPASS_X + CAPTION_OFFSET, LED_Y), !bypassed);
-                silk_label(
-                    ui.painter(),
-                    origin + vec2(BYPASS_X + CAPTION_OFFSET, CAPTION_Y),
-                    "On",
-                    CAPTION_SIZE,
-                );
-                if small_footswitch(ui, origin + vec2(BYPASS_X, SWITCH_Y), "bypass").clicked() {
-                    setter.begin_set_parameter(&params.bypass);
-                    setter.set_parameter(&params.bypass, !bypassed);
-                    setter.end_set_parameter(&params.bypass);
-                }
-
-                let pedals = Pedals {
-                    params: &params,
-                    setter,
-                    gate_open,
-                    cab_loader: &cab_loader,
-                    async_executor: &async_executor,
-                };
-                crate::board::board(ui, window, &pedals, &params.order);
-
-                // The preset list after everything else, in a layer above the window
-                presets.menu(ui, origin, view, now);
-            });
+            let load_cabinet = || async_executor.execute_background(Task::LoadCabinet);
+            let shared = Shared {
+                tuner: &tuner,
+                lamp_reading: &lamp_reading,
+                cab_loader: &cab_loader,
+                load_cabinet: &load_cabinet,
+            };
+            draw(egui_ctx, setter, &params, view, &shared);
         },
     )
+}
+
+/// What the editor reads besides the parameters, shared with the audio and the plugin's
+/// background tasks
+struct Shared<'a> {
+    tuner: &'a TunerReading,
+    lamp_reading: &'a LampReading,
+    cab_loader: &'a CabLoader,
+    /// Has the chosen cabinet read in the background
+    load_cabinet: &'a dyn Fn(),
+}
+
+/// The whole window, once the fonts are in: what the plugin shows and its snapshot tests draw
+fn draw(
+    ctx: &Context,
+    setter: &ParamSetter,
+    params: &GuitarAmpParams,
+    view: &mut View,
+    shared: &Shared,
+) {
+    ui::rig(ctx, |ui, window| {
+        // The update runs with every frame of the window whether it is painted
+        // or not, so this costs two atomic reads per frame, and a repaint only
+        // when a lamp changes
+        let now = ui.input(|input| input.time);
+        if view.lamps.look(shared.lamp_reading, params.gate_on.value(), now) {
+            ui.ctx().request_repaint();
+        }
+        // A cabinet file is read in the background, and the cabinet shows whether it
+        // could be used
+        let cab_status = shared.cab_loader.status();
+        if cab_status != view.cab_status {
+            view.cab_status = cab_status;
+            ui.ctx().request_repaint();
+        }
+        let (gate_open, clipping) = view.lamps.shown();
+        let [input_db, output_db] = view.lamps.levels();
+
+        let strip = Rect::from_min_size(
+            window + vec2(BENCH_MARGIN, BENCH_MARGIN),
+            vec2(WINDOW_WIDTH as f32 - 2.0 * BENCH_MARGIN, STRIP_HEIGHT),
+        );
+        ui::strip(ui, strip, &STYLE);
+        // What is on the strip is placed from here
+        let origin = window;
+
+        let presets = PresetDisplay {
+            params,
+            setter,
+            cab_loader: shared.cab_loader,
+            load_cabinet: shared.load_cabinet,
+        };
+        let tuning = params.tuner_on.value();
+        if tuning {
+            // The tuner takes the place of the preset display, list and all
+            view.menu = None;
+            // The note the tuner hears and how far off it is, where the preset was
+            let note = shared.tuner.hz().map(Note::nearest);
+            let name = note.map(|note| format!("{}{}", note.name, note.octave));
+            silk_label(ui.painter(), origin + vec2(PRESET_X, PRESET_CAPTION_Y), "Tuner", 13.0);
+            tuner_display(
+                ui.painter(),
+                origin + vec2(PRESET_X, PRESET_Y),
+                PRESET_CHARS,
+                name.as_deref(),
+                note.map(|note| note.cents),
+            );
+            // What it hears changes without anyone touching the window
+            ui.ctx().request_repaint();
+        } else {
+            presets.draw(ui, origin, view, now);
+        }
+
+        param_knob(
+            ui,
+            setter,
+            &params.out_level,
+            origin + OUTPUT_KNOB,
+            OUTPUT_RADIUS,
+            "Output",
+            None,
+        );
+        for (place, level, caption) in
+            [(INPUT_METER, input_db, "Input"), (OUTPUT_METER, output_db, "Output")]
+        {
+            level_meter(ui.painter(), origin + place, METER_HEIGHT, level);
+            silk_label(ui.painter(), origin + place + METER_CAPTION, caption, LAMP_CAPTION_SIZE);
+        }
+        signal_lamp(ui.painter(), origin + CLIP_LAMP, clipping);
+        silk_label(ui.painter(), origin + CLIP_LAMP + LAMP_CAPTION, "Clip", LAMP_CAPTION_SIZE);
+
+        // Tuner switch, lit while tuning: the amp is silent then
+        rig_led(ui.painter(), origin + vec2(TUNER_X + CAPTION_OFFSET, LED_Y), tuning);
+        silk_label(
+            ui.painter(),
+            origin + vec2(TUNER_X + CAPTION_OFFSET, CAPTION_Y),
+            "Tuner",
+            CAPTION_SIZE,
+        );
+        if small_footswitch(ui, origin + vec2(TUNER_X, SWITCH_Y), "tuner").clicked() {
+            setter.begin_set_parameter(&params.tuner_on);
+            setter.set_parameter(&params.tuner_on, !tuning);
+            setter.end_set_parameter(&params.tuner_on);
+        }
+
+        // Bypass switch, lit while the amp is on
+        let bypassed = params.bypass.value();
+        rig_led(ui.painter(), origin + vec2(BYPASS_X + CAPTION_OFFSET, LED_Y), !bypassed);
+        silk_label(
+            ui.painter(),
+            origin + vec2(BYPASS_X + CAPTION_OFFSET, CAPTION_Y),
+            "On",
+            CAPTION_SIZE,
+        );
+        if small_footswitch(ui, origin + vec2(BYPASS_X, SWITCH_Y), "bypass").clicked() {
+            setter.begin_set_parameter(&params.bypass);
+            setter.set_parameter(&params.bypass, !bypassed);
+            setter.end_set_parameter(&params.bypass);
+        }
+
+        let pedals = Pedals {
+            params,
+            setter,
+            gate_open,
+            cab_loader: shared.cab_loader,
+            load_cabinet: shared.load_cabinet,
+        };
+        crate::board::board(ui, window, &pedals, &params.order);
+
+        // The preset list after everything else, in a layer above the window
+        presets.menu(ui, origin, view, now);
+    });
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use suite_common::ui::snapshot::{pedal_harness, Harness, NoHost};
 
     // The picture on the face is compiled in: a build without it is a build of other sources
     #[test]
     fn test_the_pedal_is_drawn_with_its_art() {
         assert!(STYLE.art == Some(ui::artwork::AMP), "the pedal has lost its art");
+    }
+
+    /// The window as a snapshot test draws it: with `params`, the tuner hearing `tuner_hz`,
+    /// and `view` as it is after the window opened and `open` did what a click would. The
+    /// lamps and meters are at rest, the cabinet the amp's own
+    fn harness_of<'a>(
+        params: &'a GuitarAmpParams,
+        setter: &'a ParamSetter<'a>,
+        tuner_hz: Option<f32>,
+        open: impl FnOnce(&mut View),
+    ) -> Harness<'a> {
+        let tuner = TunerReading::new();
+        tuner.set(tuner_hz);
+        let lamp_reading = LampReading::new();
+        let cab_loader = CabLoader::new(Arc::new(crate::cab_stage::CabStage::new()), 48_000.0);
+        let mut view = View {
+            lamps: LampView::new(&lamp_reading),
+            bank: Bank::read(params, None),
+            menu: None,
+            saving: None,
+            note: None,
+            cab_status: CabStatus::Fine,
+        };
+        open(&mut view);
+        pedal_harness(WINDOW_WIDTH, WINDOW_HEIGHT, move |ctx| {
+            let shared = Shared {
+                tuner: &tuner,
+                lamp_reading: &lamp_reading,
+                cab_loader: &cab_loader,
+                load_cabinet: &|| {},
+            };
+            draw(ctx, setter, params, &mut view, &shared);
+        })
+    }
+
+    // What the editor draws in its window, every parameter at its default, against the
+    // picture in tests/snapshots/editor.png. On a change it leaves editor.new.png and
+    // editor.diff.png there to look at (see suite_common::ui::snapshot)
+    #[test]
+    #[cfg_attr(not(target_os = "linux"), ignore = "the snapshots are drawn on Linux")]
+    fn test_the_editor_looks_as_it_did() {
+        let params = GuitarAmpParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        harness_of(&params, &setter, None, |_| {}).snapshot("editor");
+    }
+
+    // The tuner in the place of the preset display, hearing a low E a little flat
+    #[test]
+    #[cfg_attr(not(target_os = "linux"), ignore = "the snapshots are drawn on Linux")]
+    fn test_the_tuner_looks_as_it_did() {
+        let params = GuitarAmpParams {
+            tuner_on: BoolParam::new("Tuner", true).non_automatable(),
+            ..GuitarAmpParams::default()
+        };
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        harness_of(&params, &setter, Some(81.0), |_| {}).snapshot("tuner");
+    }
+
+    // The preset list dropped open on the factory bank. The presets folder is one that is
+    // not there, so the banks are the two every player has, whatever is on this machine
+    #[test]
+    #[cfg_attr(not(target_os = "linux"), ignore = "the snapshots are drawn on Linux")]
+    fn test_the_preset_menu_looks_as_it_did() {
+        let nowhere = std::env::temp_dir().join("hojt-snapshot-no-presets");
+        std::env::set_var(user_presets::FOLDER_ENV, &nowhere);
+        assert!(!nowhere.exists(), "{nowhere:?} is there: the list would show its banks");
+        let params = GuitarAmpParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let open = |view: &mut View| {
+            view.menu = Some(Menu {
+                listed: user_presets::FACTORY.to_owned(),
+                files: Vec::new(),
+                naming: None,
+                opened: true,
+            });
+        };
+        harness_of(&params, &setter, None, open).snapshot("preset_menu");
     }
 
     /// How far a stepper's buttons stand out from the middle of its tape

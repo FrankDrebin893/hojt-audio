@@ -64,6 +64,10 @@ before committing. A step added to `ci.yml` is added to `scripts/check.sh` too, 
 `xtask/tests/check_mirrors_ci.rs` holds.
 Lints that clash with DSP code are allowed in the root `Cargo.toml`, each with its reason.
 
+Each editor's snapshot test draws it into `plugins/<name>/tests/snapshots/` on Linux (it needs
+`mesa-vulkan-drivers`): a change of look fails it and leaves `.new.png` and `.diff.png` to open; accept
+one with `UPDATE_SNAPSHOTS=1` only after looking at it (`crates/suite_common/src/ui/STYLE.md`).
+
 ## Health
 
 `health.yml` runs `health.sh --sound` every Monday (and by hand with "Run workflow"), adds the line

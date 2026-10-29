@@ -12,6 +12,13 @@ nih_plug_egui = { workspace = true }
 # Cargo.toml). Nothing here uses it: egui comes through nih_plug_egui
 egui-baseview = { workspace = true }
 png = "0.17"
+# Draws an editor off screen into a picture, for the snapshot tests of `ui::snapshot`. The
+# release matches egui's (0.31.1, through nih_plug_egui): one egui in the tree
+egui_kittest = { version = "=0.31.1", features = ["wgpu", "snapshot"], optional = true }
+
+[features]
+# `ui::snapshot`, for the plugins' tests only: named in their dev-dependencies, never shipped
+snapshot = ["dep:egui_kittest"]
 
 [lints]
 workspace = true

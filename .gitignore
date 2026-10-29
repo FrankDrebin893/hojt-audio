@@ -6,3 +6,7 @@ nul
 !.claude/settings.json
 /dist
 /.impeccable/
+# What an editor's snapshot test leaves beside its reference when the picture changed
+*.new.png
+*.diff.png
+*.old.png

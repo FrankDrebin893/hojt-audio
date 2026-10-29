@@ -1,5 +1,5 @@
 use nih_plug::prelude::*;
-use nih_plug_egui::egui::{pos2, vec2, Rect};
+use nih_plug_egui::egui::{pos2, vec2, Context, Rect};
 use nih_plug_egui::{create_egui_editor, EguiState};
 use std::sync::Arc;
 
@@ -40,137 +40,123 @@ pub fn create(
         editor_state,
         (),
         |egui_ctx, _| ui::install(egui_ctx),
-        move |egui_ctx, setter, _state| {
-            ui::pedal(egui_ctx, &STYLE, |ui, origin| {
-                // The bells
-                let bells_y = 98.0;
-                param_knob(
-                    ui,
-                    setter,
-                    &params.volume,
-                    origin + vec2(110.0, bells_y),
-                    28.0,
-                    "Volume",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.brightness,
-                    origin + vec2(220.0, bells_y),
-                    28.0,
-                    "Brightness",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.decay,
-                    origin + vec2(330.0, bells_y),
-                    28.0,
-                    "Decay",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.attack,
-                    origin + vec2(440.0, bells_y),
-                    28.0,
-                    "Attack",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.dry,
-                    origin + vec2(550.0, bells_y),
-                    28.0,
-                    "Dry",
-                    None,
-                );
-
-                // Each effect in its frame, over its switch
-                let effects_y = 246.0;
-                let delay = Rect::from_min_max(pos2(40.0, 206.0), pos2(372.0, 328.0))
-                    .translate(origin.to_vec2());
-                silk_frame(ui.painter(), delay, "Delay", STYLE.paint);
-                // While the delay follows the song's tempo (Sync) the Time knob, in the same
-                // place, picks the note, and its tape shows it
-                let time = origin + vec2(100.0, effects_y);
-                if params.delay_sync.value() {
-                    param_knob(ui, setter, &params.delay_note, time, 19.0, "Time", None);
-                } else {
-                    param_knob(ui, setter, &params.delay_time, time, 19.0, "Time", None);
-                }
-                param_knob(
-                    ui,
-                    setter,
-                    &params.delay_feedback,
-                    origin + vec2(206.0, effects_y),
-                    19.0,
-                    "Feedback",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.delay_mix,
-                    origin + vec2(312.0, effects_y),
-                    19.0,
-                    "Mix",
-                    None,
-                );
-
-                let reverb = Rect::from_min_max(pos2(388.0, 206.0), pos2(620.0, 328.0))
-                    .translate(origin.to_vec2());
-                silk_frame(ui.painter(), reverb, "Reverb", STYLE.paint);
-                param_knob(
-                    ui,
-                    setter,
-                    &params.reverb_decay,
-                    origin + vec2(450.0, effects_y),
-                    19.0,
-                    "Decay",
-                    None,
-                );
-                param_knob(
-                    ui,
-                    setter,
-                    &params.reverb_mix,
-                    origin + vec2(558.0, effects_y),
-                    19.0,
-                    "Mix",
-                    None,
-                );
-
-                for (param, label, x) in [
-                    (&params.delay_on, "Delay", DELAY_SWITCH_X),
-                    (&params.delay_sync, "Sync", SYNC_SWITCH_X),
-                    (&params.reverb_on, "Reverb", REVERB_SWITCH_X),
-                ] {
-                    let on = param.value();
-                    led(ui.painter(), origin + vec2(x, 452.0), on);
-                    if footswitch(ui, origin + vec2(x, 506.0), label).clicked() {
-                        setter.begin_set_parameter(param);
-                        setter.set_parameter(param, !on);
-                        setter.end_set_parameter(param);
-                    }
-                    silk_label(ui.painter(), origin + vec2(x, 558.0), label, 17.0);
-                }
-            });
-        },
+        move |egui_ctx, setter, _state| draw(egui_ctx, setter, &params),
     )
+}
+
+/// The whole window, once the fonts are in: what the plugin shows and its snapshot test draws
+fn draw(ctx: &Context, setter: &ParamSetter, params: &GlassBellsParams) {
+    ui::pedal(ctx, &STYLE, |ui, origin| {
+        // The bells
+        let bells_y = 98.0;
+        param_knob(ui, setter, &params.volume, origin + vec2(110.0, bells_y), 28.0, "Volume", None);
+        param_knob(
+            ui,
+            setter,
+            &params.brightness,
+            origin + vec2(220.0, bells_y),
+            28.0,
+            "Brightness",
+            None,
+        );
+        param_knob(ui, setter, &params.decay, origin + vec2(330.0, bells_y), 28.0, "Decay", None);
+        param_knob(ui, setter, &params.attack, origin + vec2(440.0, bells_y), 28.0, "Attack", None);
+        param_knob(ui, setter, &params.dry, origin + vec2(550.0, bells_y), 28.0, "Dry", None);
+
+        // Each effect in its frame, over its switch
+        let effects_y = 246.0;
+        let delay =
+            Rect::from_min_max(pos2(40.0, 206.0), pos2(372.0, 328.0)).translate(origin.to_vec2());
+        silk_frame(ui.painter(), delay, "Delay", STYLE.paint);
+        // While the delay follows the song's tempo (Sync) the Time knob, in the same
+        // place, picks the note, and its tape shows it
+        let time = origin + vec2(100.0, effects_y);
+        if params.delay_sync.value() {
+            param_knob(ui, setter, &params.delay_note, time, 19.0, "Time", None);
+        } else {
+            param_knob(ui, setter, &params.delay_time, time, 19.0, "Time", None);
+        }
+        param_knob(
+            ui,
+            setter,
+            &params.delay_feedback,
+            origin + vec2(206.0, effects_y),
+            19.0,
+            "Feedback",
+            None,
+        );
+        param_knob(
+            ui,
+            setter,
+            &params.delay_mix,
+            origin + vec2(312.0, effects_y),
+            19.0,
+            "Mix",
+            None,
+        );
+
+        let reverb =
+            Rect::from_min_max(pos2(388.0, 206.0), pos2(620.0, 328.0)).translate(origin.to_vec2());
+        silk_frame(ui.painter(), reverb, "Reverb", STYLE.paint);
+        param_knob(
+            ui,
+            setter,
+            &params.reverb_decay,
+            origin + vec2(450.0, effects_y),
+            19.0,
+            "Decay",
+            None,
+        );
+        param_knob(
+            ui,
+            setter,
+            &params.reverb_mix,
+            origin + vec2(558.0, effects_y),
+            19.0,
+            "Mix",
+            None,
+        );
+
+        for (param, label, x) in [
+            (&params.delay_on, "Delay", DELAY_SWITCH_X),
+            (&params.delay_sync, "Sync", SYNC_SWITCH_X),
+            (&params.reverb_on, "Reverb", REVERB_SWITCH_X),
+        ] {
+            let on = param.value();
+            led(ui.painter(), origin + vec2(x, 452.0), on);
+            if footswitch(ui, origin + vec2(x, 506.0), label).clicked() {
+                setter.begin_set_parameter(param);
+                setter.set_parameter(param, !on);
+                setter.end_set_parameter(param);
+            }
+            silk_label(ui.painter(), origin + vec2(x, 558.0), label, 17.0);
+        }
+    });
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use suite_common::ui::snapshot::{pedal_harness, NoHost};
 
     // The picture on the face is compiled in: a build without it is a build of other sources
     #[test]
     fn test_the_pedal_is_drawn_with_its_art() {
         assert!(STYLE.art == Some(ui::artwork::BELLS), "the pedal has lost its art");
+    }
+
+    // What the editor draws in its window, every parameter at its default, against the
+    // picture in tests/snapshots/editor.png. On a change it leaves editor.new.png and
+    // editor.diff.png there to look at (see suite_common::ui::snapshot)
+    #[test]
+    #[cfg_attr(not(target_os = "linux"), ignore = "the snapshots are drawn on Linux")]
+    fn test_the_editor_looks_as_it_did() {
+        let params = crate::GlassBellsParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let mut harness =
+            pedal_harness(WINDOW_WIDTH, WINDOW_HEIGHT, |ctx| draw(ctx, &setter, &params));
+        harness.snapshot("editor");
     }
 
     #[test]

@@ -100,3 +100,16 @@ controls, portrait) or `plugins/drums/src/editor.rs` (many controls, landscape) 
 - **Rigs** (a window of several pedals, as the Guitar Amp has): the rules for the strip, the stack, mini pedals, pedal art, equal pedals, a rearrangeable board, signal lamps, presets, file choices and the tuner are in `plugins/amp/AGENTS.md`, "Look: the rig". Read them before drawing a second rig
 
 After changing an editor, run it standalone (see `AGENTS.md`, Build Commands) and look at it before bundling.
+
+Each editor also has a snapshot test (`suite_common::ui::snapshot`), which draws it off screen with
+every parameter at its default and compares the picture with `plugins/<name>/tests/snapshots/editor.png`
+(the amp has `tuner.png` and `preset_menu.png` too). After changing an editor:
+
+- Run its tests (`cargo test -p <name> editor`). A change of look fails them and leaves
+  `<scene>.new.png` and `<scene>.diff.png` beside the reference: open both and look
+- Accept it with `UPDATE_SNAPSHOTS=1 cargo test -p <name> editor`, and only after looking at the
+  new picture. A pull request that changes a reference says why; its diff shows the before and after
+- The references are drawn on Linux with Mesa's software Vulkan driver (`mesa-vulkan-drivers`); the
+  tests are ignored on Windows and macOS. A tolerance (`SnapshotOptions`) is raised per test when it
+  must be, never for all
+- Anything that moves on its own (meters, lamps, the tuner) is drawn at rest, or from a fixed input
