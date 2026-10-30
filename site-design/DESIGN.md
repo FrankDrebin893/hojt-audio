@@ -109,6 +109,8 @@ download, controls.
 
 ## Components
 
+- **Top bar**: the same on every page, the home page too. It carries the HØJT badge, so no page
+  shows the logo again under it; the home page opens on its headline and the two products.
 - **Label**: the product's name in Bowlby One SC on a tilted cream label over its paint band.
 - **Chips**: mono, small, for facts only.
 - **Download buttons**: cream keys with the platform and a mono line under it.
@@ -173,4 +175,3 @@ From the audit of 2026-10-28, each one a `/design` change of its own:
 - The Download block is repeated six times on the DSP page (about 11,000px tall on desktop).
 - The piano viz page breaks the voice and has its own 669-line stylesheet; it should come onto
   the tokens of `hojt.css`.
-- The home page shows the logo twice in its first screen.
