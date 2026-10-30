@@ -32,7 +32,7 @@ typography:
     use: "Captions, model numbers, figures, the labels of the listen clips"
   body:
     fontFamily: "system-ui"
-    fontSize: "17px"
+    fontSize: "var(--step-0): 16px on a phone to 17px on a desktop"
     lineHeight: 1.6
 layout:
   container: "1120px"
@@ -85,9 +85,10 @@ in doubt, add more of the product, not more of the chrome.
 
 - Display (Bebas Neue) for headings and the bar, model (Bowlby One SC) only for product names on
   their label, mono for captions and figures, the system sans for reading.
-- **The fluid scale.** Every size of type and space is a custom property of `hojt.css`, each a
-  `clamp()` that grows with the window from a phone (390px wide) to a desktop (1440px) and stops
-  there. A page picks a step; it does not set a size of its own. A size that is not on the scale
+- **The fluid scale.** Every size of type and space is meant to be a custom property of
+  `hojt.css`, each a `clamp()` that grows with the window from a phone (390px wide) to a desktop
+  (1440px) and stops there; what is not on it yet is listed under the tables. A page picks a
+  step; it does not set a size of its own. A size that is not on the scale
   is a reason to add a step here, not to write a number in a page's stylesheet.
 
   | Type | Phone to desktop | For |
@@ -101,7 +102,7 @@ in doubt, add more of the product, not more of the chrome.
   | `--step-3` | 22 to 26px | Section headings (h3), buttons, summaries |
   | `--step-4` | 26 to 30px | The jump board's names |
   | `--step-5` | 36 to 52px | A page's section headings (h2) |
-  | `--step-6` | 34 to 62px | The label (`.band`), the Install heading |
+  | `--step-6` | 36 to 62px | The label (`.band`), the Install heading |
   | `--step-7` | 42 to 84px | A page's headline |
 
   | Space | Phone to desktop |
@@ -115,9 +116,20 @@ in doubt, add more of the product, not more of the chrome.
   | `--space-2xl` | 40 to 56px |
   | `--space-3xl` | 52 to 72px: between sections |
 
-  The small gaps inside a component (a chip's padding, the 2px between board tiles) stay as
-  they are: they are part of the drawing, not of the page's rhythm. Not on the scale yet: the
-  home page's hero and enclosure labels (#186 changes the hero) and the piano viz page (#185).
+  Each step is at least as large as the one below it at every width. The small gaps inside a
+  component (a chip's padding, the 2px between board tiles) stay as they are: they are part of
+  the drawing, not of the page's rhythm.
+
+  Not on the scale yet:
+  - The home page's hero and the labels on its enclosures (#186 changes the hero).
+  - The piano viz page (`site/piano/styles.css`, #185). It already takes the shared pieces
+    from `hojt.css` (body text, the top bar, buttons, label, bottom), so on a phone those are a
+    step smaller there too; its own sizes stay fixed until #185.
+  - The Resources pages (`site/resources/resources.css` and the two `atlas.css`): their own
+    sizes are fixed; the shared pieces follow the scale as on the piano viz page.
+  - A few fixed gaps on the plugins' page (`site/dsp/style.css`): the padding of a paint band
+    (26/30px), above a render (26px), under a plugin section (24px), under the install steps
+    (30px) and under the headline (12px). They move onto the scale when #183 rebuilds that page.
 
 ### Named Rules
 
@@ -204,3 +216,4 @@ From the audit of 2026-10-28, each one a `/design` change of its own:
 - The piano viz page breaks the voice and has its own 669-line stylesheet; it should come onto
   the tokens of `hojt.css`.
 - The home page shows the logo twice in its first screen.
+- On a phone the `xattr` line in the plugins' Install section runs out of its box.

@@ -58,7 +58,7 @@
   --step-3: clamp(1.375rem, 1.2821rem + 0.381vw, 1.625rem); /* 22 to 26px */
   --step-4: clamp(1.625rem, 1.5321rem + 0.381vw, 1.875rem); /* 26 to 30px */
   --step-5: clamp(2.25rem, 1.8786rem + 1.5238vw, 3.25rem); /* 36 to 52px */
-  --step-6: clamp(2.125rem, 1.475rem + 2.6667vw, 3.875rem); /* 34 to 62px */
+  --step-6: clamp(2.25rem, 1.6464rem + 2.4762vw, 3.875rem); /* 36 to 62px */
   --step-7: clamp(2.625rem, 1.65rem + 4vw, 5.25rem); /* 42 to 84px */
 
   --space-2xs: clamp(0.5rem, 0.4536rem + 0.1905vw, 0.625rem); /* 8 to 10px */
