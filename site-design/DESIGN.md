@@ -87,9 +87,10 @@ in doubt, add more of the product, not more of the chrome.
   their label, mono for captions and figures, the system sans for reading.
 - **The fluid scale.** Every size of type and space is meant to be a custom property of
   `hojt.css`, each but the smallest (`--step--3`, a fixed 12px) a `clamp()` that grows with the
-  window from a phone (390px wide) to a desktop (1440px) and stops there; what is not on it yet is listed under the tables. A page picks a
-  step; it does not set a size of its own. A size that is not on the scale
-  is a reason to add a step here, not to write a number in a page's stylesheet.
+  window from a phone (390px wide) to a desktop (1440px) and stops there; what is not on it
+  yet is listed under the tables. A page picks a step; it does not set a size of its own. A
+  size that is not on the scale is a reason to add a step here, not to write a number in a
+  page's stylesheet.
 
   | Type | Phone to desktop | For |
   |---|---|---|
