@@ -21,6 +21,7 @@ namespace PianoMidiVisualizationApp.Services.Recording;
 public sealed class NoteRecorder
 {
     private readonly object _sync = new();
+    private readonly AppClock _clock;
     private readonly List<TimedNote> _notes = new();
 
     /// <summary>Per key: the timestamp and velocity of the note being held, if any.</summary>
@@ -34,6 +35,10 @@ public sealed class NoteRecorder
 
     private bool _isArmed;
     private long? _firstNoteTimestamp;
+
+    /// <param name="clock">What <see cref="Elapsed"/> reads the time from; <see cref="AppClock.Real"/> when null.
+    /// The timestamps passed in must come from the same clock.</param>
+    public NoteRecorder(AppClock? clock = null) => _clock = clock ?? AppClock.Real;
 
     /// <summary>Between <see cref="Arm"/> and <see cref="Stop"/>, whether or not a note has come yet.</summary>
     public bool IsArmed
@@ -54,7 +59,7 @@ public sealed class NoteRecorder
         {
             lock (_sync)
                 return _firstNoteTimestamp is { } first
-                    ? Stopwatch.GetElapsedTime(first)
+                    ? Stopwatch.GetElapsedTime(first, _clock.GetTimestamp())
                     : TimeSpan.Zero;
         }
     }

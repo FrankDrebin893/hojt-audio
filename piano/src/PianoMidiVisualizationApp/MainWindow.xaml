@@ -12,7 +12,15 @@
         WindowStyle="None"
         AllowsTransparency="True"
         ResizeMode="CanResizeWithGrip"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display"
         KeyDown="Window_KeyDown">
+
+    <!-- Crisp at 100% and 150%: layout rounding puts 1px borders and edges on whole device
+         pixels, and Display text snaps the small legends (11-14px) to the pixel grid. Inside a
+         Viewbox that scales its content, text is set Ideal instead (the readout, the keyboard),
+         since snapped glyphs scaled afterwards come out uneven. The HØJT badge turns rounding
+         off for its own exact fractional geometry. -->
 
     <!-- The window's own rounded corners: the window is transparent and this frame, clipped to
          a rounded rectangle in code-behind, is the panel. Square while maximised. -->
@@ -268,7 +276,8 @@
                          frame, a short row shrinks the whole readout rather than clipping the
                          chord name's top. -->
                     <Viewbox Grid.Column="1" Stretch="Uniform" StretchDirection="DownOnly"
-                             VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24,12">
+                             VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24,12"
+                             TextOptions.TextFormattingMode="Ideal">
                     <!-- K's readout: the chord name with its numeral and voicing under it, and
                          beside them the held notes as a list, each with its interval. -->
                     <StackPanel Orientation="Horizontal">

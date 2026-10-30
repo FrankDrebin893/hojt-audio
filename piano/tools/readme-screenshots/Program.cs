@@ -6,11 +6,16 @@ using PianoMidiVisualizationApp;
 namespace ReadmeScreenshots;
 
 /// <summary>
-/// Usage: ReadmeScreenshots [--out DIR] [--scale N] [scene ...]
+/// Usage: ReadmeScreenshots [--check] [--out DIR] [--scale N] [scene ...]
 /// Renders every scene (or just the named ones) to DIR/&lt;scene&gt;.png. DIR defaults to
-/// site/piano/screenshots in the repository, which the README and the page share. Exits
-/// non-zero if any scene failed or logged a binding error, so a broken screenshot is never
-/// committed by accident.
+/// site/piano/screenshots in the repository, which the README and the page share, and which
+/// are the snapshot test's references too. Exits non-zero if any scene failed or logged a
+/// binding error, so a broken screenshot is never committed by accident.
+///
+/// With --check it writes no reference: it compares each render with DIR/&lt;scene&gt;.png
+/// (<see cref="Snapshot"/>) and exits non-zero if any differs, leaving &lt;scene&gt;.new.png and
+/// &lt;scene&gt;.diff.png beside it. UPDATE_SNAPSHOTS=1 overrides --check and writes the references,
+/// as the plugin editors' snapshot tests do.
 /// </summary>
 internal static class Program
 {
@@ -19,18 +24,22 @@ internal static class Program
     {
         string? outDir = null;
         double scale = 1.5;
+        bool check = false;
         var only = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         for (int i = 0; i < args.Length; i++)
         {
             switch (args[i])
             {
+                case "--check": check = true; break;
                 case "--out": outDir = args[++i]; break;
                 case "--scale": scale = double.Parse(args[++i], System.Globalization.CultureInfo.InvariantCulture); break;
                 default: only.Add(args[i]); break;
             }
         }
         outDir ??= Path.Combine(FindPianoRoot(), "..", "site", "piano", "screenshots");
+        outDir = Path.GetFullPath(outDir);
+        if (Environment.GetEnvironmentVariable("UPDATE_SNAPSHOTS") is "1" or "true") check = false;
 
         var unknown = only.Where(name => Scenes.All.All(s => !s.Name.Equals(name, StringComparison.OrdinalIgnoreCase))).ToList();
         if (unknown.Count > 0)
@@ -58,8 +67,23 @@ internal static class Program
                 scene.Setup(host);
 
                 string path = Path.Combine(outDir, scene.Name + ".png");
-                host.Save(path, scale);
-                Console.WriteLine($"{scene.Name,-16} {new FileInfo(path).Length / 1024,5} KB  {clock.Elapsed.TotalSeconds,5:0.0}s  {path}");
+                byte[] png = host.Render(scale);
+                if (check)
+                {
+                    var result = Snapshot.Check(png, path);
+                    if (!result.Matches) failures++;
+                    var line = $"{scene.Name,-16} {clock.Elapsed.TotalSeconds,5:0.0}s  {result.Summary}";
+                    if (result.Matches) Console.WriteLine(line);
+                    else Console.Error.WriteLine(line);
+                }
+                else
+                {
+                    Directory.CreateDirectory(outDir);
+                    File.WriteAllBytes(path, png);
+                    File.Delete(Path.ChangeExtension(path, ".new.png"));
+                    File.Delete(Path.ChangeExtension(path, ".diff.png"));
+                    Console.WriteLine($"{scene.Name,-16} {png.Length / 1024,5} KB  {clock.Elapsed.TotalSeconds,5:0.0}s  {path}");
+                }
             }
             catch (Exception ex)
             {

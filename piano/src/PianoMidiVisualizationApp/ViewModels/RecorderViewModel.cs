@@ -1,9 +1,9 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
+using PianoMidiVisualizationApp.Services;
 using PianoMidiVisualizationApp.Services.Playback;
 using PianoMidiVisualizationApp.Services.Recording;
 
@@ -26,7 +26,8 @@ public partial class RecorderViewModel : ObservableObject, IDisposable
 {
     public const int MaxTakes = 10;
 
-    private readonly NoteRecorder _recorder = new();
+    private readonly AppClock _clock;
+    private readonly NoteRecorder _recorder;
     private readonly NoteSequencePlayer _player;
     private readonly Dispatcher _dispatcher;
     private readonly Func<int> _exportBpm;
@@ -106,14 +107,18 @@ public partial class RecorderViewModel : ObservableObject, IDisposable
     /// <param name="noteOff">Its release counterpart.</param>
     /// <param name="exportBpm">The tempo written into exported files.</param>
     /// <param name="reportStatus">Shows a message in the status bar; called on the UI thread.</param>
+    /// <param name="clock">Times the takes and their playback, and stamps each take's time of day.
+    /// The capture timestamps must come from it too. <see cref="AppClock.Real"/> when null.</param>
     public RecorderViewModel(Dispatcher dispatcher, Action<int, int> noteOn, Action<int> noteOff,
-                             Func<int> exportBpm, Action<string> reportStatus)
+                             Func<int> exportBpm, Action<string> reportStatus, AppClock? clock = null)
     {
         _dispatcher = dispatcher;
+        _clock = clock ?? AppClock.Real;
+        _recorder = new NoteRecorder(_clock);
         _exportBpm = exportBpm;
         _reportStatus = reportStatus;
 
-        _player = new NoteSequencePlayer(noteOn, noteOff);
+        _player = new NoteSequencePlayer(noteOn, noteOff, _clock);
         _player.PositionChanged += OnPlayerPositionChanged;
         _player.PlaybackStopped += OnPlayerStopped;
 
@@ -149,7 +154,7 @@ public partial class RecorderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var notes = _recorder.Stop(Stopwatch.GetTimestamp());
+        var notes = _recorder.Stop(_clock.GetTimestamp());
         RecordState = RecordState.Idle;
         _recordClock.Stop();
         UpdateClock();
@@ -160,7 +165,7 @@ public partial class RecorderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var take = new Take(_nextTakeNumber++, notes, DateTime.Now);
+        var take = new Take(_nextTakeNumber++, notes, _clock.Now);
         Takes.Insert(0, take);
         while (Takes.Count > MaxTakes)
             RemoveTake(Takes[^1]);
