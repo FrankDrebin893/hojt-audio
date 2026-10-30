@@ -66,6 +66,13 @@ internal sealed class Host : IDisposable
         };
         Window.Show();
         Pump(TimeSpan.FromMilliseconds(200));
+
+        // Windows never makes a window larger than the screen, so on a small one (a CI runner
+        // starts at 1024x768) every scene would come out narrower than its reference.
+        if (Window.ActualWidth < width || Window.ActualHeight < height)
+            throw new InvalidOperationException(
+                $"The window is {Window.ActualWidth}x{Window.ActualHeight}, not {width}x{height}: the screen is too small for it. " +
+                "Render on a screen of at least 1280x840 (DIPs).");
     }
 
     // ------------------------------------------------------------------ playing

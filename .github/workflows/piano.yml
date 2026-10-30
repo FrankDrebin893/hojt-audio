@@ -64,6 +64,11 @@ jobs:
       # off-screen and compares it with its reference in site/piano/screenshots/ (the README's
       # and the page's pictures). A scene that drifts leaves <scene>.new.png and <scene>.diff.png
       # there, which the next step keeps, so a session without Windows can see what was drawn.
+      # Windows never makes a window larger than the screen, and the runner's starts at
+      # 1024x768: the scenes are up to 1280x840
+      - name: Set the screen to 1920x1080
+        run: Set-DisplayResolution -Width 1920 -Height 1080 -Force
+
       - name: Check the screenshots
         run: dotnet run --project piano/tools/readme-screenshots/ReadmeScreenshots.csproj -c Release -- --check
 
@@ -77,6 +82,20 @@ jobs:
             site/piano/screenshots/*.diff.png
           if-no-files-found: ignore
           retention-days: 14
+
+      # SCRATCH (to be removed before merge): the renders onto a branch, for a session whose
+      # network cannot reach the artifact storage
+      - name: Scratch - push the renders
+        if: failure()
+        run: |
+          git config user.name ci; git config user.email ci@users.noreply.github.com
+          New-Item -ItemType Directory renders | Out-Null
+          Get-ChildItem site/piano/screenshots | Where-Object { $_.Name -match '\.(new|diff)\.png$' } | Copy-Item -Destination renders
+          git checkout --orphan scratch-renders
+          git rm -rf --cached . | Out-Null
+          git add -f renders
+          git commit -m "renders of run $env:GITHUB_RUN_ID"
+          git push -f origin HEAD:refs/heads/scratch/170-renders
 
       # Allowlist rather than zipping the publish folder, which also holds a .pdb and a macOS .dylib.
       - name: Package
