@@ -10,7 +10,7 @@
 .hero .wrap {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: end;
+  align-items: last baseline;
   gap: 18px 28px;
 }
 .hero h1 {
@@ -208,7 +208,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
   .hero {
-    padding-block: 40px 36px;
+    padding-block: 40px 24px;
   }
 }
 @media (max-width: 420px) {
