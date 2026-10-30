@@ -32,7 +32,7 @@ typography:
     use: "Captions, model numbers, figures, the labels of the listen clips"
   body:
     fontFamily: "system-ui"
-    fontSize: "var(--step-0): 16px on a phone to 17px on a desktop"
+    fontSize: "var(--step-0)"
     lineHeight: 1.6
 layout:
   container: "1120px"
@@ -86,8 +86,8 @@ in doubt, add more of the product, not more of the chrome.
 - Display (Bebas Neue) for headings and the bar, model (Bowlby One SC) only for product names on
   their label, mono for captions and figures, the system sans for reading.
 - **The fluid scale.** Every size of type and space is meant to be a custom property of
-  `hojt.css`, each a `clamp()` that grows with the window from a phone (390px wide) to a desktop
-  (1440px) and stops there; what is not on it yet is listed under the tables. A page picks a
+  `hojt.css`, each but the smallest (`--step--3`, a fixed 12px) a `clamp()` that grows with the
+  window from a phone (390px wide) to a desktop (1440px) and stops there; what is not on it yet is listed under the tables. A page picks a
   step; it does not set a size of its own. A size that is not on the scale
   is a reason to add a step here, not to write a number in a page's stylesheet.
 
@@ -116,9 +116,8 @@ in doubt, add more of the product, not more of the chrome.
   | `--space-2xl` | 40 to 56px |
   | `--space-3xl` | 52 to 72px: between sections |
 
-  Each step is at least as large as the one below it at every width. The small gaps inside a
-  component (a chip's padding, the 2px between board tiles) stay as they are: they are part of
-  the drawing, not of the page's rhythm.
+  Each step is at least as large as the one below it at every width. Body text is `--step-0`:
+  16px on a phone, 17px on a desktop.
 
   Not on the scale yet:
   - The home page's hero and the labels on its enclosures (#186 changes the hero).
@@ -127,9 +126,12 @@ in doubt, add more of the product, not more of the chrome.
     step smaller there too; its own sizes stay fixed until #185.
   - The Resources pages (`site/resources/resources.css` and the two `atlas.css`): their own
     sizes are fixed; the shared pieces follow the scale as on the piano viz page.
-  - A few fixed gaps on the plugins' page (`site/dsp/style.css`): the padding of a paint band
-    (26/30px), above a render (26px), under a plugin section (24px), under the install steps
-    (30px) and under the headline (12px). They move onto the scale when #183 rebuilds that page.
+  - The small gaps of the plugins' page and the home page: so far only the space between
+    sections, around the headline and the jump board, above a heading and between columns is on
+    the scale. The gaps inside and between a page's own blocks in `site/dsp/style.css` and
+    `site/home.css` (paragraph and list margins, the padding of a paint band or an enclosure,
+    the gaps of a grid or a row of buttons) and in `hojt.css` (a chip's padding, the gap under
+    a paragraph of the bottom) stay fixed until #183 and #186 move them.
 
 ### Named Rules
 
