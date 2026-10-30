@@ -577,7 +577,7 @@
                     <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Center">
                     <StackPanel Orientation="Horizontal">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Key" Foreground="{StaticResource Brush.Text.Muted}"
+                        <TextBlock Text="Key" Foreground="#40C0FF"
                                    FontSize="11" FontWeight="SemiBold"
                                    VerticalAlignment="Center" Margin="0,0,8,0"/>
 
