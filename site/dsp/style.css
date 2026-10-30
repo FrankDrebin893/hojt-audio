@@ -2,15 +2,15 @@
 /* Top */
 
 .top {
-  padding-block: 56px 40px;
+  padding-block: var(--space-2xl) var(--space-xl);
 }
 .top h1.band {
-  margin-bottom: 30px;
+  margin-bottom: var(--space-l);
 }
 .top .say {
   margin: 0 0 12px;
   font-family: var(--display);
-  font-size: clamp(42px, 6.6vw, 76px);
+  font-size: var(--step-7);
   line-height: 0.95;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -18,14 +18,14 @@
 .top p:not(.say) {
   max-width: 40em;
   margin: 0;
-  font-size: 19px;
+  font-size: var(--step-1);
 }
 
 .jump {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  margin-top: 40px;
+  margin-top: var(--space-xl);
 }
 .jump a {
   display: block;
@@ -34,7 +34,7 @@
   color: var(--silk);
   text-decoration: none;
   font-family: var(--display);
-  font-size: 30px;
+  font-size: var(--step-4);
   line-height: 1;
   letter-spacing: 0.04em;
 }
@@ -42,7 +42,7 @@
   display: block;
   margin-top: 6px;
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: var(--step--2);
   letter-spacing: 0.02em;
   color: var(--tape-text);
 }
@@ -87,7 +87,7 @@
 /* One plugin */
 
 .plugin {
-  padding: 72px 0 24px;
+  padding: var(--space-3xl) 0 24px;
 }
 
 .paint {
@@ -115,8 +115,8 @@
 .cols {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 48px;
-  margin-top: 34px;
+  gap: var(--space-xl);
+  margin-top: var(--space-l);
 }
 .cols.with-shot {
   grid-template-columns: auto minmax(0, 1fr);
@@ -126,10 +126,10 @@
 }
 
 .plugin h3 {
-  margin: 34px 0 12px;
+  margin: var(--space-l) 0 12px;
   font-family: var(--display);
   font-weight: 400;
-  font-size: 26px;
+  font-size: var(--step-3);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -167,7 +167,7 @@
 }
 .demos span {
   font-family: var(--mono);
-  font-size: 14px;
+  font-size: var(--step--2);
   color: var(--tape-text);
 }
 .demos audio {
@@ -176,7 +176,7 @@
 }
 .plugin p.note {
   margin-top: 16px;
-  font-size: 14px;
+  font-size: var(--step--2);
   color: var(--silk-dim);
 }
 
@@ -190,7 +190,7 @@
 /* Controls */
 
 details {
-  margin-top: 34px;
+  margin-top: var(--space-l);
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
@@ -198,7 +198,7 @@ summary {
   padding: 14px 0 10px;
   cursor: pointer;
   font-family: var(--display);
-  font-size: 24px;
+  font-size: var(--step-3);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -209,7 +209,7 @@ summary {
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 15px;
+  font-size: var(--step--1);
 }
 th,
 td {
@@ -222,7 +222,7 @@ th {
   border-top: 0;
   font-family: var(--display);
   font-weight: 400;
-  font-size: 18px;
+  font-size: var(--step-1);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--silk-dim);
@@ -230,7 +230,7 @@ th {
 td.v,
 code {
   font-family: var(--mono);
-  font-size: 14px;
+  font-size: var(--step--2);
   white-space: nowrap;
 }
 td:first-child {
@@ -245,15 +245,15 @@ code {
 /* Install */
 
 .install {
-  margin-top: 72px;
-  padding-block: 56px 64px;
+  margin-top: var(--space-3xl);
+  padding-block: var(--space-2xl) var(--space-3xl);
   background: var(--panel);
 }
 .install h2 {
   margin: 0 0 20px;
   font-family: var(--display);
   font-weight: 400;
-  font-size: clamp(40px, 6vw, 60px);
+  font-size: var(--step-6);
   line-height: 1;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -267,10 +267,10 @@ code {
   margin-bottom: 8px;
 }
 .install h3 {
-  margin: 32px 0 8px;
+  margin: var(--space-l) 0 8px;
   font-family: var(--display);
   font-weight: 400;
-  font-size: 26px;
+  font-size: var(--step-3);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -288,27 +288,20 @@ pre {
   border: 1px solid var(--line);
   color: var(--tape-text);
   font-family: var(--mono);
-  font-size: 14px;
+  font-size: var(--step--2);
   line-height: 1.5;
 }
 
 @media (max-width: 820px) {
-  .top {
-    padding-top: 36px;
-  }
   .jump {
     grid-template-columns: 1fr;
   }
   .cols,
   .cols.with-shot {
     grid-template-columns: minmax(0, 1fr);
-    gap: 30px;
   }
   .cols.with-shot .shot img {
     margin: 0 auto;
-  }
-  .plugin {
-    padding-top: 52px;
   }
 }
 
