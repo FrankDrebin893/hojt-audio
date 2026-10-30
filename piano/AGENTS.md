@@ -68,6 +68,28 @@ Use `/piano-readme` (`.agents/skills/piano-readme/`) to refresh the README. Its 
 rendered off-screen from the real UI by the harness in `tools/readme-screenshots/` — never take
 desktop screenshots of the app.
 
+## Snapshots
+The harness is also the piano viz's snapshot test. `site/piano/screenshots/<scene>.png` are its
+references as well as the README's and the page's pictures, and `piano.yml` checks every scene
+against them on `windows-latest`. From the repository root:
+```
+dotnet run --project piano\tools\readme-screenshots -c Release -- --check
+```
+A scene that drifts fails it and leaves `<scene>.new.png` (what was drawn) and `<scene>.diff.png`
+(what changed, magenta over the dimmed reference) beside its reference; both are ignored by git.
+On CI they are kept as the artifact `piano-snapshot-diffs` of the run, which a session without
+Windows downloads to see what its XAML drew. Open both and look. To accept a change, render the
+references again (`dotnet run --project piano\tools\readme-screenshots -c Release`, or
+`UPDATE_SNAPSHOTS=1` with `--check`), or copy the `.new.png` over its reference, and commit them
+with the change: the pull request's diff then shows the before and after.
+
+The references are drawn by `windows-latest`. Another Windows build draws glyph edges a little
+differently; `Snapshot.ChannelTolerance` allows for that, and a local `--check` that fails only on
+text edges is that, not a change. Every scene renders the same on every run: the view model runs on
+the harness's own clock (`FakeClock`), which moves only when a scene steps it (`Host.Wait`), so a
+take, its playhead and the MIDI log's times never depend on how fast the machine is. A new scene
+keeps to that: time passes through `Host.Wait`, never a wall clock.
+
 ## Tech Stack
 - C# / .NET 10 / WPF
 - NAudio 2.2.1 (MIDI input, ASIO/WASAPI audio output)
