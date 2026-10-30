@@ -231,7 +231,6 @@ h3 {
   margin: var(--space-s) 0 0;
   font-family: var(--display);
   font-size: var(--step-2);
-  line-height: 1.25;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--silk-dim);

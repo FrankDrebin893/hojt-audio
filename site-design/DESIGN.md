@@ -126,12 +126,8 @@ in doubt, add more of the product, not more of the chrome.
     step smaller there too; its own sizes stay fixed until #185.
   - The Resources pages (`site/resources/resources.css` and the two `atlas.css`): their own
     sizes are fixed; the shared pieces follow the scale as on the piano viz page.
-  - The small gaps of the plugins' page and the home page: so far only the space between
-    sections, around the headline and the jump board, above a heading and between columns is on
-    the scale. The gaps inside and between a page's own blocks in `site/dsp/style.css` and
-    `site/home.css` (paragraph and list margins, the padding of a paint band or an enclosure,
-    the gaps of a grid or a row of buttons) and in `hojt.css` (a chip's padding, the gap under
-    a paragraph of the bottom) stay fixed until #183 and #186 move them.
+  - Anywhere else: a size written as a step's `var()` is on the scale; a size still written in
+    px is not yet, and moves onto it with #183, #185 and #186.
 
 ### Named Rules
 
@@ -218,4 +214,3 @@ From the audit of 2026-10-28, each one a `/design` change of its own:
 - The piano viz page breaks the voice and has its own 669-line stylesheet; it should come onto
   the tokens of `hojt.css`.
 - The home page shows the logo twice in its first screen.
-- On a phone the `xattr` line in the plugins' Install section runs out of its box.

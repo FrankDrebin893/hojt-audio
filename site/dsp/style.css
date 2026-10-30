@@ -25,7 +25,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  margin-top: var(--space-2xl);
+  margin-top: var(--space-xl);
 }
 .jump a {
   display: block;
@@ -267,7 +267,7 @@ code {
   margin-bottom: 8px;
 }
 .install h3 {
-  margin: var(--space-xl) 0 8px;
+  margin: var(--space-l) 0 8px;
   font-family: var(--display);
   font-weight: 400;
   font-size: var(--step-3);
