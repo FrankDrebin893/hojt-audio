@@ -1,34 +1,20 @@
-/* The landing page: the logo, then the two products side by side as two enclosures on the
+/* The landing page: the headline, then the two products side by side as two enclosures on the
    bench, each with its own paint. Everything shared is in hojt.css. */
 
 .hero {
-  padding-block: 64px 56px;
+  padding-block: 56px 48px;
 }
+/* The bar above carries the logo, as on every page: the hero is the headline, and the two
+   enclosures come up into the first screen. Its columns are theirs, so the words line up
+   with the piano viz below */
 .hero .wrap {
   display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-  align-items: center;
-  gap: 32px 56px;
-}
-.hero .logo {
-  width: 100%;
-  max-width: 440px;
-  height: auto;
-  filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.55));
-}
-/* The Ø is a knob: on arrival its pointer turns up to where it stays */
-.hero .pointer {
-  transform-box: view-box;
-  transform-origin: 27.6px 15.4px;
-  animation: turn-up 1.2s var(--ease-out) 0.25s both;
-}
-@keyframes turn-up {
-  from {
-    transform: rotate(-120deg);
-  }
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: last baseline;
+  gap: 18px 28px;
 }
 .hero h1 {
-  margin: 0 0 14px;
+  margin: 0;
   font-family: var(--display);
   font-weight: 400;
   font-size: clamp(46px, 6.6vw, 84px);
@@ -40,6 +26,7 @@
   max-width: 34em;
   margin: 0;
   font-size: 19px;
+  text-wrap: pretty;
 }
 
 /* The two enclosures */
@@ -221,10 +208,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
   .hero {
-    padding-top: 40px;
-  }
-  .hero .logo {
-    max-width: 300px;
+    padding-block: 40px 24px;
   }
 }
 @media (max-width: 420px) {
