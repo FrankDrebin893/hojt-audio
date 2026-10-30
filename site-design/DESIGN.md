@@ -85,9 +85,39 @@ in doubt, add more of the product, not more of the chrome.
 
 - Display (Bebas Neue) for headings and the bar, model (Bowlby One SC) only for product names on
   their label, mono for captions and figures, the system sans for reading.
-- The scale today is a set of fixed sizes (14, 15, 17, 21, 22, 26 px and one `clamp()` for the
-  label). **Open:** a fluid type and spacing scale (for example from utopia.fyi) as custom
-  properties in `hojt.css`, so a page stops picking its own sizes.
+- **The fluid scale.** Every size of type and space is a custom property of `hojt.css`, each a
+  `clamp()` that grows with the window from a phone (390px wide) to a desktop (1440px) and stops
+  there. A page picks a step; it does not set a size of its own. A size that is not on the scale
+  is a reason to add a step here, not to write a number in a page's stylesheet.
+
+  | Type | Phone to desktop | For |
+  |---|---|---|
+  | `--step--3` | 12px | The mono line under a button or a board tile |
+  | `--step--2` | 13 to 14px | Mono: tape, chips, clip names, code, notes |
+  | `--step--1` | 14 to 15px | Tables, the bottom of the page |
+  | `--step-0` | 16 to 17px | Body text |
+  | `--step-1` | 18 to 19px | A lead paragraph, table heads |
+  | `--step-2` | 19 to 22px | The top bar, captions, the bottom nav, board tiles |
+  | `--step-3` | 22 to 26px | Section headings (h3), buttons, summaries |
+  | `--step-4` | 26 to 30px | The jump board's names |
+  | `--step-5` | 36 to 52px | A page's section headings (h2) |
+  | `--step-6` | 34 to 62px | The label (`.band`), the Install heading |
+  | `--step-7` | 42 to 84px | A page's headline |
+
+  | Space | Phone to desktop |
+  |---|---|
+  | `--space-2xs` | 8 to 10px |
+  | `--space-xs` | 10 to 14px |
+  | `--space-s` | 16 to 22px |
+  | `--space-m` | 20 to 28px |
+  | `--space-l` | 26 to 34px |
+  | `--space-xl` | 32 to 48px |
+  | `--space-2xl` | 40 to 56px |
+  | `--space-3xl` | 52 to 72px: between sections |
+
+  The small gaps inside a component (a chip's padding, the 2px between board tiles) stay as
+  they are: they are part of the drawing, not of the page's rhythm. Not on the scale yet: the
+  home page's hero and enclosure labels (#186 changes the hero) and the piano viz page (#185).
 
 ### Named Rules
 
