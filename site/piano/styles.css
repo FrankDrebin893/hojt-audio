@@ -12,26 +12,9 @@
   --amber: #f0c06a;
 }
 
-/* Top: as the head of the plugins' page */
+/* Top: the shared head of hojt.css, with the lead kept from ending on one word */
 
-.top {
-  padding-block: var(--space-2xl) var(--space-xl);
-}
-.top h1.band {
-  margin-bottom: var(--space-l);
-}
-.top .say {
-  margin: 0 0 12px;
-  font-family: var(--display);
-  font-size: var(--step-7);
-  line-height: 0.95;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
 .top p:not(.say) {
-  max-width: 40em;
-  margin: 0;
-  font-size: var(--step-1);
   text-wrap: pretty;
 }
 .actions {
@@ -59,13 +42,11 @@
 
 .paint {
   padding-block: var(--space-l);
-  background: var(--paint);
 }
-.shot {
+.paint .shot {
   margin: 0;
 }
-.shot img {
-  border-radius: 6px;
+.paint .shot img {
   box-shadow: 0 18px 36px -18px rgba(0, 0, 0, 0.8);
 }
 
@@ -98,11 +79,7 @@
 .part .lead {
   font-size: var(--step-1);
 }
-.cols {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: var(--space-xl);
-  margin-top: var(--space-l);
+.part .cols {
   align-items: start;
 }
 .points,
@@ -115,11 +92,11 @@
 .steps li {
   margin-bottom: var(--space-2xs);
 }
-.facts-line {
+.part .facts-line {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2xs);
-  margin-top: var(--space-s) !important;
+  margin-top: var(--space-s);
 }
 
 /* The tour: a tab per screen, the screen below */
@@ -132,7 +109,7 @@
 }
 .tour-btn,
 .chord-btn {
-  padding: 7px 14px 5px;
+  padding: var(--space-2xs) var(--space-xs);
   border: 1px solid var(--line);
   border-radius: 4px;
   background: var(--tape);
@@ -177,8 +154,11 @@
   text-transform: uppercase;
   color: var(--silk);
 }
-.screen-text {
-  margin-top: var(--space-2xs) !important;
+.part .screen-text {
+  margin-top: var(--space-2xs);
+}
+.part p code {
+  overflow-wrap: break-word;
 }
 
 /* The chord inspector: the app's display and one octave of its keyboard */
@@ -334,8 +314,8 @@
   color: #6e6c6a;
 }
 
-@media (max-width: 820px) {
-  .cols {
-    grid-template-columns: minmax(0, 1fr);
-  }
+
+/* A row of buttons that opens a column sits on the column's top line */
+.cols > div > .actions:first-child {
+  margin-top: 0;
 }

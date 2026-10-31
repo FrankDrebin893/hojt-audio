@@ -1,26 +1,4 @@
 /* The plugins' page (dsp/). The shared look, colours and fonts are in ../hojt.css */
-/* Top */
-
-.top {
-  padding-block: var(--space-2xl) var(--space-xl);
-}
-.top h1.band {
-  margin-bottom: var(--space-l);
-}
-.top .say {
-  margin: 0 0 12px;
-  font-family: var(--display);
-  font-size: var(--step-7);
-  line-height: 0.95;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-.top p:not(.say) {
-  max-width: 40em;
-  margin: 0;
-  font-size: var(--step-1);
-}
-
 .jump {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -90,17 +68,6 @@
   padding: var(--space-3xl) 0 24px;
 }
 
-.paint {
-  position: relative;
-  padding: 26px 0 30px;
-  background: var(--paint);
-}
-.shot {
-  margin: 26px 0 0;
-}
-.shot img {
-  border-radius: 6px;
-}
 /* A phone shows the wide window at a size that can be read, and scrolls it sideways */
 .shot.wide {
   overflow-x: auto;
@@ -112,12 +79,6 @@
   width: min(100%, 400px);
 }
 
-.cols {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: var(--space-xl);
-  margin-top: var(--space-l);
-}
 .cols.with-shot {
   grid-template-columns: auto minmax(0, 1fr);
 }
@@ -241,7 +202,6 @@ pre {
   .jump {
     grid-template-columns: 1fr;
   }
-  .cols,
   .cols.with-shot {
     grid-template-columns: minmax(0, 1fr);
   }
