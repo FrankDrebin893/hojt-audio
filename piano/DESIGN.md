@@ -319,7 +319,7 @@ As in piano character, recoloured by the tokens: the status chip reads as a prin
 
 The six scenes of the screenshot harness (`tools/readme-screenshots/`) are the look's snapshot test, as the editors' snapshots are for the plugins (`ui/STYLE.md`): `--check` renders each from the real `MainWindow` and compares it with `site/piano/screenshots/<scene>.png`, and on a drift leaves `<scene>.new.png` and `<scene>.diff.png` beside it; CI keeps them as an artifact. A change to the look updates those references in the same pull request, after somebody has looked at the new pictures. The steps are in `AGENTS.md`, Snapshots.
 
-Text is crisp at 100% and 150%: the window sets `UseLayoutRounding` and Display text formatting, so 1px borders and the 11–14px legends sit on whole pixels. Text that a Viewbox scales (the chord readout, the keyboard) is set Ideal, and the HØJT badge keeps layout rounding off for its fractional geometry.
+The window sets `UseLayoutRounding`, which rounds layout to whole pixels; in the harness's 1.5x renders it moves edges by a pixel or two and leaves the text's sharpness and contrast as they were. The HØJT badge keeps it off for its fractional geometry. Text stays Ideal, WPF's default: Display formatting was tried and, in the harness's 1.5x renders, made the 11–14px legends softer, dimmer and unevenly spaced (#170).
 
 ## Do's and Don'ts
 
