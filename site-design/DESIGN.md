@@ -152,8 +152,14 @@ download, controls.
   shows the logo again under it; the home page opens on its headline and the two products.
 - **Label**: the product's name in Bowlby One SC on a tilted cream label over its paint band.
 - **Chips**: mono, small, for facts only.
-- **Download buttons**: cream keys with the platform and a mono line under it.
-- **Listen**: one clip per row with its name in mono.
+- **Download matrix**: said once, at Install: a table of the six plugins by the three systems,
+  each cell a cream key on a ridge of the plugin's paint. A plugin's section only links to it.
+  On a phone each plugin is a card of three keys.
+- **Rig and board**: the DSP page's first screen. The Guitar Amp across the page, the five
+  stompboxes on a board under it, each a link to its section.
+- **Audition deck**: one per plugin under Listen: a footswitch, a dark display with the clip, its
+  time and a scrub bar, and tape tabs with an LED that pick the clip. Without script each clip
+  keeps its own player; starting one stops any other.
 
 ### Named Rules
 
@@ -209,6 +215,4 @@ and printed matter (pedal boxes, gig posters), each with one line on what to bor
 
 From the audit of 2026-10-28, each one a `/design` change of its own:
 
-- The DSP page's first screen has a headline, chips and the colour board, but no pedal.
-- The Listen sections use the browser's grey `<audio>` players, up to seven in a row.
-- The Download block is repeated six times on the DSP page (about 11,000px tall on desktop).
+(The first screen, the player and the download block of the DSP page were done in #183 and #184, picks B of #182.)
