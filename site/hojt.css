@@ -454,6 +454,58 @@ code {
   color: var(--tape-text);
 }
 
+/* The donate key in the bar, and the band that asks above the footer: a cream key on an orange
+   ridge, the one place the page asks for anything */
+
+.site-bar nav a.donate {
+  padding: 9px 16px 5px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--silk);
+  color: var(--ink);
+  box-shadow: 0 3px 0 var(--brand-orange);
+}
+.site-bar nav a.donate:hover {
+  background: #fff;
+  color: var(--ink);
+}
+.site-bar nav a.donate:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--brand-orange);
+}
+.support {
+  margin-top: var(--space-3xl);
+  padding-block: var(--space-xl);
+  border-block: 1px solid var(--line);
+  background: var(--panel);
+}
+.support .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-m) var(--space-xl);
+}
+.support h2 {
+  margin: 0 0 6px;
+  font-family: var(--display);
+  font-size: var(--step-4);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+.support p {
+  max-width: 38em;
+  margin: 0;
+  color: var(--silk-dim);
+}
+.support .button {
+  --paint: var(--brand-orange);
+}
+.support + .bottom {
+  margin-top: 0;
+}
+
 /* Bottom of every page */
 
 .bottom {
