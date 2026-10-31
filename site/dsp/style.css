@@ -1,26 +1,4 @@
 /* The plugins' page (dsp/). The shared look, colours and fonts are in ../hojt.css */
-/* Top */
-
-.top {
-  padding-block: var(--space-2xl) var(--space-xl);
-}
-.top h1.band {
-  margin-bottom: var(--space-l);
-}
-.top .say {
-  margin: 0 0 12px;
-  font-family: var(--display);
-  font-size: var(--step-7);
-  line-height: 0.95;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-.top p:not(.say) {
-  max-width: 40em;
-  margin: 0;
-  font-size: var(--step-1);
-}
-
 .jump {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -90,17 +68,6 @@
   padding: var(--space-3xl) 0 24px;
 }
 
-.paint {
-  position: relative;
-  padding: 26px 0 30px;
-  background: var(--paint);
-}
-.shot {
-  margin: 26px 0 0;
-}
-.shot img {
-  border-radius: 6px;
-}
 /* A phone shows the wide window at a size that can be read, and scrolls it sideways */
 .shot.wide {
   overflow-x: auto;
@@ -112,39 +79,11 @@
   width: min(100%, 400px);
 }
 
-.cols {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: var(--space-xl);
-  margin-top: var(--space-l);
-}
 .cols.with-shot {
   grid-template-columns: auto minmax(0, 1fr);
 }
 .cols.with-shot .shot {
   margin: 0;
-}
-
-.plugin h3 {
-  margin: var(--space-l) 0 12px;
-  font-family: var(--display);
-  font-weight: 400;
-  font-size: var(--step-3);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.plugin h3:first-child {
-  margin-top: 0;
-}
-.plugin p {
-  margin: 0 0 14px;
-}
-.plugin ul.points {
-  margin: 0 0 14px;
-  padding-left: 1.1em;
-}
-.plugin ul.points li {
-  margin-bottom: 6px;
 }
 
 /* Demos: a strip of label tape each */
@@ -182,66 +121,6 @@
 
 /* Downloads */
 
-.downloads {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-/* Controls */
-
-details {
-  margin-top: var(--space-l);
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-}
-summary {
-  padding: 14px 0 10px;
-  cursor: pointer;
-  font-family: var(--display);
-  font-size: var(--step-3);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.scroll {
-  overflow-x: auto;
-  margin-bottom: 18px;
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--step--1);
-}
-th,
-td {
-  padding: 8px 14px 8px 0;
-  border-top: 1px solid var(--line);
-  text-align: left;
-  vertical-align: top;
-}
-th {
-  border-top: 0;
-  font-family: var(--display);
-  font-weight: 400;
-  font-size: var(--step-1);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--silk-dim);
-}
-td.v,
-code {
-  font-family: var(--mono);
-  font-size: var(--step--2);
-  white-space: nowrap;
-}
-td:first-child {
-  white-space: nowrap;
-}
-code {
-  white-space: normal;
-  overflow-wrap: anywhere;
-  color: var(--tape-text);
-}
-
 /* Install */
 
 .install {
@@ -257,14 +136,6 @@ code {
   line-height: 1;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-}
-.install ol {
-  max-width: 44em;
-  margin: 0 0 30px;
-  padding-left: 1.3em;
-}
-.install li {
-  margin-bottom: 8px;
 }
 .install h3 {
   margin: var(--space-l) 0 8px;
@@ -296,7 +167,6 @@ pre {
   .jump {
     grid-template-columns: 1fr;
   }
-  .cols,
   .cols.with-shot {
     grid-template-columns: minmax(0, 1fr);
   }

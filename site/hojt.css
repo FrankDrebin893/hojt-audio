@@ -284,6 +284,176 @@ h3 {
   transform: none;
 }
 
+/* The head of a product's page: its label, a headline and what it is, as large as the page
+   allows */
+
+.top {
+  padding-block: var(--space-2xl) var(--space-xl);
+}
+.top h1.band {
+  margin-bottom: var(--space-l);
+}
+.top .say {
+  margin: 0 0 12px;
+  font-family: var(--display);
+  font-size: var(--step-7);
+  line-height: 0.95;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.top p:not(.say) {
+  max-width: 40em;
+  margin: 0;
+  font-size: var(--step-1);
+  text-wrap: pretty;
+}
+
+/* A band of the product's paint, with a render of it on top; two columns that stack on a phone */
+
+.paint {
+  position: relative;
+  padding: 26px 0 30px;
+  background: var(--paint);
+}
+.shot {
+  margin: 26px 0 0;
+}
+.shot img {
+  border-radius: 6px;
+}
+
+.cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-xl);
+  margin-top: var(--space-l);
+}
+
+/* A part of a product's page: its headings, paragraphs and lists, and a row of buttons */
+
+.part h3 {
+  margin: var(--space-l) 0 12px;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: var(--step-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.part h3:first-child {
+  margin-top: 0;
+}
+.part p {
+  margin: 0 0 14px;
+}
+/* Points: each marked by a small square of silk, printed, not the browser's disc */
+.points {
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+.points li {
+  position: relative;
+  margin-bottom: 6px;
+  padding-left: 1.1em;
+}
+.points li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.65em;
+  width: 6px;
+  height: 6px;
+  background: var(--silk-dim);
+}
+/* Steps, numbered */
+.steps {
+  max-width: 44em;
+  margin: 0 0 30px;
+  padding-left: 1.3em;
+}
+.steps li {
+  margin-bottom: 8px;
+}
+.downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Tables of facts, folded away in a details when long (the controls of a plugin, the
+   shortcuts of the piano viz), and code */
+
+details {
+  margin-top: var(--space-l);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 14px 0 10px;
+  list-style: none;
+  cursor: pointer;
+  font-family: var(--display);
+  font-size: var(--step-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+summary::-webkit-details-marker {
+  display: none;
+}
+/* A plus to open, a minus to close, in the mono of the labels: not the browser's triangle */
+summary::after {
+  content: "+";
+  font-family: var(--mono);
+  font-size: var(--step-3);
+  line-height: 1;
+  color: var(--silk-dim);
+}
+details[open] summary::after {
+  content: "\2212";
+}
+.scroll {
+  overflow-x: auto;
+  margin-bottom: 18px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--step--1);
+}
+th,
+td {
+  padding: 8px 14px 8px 0;
+  border-top: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  border-top: 0;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: var(--step-1);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--silk-dim);
+}
+td.v,
+code {
+  font-family: var(--mono);
+  font-size: var(--step--2);
+  white-space: nowrap;
+}
+td:first-child {
+  white-space: nowrap;
+}
+code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--tape-text);
+}
+
 /* Bottom of every page */
 
 .bottom {
@@ -308,6 +478,11 @@ h3 {
   text-transform: uppercase;
 }
 
+@media (max-width: 820px) {
+  .cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 @media (max-width: 560px) {
   .site-bar .wrap {
     padding-block: 10px;

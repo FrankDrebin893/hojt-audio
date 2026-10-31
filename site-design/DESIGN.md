@@ -122,13 +122,11 @@ in doubt, add more of the product, not more of the chrome.
 
   Not on the scale yet:
   - The home page's hero and the labels on its enclosures (#186 changes the hero).
-  - The piano viz page (`site/piano/styles.css`, #185). It already takes the shared pieces
-    from `hojt.css` (body text, the top bar, buttons, label, bottom), so on a phone those are a
-    step smaller there too; its own sizes stay fixed until #185.
   - The Resources pages (`site/resources/resources.css` and the two `atlas.css`): their own
-    sizes are fixed; the shared pieces follow the scale as on the piano viz page.
-  - Anywhere else: a size written as a step's `var()` is on the scale; a size still written in
-    px is not yet, and moves onto it with #183, #185 and #186.
+    sizes are fixed; the shared pieces from `hojt.css` follow the scale.
+  - Anywhere else: a size written as a step's `var()` is on the scale. A size still written in
+    px is either part of a drawing (the keyboard and the app's display on the piano viz page) or
+    not on the scale yet, and moves onto it with #183 and #186.
 
 ### Named Rules
 
@@ -214,5 +212,3 @@ From the audit of 2026-10-28, each one a `/design` change of its own:
 - The DSP page's first screen has a headline, chips and the colour board, but no pedal.
 - The Listen sections use the browser's grey `<audio>` players, up to seven in a row.
 - The Download block is repeated six times on the DSP page (about 11,000px tall on desktop).
-- The piano viz page breaks the voice and has its own 669-line stylesheet; it should come onto
-  the tokens of `hojt.css`.
