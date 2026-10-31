@@ -1,0 +1,176 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>174 explore</title>
+<!-- Mock-ups for issue #174, Milestone 1 (/design explore). Base pixels are the real renders on main:
+     the Glass Bells egui snapshot (660x600) and the piano viz main window off-screen render (1920x1080).
+     Each direction paints only what it changes over them. Open as explore.html?d=today|A|B|C -->
+<style>
+@font-face{font-family:Bebas;src:url(BebasNeue-Regular.ttf)}
+@font-face{font-family:Plex;src:url(IBMPlexMono-Medium.ttf)}
+@font-face{font-family:Inter;src:url(InterTight-SemiBold.ttf);font-weight:600}
+@font-face{font-family:Inter;src:url(InterTight-Bold.ttf);font-weight:700}
+@font-face{font-family:Inter;src:url(InterTight-Regular.ttf);font-weight:400}
+@font-face{font-family:JBM;src:url(JetBrainsMono-Regular.ttf)}
+:root{--silk:#EADFC8;--panel:#1C1A18;--tape:#141210;--tape-text:#F4EFE4;--bench:#121110;--orange:#E2581E;
+  --cap:#26221E;--cap-top:#2E2A25;--cap-edge:#4A443D;}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bench);color:var(--silk);font-family:Inter;width:2640px;padding:24px}
+header{display:flex;align-items:baseline;gap:24px;margin-bottom:18px}
+header h1{font:400 56px/1 Bebas;letter-spacing:.06em;color:var(--silk)}
+header p{font:400 22px/1.3 Inter;color:#b9b0a0;max-width:1900px}
+.row{display:flex;gap:24px;align-items:flex-start}
+.win{position:relative;flex:none;overflow:hidden}
+.pedal{width:660px;height:600px;background:url(bells.png)}
+.piano{width:1920px;height:1080px;background:url(piano.png)}
+.cap{font:400 18px Bebas;letter-spacing:.12em;color:#8d8475;margin-top:8px}
+.abs{position:absolute}
+.scarlet{background:url(scarlet.png) repeat;-webkit-mask-image:linear-gradient(transparent,#000 14px,#000 calc(100% - 14px),transparent),linear-gradient(90deg,transparent,#000 14px,#000 calc(100% - 14px),transparent);-webkit-mask-composite:source-in;mask-composite:intersect}
+.tbar{background:url(tbar.png) repeat-x}
+/* plugin vocabulary */
+.bebas{font-family:Bebas;letter-spacing:.12em;color:var(--silk);font-weight:400}
+.tape{background:linear-gradient(#1d1a17,var(--tape) 40%,#0e0c0b);color:var(--tape-text);font:500 15px/1 Plex;
+  padding:4px 9px 3px;border-radius:2px;box-shadow:0 1px 0 rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06);letter-spacing:.06em}
+.rubber{border-radius:9px;background:linear-gradient(#2a2724,var(--panel) 35%,#151311);
+  box-shadow:0 4px 0 #0b0a09,0 6px 10px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.10)}
+.rubber.neutral{background:linear-gradient(#2c2c2c,#1c1c1c 35%,#141414);box-shadow:0 4px 0 #0a0a0a,0 6px 10px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.10)}
+.slot{position:absolute;left:50%;top:9px;width:26px;height:6px;margin-left:-13px;border-radius:3px;background:#0b0a09;box-shadow:inset 0 1px 1px #000,0 1px 0 rgba(255,255,255,.08)}
+.slot.lit{background:var(--tape-text);box-shadow:0 0 8px rgba(255,240,220,.9)}
+.slot.white.lit{background:#fff;box-shadow:0 0 8px rgba(255,255,255,.9)}
+.combo{position:absolute;top:5px;height:36px;border-radius:5px;display:flex;align-items:center;padding:0 12px;justify-content:space-between}
+.combo.warm{background:var(--panel);box-shadow:inset 0 1px 2px rgba(0,0,0,.7),0 1px 0 rgba(255,255,255,.12)}
+.combo.neutral{background:#1c1c1c;box-shadow:inset 0 1px 2px rgba(0,0,0,.7),0 1px 0 rgba(255,255,255,.12)}
+.combo.tapebox{background:linear-gradient(#1d1a17,var(--tape) 40%,#0e0c0b);box-shadow:0 1px 0 rgba(255,255,255,.12),inset 0 1px 0 rgba(255,255,255,.06)}
+.chev{width:9px;height:9px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:translateY(-3px) rotate(45deg);opacity:.85}
+/* fluted knob cap (B) */
+.flute{position:absolute;border-radius:50%;
+  background:radial-gradient(circle at 50% 50%,var(--cap-top) 0 58%,transparent 59%),
+  repeating-conic-gradient(from 0deg,#0e0d0c 0 5deg,#6a6258 5deg 6.5deg,#2e2a25 6.5deg 12deg);
+  box-shadow:0 5px 10px rgba(0,0,0,.6),inset 0 2px 2px rgba(255,255,255,.12)}
+.flute::after{content:"";position:absolute;inset:18%;border-radius:50%;background:radial-gradient(circle at 40% 30%,#3a352f,var(--cap) 70%);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.pointer{position:absolute;left:50%;top:6%;width:5px;height:38%;margin-left:-2.5px;border-radius:3px;background:var(--silk);z-index:2;transform-origin:50% 115%}
+/* B: machined bezel round displays, lip round frames */
+.bezel{position:absolute;border-radius:4px;padding:3px;background:linear-gradient(#5d5a56,#2B2B2E 18%,#0D0D0F 80%,#3a3a3e);
+  box-shadow:0 1px 0 rgba(255,255,255,.18),0 2px 4px rgba(0,0,0,.6)}
+.bezel>i{display:block;width:100%;height:100%;border-radius:2px;box-shadow:inset 0 2px 3px rgba(0,0,0,.9)}
+.lip{position:absolute;border-radius:12px;background:rgba(0,0,0,.10);
+  box-shadow:inset 0 3px 6px rgba(0,0,0,.45),inset 0 -1px 0 rgba(255,255,255,.14),0 1px 0 rgba(255,255,255,.10)}
+</style></head><body>
+<header><h1 id="t"></h1><p id="s"></p></header>
+<div class="row">
+  <div><div class="win pedal" id="pedal"></div><div class="cap">Glass Bells, 660 x 600 (a plugin editor)</div></div>
+  <div><div class="win piano" id="piano"></div><div class="cap">Piano viz main window, 1920 x 1080</div></div>
+</div>
+<script>
+const d = new URLSearchParams(location.search).get('d') || 'today';
+const T = {
+  today: ['Today', 'The renders on main, unchanged: the Glass Bells snapshot and the piano viz main window.'],
+  A: ['A · Silk on Scarlet', 'The piano viz keeps its scarlet but prints in the pedals\' vocabulary: silk Bebas legends, warm rubber keys, label-tape readouts, a model number. The OLED stays black and white. The pedals do not change.'],
+  B: ['B · Shared Hardware Vocabulary', 'Both move: the piano viz takes the pedals\' silk print, tape readouts and fluted knob caps; the pedals take the piano viz\'s machined bezel round their readouts and a pressed lip round their frames.'],
+  C: ['C · Two Lines, One Badge', 'Two product lines on purpose: stompboxes stay screen-printed powder coat, the piano viz stays anodised scarlet with white legends. Only the shared tokens move: warm blacks for rubber and boxes, the badge set on a line plate.'],
+}[d];
+document.getElementById('t').textContent = T[0];
+document.getElementById('s').textContent = T[1];
+const P = document.getElementById('piano'), E = document.getElementById('pedal');
+function el(parent, cls, css, html) { const e = document.createElement('div'); e.className = cls; Object.assign(e.style, css); if (html != null) e.innerHTML = html; parent.appendChild(e); return e; }
+const px = v => v + 'px';
+function box(parent, cls, x, y, w, h, html, css = {}) { return el(parent, cls + ' abs', Object.assign({ left: px(x), top: px(y), width: px(w), height: px(h) }, css), html); }
+
+// ---------- the piano viz ----------
+const KEYS = [['key ◂', 'key ▸', 'scale', 'mute'], ['metro', 'tap', '–', '+'], ['rec', 'play', 'loop', 'notes']];
+const KX = [1527, 1621, 1716, 1810], KY = [487, 582, 677];
+
+function padKeys(style) {
+  box(P, 'scarlet', 1515, 478, 390, 292);
+  KEYS.forEach((row, r) => row.forEach((label, c) => {
+    const k = box(P, 'rubber' + (style === 'C' ? ' neutral-warm' : ''), KX[c], KY[r], 80, 53);
+    el(k, 'slot' + (label === 'metro' ? ' lit' : '') + (style === 'C' ? ' white' : ''), {});
+    const L = style === 'C'
+      ? box(P, '', KX[c] - 10, KY[r] + 60, 100, 26, label, { font: '700 17px Inter', color: '#fff', textAlign: 'center' })
+      : box(P, 'bebas', KX[c] - 10, KY[r] + 60, 100, 26, label.toUpperCase(), { fontSize: '22px', textAlign: 'center' });
+  }));
+}
+function knobLegends() {
+  box(P, 'scarlet', 1525, 226, 370, 60);
+  [[1614, 'VOLUME', '80 %'], [1803, 'CLICK', '70 %']].forEach(([x, name, v]) => {
+    box(P, 'bebas', x - 80, 228, 160, 28, name, { fontSize: '27px', textAlign: 'center' });
+    const t = box(P, '', x - 80, 258, 160, 24, '', { display: 'flex', justifyContent: 'center' });
+    el(t, 'tape', {}, v);
+  });
+}
+function fluted() {
+  [[1614, 145, 81], [1803, 145, 54]].forEach(([x, y, a]) => {
+    const r = 52;
+    const k = box(P, 'flute', x - r, y - r, 2 * r, 2 * r, '');
+    el(k, 'pointer', { transform: `rotate(${a}deg)` });
+  });
+}
+function toolbar(style) {
+  const tb = box(P, 'tbar', 40, 641, 1300, 46);
+  const silk = style !== 'C';
+  const legend = (x, w, t) => silk
+    ? box(tb, 'bebas', x, 9, w, 30, t.toUpperCase(), { fontSize: '24px', lineHeight: '30px' })
+    : box(tb, '', x, 10, w, 30, t, { font: '700 17px Inter', color: '#f0eeec', lineHeight: '26px' });
+  const combo = (x, w, t, chev = true) => {
+    const c = el(tb, 'combo ' + (silk ? 'tapebox' : 'warm'), { left: px(x), width: px(w) },
+      `<span>${silk ? t.toUpperCase() : t}</span>` + (chev ? '<span class="chev"></span>' : ''));
+    c.style.color = silk ? 'var(--tape-text)' : '#fff';
+    c.style.font = silk ? '500 17px Plex' : (t === 'C' ? '700 18px Inter' : '400 18px Inter');
+    if (!chev) c.style.justifyContent = 'center';
+    return c;
+  };
+  const btn = (x, w, t) => {
+    const b = el(tb, 'combo ' + (silk ? 'rubberbtn' : 'warm'), { left: px(x), width: px(w), justifyContent: 'center' }, t);
+    if (silk) Object.assign(b.style, { background: 'linear-gradient(#2a2724,#1C1A18 40%,#151311)', boxShadow: '0 2px 0 #0b0a09,inset 0 1px 0 rgba(255,255,255,.1)', font: '400 22px Bebas', letterSpacing: '.1em', color: 'var(--silk)' });
+    else Object.assign(b.style, { font: '400 18px Inter', color: '#fff' });
+    return b;
+  };
+  const o = -40; // toolbar overlay starts at x=40
+  legend(97 + o, 40, 'Key');
+  combo(138 + o, 112, 'C');
+  combo(262 + o, 200, 'Major');
+  box(tb, '', 477 + o, 8, 20, 30, '×', { font: '400 24px Inter', color: silk ? 'var(--silk)' : '#ddd' });
+  box(tb, '', 522 + o, 13, 20, 20, '', { background: silk ? 'var(--tape)' : '#1c1a18', borderRadius: '3px', boxShadow: 'inset 0 1px 2px #000' });
+  legend(551 + o, 170, 'Mute out-of-key').style.whiteSpace = 'nowrap';
+  box(tb, '', 690 + o, 8, 1, 30, '', { background: 'rgba(255,255,255,.18)' });
+  const m = el(tb, 'combo', { left: px(706 + o), width: '62px', justifyContent: 'center', background: silk ? 'var(--silk)' : '#F4F2EE', color: '#1c1a18', font: '700 18px Inter' }, '● ♩');
+  btn(783 + o, 30, '–');
+  combo(820 + o, 56, '90', false);
+  btn(882 + o, 30, '+');
+  btn(922 + o, 54, 'Tap');
+  combo(986 + o, 82, '4/4');
+  box(tb, '', 1088 + o, 8, 1, 30, '', { background: 'rgba(255,255,255,.18)' });
+  box(tb, '', 1118 + o, 15, 16, 16, '', { borderRadius: '50%', background: '#9C4A42' });
+  box(tb, '', 1158 + o, 6, 20, 34, '▶', { font: '400 20px Inter', color: silk ? 'var(--silk)' : '#fff', lineHeight: '34px' });
+  box(tb, '', 1199 + o, 6, 24, 34, '⟳', { font: '400 24px Inter', color: silk ? 'var(--silk)' : '#fff', lineHeight: '34px' });
+  combo(1236 + o, 94, '100%');
+}
+function modelPrint(text, font) {
+  box(P, '', 1530, 975, 240, 40, text, font);
+}
+
+if (d === 'A' || d === 'B') {
+  knobLegends(); padKeys('A'); toolbar('A');
+  modelPrint('MODEL<br>PV-1', { font: '400 20px/1.0 Bebas', letterSpacing: '.14em', color: 'var(--silk)', paddingTop: '2px' });
+}
+if (d === 'B') fluted();
+if (d === 'C') {
+  padKeys('C'); toolbar('C');
+  // the badge on a line plate: line name and model printed beside it, in the line's own print
+  modelPrint('STAGE LINE · PV-1', { font: '700 15px/40px Inter', letterSpacing: '.16em', color: '#fff', textAlign: 'right', paddingRight: '8px' });
+}
+// warm rubber for C keeps the white legends: same rubber as A/B, white slot
+document.querySelectorAll('.neutral-warm').forEach(k => k.classList.remove('neutral'));
+
+// ---------- the pedal ----------
+if (d === 'B') {
+  [[40, 206, 332, 122], [388, 206, 232, 122]].forEach(([x, y, w, h]) => box(E, 'lip', x, y, w, h, ''));
+  const tapes = [[165, 181, [[77, 143], [199, 241], [305, 355], [411, 469], [529, 571]]],
+                 [302, 317, [[74, 126], [187, 225], [293, 331], [427, 473], [539, 577]]]];
+  tapes.forEach(([y0, y1, xs]) => xs.forEach(([x0, x1]) => {
+    const b = box(E, 'bezel', x0 - 4, y0 - 4, x1 - x0 + 8, y1 - y0 + 9, '<i></i>');
+    b.style.background = 'transparent';
+    b.style.border = '3px solid #2B2B2E';
+    b.style.borderTopColor = '#6a6762'; b.style.borderBottomColor = '#0D0D0F';
+    b.style.padding = '0';
+  }));
+}
+</script></body></html>
