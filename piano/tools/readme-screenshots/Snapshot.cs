@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -71,7 +72,9 @@ internal static class Snapshot
                 }
                 else
                 {
+                    // Only reached inside both pictures: a pixel outside either got delta 255 above.
                     // The reference, greyed and dimmed to a third, so the magenta reads as where it is.
+                    Debug.Assert(inExpected);
                     int e = expected.Offset(x, y);
                     byte grey = (byte)((expected.Bgra[e] * 0.114 + expected.Bgra[e + 1] * 0.587 + expected.Bgra[e + 2] * 0.299)
                                        * expected.Bgra[e + 3] / 255 / 3);

@@ -78,6 +78,11 @@ internal sealed class FakeAudioEngine : IAudioEngine
 /// <summary>
 /// A clock that moves only when told to (<see cref="Advance"/>). It starts on an evening at
 /// the piano, which is what the MIDI log and the take list show.
+///
+/// <para>A <see cref="PianoMidiVisualizationApp.Services.Playback.NoteSequencePlayer"/> on it
+/// busy-spins whenever its next note is under 2 ms away and the clock stands still, until a
+/// scene steps the clock (a Stop is only seen after the spin). The recorder scene leaves the
+/// playhead at 1.8s, 0.24s before the next note, so the player waits there instead.</para>
 /// </summary>
 internal sealed class FakeClock : AppClock
 {
