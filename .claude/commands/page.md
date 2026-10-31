@@ -5,6 +5,9 @@ argument-hint: [release <version>]
 
 # /page
 
+Before anything else, read `.agents/learnings.md`, its sections **Everywhere** and **Page and releases**:
+what Rasmus said about earlier results. Its rules bind this run as this file does.
+
 Keep the plugins' page, https://hojte.net/hojt-audio/dsp/ (`site/dsp/index.html`, published
 from `main` by `pages.yml`), true to what a player can download. The landing page
 (`site/index.html`) names the two products and links their pages; it changes only when a

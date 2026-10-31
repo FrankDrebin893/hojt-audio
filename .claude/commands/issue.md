@@ -5,6 +5,9 @@ argument-hint: <what you want, in your own words>
 
 # /issue
 
+Before anything else, read `.agents/learnings.md`, its sections **Everywhere** and **Specs**:
+what Rasmus said about earlier results. Its rules bind this run as this file does.
+
 File one issue in FrankDrebin893/hojt-audio from what Rasmus said: $ARGUMENTS
 
 1. **Kind.** Pick the form it fits: `feature` (something new), `bug` (something does not

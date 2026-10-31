@@ -6,6 +6,9 @@ argument-hint: [how many, at most 3]
 
 # /scout
 
+Before anything else, read `.agents/learnings.md`, its sections **Everywhere** and **Scout**:
+what Rasmus said about earlier results. Its rules bind this run as this file does.
+
 File up to $ARGUMENTS (default 3, never more than 3) new `state:idea` issues in
 FrankDrebin893/hojt-audio: ideas a player would notice, each with the reason it is worth
 doing now. The weekly run (`scripts/weekly-checks.sh`) already files the repository's

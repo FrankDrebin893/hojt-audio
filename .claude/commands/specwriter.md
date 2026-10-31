@@ -5,6 +5,9 @@ argument-hint: [how many specs, at most 2]
 
 # /specwriter
 
+Before anything else, read `.agents/learnings.md`, its sections **Everywhere** and **Specs**:
+what Rasmus said about earlier results. Its rules bind this run as this file does.
+
 Turn the best `state:idea` issues of FrankDrebin893/hojt-audio into specs, $ARGUMENTS of them
 (default 2, never more than 2), so the owner finds a short list to approve.
 
