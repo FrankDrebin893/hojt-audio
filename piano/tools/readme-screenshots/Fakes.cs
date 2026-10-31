@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using PianoMidiVisualizationApp.Audio;
 using PianoMidiVisualizationApp.Midi;
 using PianoMidiVisualizationApp.Models;
+using PianoMidiVisualizationApp.Services;
 
 namespace ReadmeScreenshots;
 
@@ -71,4 +73,30 @@ internal sealed class FakeAudioEngine : IAudioEngine
     public bool IsRunning { get; private set; }
 
     public void Dispose() { }
+}
+
+/// <summary>
+/// A clock that moves only when told to (<see cref="Advance"/>). It starts on an evening at
+/// the piano, which is what the MIDI log and the take list show.
+///
+/// <para>A <see cref="PianoMidiVisualizationApp.Services.Playback.NoteSequencePlayer"/> on it
+/// busy-spins whenever its next note is under 2 ms away and the clock stands still, until a
+/// scene steps the clock (a Stop is only seen after the spin). The recorder scene leaves the
+/// playhead at 1.8s, 0.24s before the next note, so the player waits there instead.</para>
+/// </summary>
+internal sealed class FakeClock : AppClock
+{
+    private static readonly DateTime StartTime = new(2026, 3, 14, 20, 15, 0);
+
+    // Any timestamp will do as the start, as long as it is well above zero.
+    private static readonly long StartTimestamp = Stopwatch.Frequency * 3600;
+
+    private long _elapsed;   // Stopwatch ticks since the start; read from the player's timing thread too
+
+    public override long GetTimestamp() => StartTimestamp + Interlocked.Read(ref _elapsed);
+
+    public override DateTime Now => StartTime + Stopwatch.GetElapsedTime(StartTimestamp, GetTimestamp());
+
+    public void Advance(TimeSpan by) =>
+        Interlocked.Add(ref _elapsed, (long)Math.Round(by.TotalSeconds * Stopwatch.Frequency));
 }

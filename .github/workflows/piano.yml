@@ -12,10 +12,12 @@ on:
     tags: ['piano-v*']
     paths:
       - 'piano/**'
+      - 'site/piano/screenshots/**'
       - '.github/workflows/piano.yml'
   pull_request:
     paths:
       - 'piano/**'
+      - 'site/piano/screenshots/**'
       - '.github/workflows/piano.yml'
   workflow_dispatch:
 
@@ -58,10 +60,28 @@ jobs:
       - name: Publish
         run: dotnet publish piano/src/PianoMidiVisualizationApp/PianoMidiVisualizationApp.csproj -c Release -r win-x64 -p:Version=$env:VERSION -o publish
 
-      # The README screenshot harness is not part of the release, but a change to the app's
-      # view models can break it, so it is built too
-      - name: Build the screenshot harness
-        run: dotnet build piano/tools/readme-screenshots/ReadmeScreenshots.csproj -c Release
+      # The snapshot test: the screenshot harness renders every scene of the real window
+      # off-screen and compares it with its reference in site/piano/screenshots/ (the README's
+      # and the page's pictures). A scene that drifts leaves <scene>.new.png and <scene>.diff.png
+      # there, which the next step keeps, so a session without Windows can see what was drawn.
+      # Windows never makes a window larger than the screen, and the runner's starts at
+      # 1024x768: the scenes are up to 1280x840
+      - name: Set the screen to 1920x1080
+        run: Set-DisplayResolution -Width 1920 -Height 1080 -Force
+
+      - name: Check the screenshots
+        run: dotnet run --project piano/tools/readme-screenshots/ReadmeScreenshots.csproj -c Release -- --check
+
+      - name: Keep what the screenshots drew
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: piano-snapshot-diffs
+          path: |
+            site/piano/screenshots/*.new.png
+            site/piano/screenshots/*.diff.png
+          if-no-files-found: ignore
+          retention-days: 14
 
       # Allowlist rather than zipping the publish folder, which also holds a .pdb and a macOS .dylib.
       - name: Package

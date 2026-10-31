@@ -103,12 +103,18 @@ internal static class Scenes
         vm.Recorder.SetLoopRegion(take.Length * 0.25, take.Length * 0.75);
         vm.Recorder.TogglePlaybackCommand.Execute(null);
 
-        // Into the loop, with the whole of the Am (about 1.1s to 2.0s into the take) held.
-        Host.PumpUntil(() => vm.Recorder.PlaybackPosition >= TimeSpan.FromSeconds(1.8),
+        // The playhead runs on the host's clock, which stands still until stepped: playback
+        // starts at A, then the clock steps once to put the playhead exactly at 1.8s, inside the
+        // Am (1.04s to 2.04s into the take) with all four of its notes held.
+        var playhead = TimeSpan.FromSeconds(1.8);
+        Host.PumpUntil(() => vm.Recorder.PlaybackPosition > TimeSpan.Zero,
+                       TimeSpan.FromSeconds(10), "playback to start at A");
+        host.Clock.Advance(playhead - vm.Recorder.PlaybackPosition);
+        Host.PumpUntil(() => vm.Recorder.PlaybackPosition >= playhead - TimeSpan.FromMilliseconds(1),
                        TimeSpan.FromSeconds(10), "the playhead to reach the Am");
     }
 
-    /// <summary>Each chord as a held bass note and a rising arpeggio, in real time.</summary>
+    /// <summary>Each chord as a held bass note and a rising arpeggio, 1.04s a chord on the host's clock.</summary>
     private static void PlayBrokenChords(Host host, int[][] chords)
     {
         foreach (var chord in chords)
@@ -116,10 +122,10 @@ internal static class Scenes
             host.Press(chord[0]);
             foreach (var note in chord.Skip(1))
             {
-                Host.Pump(TimeSpan.FromMilliseconds(140));
+                host.Wait(TimeSpan.FromMilliseconds(140));
                 host.Press(note);
             }
-            Host.Pump(TimeSpan.FromMilliseconds(420));
+            host.Wait(TimeSpan.FromMilliseconds(420));
             host.Release(chord);
         }
     }

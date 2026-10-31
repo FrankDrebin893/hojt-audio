@@ -166,6 +166,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private readonly TapTempo _tapTempo = new();
     private readonly Stopwatch _tapClock = Stopwatch.StartNew();
+    private readonly AppClock _clock;
 
     // ----- Panel visibility. Defaults are the zen layout; AppSettings overrides them on load. -----
 
@@ -236,8 +237,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private const int MaxLogLines = 100;
     public ObservableCollection<string> MidiLog { get; } = new();
 
-    public MainViewModel(IMidiInputService midiInput, IAudioEngine audioEngine, Dispatcher dispatcher)
+    /// <param name="clock">Times notes and stamps the MIDI log; <see cref="AppClock.Real"/> when null.
+    /// The screenshot harness passes one it steps by hand, so a take and its log read the same every run.</param>
+    public MainViewModel(IMidiInputService midiInput, IAudioEngine audioEngine, Dispatcher dispatcher,
+                         AppClock? clock = null)
     {
+        _clock = clock ?? AppClock.Real;
         _midiInput = midiInput;
         _audioEngine = audioEngine;
         _dispatcher = dispatcher;
@@ -249,7 +254,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Chat = new ChatViewModel(chatService, GetMusicContext);
 
         Recorder = new RecorderViewModel(dispatcher, PlayNoteOn, PlayNoteOff,
-                                         () => ExportTempo, status => StatusText = status);
+                                         () => ExportTempo, status => StatusText = status, _clock);
 
         SongPractice = new SongPracticeViewModel(PianoKeyboard, PlayNoteOn, PlayNoteOff, status => StatusText = status);
         SongPractice.SongLoaded += (_, _) => IsSongPracticeVisible = true;
@@ -764,7 +769,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         // Invariant: a format's ":" is the culture's time separator, so Danish Windows printed
         // "22.06.13.526", the seconds indistinguishable from the milliseconds.
-        MidiLog.Add($"[{DateTime.Now.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture)}] {line}");
+        MidiLog.Add($"[{_clock.Now.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture)}] {line}");
         while (MidiLog.Count > MaxLogLines)
             MidiLog.RemoveAt(0);
     }
@@ -772,7 +777,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private void OnMidiNoteOn(object? sender, NoteEventArgs e)
     {
         // Timestamped first, before the audio engine or anything else can delay it.
-        long timestamp = Stopwatch.GetTimestamp();
+        long timestamp = _clock.GetTimestamp();
 
         // A learned control belongs to the app, not the piano: it never sounds, lights a key,
         // reaches the readout or gets recorded or scored.
@@ -809,7 +814,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private void OnMidiNoteOff(object? sender, NoteEventArgs e)
     {
-        long timestamp = Stopwatch.GetTimestamp();
+        long timestamp = _clock.GetTimestamp();
         if (PianoControls.Router.OnNoteOff(e.Channel, e.NoteNumber)) return;
         Recorder.CaptureNoteOff(e.NoteNumber, timestamp);
 
@@ -923,7 +928,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private void OnMidiControlChange(object? sender, ControlChangeEventArgs e)
     {
-        long timestamp = Stopwatch.GetTimestamp();
+        long timestamp = _clock.GetTimestamp();
         if (PianoControls.Router.OnControlChange(e.Channel, e.Controller, e.Value, timestamp)) return;
 
         if (e.Controller == MidiTrigger.SustainPedal)
@@ -932,7 +937,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Program changes only ever drive learned controls; the piano sound never changes.</summary>
     private void OnMidiProgramChange(object? sender, ProgramChangeEventArgs e) =>
-        PianoControls.Router.OnProgramChange(e.Channel, e.Program, Stopwatch.GetTimestamp());
+        PianoControls.Router.OnProgramChange(e.Channel, e.Program, _clock.GetTimestamp());
 
     /// <summary>
     /// The sustain pedal on one channel, from any thread. The engine sustains the sound, the
@@ -976,7 +981,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// </summary>
     private void ResetSustainPedals()
     {
-        long timestamp = Stopwatch.GetTimestamp();
+        long timestamp = _clock.GetTimestamp();
         for (int channel = 0; channel < _pedalDown.Length; channel++)
             SetSustainPedal(channel, false, timestamp);
     }
@@ -1019,7 +1024,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
             case PianoAction.TapTempo:
                 // Timed from the press itself, not from whenever the UI thread got to it.
-                var at = _tapClock.Elapsed - Stopwatch.GetElapsedTime(timestamp);
+                var at = _tapClock.Elapsed - Stopwatch.GetElapsedTime(timestamp, _clock.GetTimestamp());
                 return Tap(at) is { } bpm ? $"Tempo {bpm} BPM" : "Tap tempo · keep tapping";
 
             case PianoAction.ToggleSongPlayback:

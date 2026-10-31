@@ -12,7 +12,11 @@
         WindowStyle="None"
         AllowsTransparency="True"
         ResizeMode="CanResizeWithGrip"
+        UseLayoutRounding="True"
         KeyDown="Window_KeyDown">
+
+    <!-- Layout rounding puts 1px borders and edges on whole device pixels. The HØJT badge
+         turns it off for its own exact fractional geometry. -->
 
     <!-- The window's own rounded corners: the window is transparent and this frame, clipped to
          a rounded rectangle in code-behind, is the panel. Square while maximised. -->

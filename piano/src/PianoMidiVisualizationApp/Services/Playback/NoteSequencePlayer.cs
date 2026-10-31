@@ -59,6 +59,7 @@ public sealed class NoteSequencePlayer : IDisposable
 
     private readonly Action<int, int> _noteOn;
     private readonly Action<int> _noteOff;
+    private readonly AppClock _clock;
     private readonly object _sync = new();
 
     private IReadOnlyList<TimedNote> _notes = [];
@@ -105,8 +106,10 @@ public sealed class NoteSequencePlayer : IDisposable
 
     /// <param name="noteOn">Called with (note, velocity) to start a note.</param>
     /// <param name="noteOff">Called with the note to release.</param>
-    public NoteSequencePlayer(Action<int, int> noteOn, Action<int> noteOff)
+    /// <param name="clock">What the playhead runs on; <see cref="AppClock.Real"/> when null.</param>
+    public NoteSequencePlayer(Action<int, int> noteOn, Action<int> noteOff, AppClock? clock = null)
     {
+        _clock = clock ?? AppClock.Real;
         _noteOn = noteOn ?? throw new ArgumentNullException(nameof(noteOn));
         _noteOff = noteOff ?? throw new ArgumentNullException(nameof(noteOff));
         Array.Fill(_sounding, NotSounding);
@@ -135,7 +138,7 @@ public sealed class NoteSequencePlayer : IDisposable
         get
         {
             lock (_sync)
-                return _isPlaying ? PositionAt(Stopwatch.GetTimestamp()) : TimeSpan.Zero;
+                return _isPlaying ? PositionAt(_clock.GetTimestamp()) : TimeSpan.Zero;
         }
     }
 
@@ -165,7 +168,7 @@ public sealed class NoteSequencePlayer : IDisposable
             {
                 if (_isPlaying)
                 {
-                    long now = Stopwatch.GetTimestamp();
+                    long now = _clock.GetTimestamp();
                     _anchorPosition = PositionAt(now);
                     _anchorTimestamp = now;
                 }
@@ -282,7 +285,7 @@ public sealed class NoteSequencePlayer : IDisposable
             if (start < TimeSpan.Zero) start = TimeSpan.Zero;
 
             _anchorPosition = start;
-            _anchorTimestamp = Stopwatch.GetTimestamp();
+            _anchorTimestamp = _clock.GetTimestamp();
             _cursor = FirstEventAtOrAfter(start);
             _isPlaying = true;
 
@@ -330,7 +333,7 @@ public sealed class NoteSequencePlayer : IDisposable
 
             while (true)
             {
-                long now = Stopwatch.GetTimestamp();
+                long now = _clock.GetTimestamp();
                 TimeSpan position;
                 double waitMs = 0;
                 bool ended = false;
@@ -403,7 +406,7 @@ public sealed class NoteSequencePlayer : IDisposable
                     // to whatever else is ready, even at lower priority, and under load cost up
                     // to ~5 ms of lateness. A Stop meanwhile is caught on the next pass.
                     long due = now + (long)(waitMs * Stopwatch.Frequency / 1000);
-                    while (Stopwatch.GetTimestamp() < due)
+                    while (_clock.GetTimestamp() < due)
                         Thread.SpinWait(20);
                 }
             }

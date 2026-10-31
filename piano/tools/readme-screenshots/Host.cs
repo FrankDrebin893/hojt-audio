@@ -19,6 +19,12 @@ namespace ReadmeScreenshots;
 internal sealed class Host : IDisposable
 {
     public FakeMidiInput Midi { get; } = new();
+
+    /// <summary>
+    /// The view model's clock. It stands still unless a scene steps it (<see cref="Wait"/>), so a
+    /// take's note lengths, its playhead and the MIDI log's times are the same on every run.
+    /// </summary>
+    public FakeClock Clock { get; } = new();
     public MainViewModel Vm { get; }
     public MainWindow Window { get; }
 
@@ -28,7 +34,7 @@ internal sealed class Host : IDisposable
     /// </param>
     public Host(int width, int height, bool setUp = true)
     {
-        Vm = new MainViewModel(Midi, new FakeAudioEngine(), Dispatcher.CurrentDispatcher);
+        Vm = new MainViewModel(Midi, new FakeAudioEngine(), Dispatcher.CurrentDispatcher, Clock);
         Vm.RefreshDevices();
 
         // Fresh defaults, never AppSettings.Load(): the user's own settings file holds their
@@ -60,6 +66,13 @@ internal sealed class Host : IDisposable
         };
         Window.Show();
         Pump(TimeSpan.FromMilliseconds(200));
+
+        // Windows never makes a window larger than the screen, so on a small one (a CI runner
+        // starts at 1024x768) every scene would come out narrower than its reference.
+        if (Window.ActualWidth < width || Window.ActualHeight < height)
+            throw new InvalidOperationException(
+                $"The window is {Window.ActualWidth}x{Window.ActualHeight}, not {width}x{height}: the screen is too small for it. " +
+                "Render on a screen of at least 1280x840 (DIPs).");
     }
 
     // ------------------------------------------------------------------ playing
@@ -67,19 +80,30 @@ internal sealed class Host : IDisposable
     public void Press(params int[] notes)
     {
         foreach (var note in notes) Midi.PressKey(note, 88);
-        Pump(TimeSpan.FromMilliseconds(40));
+        Wait(TimeSpan.FromMilliseconds(40));
     }
 
     public void Release(params int[] notes)
     {
         foreach (var note in notes) Midi.ReleaseKey(note);
-        Pump(TimeSpan.FromMilliseconds(40));
+        Wait(TimeSpan.FromMilliseconds(40));
     }
 
     // ------------------------------------------------------------------ time
 
     /// <summary>
-    /// Runs the dispatcher for a while. Never Thread.Sleep: that starves the dispatcher, and
+    /// Lets <paramref name="duration"/> go by for the app: the dispatcher runs for that long, then
+    /// <see cref="Clock"/> steps by exactly that much. What the clock times (a take, the MIDI log)
+    /// therefore reads the same on every run, however long the dispatcher really took.
+    /// </summary>
+    public void Wait(TimeSpan duration)
+    {
+        Pump(duration);
+        Clock.Advance(duration);
+    }
+
+    /// <summary>
+    /// Runs the dispatcher for a while, without moving <see cref="Clock"/>. Never Thread.Sleep: that starves the dispatcher, and
     /// with it every BeginInvoke and CompositionTarget.Rendering frame the app relies on.
     /// </summary>
     public static void Pump(TimeSpan duration)
@@ -109,8 +133,8 @@ internal sealed class Host : IDisposable
 
     // ------------------------------------------------------------------ rendering
 
-    /// <summary>Renders the whole window, title bar included, at <paramref name="scale"/> times 96 DPI.</summary>
-    public void Save(string path, double scale)
+    /// <summary>Renders the whole window, title bar included, at <paramref name="scale"/> times 96 DPI, to a PNG.</summary>
+    public byte[] Render(double scale)
     {
         Window.UpdateLayout();
         Pump(TimeSpan.FromMilliseconds(100));
@@ -139,9 +163,9 @@ internal sealed class Host : IDisposable
 
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        using var file = File.Create(path);
-        encoder.Save(file);
+        using var png = new MemoryStream();
+        encoder.Save(png);
+        return png.ToArray();
     }
 
     public void Dispose()

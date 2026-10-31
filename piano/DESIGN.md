@@ -315,6 +315,14 @@ Laid out as on the K comp, white on the OLED. The chord name in Inter Tight Extr
 ### Chips, Menus, Inputs, Scrollbars
 As in piano character, recoloured by the tokens: the status chip reads as a printed status light on the panel (no outline at rest), its dot K's green LED while all is well, filling and outlining in amber when something isn't ready; the app's name beside the icon is set bold white like the comp's model name; menus and popups are Rubber Raised with a Rubber Line border; inputs are Rubber Raised with a Rubber Line outline; scroll thumbs are Legend Faint.
 
+## Checking the Look
+
+The six scenes of the screenshot harness (`tools/readme-screenshots/`) are the look's snapshot test, as the editors' snapshots are for the plugins (`ui/STYLE.md`): `--check` renders each from the real `MainWindow` and compares it with `site/piano/screenshots/<scene>.png`, and on a drift leaves `<scene>.new.png` and `<scene>.diff.png` beside it; CI keeps them as an artifact. A change to the look updates those references in the same pull request, after somebody has looked at the new pictures. The steps are in `AGENTS.md`, Snapshots.
+
+The window sets `UseLayoutRounding`, which rounds layout to whole pixels; in the harness's 1.5x renders it moves edges by a few pixels (the grand staff widens by about 8px) and leaves the text's sharpness and contrast as they were. The HØJT badge keeps it off for its fractional geometry. Text stays Ideal, WPF's default.
+
+History (#170): Display text formatting was tried on the whole window and left out, because in the harness's 1.5x renders it made the 11–14px legends softer, dimmer and unevenly spaced.
+
 ## Do's and Don'ts
 
 ### Do:
