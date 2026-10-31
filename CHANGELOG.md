@@ -7,6 +7,7 @@ GitHub release.
 
 ### Site
 
+- A "Support HØJT" link to Ko-fi in the footer of every page.
 - The plugins' page opens on the Guitar Amp across the page with the five stompboxes on a board
   under it, each a link to its section. The clips of each plugin play in one audition deck
   (a footswitch, a display with a scrub bar, tabs to pick the clip) instead of the browser's grey
