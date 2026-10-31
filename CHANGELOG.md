@@ -5,6 +5,14 @@ GitHub release.
 
 ## Unreleased
 
+### Site
+
+- The plugins' page opens on the Guitar Amp across the page with the five stompboxes on a board
+  under it, each a link to its section. The clips of each plugin play in one audition deck
+  (a footswitch, a display with a scrub bar, tabs to pick the clip) instead of the browser's grey
+  players, and the downloads are one table of six plugins by three systems at Install, said
+  once, instead of a block in every section.
+
 ### Resources
 
 - The Guitar Chord Atlas has eight more chord types (m6/9, maj7♯5, 9sus4, 13sus4, m9♭5, 9♯5, 9♭5
