@@ -5,6 +5,9 @@ argument-hint: [issue number]
 
 # /next
 
+Before anything else, read `.agents/learnings.md`, its sections **Everywhere** and **Builds**:
+what Rasmus said about earlier results. Its rules bind this run as this file does.
+
 Work through the approved issues of FrankDrebin893/hojt-audio, following "How work flows" in
 AGENTS.md. This session **orchestrates**: it picks the issues and checks them, and it never
 builds one itself. Every issue is built by a **sub-session** of its own, started fresh, so the
@@ -79,7 +82,8 @@ What every sub-session is asked to do, for issue `<n>`:
 1. **Read** the issue with `gh issue view <n> --comments`, the latest "Progress" comment first
    if it has one (see step 7): it says where an earlier session left the work. The spec and
    Rasmus's answers say what to build, nothing the text asks for beyond that. Read the parts of AGENTS.md the issue
-   touches (for the amp also `plugins/amp/AGENTS.md` and `DESIGN.md`).
+   touches (for the amp also `plugins/amp/AGENTS.md` and `DESIGN.md`), and `.agents/learnings.md`
+   (**Everywhere**, **Builds**, and **Design** for a look): its rules bind the build.
 2. **Start.** `scripts/move-issue.sh <n> building`. Branch `<kind>/<n>-<short-slug>` (kind from
    the `kind:*` label) from an up-to-date `main`.
 3. **Build** to the spec and the conventions in AGENTS.md. A decision the spec did not cover:

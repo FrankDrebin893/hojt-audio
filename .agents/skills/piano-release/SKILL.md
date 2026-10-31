@@ -7,6 +7,9 @@ disable-model-invocation: true
 
 # Publish a piano release
 
+Before anything else, read `.agents/learnings.md`, its sections **Everywhere** and **Page and releases**:
+what Rasmus said about earlier results. Its rules bind this run as this file does.
+
 A piano release is a pushed `piano-vX.Y.Z` tag. `.github/workflows/piano.yml` sees the tag,
 builds the self-contained exe, zips it with `piano/LICENSE` and `piano/THIRD-PARTY-NOTICES.txt`,
 and creates the GitHub Release with that zip attached. Anyone can download it there, without a

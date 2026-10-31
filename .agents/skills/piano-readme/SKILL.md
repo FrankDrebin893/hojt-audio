@@ -5,6 +5,9 @@ description: Refresh piano/README.md for the Piano MIDI Visualization app. Re-re
 
 # Update the README
 
+Before anything else, read `.agents/learnings.md`, its sections **Everywhere** and **Page and releases**:
+what Rasmus said about earlier results. Its rules bind this run as this file does.
+
 The README is the app's shop window: a hero screenshot, what it does, how to get it running.
 It goes stale because features land faster than docs. This skill rebuilds it from the code,
 with fresh screenshots rendered from the real `MainWindow`.

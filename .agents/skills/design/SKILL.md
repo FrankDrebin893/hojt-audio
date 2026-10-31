@@ -6,6 +6,9 @@ argument-hint: explore|build|review <surface> [what]
 
 # /design
 
+Before anything else, read `.agents/learnings.md`, its sections **Everywhere** and **Design**:
+what Rasmus said about earlier results. Its rules bind this run as this file does.
+
 How the look of HØJT is changed. Claude builds well and follows written rules, but judges its own
 taste badly and sees nothing without a render, and a critique-and-polish loop run again and again
 drifts back to the average. So this skill puts taste where it belongs, with Rasmus picking between
@@ -40,10 +43,16 @@ player, a toolbar), a new screen. A spacing, colour or wording fix goes straight
    keep, the references that apply, and what may not change.
 2. Make **three directions that differ in kind**, not in shade: a different layout or a different
    idea of the component, each named in two words. A direction that only changes colour or
-   radius does not count. Avoid the defaults the surface's Don'ts name.
+   radius does not count, nor does one that only re-prints today's layout in other type and
+   tape. Each must be worth building on its own: no direction contains another ("all of A,
+   plus..."), none is "the smallest change", and at least one is bold enough to feel risky.
+   Avoid the defaults the surface's Don'ts name.
 3. Render each as an image at the surface's size: for the site an HTML mock-up shot with
    Playwright at 1440 and 390; for the piano viz and an editor a mock-up page at the window's
    size. Each image shows the same content, so the comparison is fair.
+   Then look at every render for elements that overlap, clip or collide (a label running under
+   the control beside it, art behind a footswitch, text cut at its box) and fix them before
+   anything is posted: a mock-up with a collision hides the direction behind its slips.
 4. Post them on the issue (or in the thread when there is no issue): the images, one line each on
    what the direction is and what it gives up, and your recommendation with its reason.
 5. **Stop.** Rasmus picks one, or names the parts to combine ("A's layout, C's player"). That pick

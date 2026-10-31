@@ -49,7 +49,7 @@ detail lives. Each detail is next to what it governs.
   `site-design/DESIGN.md` - the site's look: its tokens, named rules, voice and references; not published
 - `scripts/` - Build, install, check, page and release tools; see `scripts/README.md`
 - `.agents/skills/` - The agent's skills (`/issue`, `/spec`, `/next`, `/groom`, `/release`, `/page`,
-  `/design`, `/scout`, `/specwriter`, and the piano viz's `/piano-release` and `/piano-readme`).
+  `/design`, `/scout`, `/specwriter`, `/feedback`, and the piano viz's `/piano-release` and `/piano-readme`).
   `.claude/commands/` mirrors them for Claude Code (`xtask/tests/skills_mirror.rs` holds it);
   `.claude/settings.json` has the hooks
 - `.github/workflows/` - `ci.yml` (tests), `release.yml` (the plugins, on `vX.Y.Z`), `piano.yml` (builds
@@ -170,6 +170,9 @@ and where; `from:user` marks issues from outside the project.
   `Sound` is not required: it only runs when a plugin changed
 - A large piece of work is a parent issue with one sub-issue per milestone
 - A decision the spec did not cover is asked on the issue, not guessed
+- What Rasmus says about a result (a mock-up, a spec, an idea, a build) is recorded with `/feedback`
+  in `.agents/learnings.md`, a section per process. Every skill reads it before it starts, so
+  the routines learn from it too, and a learning that changes a step is written into that skill
 - A `/next` session that ends without a pull request leaves a "Progress" comment on the issue:
   what is done, what was verified and how, what is next, what is blocked. The next session on
   that issue reads the latest one first (`.agents/skills/next/SKILL.md`, "The builder")

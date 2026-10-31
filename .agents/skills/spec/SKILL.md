@@ -6,6 +6,9 @@ argument-hint: <issue number>
 
 # /spec
 
+Before anything else, read `.agents/learnings.md`, its sections **Everywhere** and **Specs**:
+what Rasmus said about earlier results. Its rules bind this run as this file does.
+
 Write the spec for issue #$ARGUMENTS of FrankDrebin893/hojt-audio, following "How work flows"
 in AGENTS.md.
 

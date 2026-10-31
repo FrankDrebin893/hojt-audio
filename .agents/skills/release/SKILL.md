@@ -6,6 +6,9 @@ argument-hint: <version, e.g. 0.4.0>
 
 # /release
 
+Before anything else, read `.agents/learnings.md`, its sections **Everywhere** and **Page and releases**:
+what Rasmus said about earlier results. Its rules bind this run as this file does.
+
 Prepare release $ARGUMENTS by `.agents/skills/release/RELEASING.md`. Start from `main`, up to date, with a
 clean tree (if it is not, stop and say so), on a branch `release/$ARGUMENTS`: `main` is
 protected, so a release goes in through a pull request like any other change.
