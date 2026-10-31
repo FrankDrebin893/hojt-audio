@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Piano viz: see the harmony while you play piano</title>
-  <meta name="description" content="Play your MIDI keyboard through any SoundFont (.sf2) or SFZ piano with ~5 ms ASIO latency and see the chord name, figured-bass Roman numeral, grand staff, circle of fifths, and scale-aware keybed markers in real time.">
+  <meta name="description" content="A free Windows app for practising piano with a MIDI keyboard: play through any SoundFont or SFZ piano and read the chord, its Roman numeral, the staff and the circle of fifths while you play.">
   <meta property="og:title" content="Piano viz: see the harmony while you play piano">
   <meta property="og:type" content="website">
   <meta property="og:image" content="https://hojte.net/hojt-audio/piano/screenshots/main-window.png">
@@ -29,295 +29,152 @@
     </div>
   </header>
 
+  <div class="top">
+    <div class="wrap">
+      <h1 class="band" id="top">Piano viz</h1>
+      <p class="say">See the harmony under your hands while you play</p>
+      <p>Falling-notes players show which keys to press. The piano viz shows what they mean.
+        Play a MIDI keyboard through any SoundFont or SFZ piano, and read the chord, its Roman
+        numeral, the voicing, the staff and the circle of fifths from the piano stool.</p>
+      <div class="actions">
+        <a id="hero-download-btn" class="button" href="https://github.com/FrankDrebin893/hojt-audio-piano-viz/releases/download/v1.0.0/PianoMidiVisualizationApp-1.0.0-win-x64.zip"><span id="hero-download-label">Download for Windows</span><small>v1.0.0, 64-bit</small></a>
+        <a class="button plain" href="https://github.com/FrankDrebin893/hojt-audio/releases?q=piano-v&amp;expanded=true">All releases</a>
+      </div>
+    </div>
+  </div>
+
   <main>
-    <!-- Hero Stage -->
-    <section id="stage" class="section section-stage">
+
+    <div class="paint">
       <div class="wrap">
-        <div class="hero-content">
-          <h1 class="band" id="top">Piano viz</h1>
-          <p class="say">See the harmony under your hands while you play</p>
-          <p class="hero-lead measure">
-            Falling-notes players show which keys to press. <strong>Piano MIDI Visualization</strong> tells you what they mean. Connect any USB or MIDI piano, play through any SoundFont (<code>.sf2</code>) or SFZ grand piano with ~5 ms ASIO audio, and read the chord name, figured-bass Roman numeral, voicing, grand staff, and circle of fifths from arm's length—without taking a hand off the keys.
-          </p>
+        <figure class="shot">
+          <img src="screenshots/main-window.png" width="1920" height="1080" alt="The piano viz in C major holding G7/B: the chord name, V65, the grand staff and the circle of fifths on a dark display above a 61-key keyboard, with two knobs and twelve keys on a scarlet panel to the right">
+        </figure>
+      </div>
+    </div>
+    <div class="wrap">
+      <ul class="facts">
+        <li>Free</li>
+        <li>Windows 10 and 11, 64-bit</li>
+        <li>One .exe, no installer</li>
+        <li>Open source, MIT</li>
+      </ul>
+      <nav class="on-page" aria-label="On this page">
+        <a href="#tour">Tour</a>
+        <a href="#architecture">Harmony and keybed</a>
+        <a href="#releases">Download</a>
+        <a href="#setup">Setup and shortcuts</a>
+      </nav>
+    </div>
 
-          <div class="hero-badges">
-            <span class="badge">Windows 10 / 11 (win-x64)</span>
-            <span class="badge">Self-Contained Single-File .EXE</span>
-            <span class="badge">Multi-Bank .SF2 &amp; .SFZ Library</span>
-            <span class="badge">6 Built-In Classic Songs + MIDI Import</span>
-            <span class="badge">~5 ms ASIO &amp; WASAPI</span>
-          </div>
-
-          <div class="hero-actions">
-            <a id="hero-download-btn" href="https://github.com/FrankDrebin893/hojt-audio-piano-viz/releases/download/v1.0.0/PianoMidiVisualizationApp-1.0.0-win-x64.zip" class="button">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              <span id="hero-download-label">Download for Windows (x64) · v1.0.0</span>
-            </a>
-            <a href="https://github.com/FrankDrebin893/hojt-audio/releases?q=piano-v&amp;expanded=true" class="button plain" target="_blank" rel="noopener">
-              <span>All releases</span>
-            </a>
-          </div>
-
-          <nav class="jump" aria-label="On this page">
-            <a href="#tour">Tour</a>
-            <a href="#architecture">Harmony and keybed</a>
-            <a href="#releases">Download</a>
-            <a href="#setup">Setup and shortcuts</a>
-          </nav>
-
+    <section id="tour" class="part">
+      <div class="wrap">
+        <h2>Tour</h2>
+        <p class="lead">Six screens of the app, each a screenshot of its own window. The main window is above.</p>
+        <div class="tabs" role="tablist" aria-label="Screens of the app">
+          <button type="button" class="tour-btn" role="tab" aria-selected="false"
+                  data-src="screenshots/main-window.png" data-w="1920" data-h="1080"
+                  data-title="Main window"
+                  data-dim="C major, G7/B, V65"
+                  data-desc="Holding G7/B in C major. The display names the chord, its Roman numeral (V65), the inversion and the voicing (drop 2), with every note and its interval. The keys out of the key are dimmed. On the right, the Volume and Click knobs above twelve keys.">Main window</button>
+          <button type="button" class="tour-btn active" role="tab" aria-selected="true"
+                  data-src="screenshots/zen-mode.png" data-w="1920" data-h="780"
+                  data-title="Zen mode (F11)"
+                  data-dim="F major, Bbmaj7, IVmaj7"
+                  data-desc="F11 leaves only the chord readout and the keyboard. In F major, holding Bbmaj7: B natural and the black keys out of the key are dimmed, and the keys in it stay bright.">Zen mode</button>
+          <button type="button" class="tour-btn" role="tab" aria-selected="false"
+                  data-src="screenshots/song-practice.png" data-w="1920" data-h="1080"
+                  data-title="Song practice"
+                  data-dim="Ode to Joy"
+                  data-desc="Six pieces come with it (Ode to Joy, Bach's Prelude in C and Minuet in G, Satie's first Gymnopédie, Für Elise and Pachelbel's Canon), and any .mid file can be dropped in. The right hand falls in teal, the left in violet; Wait for Me holds each chord until you play it.">Song practice</button>
+          <button type="button" class="tour-btn" role="tab" aria-selected="false"
+                  data-src="screenshots/recorder.png" data-w="1920" data-h="1260"
+                  data-title="Recorder and MIDI log"
+                  data-dim="Take 2, A–B loop"
+                  data-desc="Your last ten takes stay in memory, sustain pedal and all, on a piano roll. Loop a part between A and B, slow it to half speed, save a take as a .mid file, and watch the raw MIDI below.">Recorder</button>
+          <button type="button" class="tour-btn" role="tab" aria-selected="false"
+                  data-src="screenshots/settings.png" data-w="1920" data-h="840"
+                  data-title="Settings (Ctrl+,)"
+                  data-dim=".sf2 and .sfz, MIDI learn"
+                  data-desc="Keep several SoundFonts and SFZ pianos and switch between them with one click. Choose ASIO or WASAPI, and teach a key, pad or pedal on your keyboard to record, play a take, start the metronome, tap the tempo, or play and restart a song.">Settings</button>
+          <button type="button" class="tour-btn" role="tab" aria-selected="false"
+                  data-src="screenshots/first-run.png" data-w="1920" data-h="900"
+                  data-title="First run"
+                  data-dim="Three steps"
+                  data-desc="Before a piano sound is chosen, the display shows three steps: connect your keyboard, choose a piano sound, start the audio. Play a chord and the readout takes over.">First run</button>
         </div>
-
-        <!-- Main Window Hero Hardware Showcase -->
-        <div class="screenshot-hardware-chassis">
-          <div class="chassis-header">
-            <span class="chassis-title">MAIN STAGE · FULL-WIDTH RECESSED OLED &amp; RIGHT-HAND CONTROL DECK</span>
-            <div class="chassis-screws" aria-hidden="true">
-              <span class="screw-dot"></span>
-              <span class="screw-dot"></span>
-            </div>
-          </div>
-          <div class="chassis-viewport">
-            <img src="screenshots/main-window.png" width="1920" height="1080" alt="Piano MIDI Visualization main window in C major holding G7/B (V65, 1st inversion, drop 2) on a full-width recessed OLED display above a 61-key keyboard with scale lip markers and a right-hand hardware control panel.">
-          </div>
-          <div class="chassis-spec-grid">
-            <div class="spec-cell">
-              <div class="spec-title">Full-Width OLED Readout</div>
-              <p class="spec-desc">
-                The recessed gunmetal OLED bezel matches the exact full width of the 61-key keyboard below it—uniting the engraved grand staff, 72px chord readout, figured-bass numeral pill, circle of fifths, and diatonic chord strip.
-              </p>
-            </div>
-            <div class="spec-cell">
-              <div class="spec-title">Scale-Aware Keybed &amp; Lip Inlays</div>
-              <p class="spec-desc">
-                When a key signature is active, tonic keys carry a bold scarlet front lip inlay and label, in-key notes carry crisp slate and warm-ivory front markers, and out-of-key keys recede into solid shaded stone and matte ebony.
-              </p>
-            </div>
-            <div class="spec-cell">
-              <div class="spec-title">Side Knobs &amp; Panel Keys</div>
-              <p class="spec-desc">
-                The right-hand scarlet hardware deck houses the 13-LED rotary halo knobs for Master <strong>Volume</strong> and Metronome <strong>Click</strong> above twelve rubber LED keys and the vector <strong>HØJT</strong> hardware badge.
-              </p>
-            </div>
-          </div>
-        </div>
+        <figure class="screen">
+          <img id="tour-active-img" src="screenshots/zen-mode.png" width="1920" height="780" loading="lazy" alt="Zen mode (F11)">
+          <figcaption><b id="tour-active-title">Zen mode (F11)</b> <span id="tour-active-dim">F major, Bbmaj7, IVmaj7</span></figcaption>
+        </figure>
+        <p id="tour-active-desc" class="screen-text">F11 leaves only the chord readout and the keyboard. In F major, holding Bbmaj7: B natural and the black keys out of the key are dimmed, and the keys in it stay bright.</p>
       </div>
     </section>
 
-    <!-- Interactive Instrument Mode Switcher (#tour) -->
-    <section id="tour" class="section">
+    <section id="architecture" class="part">
       <div class="wrap">
-        <div class="section-head">
-          <h2 class="section-title">Every practice surface, rendered from the live instrument</h2>
-          <p class="section-lead measure">
-            Switch between the six operating states below. Every screenshot is rendered directly from the WPF visual tree at 1.5x HiDPI scale—never a mock-up.
-          </p>
-        </div>
+        <h2>Harmony and keybed</h2>
+        <p class="lead">Pick a chord in C minor to see how the app names it and which keys it dims.</p>
 
-        <div class="tour-panel">
-          <div class="tour-switcher-bar" role="tablist" aria-label="Application screenshots">
-            <button type="button" class="tour-btn active" role="tab" aria-selected="true"
-                    data-src="screenshots/main-window.png" data-w="1920" data-h="1080"
-                    data-title="Main Window — Live Harmony &amp; Side Control Deck"
-                    data-dim="1920 × 1080 · C Major · G7/B (V65)"
-                    data-desc="Holding G7/B in C major. The recessed OLED display spans the full width of the 61-key keyboard and names the chord (G7/B), its figured-bass Roman numeral (V65), inversion (1st inversion), and voicing (drop 2) alongside each note and interval. Out-of-key keys are dimmed on the keyboard, while the right-hand hardware panel provides dedicated room for the Volume and Click halo knobs and twelve LED rubber keys.">
-              1. Main Stage (OLED + Side Deck)
-            </button>
-            <button type="button" class="tour-btn" role="tab" aria-selected="false"
-                    data-src="screenshots/zen-mode.png" data-w="1920" data-h="780"
-                    data-title="Zen Mode (F11) — Scale Dimming in F Major"
-                    data-dim="1920 × 780 · F Major · Bbmaj7 (IVmaj7)"
-                    data-desc="Press F11 to strip the screen down to the full-width OLED chord readout and the 61-key keyboard. Here in F major holding Bbmaj7 (IVmaj7, root position, open voicing), every out-of-key B-natural white key and C#/D#/F#/G# black key is visibly dimmed, while the in-key Bb black keys and ivory white keys remain bright with scale lip marks.">
-              2. Zen Mode &amp; Key Dimming (F11)
-            </button>
-            <button type="button" class="tour-btn" role="tab" aria-selected="false"
-                    data-src="screenshots/song-practice.png" data-w="1920" data-h="1080"
-                    data-title="Song Bank &amp; Falling-Notes Practice — 6 Built-In Classics + MIDI Import"
-                    data-dim="1920 × 1080 · Ode to Joy · Built-In Song Bank"
-                    data-desc="Pick from 6 built-in classical pieces (Ode to Joy, Bach's Prelude in C &amp; Minuet in G, Satie's Gymnopédie No. 1, Für Elise, and Pachelbel's Canon in D) or import and drag-and-drop any .mid file into your persistent Song Bank. Right-hand notes appear in teal, left-hand notes in violet, and Wait for Me mode holds each chord in magenta until you play it.">
-              3. Song Bank &amp; Falling Notes
-            </button>
-            <button type="button" class="tour-btn" role="tab" aria-selected="false"
-                    data-src="screenshots/recorder.png" data-w="1920" data-h="1260"
-                    data-title="10-Take MIDI Recorder &amp; Live MIDI Monitor"
-                    data-dim="1920 × 1260 · A–B Loop · .MID Export"
-                    data-desc="Record up to 10 rolling takes in memory—including sustain pedal holds—and inspect them on a horizontal piano-roll timeline. Set A–B loop brackets, slow playback to 50–100%, export any take as a standard .mid file, and monitor raw MIDI messages below.">
-              4. 10-Take MIDI Recorder
-            </button>
-            <button type="button" class="tour-btn" role="tab" aria-selected="false"
-                    data-src="screenshots/settings.png" data-w="1920" data-h="840"
-                    data-title="Soundbank Library &amp; Learned Piano Controls (Ctrl+,)"
-                    data-dim="1920 × 840 · Multi-Bank .SF2 / .SFZ · MIDI Learn"
-                    data-desc="Import multiple .sf2 SoundFonts and .sfz grand pianos into the managed Soundbank Library and switch instruments with one click. Configure ASIO or WASAPI output, and teach any physical key, drum pad, or pedal on your controller to trigger six hands-free actions: Record, Play Take, Metronome, Tap Tempo, Play Song, and Restart Song.">
-              5. Soundbank Library &amp; Controls
-            </button>
-            <button type="button" class="tour-btn" role="tab" aria-selected="false"
-                    data-src="screenshots/first-run.png" data-w="1920" data-h="900"
-                    data-title="Guided First-Run Checklist"
-                    data-dim="1920 × 900 · 3-Step Onboarding"
-                    data-desc="On first launch before a SoundFont is chosen, the recessed OLED window presents an amber-lit three-step checklist: Connect your keyboard, Choose a piano sound (.sf2 or .sfz), and Start audio. The moment you play a chord, the readout takes over.">
-              6. First-Run Setup Checklist
-            </button>
-          </div>
-
-          <div class="tour-display-chassis">
-            <div class="chassis-viewport">
-              <img id="tour-active-img" src="screenshots/main-window.png" width="1920" height="1080" alt="Active instrument mode screenshot preview">
-            </div>
-            <div class="tour-meta-row">
-              <span id="tour-active-title" class="tour-meta-title">Main Window — Live Harmony &amp; Side Control Deck</span>
-              <span id="tour-active-dim" class="tour-meta-dim">1920 × 1080 · C Major · G7/B (V65)</span>
-            </div>
-            <p id="tour-active-desc" class="tour-description">
-              Holding G7/B in C major. The recessed OLED display spans the full width of the 61-key keyboard and names the chord (G7/B), its figured-bass Roman numeral (V65), inversion (1st inversion), and voicing (drop 2) alongside each note and interval. Out-of-key keys are dimmed on the keyboard, while the right-hand hardware panel provides dedicated room for the Volume and Click halo knobs and twelve LED rubber keys.
-            </p>
-          </div>
-        </div>
-
-        <!-- Complete 6-Scene Visual Index -->
-        <div class="gallery-grid">
-          <article class="gallery-card">
-            <div class="gallery-thumb-wrap">
-              <img src="screenshots/main-window.png" width="1920" height="1080" loading="lazy" alt="Main window in C major showing full-width OLED display and right-side hardware panel">
-            </div>
-            <div class="gallery-card-body">
-              <h3 class="gallery-card-title">Full-Width OLED &amp; Side Control Deck</h3>
-              <p class="gallery-card-desc">The OLED bezel aligns edge-to-edge with the 61-key keyboard while the right-hand panel houses the rotary Volume and Click halo knobs and 12 rubber panel keys.</p>
-            </div>
-          </article>
-
-          <article class="gallery-card">
-            <div class="gallery-thumb-wrap">
-              <img src="screenshots/zen-mode.png" width="1920" height="780" loading="lazy" alt="Zen mode in F major showing dimmed B-natural white keys and highlighted Bb black keys">
-            </div>
-            <div class="gallery-card-body">
-              <h3 class="gallery-card-title">Out-of-Key Scale Dimming (Zen Mode · F11)</h3>
-              <p class="gallery-card-desc">In F major, out-of-key B-natural white keys and C#/D#/F#/G# black keys are dimmed into shadow so in-key scale degrees and the F tonic jump out at a glance.</p>
-            </div>
-          </article>
-
-          <article class="gallery-card">
-            <div class="gallery-thumb-wrap">
-              <img src="screenshots/song-practice.png" width="1920" height="1080" loading="lazy" alt="Song practice mode with built-in Song Bank and falling notes for Ode to Joy">
-            </div>
-            <div class="gallery-card-body">
-              <h3 class="gallery-card-title">Song Bank &amp; Falling-Notes Practice</h3>
-              <p class="gallery-card-desc">Ships with 6 built-in classical pieces (Beethoven, Bach, Satie, Pachelbel) plus drag-and-drop MIDI import into your persistent Song Bank, with bar looping and Wait for Me mode.</p>
-            </div>
-          </article>
-
-          <article class="gallery-card">
-            <div class="gallery-thumb-wrap">
-              <img src="screenshots/recorder.png" width="1920" height="1260" loading="lazy" alt="Recorder and MIDI log showing Take 2 playing back in an A-B loop">
-            </div>
-            <div class="gallery-card-body">
-              <h3 class="gallery-card-title">10-Take Recorder &amp; MIDI Log</h3>
-              <p class="gallery-card-desc">Keep your last 10 takes in memory with full sustain-pedal fidelity, set A–B loop regions on the timeline, and export takes directly to standard .mid files.</p>
-            </div>
-          </article>
-
-          <article class="gallery-card">
-            <div class="gallery-thumb-wrap">
-              <img src="screenshots/settings.png" width="1920" height="840" loading="lazy" alt="Settings overlay showing managed Soundbank Library, ASIO output, and learned piano controls">
-            </div>
-            <div class="gallery-card-body">
-              <h3 class="gallery-card-title">Managed Soundbank Library &amp; Piano Controls</h3>
-              <p class="gallery-card-desc">Import multiple .sf2 and .sfz piano soundbanks for one-click switching, and map unused keys, pads, or pedals on your MIDI controller to transport actions.</p>
-            </div>
-          </article>
-
-          <article class="gallery-card">
-            <div class="gallery-thumb-wrap">
-              <img src="screenshots/first-run.png" width="1920" height="900" loading="lazy" alt="First-run checklist inside the OLED display guiding initial setup">
-            </div>
-            <div class="gallery-card-body">
-              <h3 class="gallery-card-title">Zero-Friction First Run</h3>
-              <p class="gallery-card-desc">Auto-reconnects your last MIDI keyboard and audio driver on launch, and guides first-time setup with a three-step checklist right inside the OLED window.</p>
-            </div>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <!-- Live Voicing & Key Dimming Inspector (#architecture) -->
-    <section id="architecture" class="section">
-      <div class="wrap">
-        <div class="section-head">
-          <h2 class="section-title">Live harmony analysis meets physical key dimming</h2>
-          <p class="section-lead measure">
-            Audition chords in C minor below to see how the OLED readout formats figured-bass Roman numerals, inversions, and voicings while out-of-key keys dim into the keybed.
-          </p>
-        </div>
-
-        <div class="architecture-layout">
+        <div class="cols">
           <div>
             <div class="oled-readout-deck">
               <div class="oled-screen-header">
-                <span class="oled-screen-tag" id="inspector-key-label">C Natural Minor · ♩ 90 · 4/4</span>
-                <span class="oled-metric">ASIO · 4.8 ms</span>
+                <span class="oled-screen-tag" id="inspector-key-label">C minor · 90 bpm · 4/4</span>
               </div>
-
               <div class="oled-chord-display">
                 <span class="chord-hero-name" id="inspector-chord-name">Fm9</span>
                 <span class="chord-roman-tag" id="inspector-chord-roman">iv9 · Root position · open</span>
               </div>
-
               <div class="oled-data-grid">
                 <div class="oled-cell">
-                  <div class="oled-label">Spelled Notes (Key-Aware)</div>
+                  <div class="oled-label">Notes</div>
                   <div class="oled-value" id="inspector-notes">F2 · Ab3 · C4 · Eb4 · G4</div>
                 </div>
                 <div class="oled-cell">
-                  <div class="oled-label">Intervals Above Root</div>
+                  <div class="oled-label">Intervals</div>
                   <div class="oled-value" id="inspector-intervals">R · b3 · 5 · b7 · 9</div>
                 </div>
                 <div class="oled-cell">
-                  <div class="oled-label">In-Key Pitch Classes</div>
+                  <div class="oled-label">In the key</div>
                   <div class="oled-value">C · D · Eb · F · G · Ab · Bb</div>
                 </div>
                 <div class="oled-cell">
-                  <div class="oled-label">Dimmed Out-of-Key Keys</div>
+                  <div class="oled-label">Dimmed</div>
                   <div class="oled-value">Db · E · Gb · A · B</div>
                 </div>
               </div>
-
-              <div class="interactive-chord-selector" role="group" aria-label="Audition chords in C Minor">
+              <div class="interactive-chord-selector" role="group" aria-label="Chords in C minor">
                 <button type="button" class="chord-btn active"
                         data-chord="Fm9" data-roman="iv9 · Root position · open"
                         data-notes="F2 · Ab3 · C4 · Eb4 · G4" data-intervals="R · b3 · 5 · b7 · 9"
-                        data-active="C,Eb,F,G,Ab">Fm9 (iv9)</button>
+                        data-active="C,Eb,F,G,Ab">Fm9</button>
                 <button type="button" class="chord-btn"
                         data-chord="G7/B" data-roman="V65 · 1st inversion · drop 2"
                         data-notes="B2 · F3 · G3 · D4" data-intervals="3 · b7 · R · 5"
-                        data-active="D,F,G,B">G7/B (V65)</button>
+                        data-active="D,F,G,B">G7/B</button>
                 <button type="button" class="chord-btn"
                         data-chord="Cm9" data-roman="i9 · Root position · close"
                         data-notes="C3 · Eb3 · G3 · Bb3 · D4" data-intervals="R · b3 · 5 · b7 · 9"
-                        data-active="C,D,Eb,G,Bb">Cm9 (i9)</button>
+                        data-active="C,D,Eb,G,Bb">Cm9</button>
                 <button type="button" class="chord-btn"
                         data-chord="Abmaj7" data-roman="VImaj7 · Root position · shell"
                         data-notes="Ab2 · C3 · G3 · Eb4" data-intervals="R · 3 · 7 · 5"
-                        data-active="C,Eb,G,Ab">Abmaj7 (VImaj7)</button>
+                        data-active="C,Eb,G,Ab">Abmaj7</button>
                 <button type="button" class="chord-btn"
                         data-chord="Dø7" data-roman="iiø7 · Root position · close"
                         data-notes="D3 · F3 · Ab3 · C4" data-intervals="R · b3 · b5 · b7"
-                        data-active="C,D,F,Ab">Dø7 (iiø7)</button>
+                        data-active="C,D,F,Ab">Dø7</button>
               </div>
             </div>
 
             <div class="virtual-keyboard-wrap">
-              <div class="keyboard-title-row">
-                <span class="keyboard-title">Scale-Aware Keybed Preview (C Natural Minor)</span>
-                <div class="keyboard-legend">
-                  <span><span class="legend-swatch swatch-tonic"></span>Tonic (C)</span>
-                  <span><span class="legend-swatch swatch-chord"></span>Held Chord</span>
-                  <span><span class="legend-swatch swatch-dimmed"></span>Dimmed Out-of-Key</span>
-                </div>
-              </div>
-              <div class="interactive-keybed" id="inspector-keybed" aria-label="1-octave keybed preview">
+              <ul class="keyboard-legend" aria-label="Key colours">
+                <li><span class="legend-swatch swatch-tonic"></span>Tonic</li>
+                <li><span class="legend-swatch swatch-chord"></span>Held</li>
+                <li><span class="legend-swatch swatch-dimmed"></span>Out of the key</li>
+              </ul>
+              <div class="interactive-keybed" id="inspector-keybed" aria-label="One octave of the keyboard">
                 <div class="key-white is-tonic" data-key="C">C</div>
                 <div class="key-black is-dimmed" data-key="Db">Db</div>
                 <div class="key-white" data-key="D">D</div>
@@ -334,248 +191,93 @@
             </div>
           </div>
 
-          <div class="theory-table-wrap">
-            <table class="theory-table">
-              <thead>
-                <tr>
-                  <th>Instrument Subsystem</th>
-                  <th>Musical Signal &amp; Behaviour</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><strong>Full-Width OLED Stage</strong></td>
-                  <td>Matches the exact width of the 61-key keyboard. Houses the key/tempo/meter status line, engraved grand staff, 72px chord name, figured-bass numeral pill, and interactive circle of fifths.</td>
-                </tr>
-                <tr>
-                  <td><strong>12 Scales &amp; Key Dimming</strong></td>
-                  <td>Major, natural/harmonic/melodic minor, 5 church modes, major/minor pentatonic, and blues. Out-of-key white and black keys dim into shadow while in-key notes and the tonic stay bright with front-lip bars.</td>
-                </tr>
-                <tr>
-                  <td><strong>Diatonic Chord Strip</strong></td>
-                  <td>Seven soft-key tiles at the bottom of the OLED display showing the key's triads or seventh chords (<code>7ths</code> toggle). Lights the chord you play and auditions voicings on click.</td>
-                </tr>
-                <tr>
-                  <td><strong>Right-Hand Hardware Deck</strong></td>
-                  <td>Dedicated side panel with 13-LED rotary Halo Knobs for Master <strong>Volume</strong> and Metronome <strong>Click</strong> above 12 LED rubber keys (<code>key ◀</code>, <code>key ▶</code>, <code>scale</code>, <code>mute</code>, <code>metro</code>, <code>tap</code>, <code>-</code>, <code>+</code>, <code>rec</code>, <code>play</code>, <code>loop</code>, <code>notes</code>).</td>
-                </tr>
-                <tr>
-                  <td><strong>Soundbank Library (.SF2 &amp; .SFZ)</strong></td>
-                  <td>Import multiple SoundFonts and multi-velocity SFZ pianos into your persistent library and switch instruments with one click over ASIO (~5 ms) or WASAPI.</td>
-                </tr>
-                <tr>
-                  <td><strong>Built-In Song Bank</strong></td>
-                  <td>Includes 6 built-in two-hand classical songs (Beethoven, Bach, Satie, Pachelbel) plus drag-and-drop <code>.mid</code> import for falling-notes Wait for Me and Play Along practice.</td>
-                </tr>
-                <tr>
-                  <td><strong>AI Music Assistant</strong></td>
-                  <td>Optional panel (<code>Shift+F2</code>) powered by Google Gemini (<code>gemini-2.5-flash</code>) using your own API key, automatically receiving your active key, held chord, and recent MIDI activity.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Releases & Downloads Console (#releases) -->
-    <section id="releases" class="section">
-      <div class="wrap">
-        <div class="section-head">
-          <h2 class="section-title">Releases &amp; Downloads</h2>
-          <p class="section-lead measure">
-            Every release ships as a self-contained single-file Windows <code>win-x64</code> executable packaged with its license notices. No installer and no separate .NET runtime required.
-          </p>
-        </div>
-
-        <div class="releases-layout">
-          <div class="release-main-card" id="latest-release-card">
-            <div class="release-tag-row">
-              <span class="release-version-pill" id="release-tag-badge">LATEST RELEASE · v1.0.0</span>
-              <span class="release-date tabular" id="release-date-label">win-x64 · Self-Contained</span>
-            </div>
-            <h3 class="release-heading" id="release-title-label">Piano MIDI Visualization v1.0.0</h3>
-            <p class="release-notes-body" id="release-notes-text">
-              Includes the full-width recessed OLED display aligned with the 61-key virtual keyboard, dimmed out-of-key scale visualization across white and black keys, right-hand hardware control deck with rotary Volume and Click halo knobs, SoundFont (.sf2) and SFZ audio engine over ASIO/WASAPI, falling-notes Song Practice, and 10-take MIDI Recorder.
-            </p>
-
-            <div class="release-actions" id="release-assets-list">
-              <div class="release-asset-row">
-                <div class="asset-info">
-                  <span class="asset-name">PianoMidiVisualizationApp-1.0.0-win-x64.zip</span>
-                  <span class="asset-meta" id="release-asset-meta">Self-contained .exe + LICENSE + THIRD-PARTY-NOTICES.txt · ~70 MB</span>
-                </div>
-                <a id="primary-zip-link" href="https://github.com/FrankDrebin893/hojt-audio-piano-viz/releases/download/v1.0.0/PianoMidiVisualizationApp-1.0.0-win-x64.zip" class="button">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="7 10 12 15 17 10"/>
-                    <line x1="12" y1="15" x2="12" y2="3"/>
-                  </svg>
-                  <span>Download .ZIP</span>
-                </a>
-              </div>
-            </div>
-
-            <div class="hero-actions">
-              <a href="https://github.com/FrankDrebin893/hojt-audio/releases?q=piano-v&amp;expanded=true" class="button plain" target="_blank" rel="noopener">
-                <span>Release notes</span>
-              </a>
-              <a href="https://github.com/FrankDrebin893/hojt-audio/releases?q=piano-v&amp;expanded=true" class="button plain" target="_blank" rel="noopener">
-                <span>All Releases &amp; Changelog</span>
-              </a>
-            </div>
-
-            <div id="additional-releases-container" style="margin-top: 1.5rem; display: none;"></div>
-          </div>
-
-          <aside class="requirements-card">
-            <h3 class="requirements-title">System Requirements &amp; Package Notes</h3>
-            <ul class="req-list">
-              <li class="req-item">
-                <span><strong>OS:</strong> Windows 10 or Windows 11 (64-bit <code>win-x64</code>). Self-contained single-file binary—no .NET 10 install needed.</span>
-              </li>
-              <li class="req-item">
-                <span><strong>MIDI Input:</strong> Any USB-MIDI keyboard, digital piano, or 5-pin DIN MIDI interface. Also supports mouse auditioning on the 61 keys and chord strip.</span>
-              </li>
-              <li class="req-item">
-                <span><strong>Audio Output:</strong> ASIO driver (recommended for ~5 ms latency, e.g. your audio interface's driver or <a href="https://asio4all.org/" target="_blank" rel="noopener">ASIO4ALL</a>) or built-in Windows WASAPI.</span>
-              </li>
-              <li class="req-item">
-                <span><strong>Piano Sound Bank:</strong> Bring any <code>.sf2</code> SoundFont or <code>.sfz</code> piano such as <a href="https://sfzinstruments.github.io/pianos/salamander" target="_blank" rel="noopener">Salamander Grand Piano</a> or <a href="https://musical-artifacts.com/artifacts?formats=sf2&amp;tags=piano" target="_blank" rel="noopener">Musical Artifacts (.sf2)</a>.</span>
-              </li>
-              <li class="req-item">
-                <span><strong>Windows SmartScreen:</strong> The executable is not code-signed yet. On first launch, click <strong>More info → Run anyway</strong> if Windows Defender SmartScreen prompts.</span>
-              </li>
+          <div>
+            <h3>What it shows</h3>
+            <ul class="points">
+              <li>The chord's name, its Roman numeral with figured bass, the inversion and the
+                voicing, with every note spelled for the key and its interval</li>
+              <li>A grand staff in the key signature, a circle of fifths to pick the key, and a
+                strip of the key's seven chords that lights the one you play and plays any you click</li>
+              <li>Twelve scales: major, three minors, five modes, both pentatonics and the blues.
+                The keys out of the scale are dimmed, and the tonic is marked</li>
+              <li>Knobs for Volume and the metronome's Click, and twelve keys for the key, scale,
+                tempo, recording and songs</li>
+              <li>Six pieces to practise with falling notes, and any .mid file of your own</li>
+              <li>An optional assistant to ask about theory (Shift+F2), with an API key of your own</li>
             </ul>
-          </aside>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- 3-Step Getting Started & Keyboard Shortcuts (#setup) -->
-    <section id="setup" class="section">
+    <section id="releases" class="part">
       <div class="wrap">
-        <div class="section-head">
-          <h2 class="section-title">Ready at the piano in three steps</h2>
-          <p class="section-lead measure">
-            Settings, window geometry, active key, and learned piano controls persist automatically in <code>%LOCALAPPDATA%\PianoMidiVisualizationApp\settings.json</code>.
-          </p>
-        </div>
-
-        <div class="setup-steps-grid">
-          <div class="step-card">
-            <span class="step-number">STEP 01 · EXTRACT</span>
-            <h3 class="step-title">Download &amp; Unzip</h3>
-            <p class="step-desc">
-              Download the latest <code>PianoMidiVisualizationApp-win-x64.zip</code> release above, extract the folder anywhere (such as your Desktop), and run <code>PianoMidiVisualizationApp.exe</code>.
-            </p>
+        <h2>Download</h2>
+        <div class="cols">
+          <div>
+            <p class="lead">One zip: the app as a single .exe, its licence and the notices of what
+              it is built with. Nothing to install, no .NET to add.</p>
+            <div class="actions">
+              <a id="primary-zip-link" class="button" href="https://github.com/FrankDrebin893/hojt-audio-piano-viz/releases/download/v1.0.0/PianoMidiVisualizationApp-1.0.0-win-x64.zip">Download for Windows<small id="release-asset-meta">PianoMidiVisualizationApp-1.0.0-win-x64.zip, about 70 MB</small></a>
+            </div>
+            <p class="facts-line"><span class="tape" id="release-tag-badge">Latest: v1.0.0</span> <span class="tape" id="release-date-label">win-x64</span></p>
+            <p><a href="https://github.com/FrankDrebin893/hojt-audio/releases?q=piano-v&amp;expanded=true">Release notes and all releases</a></p>
           </div>
-          <div class="step-card">
-            <span class="step-number">STEP 02 · SOUNDFONT</span>
-            <h3 class="step-title">Pick a Piano Sound (.sf2 / .sfz)</h3>
-            <p class="step-desc">
-              Download a free piano sound bank—such as <a href="https://sfzinstruments.github.io/pianos/salamander" target="_blank" rel="noopener">Salamander Grand Piano (.sfz)</a>—and click step <strong>2 · Choose a piano sound</strong> in the OLED checklist.
-            </p>
-          </div>
-          <div class="step-card">
-            <span class="step-number">STEP 03 · PLAY</span>
-            <h3 class="step-title">Connect MIDI &amp; Start Audio</h3>
-            <p class="step-desc">
-              Your USB MIDI keyboard and audio output auto-connect on launch. Choose a key centre on the toolbar or circle of fifths to dim out-of-key keys and start playing.
-            </p>
+          <div>
+            <h3>What it needs</h3>
+            <ul class="points">
+              <li>Windows 10 or 11, 64-bit</li>
+              <li>A USB MIDI keyboard or digital piano, or a 5-pin MIDI interface. Without one,
+                the keys on screen can be played with the mouse</li>
+              <li>An ASIO driver for about 5 ms of delay (your audio interface's, or
+                <a href="https://asio4all.org/">ASIO4ALL</a>), or the WASAPI output built into Windows</li>
+              <li>A piano sound: any <code>.sf2</code> SoundFont or <code>.sfz</code> piano, for example the free
+                <a href="https://sfzinstruments.github.io/pianos/salamander">Salamander Grand Piano</a> or one from
+                <a href="https://musical-artifacts.com/artifacts?formats=sf2&amp;tags=piano">Musical Artifacts</a></li>
+              <li>The .exe is not signed yet. If Windows SmartScreen stops it the first time,
+                click <b>More info</b>, then <b>Run anyway</b></li>
+            </ul>
           </div>
         </div>
+      </div>
+    </section>
 
-        <div class="section-head sub">
-          <h3 class="subsection-title">Keyboard Shortcuts Reference</h3>
-          <p class="section-lead measure">
-            Every panel and transport action is reachable from the computer keyboard or via learned MIDI controls on your piano.
-          </p>
-        </div>
+    <section id="setup" class="part">
+      <div class="wrap">
+        <h2>Setup and shortcuts</h2>
+        <ol class="steps">
+          <li><b>Unzip and run.</b> Unpack the zip anywhere, your desktop for example, and run
+            <code>PianoMidiVisualizationApp.exe</code>.</li>
+          <li><b>Choose a piano sound.</b> Download a <code>.sf2</code> or <code>.sfz</code> piano and click
+            <b>2 · Choose a piano sound</b> in the checklist on the display.</li>
+          <li><b>Play.</b> Your keyboard and the audio connect by themselves, now and every time
+            after. Choose a key on the toolbar or the circle of fifths, and play.</li>
+        </ol>
+        <p>Your settings, the window, the key and what you taught the keyboard are kept for next
+          time, in <code>%LOCALAPPDATA%\PianoMidiVisualizationApp\settings.json</code>.</p>
 
-        <div class="shortcuts-table-wrap">
-          <table class="theory-table tabular">
-            <thead>
-              <tr>
-                <th>Shortcut</th>
-                <th>Action</th>
-                <th>Surface / Behaviour</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><kbd class="kbd">Ctrl+,</kbd></td>
-                <td><strong>Settings…</strong></td>
-                <td>Opens or closes the MIDI, SoundFont, ASIO/WASAPI, and Piano Controls overlay.</td>
-              </tr>
-              <tr>
-                <td><kbd class="kbd">Ctrl+O</kbd></td>
-                <td><strong>Open Song…</strong></td>
-                <td>Loads a <code>.mid</code> file and switches the stage to falling-notes Song Practice.</td>
-              </tr>
-              <tr>
-                <td><kbd class="kbd">Ctrl+M</kbd></td>
-                <td><strong>Metronome On / Off</strong></td>
-                <td>Starts or stops the sample-accurate audio metronome (30–240 BPM).</td>
-              </tr>
-              <tr>
-                <td><kbd class="kbd">Ctrl+R</kbd></td>
-                <td><strong>Record / Stop</strong></td>
-                <td>Arms recording (starts on your first note) or finishes and saves the current take.</td>
-              </tr>
-              <tr>
-                <td><kbd class="kbd">Ctrl+Shift+R</kbd></td>
-                <td><strong>Play / Stop Take</strong></td>
-                <td>Plays or stops the selected take in the 10-take MIDI recorder.</td>
-              </tr>
-              <tr>
-                <td><kbd class="kbd">Shift+F2</kbd></td>
-                <td><strong>AI Music Assistant</strong></td>
-                <td>Shows or hides the Google Gemini music theory chat panel.</td>
-              </tr>
-              <tr>
-                <td><kbd class="kbd">Shift+F3</kbd></td>
-                <td><strong>MIDI Log</strong></td>
-                <td>Shows or hides the timestamped raw MIDI monitor drawer.</td>
-              </tr>
-              <tr>
-                <td><kbd class="kbd">Shift+F5</kbd></td>
-                <td><strong>Recorder</strong></td>
-                <td>Shows or hides the 10-take piano-roll recorder drawer.</td>
-              </tr>
-              <tr>
-                <td><kbd class="kbd">Shift+F6</kbd></td>
-                <td><strong>Circle of Fifths</strong></td>
-                <td>Shows or hides the interactive circle of fifths inside the OLED display.</td>
-              </tr>
-              <tr>
-                <td><kbd class="kbd">Shift+F7</kbd></td>
-                <td><strong>Chord Strip</strong></td>
-                <td>Shows or hides the diatonic chord strip and soft keys along the bottom of the OLED.</td>
-              </tr>
-              <tr>
-                <td><kbd class="kbd">Shift+F8</kbd></td>
-                <td><strong>Grand Staff</strong></td>
-                <td>Shows or hides the key-signature grand staff on the left of the OLED display.</td>
-              </tr>
-              <tr>
-                <td><kbd class="kbd">Shift+F9</kbd></td>
-                <td><strong>Song Practice</strong></td>
-                <td>Toggles between the live harmony OLED readout and the falling-notes song lane.</td>
-              </tr>
-              <tr>
-                <td><kbd class="kbd">F11</kbd></td>
-                <td><strong>Zen Mode</strong></td>
-                <td>Hides all toolbars, side panels, and drawers—leaving only the OLED chord readout and 61-key keyboard.</td>
-              </tr>
-              <tr>
-                <td><kbd class="kbd">Esc</kbd></td>
-                <td><strong>Cancel / Close</strong></td>
-                <td>Cancels MIDI Learn listening or closes the Settings overlay.</td>
-              </tr>
-            </tbody>
+        <details>
+          <summary>Keyboard shortcuts</summary>
+          <div class="scroll">
+          <table>
+            <tr><th>Keys</th><th>Does</th></tr>
+            <tr><td class="v">Ctrl+,</td><td>Opens or closes the settings: MIDI, piano sound, audio and the keys you taught</td></tr>
+            <tr><td class="v">Ctrl+O</td><td>Opens a .mid file for song practice</td></tr>
+            <tr><td class="v">Ctrl+M</td><td>Starts or stops the metronome, 30 to 240 bpm</td></tr>
+            <tr><td class="v">Ctrl+R</td><td>Arms recording, which starts with your first note, or stops and keeps the take</td></tr>
+            <tr><td class="v">Ctrl+Shift+R</td><td>Plays or stops the chosen take</td></tr>
+            <tr><td class="v">Shift+F2</td><td>Shows or hides the assistant</td></tr>
+            <tr><td class="v">Shift+F3</td><td>Shows or hides the MIDI log</td></tr>
+            <tr><td class="v">Shift+F5</td><td>Shows or hides the recorder</td></tr>
+            <tr><td class="v">Shift+F6</td><td>Shows or hides the circle of fifths</td></tr>
+            <tr><td class="v">Shift+F7</td><td>Shows or hides the strip of the key's chords</td></tr>
+            <tr><td class="v">Shift+F8</td><td>Shows or hides the grand staff</td></tr>
+            <tr><td class="v">Shift+F9</td><td>Switches between the chord readout and song practice</td></tr>
+            <tr><td class="v">F11</td><td>Zen mode: only the chord readout and the keyboard</td></tr>
+            <tr><td class="v">Esc</td><td>Stops listening for a key to learn, or closes the settings</td></tr>
           </table>
-        </div>
+          </div>
+        </details>
       </div>
     </section>
   </main>
@@ -591,8 +293,8 @@
         <a href="https://github.com/FrankDrebin893/hojt-audio/blob/main/piano/LICENSE">MIT licence</a>.
         The name HØJT and its logo are not part of that licence:
         <a href="https://github.com/FrankDrebin893/hojt-audio/blob/main/NOTICE.md">notice</a>.</p>
-      <p>Built in C# / .NET 10 / WPF with NAudio, MeltySynth, DryWetMIDI and CommunityToolkit.Mvvm.
-        Screenshots are rendered off-screen from the app's own window. Fonts, each under the SIL Open
+      <p>Built with NAudio, MeltySynth, DryWetMIDI and CommunityToolkit.Mvvm.
+        The screenshots are taken from the app's own window. Fonts, each under the SIL Open
         Font License: <a href="../fonts/BebasNeue-OFL.txt">Bebas Neue</a>,
         <a href="../fonts/BowlbyOneSC-OFL.txt">Bowlby One SC</a> and
         <a href="../fonts/IBMPlexMono-OFL.txt">IBM Plex Mono</a>.</p>
@@ -702,7 +404,9 @@
           var heroBtn = document.getElementById('hero-download-btn');
           var heroLabel = document.getElementById('hero-download-label');
           if (heroBtn) heroBtn.setAttribute('href', downloadUrl);
-          if (heroLabel) heroLabel.textContent = 'Download for Windows (x64) · ' + tag;
+          if (heroLabel) heroLabel.textContent = 'Download for Windows';
+          var heroSmall = heroBtn ? heroBtn.querySelector('small') : null;
+          if (heroSmall) heroSmall.textContent = tag + ', 64-bit';
 
           var badgeEl = document.getElementById('release-tag-badge');
           var dateEl = document.getElementById('release-date-label');
@@ -710,12 +414,12 @@
           var primaryZip = document.getElementById('primary-zip-link');
           var metaEl = document.getElementById('release-asset-meta');
 
-          if (badgeEl) badgeEl.textContent = 'LATEST RELEASE · ' + tag;
-          if (dateEl) dateEl.textContent = 'Published ' + pubDate + ' · win-x64';
+          if (badgeEl) badgeEl.textContent = 'Latest: ' + tag;
+          if (dateEl) dateEl.textContent = pubDate;
           if (titleEl) titleEl.textContent = latest.name || ('Piano MIDI Visualization ' + tag);
           if (primaryZip) primaryZip.setAttribute('href', downloadUrl);
           if (metaEl && asset) {
-            metaEl.textContent = (asset.name || 'win-x64.zip') + ' · ' + sizeMb + ' · Self-contained single-file .exe';
+            metaEl.textContent = (asset.name || 'win-x64.zip') + ', ' + sizeMb.replace('~', 'about ');
           }
         })
         .catch(function () {

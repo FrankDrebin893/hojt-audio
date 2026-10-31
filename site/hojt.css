@@ -284,6 +284,62 @@ h3 {
   transform: none;
 }
 
+/* Tables of facts, folded away in a details when long (the controls of a plugin, the
+   shortcuts of the piano viz), and code */
+
+details {
+  margin-top: var(--space-l);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+summary {
+  padding: 14px 0 10px;
+  cursor: pointer;
+  font-family: var(--display);
+  font-size: var(--step-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.scroll {
+  overflow-x: auto;
+  margin-bottom: 18px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--step--1);
+}
+th,
+td {
+  padding: 8px 14px 8px 0;
+  border-top: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  border-top: 0;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: var(--step-1);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--silk-dim);
+}
+td.v,
+code {
+  font-family: var(--mono);
+  font-size: var(--step--2);
+  white-space: nowrap;
+}
+td:first-child {
+  white-space: nowrap;
+}
+code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--tape-text);
+}
+
 /* Bottom of every page */
 
 .bottom {
