@@ -305,6 +305,7 @@ h3 {
   max-width: 40em;
   margin: 0;
   font-size: var(--step-1);
+  text-wrap: pretty;
 }
 
 /* A band of the product's paint, with a render of it on top; two columns that stack on a phone */
@@ -326,6 +327,57 @@ h3 {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-xl);
   margin-top: var(--space-l);
+}
+
+/* A part of a product's page: its headings, paragraphs and lists, and a row of buttons */
+
+.part h3 {
+  margin: var(--space-l) 0 12px;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: var(--step-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.part h3:first-child {
+  margin-top: 0;
+}
+.part p {
+  margin: 0 0 14px;
+}
+/* Points: each marked by a small square of silk, printed, not the browser's disc */
+.points {
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+.points li {
+  position: relative;
+  margin-bottom: 6px;
+  padding-left: 1.1em;
+}
+.points li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.65em;
+  width: 6px;
+  height: 6px;
+  background: var(--silk-dim);
+}
+/* Steps, numbered */
+.steps {
+  max-width: 44em;
+  margin: 0 0 30px;
+  padding-left: 1.3em;
+}
+.steps li {
+  margin-bottom: 8px;
+}
+.downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 /* Tables of facts, folded away in a details when long (the controls of a plugin, the

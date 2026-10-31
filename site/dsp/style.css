@@ -86,28 +86,6 @@
   margin: 0;
 }
 
-.plugin h3 {
-  margin: var(--space-l) 0 12px;
-  font-family: var(--display);
-  font-weight: 400;
-  font-size: var(--step-3);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.plugin h3:first-child {
-  margin-top: 0;
-}
-.plugin p {
-  margin: 0 0 14px;
-}
-.plugin ul.points {
-  margin: 0 0 14px;
-  padding-left: 1.1em;
-}
-.plugin ul.points li {
-  margin-bottom: 6px;
-}
-
 /* Demos: a strip of label tape each */
 
 .demos {
@@ -143,11 +121,6 @@
 
 /* Downloads */
 
-.downloads {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
 /* Install */
 
 .install {
@@ -163,14 +136,6 @@
   line-height: 1;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-}
-.install ol {
-  max-width: 44em;
-  margin: 0 0 30px;
-  padding-left: 1.3em;
-}
-.install li {
-  margin-bottom: 8px;
 }
 .install h3 {
   margin: var(--space-l) 0 8px;

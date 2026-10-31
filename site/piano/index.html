@@ -36,8 +36,8 @@
       <p>Falling-notes players show which keys to press. The piano viz shows what they mean.
         Play a MIDI keyboard through any SoundFont or SFZ piano, and read the chord, its Roman
         numeral, the voicing, the staff and the circle of fifths from the piano stool.</p>
-      <div class="actions">
-        <a id="hero-download-btn" class="button" href="https://github.com/FrankDrebin893/hojt-audio-piano-viz/releases/download/v1.0.0/PianoMidiVisualizationApp-1.0.0-win-x64.zip"><span id="hero-download-label">Download for Windows</span><small>v1.0.0, 64-bit</small></a>
+      <div class="downloads">
+        <a id="hero-download-btn" class="button" href="https://github.com/FrankDrebin893/hojt-audio-piano-viz/releases/download/v1.0.0/PianoMidiVisualizationApp-1.0.0-win-x64.zip"><span id="hero-download-label">Download for Windows</span><small>v1.0.0</small></a>
         <a class="button plain" href="https://github.com/FrankDrebin893/hojt-audio/releases?q=piano-v&amp;expanded=true">All releases</a>
       </div>
     </div>
@@ -70,34 +70,29 @@
     <section id="tour" class="part">
       <div class="wrap">
         <h2>Tour</h2>
-        <p class="lead">Six screens of the app, each a screenshot of its own window. The main window is above.</p>
+        <p class="lead">Five more screens of the app, each a screenshot of its own window.</p>
         <div class="tabs" role="tablist" aria-label="Screens of the app">
-          <button type="button" class="tour-btn" role="tab" aria-selected="false"
-                  data-src="screenshots/main-window.png" data-w="1920" data-h="1080"
-                  data-title="Main window"
-                  data-dim="C major, G7/B, V65"
-                  data-desc="Holding G7/B in C major. The display names the chord, its Roman numeral (V65), the inversion and the voicing (drop 2), with every note and its interval. The keys out of the key are dimmed. On the right, the Volume and Click knobs above twelve keys.">Main window</button>
-          <button type="button" class="tour-btn active" role="tab" aria-selected="true"
+          <button type="button" class="tape tour-btn active" role="tab" aria-selected="true"
                   data-src="screenshots/zen-mode.png" data-w="1920" data-h="780"
                   data-title="Zen mode (F11)"
                   data-dim="F major, Bbmaj7, IVmaj7"
                   data-desc="F11 leaves only the chord readout and the keyboard. In F major, holding Bbmaj7: B natural and the black keys out of the key are dimmed, and the keys in it stay bright.">Zen mode</button>
-          <button type="button" class="tour-btn" role="tab" aria-selected="false"
+          <button type="button" class="tape tour-btn" role="tab" aria-selected="false"
                   data-src="screenshots/song-practice.png" data-w="1920" data-h="1080"
                   data-title="Song practice"
                   data-dim="Ode to Joy"
                   data-desc="Six pieces come with it (Ode to Joy, Bach's Prelude in C and Minuet in G, Satie's first Gymnopédie, Für Elise and Pachelbel's Canon), and any .mid file can be dropped in. The right hand falls in teal, the left in violet; Wait for Me holds each chord until you play it.">Song practice</button>
-          <button type="button" class="tour-btn" role="tab" aria-selected="false"
+          <button type="button" class="tape tour-btn" role="tab" aria-selected="false"
                   data-src="screenshots/recorder.png" data-w="1920" data-h="1260"
                   data-title="Recorder and MIDI log"
                   data-dim="Take 2, A–B loop"
                   data-desc="Your last ten takes stay in memory, sustain pedal and all, on a piano roll. Loop a part between A and B, slow it to half speed, save a take as a .mid file, and watch the raw MIDI below.">Recorder</button>
-          <button type="button" class="tour-btn" role="tab" aria-selected="false"
+          <button type="button" class="tape tour-btn" role="tab" aria-selected="false"
                   data-src="screenshots/settings.png" data-w="1920" data-h="840"
                   data-title="Settings (Ctrl+,)"
                   data-dim=".sf2 and .sfz, MIDI learn"
                   data-desc="Keep several SoundFonts and SFZ pianos and switch between them with one click. Choose ASIO or WASAPI, and teach a key, pad or pedal on your keyboard to record, play a take, start the metronome, tap the tempo, or play and restart a song.">Settings</button>
-          <button type="button" class="tour-btn" role="tab" aria-selected="false"
+          <button type="button" class="tape tour-btn" role="tab" aria-selected="false"
                   data-src="screenshots/first-run.png" data-w="1920" data-h="900"
                   data-title="First run"
                   data-dim="Three steps"
@@ -105,7 +100,7 @@
         </div>
         <figure class="screen">
           <img id="tour-active-img" src="screenshots/zen-mode.png" width="1920" height="780" loading="lazy" alt="Zen mode (F11)">
-          <figcaption><b id="tour-active-title">Zen mode (F11)</b> <span id="tour-active-dim">F major, Bbmaj7, IVmaj7</span></figcaption>
+          <figcaption class="caption"><b id="tour-active-title">Zen mode (F11)</b> / <span id="tour-active-dim">F major, Bbmaj7, IVmaj7</span></figcaption>
         </figure>
         <p id="tour-active-desc" class="screen-text">F11 leaves only the chord readout and the keyboard. In F major, holding Bbmaj7: B natural and the black keys out of the key are dimmed, and the keys in it stay bright.</p>
       </div>
@@ -145,23 +140,23 @@
                 </div>
               </div>
               <div class="interactive-chord-selector" role="group" aria-label="Chords in C minor">
-                <button type="button" class="chord-btn active"
+                <button type="button" class="tape chord-btn active"
                         data-chord="Fm9" data-roman="iv9 · Root position · open"
                         data-notes="F2 ·&nbsp;Ab3 ·&nbsp;C4 ·&nbsp;Eb4 ·&nbsp;G4" data-intervals="R ·&nbsp;b3 ·&nbsp;5 ·&nbsp;b7 ·&nbsp;9"
                         data-active="C,Eb,F,G,Ab">Fm9</button>
-                <button type="button" class="chord-btn"
+                <button type="button" class="tape chord-btn"
                         data-chord="G7/B" data-roman="V65 · 1st inversion · drop 2"
                         data-notes="B2 ·&nbsp;F3 ·&nbsp;G3 ·&nbsp;D4" data-intervals="3 ·&nbsp;b7 ·&nbsp;R ·&nbsp;5"
                         data-active="D,F,G,B">G7/B</button>
-                <button type="button" class="chord-btn"
+                <button type="button" class="tape chord-btn"
                         data-chord="Cm9" data-roman="i9 · Root position · close"
                         data-notes="C3 ·&nbsp;Eb3 ·&nbsp;G3 ·&nbsp;Bb3 ·&nbsp;D4" data-intervals="R ·&nbsp;b3 ·&nbsp;5 ·&nbsp;b7 ·&nbsp;9"
                         data-active="C,D,Eb,G,Bb">Cm9</button>
-                <button type="button" class="chord-btn"
+                <button type="button" class="tape chord-btn"
                         data-chord="Abmaj7" data-roman="VImaj7 · Root position · shell"
                         data-notes="Ab2 ·&nbsp;C3 ·&nbsp;G3 ·&nbsp;Eb4" data-intervals="R ·&nbsp;3 ·&nbsp;7 ·&nbsp;5"
                         data-active="C,Eb,G,Ab">Abmaj7</button>
-                <button type="button" class="chord-btn"
+                <button type="button" class="tape chord-btn"
                         data-chord="Dø7" data-roman="iiø7 · Root position · close"
                         data-notes="D3 ·&nbsp;F3 ·&nbsp;Ab3 ·&nbsp;C4" data-intervals="R ·&nbsp;b3 ·&nbsp;b5 ·&nbsp;b7"
                         data-active="C,D,F,Ab">Dø7</button>
@@ -217,11 +212,10 @@
           it is built with. Nothing to install, no .NET to add.</p>
         <div class="cols">
           <div>
-            <div class="actions">
-              <a id="primary-zip-link" class="button" href="https://github.com/FrankDrebin893/hojt-audio-piano-viz/releases/download/v1.0.0/PianoMidiVisualizationApp-1.0.0-win-x64.zip">Download for Windows<small id="release-asset-meta">win-x64 zip, about 70 MB</small></a>
+            <div class="downloads">
+              <a id="primary-zip-link" class="button" href="https://github.com/FrankDrebin893/hojt-audio-piano-viz/releases/download/v1.0.0/PianoMidiVisualizationApp-1.0.0-win-x64.zip">Download for Windows<small id="release-asset-meta">v1.0.0, about 70 MB</small></a>
             </div>
-            <p class="facts-line"><span class="tape" id="release-tag-badge">Latest: v1.0.0</span> <span class="tape" id="release-date-label">win-x64</span></p>
-            <p><a href="https://github.com/FrankDrebin893/hojt-audio/releases?q=piano-v&amp;expanded=true">Release notes and all releases</a></p>
+                        <p><a href="https://github.com/FrankDrebin893/hojt-audio/releases?q=piano-v&amp;expanded=true">Release notes and all releases</a></p>
           </div>
           <div>
             <h3>What it needs</h3>
@@ -394,7 +388,6 @@
           })[0];
           if (!latest) return;
           var tag = (latest.tag_name || 'piano-v1.0.0').replace(/^piano-/, '');
-          var pubDate = latest.published_at ? new Date(latest.published_at).toISOString().slice(0, 10) : 'win-x64';
           var asset = (latest.assets || []).filter(function (a) { return /\.zip$/.test(a.name || ''); })[0] || null;
           var downloadUrl = asset && asset.browser_download_url
             ? asset.browser_download_url
@@ -406,18 +399,14 @@
           if (heroBtn) heroBtn.setAttribute('href', downloadUrl);
           if (heroLabel) heroLabel.textContent = 'Download for Windows';
           var heroSmall = heroBtn ? heroBtn.querySelector('small') : null;
-          if (heroSmall) heroSmall.textContent = tag + ', 64-bit';
+          if (heroSmall) heroSmall.textContent = tag;
 
-          var badgeEl = document.getElementById('release-tag-badge');
-          var dateEl = document.getElementById('release-date-label');
           var primaryZip = document.getElementById('primary-zip-link');
           var metaEl = document.getElementById('release-asset-meta');
 
-          if (badgeEl) badgeEl.textContent = 'Latest: ' + tag;
-          if (dateEl) dateEl.textContent = pubDate;
           if (primaryZip) primaryZip.setAttribute('href', downloadUrl);
           if (metaEl && asset) {
-            metaEl.textContent = 'win-x64 zip, ' + sizeMb.replace('~', 'about ');
+            metaEl.textContent = tag + ', ' + sizeMb.replace('~', 'about ');
           }
         })
         .catch(function () {
