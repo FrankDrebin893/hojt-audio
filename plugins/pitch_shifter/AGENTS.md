@@ -5,7 +5,9 @@ Loaded when working in `plugins/pitch_shifter`. The suite-wide rules are in the 
 Shift guitar audio by semitones (-12 to +12) with minimal latency for live playing. Uses variable-rate playback with waveform-matched splices.
 
 - `src/lib.rs` - Plugin entry point, parameters, nih-plug integration
-- `src/pitch_shifter.rs` - DSP: circular buffer, variable-rate playback, waveform-matched splices
+- DSP: circular buffer, variable-rate playback, waveform-matched splices. It is in
+  `crates/suite_common/src/dsp/pitch.rs` (`suite_common::dsp::pitch::PitchShifter`), shared with the
+  Guitar Amp's pitch pedal, with its tests and the two tools below
 - `src/editor.rs` - egui GUI: orange pedal, four knobs, bypass footswitch (`test_the_controls_do_not_touch` keeps them apart)
 
 Algorithm:
@@ -46,7 +48,7 @@ Its CLAP ID and VST3 class ID predate the suite and are kept as they were.
 
 Measure DSP changes with `quality_report` before judging them by ear.
 
-Pitch shifter tests are in `plugins/pitch_shifter/src/pitch_shifter.rs` and cover:
+Pitch shifter tests are in `crates/suite_common/src/dsp/pitch.rs` and cover:
 - Bit-exact passthrough at 0 semitones, and with Bypass, at any Blend
 - Blend: 100 % unchanged from the shifted output, 0 % the dry input, 50 % a two-note harmony,
   no click while it turns
@@ -60,9 +62,9 @@ Two ignored tests are tools for working on the sound:
 
 ```bash
 # Table of artifact levels and latency per note and shift. Compare before/after a DSP change.
-cargo test -p pitch_shifter --release quality_report -- --ignored --nocapture
+cargo test -p suite_common --release quality_report -- --ignored --nocapture
 
 # Before/after WAV files in target/renders for listening.
 # Optional env vars: PITCH_SHIFTER_INPUT_WAV=<recording>, PITCH_SHIFTER_LATENCY_MS=<ms>
-cargo test -p pitch_shifter --release render_wavs -- --ignored
+cargo test -p suite_common --release render_wavs -- --ignored
 ```

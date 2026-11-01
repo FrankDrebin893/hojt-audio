@@ -39,6 +39,15 @@ bells.mp3|bells|render_wavs|bells.wav|-
 pad.mp3|pad|render_wavs|pad.wav|-
 '
 
+# The Pitch Shifter's algorithm and its tests live in suite_common (the amp's pitch pedal
+# plays it too); every other plugin's are in its own package
+package_of() {
+    case "$1" in
+        pitch_shifter) echo suite_common ;;
+        *) echo "$1" ;;
+    esac
+}
+
 # The variable a plugin's render tests read their performance from. Bass, bells and pad
 # only play what their tests make up: theirs is a name nothing reads
 input_variable() {
@@ -85,7 +94,7 @@ for run in $runs; do
   variable="$(input_variable "$plugin")"
   if [ "$performance" = "-" ]; then
     echo "$plugin $test"
-    (unset "$variable" && cd "$root" && cargo test -q -p "$plugin" --release "$test" -- --ignored > /dev/null)
+    (unset "$variable" && cd "$root" && cargo test -q -p "$(package_of "$plugin")" --release "$test" -- --ignored > /dev/null)
   else
     input="$sources/$performance"
     if [ ! -f "$input" ]; then
@@ -96,7 +105,7 @@ for run in $runs; do
       input="$(cygpath -m "$input")"
     fi
     echo "$plugin $test, played by $performance"
-    (export "$variable=$input" && cd "$root" && cargo test -q -p "$plugin" --release "$test" -- --ignored > /dev/null)
+    (export "$variable=$input" && cd "$root" && cargo test -q -p "$(package_of "$plugin")" --release "$test" -- --ignored > /dev/null)
   fi
 
   for row in $rows; do

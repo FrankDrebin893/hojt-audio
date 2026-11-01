@@ -13,6 +13,7 @@ use nih_plug::prelude::*;
 
 use crate::dial_memory;
 use crate::order::ChainOrder;
+use crate::pitch::PitchSettings;
 use crate::{Amp, GuitarAmpParams};
 
 /// Shown behind the name once a knob no longer stands where the preset put it
@@ -74,8 +75,10 @@ const COMP_OFF: (bool, [f32; 2]) = (OFF, [5.0, 5.0]);
 const MODS_OFF: [(bool, f32, f32); 4] =
     [(OFF, 0.8, 50.0), (OFF, 0.5, 50.0), (OFF, 0.3, 50.0), (OFF, 5.0, 50.0)];
 // The order the chain starts in: `ChainOrder::default`
-const USUAL_ORDER: &[&str] =
-    &["fuzz", "comp", "drive", "phaser", "amp", "chorus", "flanger", "tremolo", "delay", "reverb"];
+const USUAL_ORDER: &[&str] = &[
+    "pitch", "fuzz", "comp", "drive", "phaser", "amp", "chorus", "flanger", "tremolo", "delay",
+    "reverb",
+];
 
 // Chosen from the amp models' constants and measured with `preset_report` below: nobody
 // has listened to them yet. Master is where their levels were matched, by how loud they
@@ -380,8 +383,8 @@ pub static PRESETS: [Preset; 27] = [
         fuzz: FUZZ_OFF,
         mods: [(ON, 0.6, 50.0), (OFF, 0.5, 50.0), (OFF, 0.3, 50.0), (OFF, 5.0, 50.0)],
         order: &[
-            "fuzz", "comp", "chorus", "drive", "phaser", "amp", "flanger", "tremolo", "reverb",
-            "delay",
+            "pitch", "fuzz", "comp", "chorus", "drive", "phaser", "amp", "flanger", "tremolo",
+            "reverb", "delay",
         ],
     },
     // Glød. Edge of breakup by the fire: the amp's own warmth at the middle of the Gain dial,
@@ -581,7 +584,7 @@ pub fn index_or_first(stored: u32) -> usize {
 
 impl Preset {
     /// Every continuous parameter the preset holds, with the value it gets
-    fn knobs<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a FloatParam, f32); 37] {
+    fn knobs<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a FloatParam, f32); 39] {
         let [gain, bass, mid, treble, presence, master] = self.dials;
         let (_, gate_thresh_db, gate_release_ms) = self.gate;
         let (_, [drive_gain, drive_tone, drive_level]) = self.drive;
@@ -592,6 +595,7 @@ impl Preset {
         let (_, [fuzz_fuzz, fuzz_tone]) = self.fuzz;
         let [chorus, phaser, flanger, tremolo] = self.mods;
         let [gain2, bass2, mid2, treble2, presence2, master2] = self.second.dials;
+        let pitch = PitchSettings::default();
         [
             (&params.fuzz_fuzz, dial(fuzz_fuzz)),
             (&params.fuzz_tone, dial(fuzz_tone)),
@@ -630,11 +634,14 @@ impl Preset {
             (&params.amp2_presence, dial(presence2)),
             (&params.amp2_master, dial(master2)),
             (&params.amp_blend, dial(self.second.blend)),
+            // No factory preset uses the pitch shifter: it is switched off, where it starts
+            (&params.pitch_blend, pitch.blend),
+            (&params.pitch_latency, pitch.latency_ms),
         ]
     }
 
     /// Every switch the preset holds, with the position it gets
-    fn switches<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a BoolParam, bool); 13] {
+    fn switches<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a BoolParam, bool); 14] {
         [
             (&params.amp2_on, self.second.on),
             (&params.gate_on, self.gate.0),
@@ -651,6 +658,7 @@ impl Preset {
             // pick is left as it is, like the microphone: it is not heard while Sync is off
             (&params.delay_sync, false),
             (&params.reverb_on, self.reverb.0),
+            (&params.pitch_on, false),
         ]
     }
 
@@ -669,12 +677,16 @@ impl Preset {
         dial_memory::preset_loaded(params, self.amp, self.dials.map(dial));
         dial_memory::second_preset_loaded(params, self.second.amp, self.second.dials.map(dial));
         params.order.put(self.chain_order());
-        let edits: Vec<Edit> =
-            [Edit::of(&params.amp, self.amp), Edit::of(&params.amp2, self.second.amp)]
-                .into_iter()
-                .chain(self.switches(params).into_iter().map(|(param, on)| Edit::of(param, on)))
-                .chain(self.knobs(params).into_iter().map(|(param, value)| Edit::of(param, value)))
-                .collect();
+        let pitch = PitchSettings::default();
+        let edits: Vec<Edit> = [
+            Edit::of(&params.amp, self.amp),
+            Edit::of(&params.amp2, self.second.amp),
+            Edit::of(&params.pitch_semitones, pitch.semitones),
+        ]
+        .into_iter()
+        .chain(self.switches(params).into_iter().map(|(param, on)| Edit::of(param, on)))
+        .chain(self.knobs(params).into_iter().map(|(param, value)| Edit::of(param, value)))
+        .collect();
         set_together(setter, &edits);
     }
 
@@ -689,6 +701,7 @@ impl Preset {
         params.amp.value() == self.amp
             && params.amp2.value() == self.second.amp
             && params.order.get() == self.chain_order()
+            && params.pitch_semitones.value() == PitchSettings::default().semitones
             && self.switches(params).into_iter().all(|(param, on)| param.value() == on)
             && self.knobs(params).into_iter().all(|(param, value)| {
                 (param.unmodulated_normalized_value() - param.preview_normalized(value)).abs()
@@ -750,8 +763,8 @@ mod tests {
             preset.load(&params, &ParamSetter::new(&host));
             let told = host.told.lock().unwrap();
             assert!(as_one_edit(&told), "{}", preset.name);
-            // The two amps, the switches and every knob: each begun, set and ended once
-            let held = 2 + preset.switches(&params).len() + preset.knobs(&params).len();
+            // The two amps, the pitch shifter's semitones, the switches and every knob: each begun, set and ended once
+            let held = 3 + preset.switches(&params).len() + preset.knobs(&params).len();
             assert_eq!(told.len(), 3 * held, "{}", preset.name);
             assert!(told[0].1 == params.amp.as_ptr(), "{} begins with the amp", preset.name);
         }

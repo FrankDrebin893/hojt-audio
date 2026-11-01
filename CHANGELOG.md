@@ -44,6 +44,20 @@ GitHub release.
 
 ### Guitar Amp
 
+- A Pitch pedal, in front of the amp: shift the guitar up or down by whole semitones, an octave
+  either way, for drop tunings (-2 drop D, -4 drop C, -5 and -7 baritone) or a harmony,
+  without another plugin in front of the amp. Four controls on an orange stompbox with the
+  midnight sun on it: Semitones (-12 to +12, 0 in the middle, a double-click returns to 0),
+  Blend (0 to 100 %, the guitar as it comes in to the shifted guitar alone, 100 % to start),
+  Tracking (2 to 50 ms, 15 ms to start: how far behind the shifted guitar may fall, which is
+  the longest note period that splices cleanly, 12 ms on a low E) and the On switch. It is the
+  Pitch Shifter plugin's algorithm and can be dragged anywhere in front of the amp, but
+  not behind the cabinet; it starts first, just after the gate. Off it costs nothing and the
+  sound is untouched to the bit. On it adds latency while it shifts, about one period of the
+  note (4 ms at -12 and 7 ms at +12 on a low string at Tracking 15 ms) and about 0.4 to 4 %
+  of a core. New parameters Pitch, Pitch Semitones, Pitch Blend and Pitch Tracking; projects
+  and presets from before open with it off, and a preset switches it off. The window is
+  wider by one pedal, so a saved window size is forgotten once
 - A second amp can play beside the first. Switch it on (Amp 2 in the host's parameter list; the
   window gets its own head in a later release) and the guitar goes through the pedals in front
   of the amp, then splits: each amp plays through its own head and its own built-in cabinet,

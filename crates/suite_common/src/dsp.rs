@@ -1,5 +1,7 @@
 //! Building blocks the instruments share. Nothing here allocates after `set_sample_rate`.
 
+pub mod pitch;
+
 use nih_plug::prelude::Enum;
 use std::f32::consts::{PI, TAU};
 

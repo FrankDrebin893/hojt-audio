@@ -42,6 +42,15 @@ labelled_at() {
         --jq "[.[] | select(.event == \"labeled\" and .label.name == \"$2\") | .created_at] | last // empty"
 }
 
+# The Pitch Shifter's algorithm and its tests live in suite_common (the amp's pitch pedal
+# plays it too); every other plugin's are in its own package
+package_of() {
+    case "$1" in
+        pitch_shifter) echo suite_common ;;
+        *) echo "$1" ;;
+    esac
+}
+
 # --- The backlog -------------------------------------------------------------------------------
 
 open_issues="$(gh issue list --repo "$repo" --state open --limit 1000 --json number,labels)"
@@ -124,7 +133,7 @@ if ((sound)); then
     cpu="[]"
     while read -r plugin report; do
         [[ -n "$plugin" ]] || continue
-        out="$(cargo test -q -p "$plugin" --release --locked "$report" -- --ignored --nocapture 2> /dev/null || true)"
+        out="$(cargo test -q -p "$(package_of "$plugin")" --release --locked "$report" -- --ignored --nocapture 2> /dev/null || true)"
         while IFS= read -r line; do
             pct="$(grep -oE '[0-9.]+ % of a core' <<< "$line" | head -1 | cut -d' ' -f1)"
             [[ -n "$pct" ]] || continue
@@ -152,7 +161,7 @@ pitch_shifter quality_report'
     # Every render: integrated loudness and true peak
     rm -rf target/renders
     for plugin in amp drums bass pad bells pitch_shifter; do
-        cargo test -q -p "$plugin" --release --locked render_wavs -- --ignored > /dev/null 2>&1 || true
+        cargo test -q -p "$(package_of "$plugin")" --release --locked render_wavs -- --ignored > /dev/null 2>&1 || true
     done
     loud="[]"
     if command -v ffmpeg > /dev/null; then

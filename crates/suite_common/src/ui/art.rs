@@ -50,6 +50,8 @@ pub enum Motif {
     Fjord,
     /// A geyser blowing from its mound, with the spray falling beside it (slim)
     Geyser,
+    /// The midnight sun skimming the sea (wide, three knobs)
+    Horizon,
 }
 
 /// Paints `motif` on the top face `face` of a pedal painted `paint`. Call it over the paint
@@ -74,6 +76,7 @@ pub(super) fn motif(painter: &Painter, face: Rect, paint: Color32, motif: Motif)
         Motif::Ridges => ridges(&print),
         Motif::Fjord => fjord(&print),
         Motif::Geyser => geyser(&print),
+        Motif::Horizon => horizon(&print),
     }
 }
 
@@ -420,4 +423,27 @@ fn geyser(print: &Print) {
     // Steam drifting off under the lamp
     print.line((middle - 44.0, 112.0), (middle - 36.0, 104.0));
     print.line((middle - 44.0, 128.0), (middle - 34.0, 118.0));
+}
+
+fn horizon(print: &Print) {
+    let coat = print.coat();
+    let middle = print.width() / 2.0;
+    // The sun is a ring of clear lines with its rays to either side; the sea, painted over
+    // the lower half of the ring, is where it sets and rises again
+    print.ring((middle, 266.0), 30.0, LINE, SILK);
+    for angle in [0.0f32, 0.26, 0.52] {
+        let (cos, sin) = (angle.cos(), angle.sin());
+        for side in [-1.0, 1.0] {
+            print.line(
+                (middle + side * 38.0 * cos, 266.0 - 38.0 * sin),
+                (middle + side * 54.0 * cos, 266.0 - 54.0 * sin),
+            );
+        }
+    }
+    print.ground(266.0, coat);
+    // Its path on the water, in the clear paint either side of the switch
+    for (y, from, to) in [(280.0, 16.0, 48.0), (292.0, 26.0, 54.0)] {
+        print.line((from, y), (to, y));
+        print.line((print.width() - to, y), (print.width() - from, y));
+    }
 }

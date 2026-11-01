@@ -26,6 +26,8 @@ lead) and Drøn (a big, loose, dark amp with the low end let through). They shar
   `CabLoader` (reads the chosen file on a background task)
 - `src/delay.rs`, `src/reverb.rs` - Stereo delay; stereo reverb (8-line feedback delay network)
 - `src/comp.rs` - Compressor pedal
+- `src/pitch.rs` - Pitch shifter pedal: `suite_common::dsp::pitch::PitchShifter` (the Pitch Shifter
+  plugin's algorithm) as a stage in front of the amp, with its switch fade
 - `src/mods/` - `chorus.rs`, `flanger.rs`, `phaser.rs`, `tremolo.rs`, with `lfo.rs` and `line.rs`
   (the modulated delay line of chorus and flanger)
 - `src/order.rs` - `ChainOrder`: which pedals stand in front of the amp and which behind the
@@ -45,10 +47,10 @@ lead) and Drøn (a big, loose, dark amp with the low end let through). They shar
   chain tells the editor, and how long the editor shows it
 - `src/tuner.rs` - Tuner: pitch detector on the mono input, `TunerReading` (one atomic shared
   with the editor), `Note`
-- `src/editor.rs` - egui GUI (2535 x 650 window): the oxblood strip across the top with the
+- `src/editor.rs` - egui GUI (2747 x 650 window): the oxblood strip across the top with the
   Bank and Preset displays, the list they drop open, or the tuner display in its left wing and
   Output, meters, Clip, On and Tuner in its right; the stack (the head of the amp that is
-  picked, with its nameplate and dials, the cabinet with its control plate); each of the ten
+  picked, with its nameplate and dials, the cabinet with its control plate); each of the eleven
   pedals in its own paint with its own art
 - `src/looks.rs` - What each amp's head looks like: a `Look` (its `HeadStyle` and knob cap) per
   amp, in the order of `Amp::ALL`. The sound stays in `amp/model.rs`
@@ -205,15 +207,30 @@ How it behaves:
   another, copying and deleting is done in the folder, which a double-click on the Preset
   caption opens — the folder of the bank showing
 - The pedal order (`order.rs`): Gate always first, amp and cabinet one block in the middle.
-  Drive only in front of the amp; Delay and Reverb only behind the cabinet; Fuzz, Comp,
-  Chorus, Phaser, Flanger and Tremolo on either side. Default: Fuzz, Comp, Drive, Phaser, amp,
+  Drive and Pitch only in front of the amp; Delay and Reverb only behind the cabinet; Fuzz, Comp,
+  Chorus, Phaser, Flanger and Tremolo on either side. Default: Pitch, Fuzz, Comp, Drive, Phaser, amp,
   Chorus, Flanger, Tremolo, Delay, Reverb, which with the new pedals off is the chain as it
   was, to the bit. A project saved before a pedal existed gets it where the default has it
 - In front of the amp a pedal runs on one channel at the oversampled rate, behind the cabinet
   on two at the host's rate (chorus, flanger and phaser a quarter turn apart left and right).
-  Either way without latency. The fuzz is the one exception behind the cabinet: it raises the
+  Either way without latency (but for the pitch shifter, below). The fuzz is the one exception behind the cabinet: it raises the
   rate itself for its clipping (as the amp does: 4x, 2x from 88.2 kHz), which delays it by
   the oversampler's fraction of a millisecond while it is on
+- The pitch shifter (`pitch.rs`, the algorithm of the Pitch Shifter plugin in
+  `suite_common::dsp::pitch`) stands in front of the amp only, on one channel at the amp's
+  oversampled rate, and is first in front of the amp by default (the gate stays in front of
+  everything: it listens to the guitar as it arrives). Its buffers (about 1 MB) are made with
+  the chain and cleared when the pedal wakes, never resized: the `no_alloc` tests hold it.
+  Off it is skipped and the signal is bit-identical; switching crossfades in 20 ms, and a
+  pedal that has faded out is idle (`is_idle`, so it never keeps the host awake). On it adds
+  latency: a shift of 0 passes the input 2 samples of the oversampled rate late, and a shift
+  up or down lags the input by about a pitch period of the note, never more than Tracking (a
+  plucked 110 Hz string starts 4 ms later at -12, 7 ms at +12 with Tracking 15 ms, 25 ms at
+  +12 with 50 ms; the dry part of Blend is not delayed). Nothing is reported to the host. Flat
+  to 0.0 dB: the note that comes out is as loud as the amp playing it itself. Above 192 kHz
+  of oversampled rate the buffer is shorter than 50 ms (42 ms at a host's 192 kHz). Cost: about
+  0.4 to 4 % of a core over the amp at 48 kHz (shift 0: under 0.5 %), with a splice every
+  period costing up to a tenth of a block; the report is `pitch_report`
 - The order is saved with the project (`chain-order`, a list of pedal ids with `amp` between
   the sides), not a parameter and not automatable. The chain reads it with the dials: the
   output fades to silence in 4.5 ms, the pedals change places, it fades back. A pedal that
@@ -248,6 +265,10 @@ How it behaves:
 | Drive Level (`drive_level`) | 0.0-10.0 | 5.0 | The pedal's output, -20 to +20 dB into the amp |
 | Fuzz (`fuzz_on`) | on / off | off | Fuzz pedal, either side of the amp |
 | Fuzz Amount (`fuzz_fuzz`) | 0.0-10.0 | 5.0 | Gain into the clipper, 26 to 56 dB |
+| Pitch (`pitch_on`) | on / off | off | Pitch shifter pedal, in front of the amp only |
+| Pitch Semitones (`pitch_semitones`) | -12 to +12 | 0 | Whole semitones: the guitar down an octave to up one. Shown `-5`, `0`, `+7`; double-click returns to 0 |
+| Pitch Blend (`pitch_blend`) | 0-100 % | 100 % | The guitar as it comes in (0) to the shifted guitar alone (100). The dry part is not delayed |
+| Pitch Tracking (`pitch_latency`) | 2-50 ms | 15 ms | The most the shifted guitar may lag behind the input: the longest period that splices cleanly (a low E is 12 ms, a power chord on it about 24 ms) |
 | Fuzz Tone (`fuzz_tone`) | 0.0-10.0 | 5.0 | Dark (a low-pass at 650 Hz) to bright (a high-pass at 1.1 kHz), the mids scooped in between |
 | Amp (`amp`) | Klar / Brøl / Torden / Glød / Sang / Drøn | Brøl | Amp and its cabinet. Variant ids `klar`, `brol`, `torden`, `glod`, `sang`, `dron`. New amps go at the end: a project remembers its amp by its number |
 | Gain, Bass, Mid, Treble, Presence, Master (`gain`, `bass`, `mid`, `treble`, `presence`, `master`) | 0.0-10.0 | 5.0 | The amp's dials |
@@ -303,6 +324,10 @@ cargo test -p amp --release preset_gate_report -- --ignored --nocapture
 
 # Compressor, fuzz and modulation pedals by themselves: what they do per setting, and their cost.
 cargo test -p amp --release comp_report -- --ignored --nocapture
+
+# Pitch shifter pedal: level of the shifted note, latency per Tracking, and cost, with the pedal
+# off and at -12, 0 and +12 semitones.
+cargo test -p amp --release pitch_report -- --ignored --nocapture
 cargo test -p amp --release fuzz_report -- --ignored --nocapture
 cargo test -p amp --release mods_report -- --ignored --nocapture
 
@@ -414,7 +439,7 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   letters, numbers or cream triangles in it, and nothing that moves. A new paint goes in
   `PEDAL_PAINTS`, where tests hold it to cream print reading on it and to being clearly apart
   from the others; a new motif is drawn in `art.rs` for the layout of its pedal
-- **Equal pedals:** every pedal of the row is `PEDAL_WIDTH` (180 px) wide; only the stack has its
+- **Equal pedals:** every pedal of the row is `PEDAL_WIDTH` (180 px) wide (eleven of them and the stack: the window is 2747 px wide); only the stack has its
   own width. The gap between neighbours is what is left of the window after the margin at each
   end (`GAP` in `board.rs`, a test holds it even and every pedal as wide as the next). A pedal
   with two knobs is either a pair side by side (radius 24) or on a diagonal (`SLIM_LED`,

@@ -5,8 +5,7 @@ use std::sync::Arc;
 mod editor;
 #[cfg(test)]
 mod no_alloc;
-mod pitch_shifter;
-use pitch_shifter::PitchShifter;
+use suite_common::dsp::pitch::PitchShifter;
 
 pub struct GuitarPitchShifterPlugin {
     params: Arc<GuitarPitchShifterParams>,

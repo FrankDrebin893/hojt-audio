@@ -20,7 +20,7 @@
 //! amp = torden
 //! gain = 0.55
 //! gate_on = on
-//! order = fuzz comp drive phaser amp chorus flanger tremolo delay reverb
+//! order = pitch fuzz comp drive phaser amp chorus flanger tremolo delay reverb
 //! cabinet = speaker:4x12-mid
 //! ```
 //!
@@ -174,6 +174,8 @@ pub fn new_bank_name(dir: &Path) -> String {
 #[derive(Clone, Copy)]
 enum Control<'a> {
     Knob(&'a FloatParam),
+    /// A whole number, such as the pitch shifter's semitones
+    Whole(&'a IntParam),
     Switch(&'a BoolParam),
     Amp(&'a EnumParam<Amp>),
     Mic(&'a EnumParam<MicType>),
@@ -185,6 +187,7 @@ impl Control<'_> {
     fn plain(self) -> f32 {
         match self {
             Control::Knob(param) => param.unmodulated_plain_value(),
+            Control::Whole(param) => param.unmodulated_plain_value() as f32,
             Control::Switch(param) => f32::from(u8::from(param.unmodulated_plain_value())),
             Control::Amp(param) => param.unmodulated_plain_value().to_index() as f32,
             Control::Mic(param) => param.unmodulated_plain_value().to_index() as f32,
@@ -195,6 +198,7 @@ impl Control<'_> {
     fn default_plain(self) -> f32 {
         match self {
             Control::Knob(param) => param.default_plain_value(),
+            Control::Whole(param) => param.default_plain_value() as f32,
             Control::Switch(param) => f32::from(u8::from(param.default_plain_value())),
             Control::Amp(param) => param.default_plain_value().to_index() as f32,
             Control::Mic(param) => param.default_plain_value().to_index() as f32,
@@ -205,6 +209,7 @@ impl Control<'_> {
     fn normalized(self, plain: f32) -> f32 {
         match self {
             Control::Knob(param) => param.preview_normalized(plain),
+            Control::Whole(param) => param.preview_normalized(plain.round() as i32),
             Control::Switch(param) => param.preview_normalized(plain >= 0.5),
             Control::Amp(param) => param.preview_normalized(Amp::from_index(plain as usize)),
             Control::Mic(param) => param.preview_normalized(MicType::from_index(plain as usize)),
@@ -215,6 +220,7 @@ impl Control<'_> {
     fn unmodulated_normalized(self) -> f32 {
         match self {
             Control::Knob(param) => param.unmodulated_normalized_value(),
+            Control::Whole(param) => param.unmodulated_normalized_value(),
             Control::Switch(param) => param.unmodulated_normalized_value(),
             Control::Amp(param) => param.unmodulated_normalized_value(),
             Control::Mic(param) => param.unmodulated_normalized_value(),
@@ -225,6 +231,7 @@ impl Control<'_> {
     fn edit(self, plain: f32) -> Edit {
         match self {
             Control::Knob(param) => Edit::of(param, plain),
+            Control::Whole(param) => Edit::of(param, plain.round() as i32),
             Control::Switch(param) => Edit::of(param, plain >= 0.5),
             Control::Amp(param) => Edit::of(param, Amp::from_index(plain as usize)),
             Control::Mic(param) => Edit::of(param, MicType::from_index(plain as usize)),
@@ -236,6 +243,7 @@ impl Control<'_> {
     fn write(self, plain: f32) -> String {
         match self {
             Control::Knob(_) => format!("{plain}"),
+            Control::Whole(_) => format!("{}", plain.round() as i32),
             Control::Switch(_) => if plain >= 0.5 { "on" } else { "off" }.to_owned(),
             Control::Amp(_) => enum_id::<Amp>(plain as usize).to_owned(),
             Control::Mic(_) => enum_id::<MicType>(plain as usize).to_owned(),
@@ -247,6 +255,7 @@ impl Control<'_> {
     fn read(self, text: &str) -> Option<f32> {
         match self {
             Control::Knob(_) => text.parse::<f32>().ok().filter(|value| value.is_finite()),
+            Control::Whole(_) => text.parse::<i32>().ok().map(|value| value as f32),
             Control::Switch(_) => match text {
                 "on" => Some(1.0),
                 "off" => Some(0.0),
@@ -269,8 +278,8 @@ fn enum_index<T: Enum>(id: &str) -> Option<usize> {
 
 /// Every parameter a preset holds, by its id: all of them but `LEFT_ALONE`. The amp comes
 /// first, so the host hears it change before its dials do
-fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 54] {
-    use Control::{Knob, Mic, Note, Switch};
+fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 58] {
+    use Control::{Knob, Mic, Note, Switch, Whole};
     [
         ("amp", Control::Amp(&params.amp)),
         ("gain", Knob(&params.gain)),
@@ -328,6 +337,11 @@ fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 54] {
         ("amp2_presence", Knob(&params.amp2_presence)),
         ("amp2_master", Knob(&params.amp2_master)),
         ("amp_blend", Knob(&params.amp_blend)),
+        // The pitch shifter: a file saved before it names none of these, and loads with it off
+        ("pitch_on", Switch(&params.pitch_on)),
+        ("pitch_semitones", Whole(&params.pitch_semitones)),
+        ("pitch_blend", Knob(&params.pitch_blend)),
+        ("pitch_latency", Knob(&params.pitch_latency)),
     ]
 }
 
@@ -668,6 +682,7 @@ pub(crate) mod tests {
     fn ptr(control: Control) -> ParamPtr {
         match control {
             Control::Knob(param) => param.as_ptr(),
+            Control::Whole(param) => param.as_ptr(),
             Control::Switch(param) => param.as_ptr(),
             Control::Amp(param) => param.as_ptr(),
             Control::Mic(param) => param.as_ptr(),
@@ -709,7 +724,7 @@ pub(crate) mod tests {
         assert_eq!(saved.value(&params, "delay_on"), 1.0);
         assert_eq!(saved.value(&params, "cab_mic_type"), MicType::Ribbon.to_index() as f32);
         // Saved before there was a fuzz: it stands where the default has it, first
-        assert_eq!(saved.order.ids()[..2], ["fuzz", "chorus"]);
+        assert_eq!(saved.order.ids()[..3], ["pitch", "fuzz", "chorus"]);
         assert_eq!(saved.cabinet, "speaker:test");
 
         let text = saved.to_text(&params);
@@ -717,7 +732,7 @@ pub(crate) mod tests {
             assert!(text.lines().any(|each| each == line), "{line} is not in\n{text}");
         }
         // Every parameter is written out, also those at their defaults
-        assert_eq!(text.lines().filter(|line| line.contains(" = ")).count(), 56);
+        assert_eq!(text.lines().filter(|line| line.contains(" = ")).count(), 60);
         assert_eq!(UserPreset::parse(&params, &text), saved);
     }
 

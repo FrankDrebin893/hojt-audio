@@ -19,6 +19,7 @@ use crate::mods::flanger::{Flanger, FlangerSettings};
 use crate::mods::phaser::{Phaser, PhaserSettings};
 use crate::mods::tremolo::{Tremolo, TremoloSettings};
 use crate::order::{ChainOrder, Pedal, Zone};
+use crate::pitch::{Pitch, PitchSettings};
 use crate::reverb::{Reverb, ReverbSettings};
 #[cfg(test)]
 use crate::second::BLEND_LAW;
@@ -103,6 +104,8 @@ pub struct AmpSettings {
     /// The fuzz and the compressor pedals. They smooth their own settings
     pub fuzz: FuzzSettings,
     pub comp: CompSettings,
+    /// The pitch shifter pedal, in front of the amp only. It smooths its own settings
+    pub pitch: PitchSettings,
 
     pub drive_on: bool,
     /// The drive pedal's dials, 0.0 to 1.0
@@ -165,6 +168,7 @@ impl Default for AmpSettings {
             gate_release_ms: 100.0,
             fuzz: FuzzSettings::default(),
             comp: CompSettings::default(),
+            pitch: PitchSettings::default(),
             drive_on: false,
             drive_gain: 0.3,
             drive_tone: 0.5,
@@ -291,6 +295,8 @@ pub struct AmpChain {
     fuzz_settings: FuzzSettings,
     comp: Comp,
     comp_settings: CompSettings,
+    pitch: Pitch,
+    pitch_settings: PitchSettings,
     chorus: Chorus,
     phaser: Phaser,
     flanger: Flanger,
@@ -388,6 +394,8 @@ impl AmpChain {
             fuzz_settings: FuzzSettings::default(),
             comp: Comp::new(),
             comp_settings: CompSettings::default(),
+            pitch: Pitch::new(),
+            pitch_settings: PitchSettings::default(),
             chorus: Chorus::new(),
             phaser: Phaser::new(),
             flanger: Flanger::new(),
@@ -506,6 +514,7 @@ impl AmpChain {
             // Behind the cabinet it raises the rate itself for its clipping
             Pedal::Fuzz => self.fuzz.set_sample_rate(rate, zone == Zone::Back),
             Pedal::Comp => self.comp.set_sample_rate(rate),
+            Pedal::Pitch => self.pitch.set_sample_rate(rate),
             Pedal::Chorus => self.chorus.set_sample_rate(rate),
             Pedal::Phaser => self.phaser.set_sample_rate(rate),
             Pedal::Flanger => self.flanger.set_sample_rate(rate),
@@ -726,6 +735,7 @@ impl AmpChain {
         self.gate.reset();
         self.fuzz.reset();
         self.comp.reset();
+        self.pitch.reset();
         // As for the delay and the reverb below: a pedal with nothing in it is left alone
         if !self.chorus.is_idle() {
             self.chorus.reset();
@@ -761,6 +771,7 @@ impl AmpChain {
     pub fn is_idle(&self) -> bool {
         self.delay.is_idle()
             && self.reverb.is_idle()
+            && self.pitch.is_idle()
             && self.chorus.is_idle()
             && self.flanger.is_idle()
             && self.phaser.is_idle()
@@ -891,6 +902,7 @@ impl AmpChain {
         self.wanted_order = settings.order;
         self.fuzz_settings = settings.fuzz;
         self.comp_settings = settings.comp;
+        self.pitch_settings = settings.pitch;
         self.chorus_settings = settings.chorus;
         self.phaser_settings = settings.phaser;
         self.flanger_settings = settings.flanger;
@@ -1128,6 +1140,7 @@ impl AmpChain {
             match self.order.front()[index] {
                 Pedal::Fuzz => self.fuzz.process_mono(&self.fuzz_settings, high),
                 Pedal::Comp => self.comp.process_mono(&self.comp_settings, high),
+                Pedal::Pitch => self.pitch.process_mono(&self.pitch_settings, high),
                 Pedal::Drive => self.drive.process(high),
                 Pedal::Chorus => self.chorus.process_mono(&self.chorus_settings, high),
                 Pedal::Phaser => self.phaser.process_mono(&self.phaser_settings, high),
@@ -1212,7 +1225,7 @@ impl AmpChain {
                     self.tremolo.process_stereo(&self.tremolo_settings, wide_left, wide_right)
                 }
                 // Never behind the cabinet
-                Pedal::Drive => {}
+                Pedal::Drive | Pedal::Pitch => {}
             }
         }
 
@@ -1479,6 +1492,7 @@ mod tests {
         layout.extend(chain.cabinet.buffers());
         layout.extend(chain.second.cabinet.buffers());
         layout.extend(chain.cab_stage.buffer());
+        layout.extend(chain.pitch.buffers());
         layout.extend(chain.delay.buffers());
         layout.extend(chain.reverb.buffers());
         layout
@@ -1810,6 +1824,125 @@ mod tests {
                         after.comp.on,
                         ratio
                     );
+                }
+            }
+        }
+    }
+
+    fn pitch_on(semitones: i32) -> PitchSettings {
+        PitchSettings { on: true, semitones, ..PitchSettings::default() }
+    }
+
+    #[test]
+    fn test_pitch_shifter_off_leaves_the_amp_alone_to_the_bit() {
+        // Switched off it leaves no trace, whatever its dials say, and also after it was on
+        let input = power_chords(SAMPLE_RATE, 0.5);
+        let plain = with_effects(everything_on(Amp::Torden, 0.6));
+        let off = AmpSettings {
+            pitch: PitchSettings { on: false, semitones: -7, blend: 0.3, latency_ms: 40.0 },
+            ..plain
+        };
+        assert!(run_stereo(&off, &input, SAMPLE_RATE) == run_stereo(&plain, &input, SAMPLE_RATE));
+        // On and off again: once it has faded out the amp is the amp alone again, and the
+        // pedal is idle
+        let plain = with_amp(Amp::Klar, 0.5);
+        let mut chain = new_chain(SAMPLE_RATE);
+        let with = AmpSettings { pitch: pitch_on(-7), ..plain };
+        run_blocks(&mut chain, &with, &input[..24_000], BLOCK);
+        let gone = run_blocks(&mut chain, &plain, &input, BLOCK);
+        let alone = run_blocks(&mut new_chain(SAMPLE_RATE), &plain, &input, BLOCK);
+        let tail = input.len() - 12_000..input.len();
+        assert!(
+            largest_difference(&gone[tail.clone()], &alone[tail.clone()])
+                < 0.001 * peak(&alone[tail])
+        );
+        assert!(chain.pitch.is_idle());
+    }
+
+    #[test]
+    fn test_pitch_shifter_moves_the_note_in_front_of_the_amp_and_adds_no_latency_when_off() {
+        // A clean amp keeps a note's pitch, so the shift is read at the output
+        let input = sine(110.0, 0.05, SAMPLE_RATE, 96_000);
+        let plain = AmpSettings { gate_on: false, ..with_amp(Amp::Klar, 0.2) };
+        for (semitones, wanted) in [(12, 220.0), (7, 164.8), (-5, 82.4)] {
+            let settings = AmpSettings { pitch: pitch_on(semitones), ..plain };
+            let output = run(&settings, &input, SAMPLE_RATE);
+            let tail = &output[48_000..];
+            let heard = level_at(tail, SAMPLE_RATE, wanted);
+            let left = level_at(tail, SAMPLE_RATE, 110.0);
+            assert!(
+                to_db(heard / left.max(1e-9)) > 10.0,
+                "{semitones} semitones: {:.1} dB at {wanted} Hz against 110 Hz",
+                to_db(heard / left.max(1e-9))
+            );
+        }
+        let off = AmpSettings { pitch: PitchSettings { semitones: 7, ..pitch_on(7) }, ..plain };
+        let off = AmpSettings { pitch: PitchSettings { on: false, ..off.pitch }, ..off };
+        for sample_rate in [44100.0, 96000.0, 192000.0] {
+            assert_eq!(
+                latency_samples_with(&off, sample_rate),
+                latency_samples_with(&plain, sample_rate)
+            );
+        }
+    }
+
+    #[test]
+    fn test_pitch_shifter_stands_anywhere_in_front_and_does_not_depend_on_block_size() {
+        let input = power_chords(SAMPLE_RATE, 0.5);
+        let default = AmpSettings { pitch: pitch_on(-5), ..whole_board(Amp::Brol) };
+        let reference = run_stereo(&default, &input, SAMPLE_RATE);
+        let off = AmpSettings { pitch: PitchSettings::default(), ..default };
+        assert!(run_stereo(&off, &input, SAMPLE_RATE) != reference, "it is heard");
+        // Anywhere in front of the amp, and never behind the cabinet
+        let order = ChainOrder::default();
+        assert_eq!(order.moved(Pedal::Pitch, Zone::Back, 0), order);
+        for place in 0..order.front().len() {
+            let moved = order.moved(Pedal::Pitch, Zone::Front, place);
+            assert_eq!(moved.front().iter().position(|&pedal| pedal == Pedal::Pitch), Some(place));
+            let settings = AmpSettings { order: moved, ..default };
+            let whole =
+                run_stereo_blocks(&mut new_chain(SAMPLE_RATE), &settings, &input, input.len());
+            assert!(whole
+                .0
+                .iter()
+                .chain(&whole.1)
+                .all(|sample| sample.is_finite() && sample.abs() <= 1.0));
+            if place > 0 {
+                assert!(whole != reference, "place {place} sounds like place 0");
+            }
+            for block in [1, 7, 33, 480] {
+                let output =
+                    run_stereo_blocks(&mut new_chain(SAMPLE_RATE), &settings, &input, block);
+                assert!(output == whole, "place {place} in blocks of {block}");
+            }
+        }
+        // And at the rates the amp oversamples 2 and 4 times
+        for sample_rate in [44100.0, 96000.0, 192000.0] {
+            let chords = power_chords(sample_rate, 0.3);
+            let (left, right) = run_stereo(&default, &chords, sample_rate);
+            assert!(left
+                .iter()
+                .chain(&right)
+                .all(|sample| sample.is_finite() && sample.abs() <= 1.0));
+        }
+    }
+
+    #[test]
+    fn test_pitch_shifter_switches_without_a_click() {
+        let at = 300 * BLOCK;
+        for input in [sine(220.0, HELD_NOTE, SAMPLE_RATE, 48_000), power_chords(SAMPLE_RATE, 1.0)] {
+            for amp in [Amp::Klar, Amp::Torden] {
+                for semitones in [-12, -5, 0, 7] {
+                    let off = with_amp(amp, 0.5);
+                    let on = AmpSettings { pitch: pitch_on(semitones), ..off };
+                    for (before, after) in [(&off, &on), (&on, &off)] {
+                        let ratio = step_ratio(&run_change(before, after, &input, at), at);
+                        assert!(
+                            ratio < 2.0,
+                            "{amp:?}, {semitones} st, pedal on {}: step {ratio} times its own",
+                            after.pitch.on
+                        );
+                    }
                 }
             }
         }
@@ -3727,6 +3860,12 @@ mod tests {
                     in_gain_db: (turn % 5) as f32 * 6.0 - 12.0,
                     gate_on: turn % 2 == 0,
                     gate_thresh_db: -20.0 - (turn % 3) as f32 * 20.0,
+                    pitch: PitchSettings {
+                        on: turn % 3 != 1,
+                        semitones: [-12, -5, 0, 7, 12][turn % 5],
+                        blend: [1.0, 0.5, 0.0][turn % 3],
+                        latency_ms: [2.0, 15.0, 50.0][turn % 3],
+                    },
                     drive_on: turn % 3 == 0,
                     drive_gain: (turn % 4) as f32 / 3.0,
                     fuzz: FuzzSettings {

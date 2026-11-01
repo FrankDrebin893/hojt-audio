@@ -51,7 +51,7 @@ pub(crate) const STYLE: PedalStyle = PedalStyle {
 // is picked is on the left: the input meter, then the bank and preset displays and the Save
 // button. What goes out is on the right: the output knob, the output meter, the clip lamp, and
 // the On and Tuner switches. Each one's place is the end of the one before it and the gap
-const STRIP_GAP: f32 = 107.5;
+const STRIP_GAP: f32 = 134.0;
 
 // The bank display and the preset display, each an LED display with a button at each end and
 // its caption over it: what set of presets the preset display picks from, and the preset.
@@ -173,9 +173,10 @@ const CAB_JACK_CAPTION: Vec2 = vec2(425.0, 182.0);
 const CAB_JACK_PLATE: Rect = Rect::from_min_max(Pos2::new(400.0, 150.0), Pos2::new(448.0, 196.0));
 
 // The pedals, all as wide as each other: four with a trio or a pair of knobs side by side and
-// six with two knobs on a diagonal
+// six with two knobs on a diagonal; the pitch shifter, last, is a trio like the first three
 const WIDE_PEDALS: usize = 4;
 const PEDAL_SLOTS: usize = 10;
+pub(crate) const PITCH_SLOT: usize = PEDAL_SLOTS;
 
 // On every pedal, from its top centre: the LED under the title, the knobs, the switch at the bottom.
 // Two knobs sit side by side. Three do not fit in a row, so they are smaller and in a triangle,
@@ -229,12 +230,30 @@ pub(crate) struct Pedals<'a> {
 impl Pedals<'_> {
     /// Whether the pedal of `slot` is a slim one: two knobs, one above the other
     pub(crate) fn is_slim(slot: usize) -> bool {
-        slot >= WIDE_PEDALS
+        (WIDE_PEDALS..PEDAL_SLOTS).contains(&slot)
+    }
+
+    /// The pitch shifter: a trio of knobs, the first of which is a whole number of semitones
+    /// and so not a `FloatParam` like the rest of them. Returns its top face
+    fn pitch_pedal(&self, ui: &mut Ui, rect: Rect) -> Rect {
+        let (params, setter) = (self.params, self.setter);
+        let face = ui::mini_pedal(ui, rect, &look("Pitch", theme::PAINT_ORANGE, Motif::Horizon));
+        let top = face.center_top();
+        let [semitones, blend, tracking] = TRIO_KNOBS;
+        let radius = TRIO_RADIUS;
+        param_knob(ui, setter, &params.pitch_semitones, top + semitones, radius, "Semitones", None);
+        param_knob(ui, setter, &params.pitch_blend, top + blend, radius, "Blend", None);
+        param_knob(ui, setter, &params.pitch_latency, top + tracking, radius, "Tracking", None);
+        param_switch(ui, setter, &params.pitch_on, top + PEDAL_SWITCH, top + PEDAL_LED);
+        face
     }
 
     /// Draws the pedal of `slot` in `rect`: the wide ones first, as the chain had them
     /// before there were more, then the slim ones. Returns its top face
     pub(crate) fn pedal(&self, ui: &mut Ui, slot: usize, rect: Rect) -> Rect {
+        if slot == PITCH_SLOT {
+            return self.pitch_pedal(ui, rect);
+        }
         let (params, setter) = (self.params, self.setter);
         let pedals: [Pedal; PEDAL_SLOTS] = [
             (

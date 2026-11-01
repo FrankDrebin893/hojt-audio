@@ -42,7 +42,7 @@ pub const PAINT_PETROL: Color32 = Color32::from_rgb(14, 100, 108);
 pub const PAINT_FJORD: Color32 = Color32::from_rgb(40, 56, 84);
 pub const PAINT_EMBER: Color32 = Color32::from_rgb(178, 50, 22);
 /// Every mini pedal paint. A new one must pass the tests below
-pub const PEDAL_PAINTS: [Color32; 11] = [
+pub const PEDAL_PAINTS: [Color32; 12] = [
     PAINT_GRANITE,
     PAINT_MOSS,
     PAINT_OCHRE,
@@ -54,6 +54,8 @@ pub const PEDAL_PAINTS: [Color32; 11] = [
     PAINT_PETROL,
     PAINT_FJORD,
     PAINT_EMBER,
+    // The Pitch Shifter's own orange, on the amp's pitch pedal
+    PAINT_ORANGE,
 ];
 
 pub const KNOB_SKIRT: Color32 = Color32::from_rgb(21, 19, 17);
