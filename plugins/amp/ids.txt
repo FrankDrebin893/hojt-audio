@@ -46,6 +46,12 @@ param gate_release
 param gate_thresh
 param in_gain
 param master
+param metronome_bpm
+param metronome_on
+param metronome_sound
+param metronome_sync
+param metronome_time_sig
+param metronome_volume
 param mid
 param out_level
 param phaser_depth

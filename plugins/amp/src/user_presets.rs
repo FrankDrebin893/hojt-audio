@@ -632,7 +632,18 @@ pub(crate) mod tests {
 
     // The parameters a preset leaves alone: the player's gain staging, and the switches
     // that are not part of the sound
-    const LEFT_ALONE: [&str; 4] = ["bypass", "in_gain", "out_level", "tuner"];
+    const LEFT_ALONE: [&str; 10] = [
+        "bypass",
+        "in_gain",
+        "out_level",
+        "tuner",
+        "metronome_on",
+        "metronome_bpm",
+        "metronome_sync",
+        "metronome_time_sig",
+        "metronome_volume",
+        "metronome_sound",
+    ];
 
     /// Stands in for the host: writes down what it is asked to set, and sets nothing
     #[derive(Default)]

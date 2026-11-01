@@ -17,6 +17,7 @@ mod fuzz;
 mod gate;
 mod lamps;
 mod looks;
+mod metronome;
 mod mods;
 #[cfg(test)]
 mod no_alloc;
@@ -39,6 +40,7 @@ use comp::CompSettings;
 use delay::{DelaySettings, FEEDBACK_MAX, TIME_MAX_MS, TIME_MIN_MS};
 use dial_memory::DialMemory;
 use fuzz::FuzzSettings;
+use metronome::{Metronome, MetronomeSettings, Sound, TimeSignature};
 use mods::chorus::{self, ChorusSettings};
 use mods::flanger::{self, FlangerSettings};
 use mods::phaser::{self, PhaserSettings};
@@ -66,6 +68,8 @@ pub struct GuitarAmpPlugin {
     /// A cabinet read is owed: `initialize` only asks, the first block hands it to the host's
     /// background thread, so a slow disk never holds up activation
     cab_load_due: bool,
+    /// The practice click, added to the output after the whole chain
+    metronome: Metronome,
 }
 
 /// What is done away from the audio thread
@@ -309,6 +313,27 @@ pub struct GuitarAmpParams {
     #[id = "tuner"]
     pub tuner_on: BoolParam,
 
+    // Metronome: a click for practice, added to the output after the chain. Not part of a
+    // sound, so presets leave all six alone
+    #[id = "metronome_on"]
+    pub metronome_on: BoolParam,
+
+    #[id = "metronome_bpm"]
+    pub metronome_bpm: FloatParam,
+
+    /// Follow the host's tempo and transport, where it gives them
+    #[id = "metronome_sync"]
+    pub metronome_sync: BoolParam,
+
+    #[id = "metronome_time_sig"]
+    pub metronome_time_sig: EnumParam<TimeSignature>,
+
+    #[id = "metronome_volume"]
+    pub metronome_volume: FloatParam,
+
+    #[id = "metronome_sound"]
+    pub metronome_sound: EnumParam<Sound>,
+
     // Pitch shifter pedal, in front of the amp. Last in the list so the parameters before it
     // keep their places for a host that shows them in order
     #[id = "pitch_on"]
@@ -333,6 +358,7 @@ impl Default for GuitarAmpPlugin {
             chain,
             cab_loader,
             cab_load_due: false,
+            metronome: Metronome::new(),
         }
     }
 }
@@ -505,6 +531,26 @@ impl Default for GuitarAmpParams {
 
             tuner_on: BoolParam::new("Tuner", defaults.tuner_on).non_automatable(),
 
+            metronome_on: BoolParam::new("Metronome", false),
+            metronome_bpm: FloatParam::new(
+                "Metronome Tempo",
+                metronome::BPM_DEFAULT,
+                FloatRange::Linear { min: metronome::BPM_MIN, max: metronome::BPM_MAX },
+            )
+            .with_step_size(1.0)
+            .with_unit(" bpm")
+            .with_value_to_string(formatters::v2s_f32_rounded(0)),
+            metronome_sync: BoolParam::new("Metronome Sync", false),
+            metronome_time_sig: EnumParam::new("Metronome Time Signature", TimeSignature::FourFour),
+            metronome_volume: FloatParam::new(
+                "Metronome Volume",
+                metronome::VOLUME_DEFAULT_DB,
+                FloatRange::Linear { min: metronome::VOLUME_MIN_DB, max: metronome::VOLUME_MAX_DB },
+            )
+            .with_unit(" dB")
+            .with_value_to_string(formatters::v2s_f32_rounded(1)),
+            metronome_sound: EnumParam::new("Metronome Sound", Sound::Woodblock),
+
             pitch_on: BoolParam::new("Pitch", defaults.pitch.on),
             pitch_semitones: IntParam::new(
                 "Pitch Semitones",
@@ -545,6 +591,28 @@ impl GuitarAmpParams {
             &self.amp2_presence,
             &self.amp2_master,
         ]
+    }
+
+    /// What the metronome is told this block: the knobs, and the host's tempo and transport
+    /// where Sync is on. The tuner silences it
+    fn metronome_settings(
+        &self,
+        tempo: Option<f64>,
+        playing: bool,
+        beats: Option<f64>,
+    ) -> MetronomeSettings {
+        let sync = self.metronome_sync.value();
+        MetronomeSettings {
+            on: self.metronome_on.value() && !self.tuner_on.value(),
+            bpm: self.metronome_bpm.value(),
+            sync,
+            time_signature: self.metronome_time_sig.value(),
+            gain: metronome::volume_gain(self.metronome_volume.value()),
+            sound: self.metronome_sound.value(),
+            host_tempo: if sync { tempo } else { None },
+            host_playing: playing,
+            host_beats: if sync { beats } else { None },
+        }
     }
 
     /// What the knobs say now, with the song at `tempo_bpm` (`None` where the host gives
@@ -732,6 +800,7 @@ impl Plugin for GuitarAmpPlugin {
             self.params.editor_state.clone(),
             self.chain.tuner_reading(),
             self.chain.lamp_reading(),
+            self.metronome.reading(),
             self.cab_loader.clone(),
             async_executor,
         )
@@ -744,6 +813,7 @@ impl Plugin for GuitarAmpPlugin {
         _context: &mut impl InitContext<Self>,
     ) -> bool {
         self.chain.set_sample_rate(buffer_config.sample_rate);
+        self.metronome.set_sample_rate(buffer_config.sample_rate);
         // The player's own cabinet is made for one sample rate, and a project that was
         // just loaded may name another file: read it again. The read is not waited for:
         // the first block asks the host to do it in the background, and the amp plays
@@ -756,6 +826,7 @@ impl Plugin for GuitarAmpPlugin {
 
     fn reset(&mut self) {
         self.chain.reset();
+        self.metronome.reset();
     }
 
     /// The tuner is a parameter, so hosts store it, but a project does not open muted
@@ -785,11 +856,25 @@ impl Plugin for GuitarAmpPlugin {
             _ => {}
         }
 
+        // The click goes on top of the finished sound: the amp never distorts it, and
+        // neither the Output knob nor Bypass changes it. The tuner silences it
+        let transport = context.transport();
+        let metronome = self.params.metronome_settings(
+            transport.tempo,
+            transport.playing,
+            transport.pos_beats(),
+        );
+        match buffer.as_slice() {
+            [left, right] => self.metronome.process(&metronome, left, Some(&mut **right)),
+            [mono] => self.metronome.process(&metronome, mono, None),
+            _ => {}
+        }
+
         // The repeats and the reverb tail go on after the input has stopped. The chain
         // knows when the last of them has died away, to the sample; the host may stop
         // calling from there on. `Tail` would need their length ahead of time, which with
         // feedback is a guess, and gains nothing: CLAP hosts are told to go on either way
-        if self.chain.is_idle() {
+        if self.chain.is_idle() && self.metronome.is_idle() {
             ProcessStatus::Normal
         } else {
             ProcessStatus::KeepAlive
@@ -936,6 +1021,65 @@ mod tests {
         );
         assert_eq!((settings.reverb.decay_s, settings.reverb.mix), (1.5, 0.2));
         assert_eq!(settings.out_level, 1.0);
+    }
+
+    #[test]
+    fn test_the_metronome_starts_off_at_120_in_four_four_and_is_not_a_sound() {
+        let params = GuitarAmpParams::default();
+        let settings = params.metronome_settings(Some(90.0), false, Some(4.0));
+        assert_eq!(settings, MetronomeSettings::default());
+        assert!(!settings.on && !settings.sync);
+        assert_eq!(
+            (settings.bpm, settings.time_signature, settings.sound),
+            (120.0, TimeSignature::FourFour, Sound::Woodblock)
+        );
+        assert!((settings.gain - 0.2512).abs() < 1e-3, "-12 dB");
+        assert_eq!(
+            (
+                metronome::BPM_MIN,
+                metronome::BPM_MAX,
+                metronome::VOLUME_MIN_DB,
+                metronome::VOLUME_MAX_DB
+            ),
+            (40.0, 300.0, -60.0, 0.0)
+        );
+        // The host's tempo and place only matter while Sync is on
+        assert_eq!((settings.host_tempo, settings.host_beats), (None, None));
+        assert!(!params.metronome_sync.default_plain_value());
+    }
+
+    #[test]
+    fn test_the_metronome_follows_the_knobs_and_the_tuner_silences_it() {
+        let params = GuitarAmpParams {
+            metronome_on: BoolParam::new("Metronome", true),
+            metronome_sync: BoolParam::new("Metronome Sync", true),
+            ..GuitarAmpParams::default()
+        };
+        let settings = params.metronome_settings(Some(90.0), false, Some(4.0));
+        assert!(settings.on && settings.sync && !settings.host_playing);
+        assert_eq!((settings.host_tempo, settings.host_beats), (Some(90.0), Some(4.0)));
+        let tuning = GuitarAmpParams {
+            metronome_on: BoolParam::new("Metronome", true),
+            tuner_on: BoolParam::new("Tuner", true),
+            ..GuitarAmpParams::default()
+        };
+        assert!(!tuning.metronome_settings(None, true, None).on);
+    }
+
+    #[test]
+    fn test_the_metronome_is_not_part_of_a_projects_tuner_filter_and_has_its_ids() {
+        let params = GuitarAmpParams::default();
+        let ids: Vec<String> = params.param_map().into_iter().map(|(id, _, _)| id).collect();
+        for id in [
+            "metronome_on",
+            "metronome_bpm",
+            "metronome_sync",
+            "metronome_time_sig",
+            "metronome_volume",
+            "metronome_sound",
+        ] {
+            assert!(ids.iter().any(|each| each == id), "{id}");
+        }
     }
 
     /// Where the first repeat of an impulse lands, in ms, through the delay at `time_ms`:

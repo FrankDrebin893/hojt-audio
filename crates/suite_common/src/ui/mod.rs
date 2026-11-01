@@ -45,9 +45,9 @@ pub use raster::{Grille, KnobCap, Plate, Tolex};
 pub use settings::{settings_panel, SettingRow, SettingsEvent, SettingsText};
 pub use theme::install;
 pub use widgets::{
-    cents_meter, chrome_button, drop_panel, footswitch, led, led_stepper, level_meter,
+    beat_lamp, cents_meter, chrome_button, drop_panel, footswitch, led, led_stepper, level_meter,
     lit_level_lamps, menu_stepper, nameplate_stepper, panel_caption, panel_knob, panel_knob_rect,
     param_knob, param_knob_with, param_switch, print_label, rig_led, signal_lamp, silk_frame,
-    silk_label, small_footswitch, stepper, type_into, type_on_tape, value_knob, value_switch,
+    silk_label, small_footswitch, stepper, type_into, type_on_tape, value_knob, value_switch, Beat,
     Column, Pick, Picked, Row, Step, Typed, LEVEL_MIN_DB,
 };

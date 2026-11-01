@@ -143,6 +143,27 @@ The reasons behind choices that the code alone does not explain. What it does is
   frames hum swung 5 dB from frame to frame. Hum that sets in at once must also fall 3 dB from
   0.2 s to 1 s, or the note is let go (#18; what remains is #44)
 
+## Metronome
+
+- #181: a click for practice, added to the output after the chain (not before Output as the
+  spec's first words had it: the Output knob would then turn the click with the amp, and the
+  safety clip would act on it; after the chain the click has its own Volume and never
+  distorts). Bypass leaves it alone so a player can practise with the amp off; the tuner
+  silences it. It is not a pedal and not in presets: a preset is a sound, a click is the room
+- One clock for both modes: a count of samples to the next beat in `f64`. Following the host,
+  each block is placed afresh from the host's position (exact), so a loop or a jump is followed
+  and no state can disagree with the host. Rejected: a phase locked loop on the host's position
+  (needless, positions are exact) and a clock in beats (a tempo change would shift the beats
+  already placed)
+- 6/8 clicks eighths (six to the bar) with one accent: simple and what a player expects of a
+  click; no medium accent on the fourth
+- The tempo is whole bpm in the display and by tap; the parameter is a float so a host can
+  automate between. The Sync button is shown in the standalone program too: nih-plug's
+  standalone has a transport (120 bpm, running) that it follows
+- The cluster sits between Save and Output so the strip's order reads: what is picked, the
+  practice click, what goes out. The strip's gaps shrank (the window did not grow) and the
+  cluster's parts stand closer than the strip's others, so it reads as one thing
+
 ## Look
 
 - The strip has 50 px small footswitches with the LED beside the switch; its band tilts -1.5
