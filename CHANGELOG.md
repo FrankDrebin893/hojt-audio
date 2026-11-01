@@ -46,7 +46,9 @@ GitHub release.
 
 - The Guitar Amp standalone program has an Audio button on the strip, between the output meter
   and the Clip lamp. It opens a panel to pick the driver, the input and the output interface,
-  the buffer (64 to 512 samples) and the sample rate, and Apply starts the amp again on them.
+  the buffer (64 to 512 samples) and the sample rate (left unset, the host's own), and Apply
+  starts the amp again on them once the window has closed. A saved choice that does not open
+  is set aside (`.bad`) and the amp starts on the defaults.
   The choices are kept in `amp-standalone.json` in the `Hojt Audio` folder of the system's
   settings (`%APPDATA%` on Windows), so the next launch needs no command line, and the
   input is the machine's default input instead of none. Arguments given at launch still win.

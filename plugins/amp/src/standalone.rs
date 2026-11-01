@@ -6,8 +6,8 @@
 //! window's Audio panel saves new choices and starts the program again to open them. In a
 //! DAW nothing here is used: no host is installed and the editor shows no Audio button.
 
-use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 
 /// The buffer sizes the panel offers, in samples
@@ -18,17 +18,17 @@ pub const RATES: [u32; 4] = [44_100, 48_000, 88_200, 96_000];
 pub const FILE: &str = "amp-standalone.json";
 
 /// What the player chose. A device that is `None` is the machine's default
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Prefs {
     /// The audio driver, as nih-plug's `--backend` names it: `auto`, `alsa`, `jack`,
     /// `wasapi`, `core-audio`
     pub backend: String,
     pub input_device: Option<String>,
     pub output_device: Option<String>,
-    /// Buffer size in samples
-    pub period_size: u32,
-    pub sample_rate: u32,
+    /// Buffer size in samples; `None` leaves it to the host's own
+    pub period_size: Option<u32>,
+    /// Sample rate in Hz; `None` leaves it to the host's own
+    pub sample_rate: Option<u32>,
 }
 
 impl Default for Prefs {
@@ -37,8 +37,8 @@ impl Default for Prefs {
             backend: "auto".into(),
             input_device: None,
             output_device: None,
-            period_size: 256,
-            sample_rate: 48_000,
+            period_size: None,
+            sample_rate: None,
         }
     }
 }
@@ -47,12 +47,12 @@ impl Prefs {
     /// The saved choices, or the defaults for a missing or unreadable file. Values the
     /// panel does not offer are put back to the nearest it does
     pub fn load(path: &Path) -> Self {
-        let mut prefs: Self = std::fs::read_to_string(path)
+        let mut prefs = std::fs::read_to_string(path)
             .ok()
-            .and_then(|text| serde_json::from_str(&text).ok())
+            .and_then(|text| Self::from_json(&text))
             .unwrap_or_default();
-        prefs.period_size = nearest(&PERIODS, prefs.period_size);
-        prefs.sample_rate = nearest(&RATES, prefs.sample_rate);
+        prefs.period_size = prefs.period_size.map(|size| nearest(&PERIODS, size));
+        prefs.sample_rate = prefs.sample_rate.map(|rate| nearest(&RATES, rate));
         prefs
     }
 
@@ -61,21 +61,107 @@ impl Prefs {
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir)?;
         }
-        let text = serde_json::to_string_pretty(self).map_err(std::io::Error::other)?;
-        std::fs::write(path, text)
+        std::fs::write(path, self.to_json())
+    }
+
+    fn to_json(&self) -> String {
+        let text = |value: &Option<String>| value.as_deref().map_or("null".into(), quoted);
+        format!(
+            "{{\n  \"backend\": {},\n  \"input_device\": {},\n  \"output_device\": {},\n  \"period_size\": {},\n  \"sample_rate\": {}\n}}\n",
+            quoted(&self.backend),
+            text(&self.input_device),
+            text(&self.output_device),
+            number(self.period_size),
+            number(self.sample_rate)
+        )
+    }
+
+    /// Reads the one flat object `to_json` writes; a field it lacks keeps its default and
+    /// anything that is not such an object is `None`. (No JSON library: the plugin in a DAW
+    /// must not gain dependencies for the standalone program's one small file.)
+    fn from_json(text: &str) -> Option<Self> {
+        let mut prefs = Self::default();
+        let mut chars = text.trim().strip_prefix('{')?.strip_suffix('}')?.chars().peekable();
+        loop {
+            skip(&mut chars, |c| c.is_whitespace() || c == ',');
+            if chars.peek().is_none() {
+                return Some(prefs);
+            }
+            let key = string(&mut chars)?;
+            skip(&mut chars, char::is_whitespace);
+            (chars.next()? == ':').then_some(())?;
+            skip(&mut chars, char::is_whitespace);
+            let value = if chars.peek() == Some(&'"') {
+                Some(string(&mut chars)?)
+            } else {
+                let mut word = String::new();
+                while let Some(c) = chars.next_if(|c| !matches!(c, ',' | '}') && !c.is_whitespace())
+                {
+                    word.push(c);
+                }
+                (word != "null").then_some(word)
+            };
+            match (key.as_str(), value) {
+                ("backend", Some(value)) => prefs.backend = value,
+                ("input_device", value) => prefs.input_device = value,
+                ("output_device", value) => prefs.output_device = value,
+                ("period_size", value) => prefs.period_size = number_of(value)?,
+                ("sample_rate", value) => prefs.sample_rate = number_of(value)?,
+                _ => {}
+            }
+        }
+    }
+
+    /// What a command line of the host's asks for (`--backend`, `-b`, `--input-device`,
+    /// `--output-device`, `--period-size`/`-p`, `--sample-rate`/`-r`, as `--flag value` or
+    /// `--flag=value`), on top of the defaults
+    pub fn from_args(args: &[String]) -> Self {
+        let mut prefs = Self::default();
+        let mut args = args.iter().skip(1);
+        while let Some(arg) = args.next() {
+            let (flag, inline) = match arg.split_once('=') {
+                Some((flag, value)) => (flag, Some(value.to_owned())),
+                None => (arg.as_str(), None),
+            };
+            let known = matches!(
+                flag,
+                "--backend"
+                    | "-b"
+                    | "--input-device"
+                    | "--output-device"
+                    | "--period-size"
+                    | "-p"
+                    | "--sample-rate"
+                    | "-r"
+            );
+            if !known {
+                continue;
+            }
+            let Some(value) = inline.or_else(|| args.next().cloned()) else {
+                break;
+            };
+            match flag {
+                "--backend" | "-b" => prefs.backend = value,
+                "--input-device" => prefs.input_device = Some(value),
+                "--output-device" => prefs.output_device = Some(value),
+                "--period-size" | "-p" => prefs.period_size = value.parse().ok(),
+                _ => prefs.sample_rate = value.parse().ok(),
+            }
+        }
+        prefs
     }
 
     /// The command line of nih-plug's standalone host for these choices, program name first
     pub fn args(&self, program: &str) -> Vec<String> {
-        let mut args = vec![
-            program.to_owned(),
-            "--backend".into(),
-            self.backend.clone(),
-            "--period-size".into(),
-            self.period_size.to_string(),
-            "--sample-rate".into(),
-            self.sample_rate.to_string(),
-        ];
+        let mut args = vec![program.to_owned(), "--backend".into(), self.backend.clone()];
+        for (flag, value) in
+            [("--period-size", self.period_size), ("--sample-rate", self.sample_rate)]
+        {
+            if let Some(value) = value {
+                args.push(flag.into());
+                args.push(value.to_string());
+            }
+        }
         for (flag, device) in
             [("--input-device", &self.input_device), ("--output-device", &self.output_device)]
         {
@@ -88,8 +174,102 @@ impl Prefs {
     }
 }
 
+type Chars<'a> = std::iter::Peekable<std::str::Chars<'a>>;
+
+/// A number or `null` read back: `None` for something else
+fn number_of(value: Option<String>) -> Option<Option<u32>> {
+    match value {
+        None => Some(None),
+        Some(text) => text.parse().ok().map(Some),
+    }
+}
+
+fn number(value: Option<u32>) -> String {
+    value.map_or("null".into(), |value| value.to_string())
+}
+
+fn quoted(text: &str) -> String {
+    let mut out = String::from('"');
+    for c in text.chars() {
+        match c {
+            '"' | '\\' => {
+                out.push('\\');
+                out.push(c);
+            }
+            '\n' => out.push_str("\\n"),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
+fn skip(chars: &mut Chars, skipped: impl Fn(char) -> bool) {
+    while chars.next_if(|&c| skipped(c)).is_some() {}
+}
+
+/// A quoted string at the front of `chars`
+fn string(chars: &mut Chars) -> Option<String> {
+    (chars.next()? == '"').then_some(())?;
+    let mut out = String::new();
+    loop {
+        match chars.next()? {
+            '"' => return Some(out),
+            '\\' => out.push(match chars.next()? {
+                'n' => '\n',
+                c => c,
+            }),
+            c => out.push(c),
+        }
+    }
+}
+
 fn nearest(list: &[u32], value: u32) -> u32 {
     list.iter().copied().min_by_key(|&entry| entry.abs_diff(value)).unwrap_or(value)
+}
+
+/// What the program was started with, which the Audio panel opens on
+static LAUNCH: OnceLock<Prefs> = OnceLock::new();
+
+/// Tells the panel what this run was started with
+pub fn set_launch(prefs: Prefs) {
+    let _ = LAUNCH.set(prefs);
+}
+
+/// What this run was started with: the settings saved, or the arguments given
+pub fn launch() -> Prefs {
+    LAUNCH.get().cloned().unwrap_or_default()
+}
+
+/// The saved choices with the defaults of this machine put in: an input is only connected
+/// when named (nih-plug does not connect one by itself, to keep a microphone from feeding
+/// back), and a device that is no longer plugged in is left to the default. `inputs` and
+/// `outputs` are what is plugged in, `default_input` the machine's own pick. JACK connects
+/// by port, so it is left as it is
+pub fn resolve(
+    mut prefs: Prefs,
+    inputs: &[String],
+    outputs: &[String],
+    default_input: Option<String>,
+) -> Prefs {
+    if prefs.backend != "jack" {
+        prefs.input_device =
+            prefs.input_device.filter(|name| inputs.contains(name)).or(default_input);
+        prefs.output_device = prefs.output_device.filter(|name| outputs.contains(name));
+    }
+    prefs
+}
+
+static RESTART: AtomicBool = AtomicBool::new(false);
+
+/// Asks for the program to be started again once it has closed, with the settings saved
+pub fn request_restart() {
+    RESTART.store(true, Ordering::SeqCst);
+}
+
+/// Was a restart asked for
+pub fn restart_requested() -> bool {
+    RESTART.load(Ordering::SeqCst)
 }
 
 /// The folder of the settings file: `HOJT_CONFIG_DIR` if set, else the system's own place
@@ -129,7 +309,9 @@ pub trait Host: Send + Sync {
     fn drivers(&self) -> Vec<String>;
     /// The devices of one driver
     fn devices(&self, driver: &str) -> DriverDevices;
-    /// Saves `prefs` and starts the program again with them. The window is closed after
+    /// Saves `prefs` and asks for the program to start again with them once the window has
+    /// closed and let go of the audio device. The settings file then wins over any
+    /// arguments the program was started with
     fn restart(&self, prefs: &Prefs) -> std::io::Result<()>;
 }
 
@@ -162,12 +344,17 @@ pub const NO_DEVICE: &str = "None";
 impl AudioChoice {
     /// Opens the panel on `prefs`, listing `host`'s drivers and the devices of the driver
     /// that is chosen
-    pub fn open(host: &dyn Host, prefs: Prefs) -> Self {
+    pub fn open(host: &dyn Host, mut prefs: Prefs) -> Self {
         let mut drivers = host.drivers();
         if !drivers.contains(&prefs.backend) {
             drivers.insert(0, prefs.backend.clone());
         }
         let devices = host.devices(&prefs.backend);
+        // A device that is not plugged in plays on the default, and the panel says so
+        if prefs.backend != "jack" {
+            prefs.input_device = prefs.input_device.filter(|name| devices.inputs.contains(name));
+            prefs.output_device = prefs.output_device.filter(|name| devices.outputs.contains(name));
+        }
         Self { drivers, devices, prefs, error: None }
     }
 
@@ -177,8 +364,14 @@ impl AudioChoice {
             ("Driver", self.prefs.backend.to_uppercase()),
             ("Input", shown(self.prefs.input_device.as_deref(), &self.devices.inputs)),
             ("Output", shown(self.prefs.output_device.as_deref(), &self.devices.outputs)),
-            ("Buffer", format!("{} samples", self.prefs.period_size)),
-            ("Sample rate", format!("{} Hz", self.prefs.sample_rate)),
+            (
+                "Buffer",
+                self.prefs.period_size.map_or(DEFAULT_DEVICE.into(), |n| format!("{n} samples")),
+            ),
+            (
+                "Sample rate",
+                self.prefs.sample_rate.map_or(DEFAULT_DEVICE.into(), |n| format!("{n} Hz")),
+            ),
         ]
     }
 
@@ -231,9 +424,13 @@ fn step_device(chosen: &mut Option<String>, listed: &[String], forward: bool) {
     };
 }
 
-fn step_list(list: &[u32], value: u32, forward: bool) -> u32 {
-    let at = list.iter().position(|&entry| entry == value).unwrap_or(0);
-    list[around(at, list.len(), forward)]
+/// The entries are the host's own (`None`) and then the list
+fn step_list(list: &[u32], value: Option<u32>, forward: bool) -> Option<u32> {
+    let at = value.map_or(0, |value| 1 + list.iter().position(|&e| e == value).unwrap_or(0));
+    match around(at, list.len() + 1, forward) {
+        0 => None,
+        entry => Some(list[entry - 1]),
+    }
 }
 
 #[cfg(test)]
@@ -267,14 +464,77 @@ mod tests {
     }
 
     #[test]
+    fn test_a_choice_never_made_passes_no_flag_and_a_launch_is_read_back() {
+        let args = Prefs::default().args("amp");
+        assert_eq!(args, ["amp", "--backend", "auto"]);
+        let launch: Vec<String> =
+            ["amp", "-b", "alsa", "--input-device=Mic", "-p", "128"].map(String::from).to_vec();
+        let prefs = Prefs::from_args(&launch);
+        assert_eq!(
+            (prefs.backend.as_str(), prefs.input_device.as_deref(), prefs.period_size),
+            ("alsa", Some("Mic"), Some(128))
+        );
+        assert_eq!(prefs.sample_rate, None);
+    }
+
+    #[test]
+    fn test_the_panel_shows_the_default_for_a_device_that_is_unplugged() {
+        let prefs = Prefs {
+            backend: "wasapi".into(),
+            input_device: Some("Unplugged".into()),
+            output_device: Some("Speakers".into()),
+            ..Prefs::default()
+        };
+        let choice = AudioChoice::open(&Fake, prefs);
+        assert_eq!(choice.prefs.input_device, None);
+        assert_eq!(choice.prefs.output_device.as_deref(), Some("Speakers"));
+    }
+
+    #[test]
+    fn test_awkward_names_survive_the_file() {
+        let path = dir("names").join(FILE);
+        let prefs = Prefs { input_device: Some("Mic \"A\" \\ B, {1}".into()), ..Prefs::default() };
+        prefs.save(&path).unwrap();
+        assert_eq!(Prefs::load(&path), prefs);
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    #[test]
+    fn test_a_device_that_is_gone_falls_back_and_the_input_defaults() {
+        let list = |names: &[&str]| names.iter().map(|n| n.to_string()).collect::<Vec<_>>();
+        let (inputs, outputs) = (list(&["Scarlett", "Mic"]), list(&["Speakers"]));
+        let saved = Prefs {
+            input_device: Some("Unplugged".into()),
+            output_device: Some("Gone".into()),
+            ..Prefs::default()
+        };
+        let resolved = resolve(saved, &inputs, &outputs, Some("Mic".into()));
+        assert_eq!(resolved.input_device.as_deref(), Some("Mic"));
+        assert_eq!(resolved.output_device, None);
+        // A device that is there is kept, and with none chosen the default input is used
+        let kept = Prefs {
+            input_device: Some("Scarlett".into()),
+            output_device: Some("Speakers".into()),
+            ..Prefs::default()
+        };
+        let resolved = resolve(kept.clone(), &inputs, &outputs, Some("Mic".into()));
+        assert_eq!(resolved, kept);
+        let none = resolve(Prefs::default(), &inputs, &outputs, Some("Mic".into()));
+        assert_eq!(none.input_device.as_deref(), Some("Mic"));
+        // JACK is left alone
+        let jack = Prefs { backend: "jack".into(), ..Prefs::default() };
+        assert_eq!(resolve(jack.clone(), &inputs, &outputs, Some("Mic".into())), jack);
+    }
+
+    #[test]
     fn test_the_choices_come_back_after_a_restart() {
         let path = dir("roundtrip").join(FILE);
         let prefs = Prefs {
             backend: "wasapi".into(),
             input_device: Some("Scarlett".into()),
             output_device: Some("Speakers".into()),
-            period_size: 128,
-            sample_rate: 96_000,
+            period_size: Some(128),
+            sample_rate: Some(96_000),
         };
         prefs.save(&path).unwrap();
         assert_eq!(Prefs::load(&path), prefs);
@@ -291,7 +551,7 @@ mod tests {
         // A field the file lacks is the default; a size the panel lacks is put to the nearest
         std::fs::write(&path, r#"{"period_size": 100, "input_device": "A"}"#).unwrap();
         let loaded = Prefs::load(&path);
-        assert_eq!((loaded.period_size, loaded.backend.as_str()), (128, "auto"));
+        assert_eq!((loaded.period_size, loaded.backend.as_str()), (Some(128), "auto"));
         assert_eq!(loaded.input_device.as_deref(), Some("A"));
         let _ = std::fs::remove_dir_all(path.parent().unwrap());
     }
@@ -302,8 +562,8 @@ mod tests {
             backend: "wasapi".into(),
             input_device: Some("Scarlett 2i2".into()),
             output_device: None,
-            period_size: 64,
-            sample_rate: 44_100,
+            period_size: Some(64),
+            sample_rate: Some(44_100),
         };
         assert_eq!(
             prefs.args("amp"),
@@ -339,12 +599,15 @@ mod tests {
         // Another driver forgets the devices of this one
         choice.step(&host, 0, true);
         assert_eq!(choice.prefs.input_device, None);
+        // Nothing chosen is the host's own; stepping back from it goes round to the last
+        assert_eq!(choice.prefs.period_size, None);
         choice.step(&host, 3, false);
-        assert_eq!(choice.prefs.period_size, 128);
-        choice.step(&host, 3, false);
-        choice.step(&host, 3, false);
-        assert_eq!(choice.prefs.period_size, 512);
+        assert_eq!(choice.prefs.period_size, Some(512));
+        choice.step(&host, 3, true);
+        choice.step(&host, 3, true);
+        assert_eq!(choice.prefs.period_size, Some(64));
         choice.step(&host, 4, true);
-        assert_eq!(choice.prefs.sample_rate, 88_200);
+        choice.step(&host, 4, true);
+        assert_eq!(choice.prefs.sample_rate, Some(48_000));
     }
 }

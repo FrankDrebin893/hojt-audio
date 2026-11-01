@@ -51,40 +51,54 @@ impl standalone::Host for Machine {
         let path = standalone::prefs_path()
             .ok_or_else(|| std::io::Error::other("no place for the settings"))?;
         prefs.save(&path)?;
-        // The same program, no arguments: it reads what was just saved
-        std::process::Command::new(std::env::current_exe()?).spawn()?;
+        // The program starts again from `main` once the window has closed and the audio
+        // device is let go
+        standalone::request_restart();
         Ok(())
     }
 }
 
-/// The saved choices with the defaults of this machine put in: an input is only connected
-/// when named (nih-plug does not connect one by itself, to keep a microphone from feeding
-/// back), and a device that is no longer plugged in is left to the default
-fn resolved(mut prefs: Prefs) -> Prefs {
-    if prefs.backend == "jack" {
-        return prefs;
-    }
+/// The saved choices with this machine's devices put in (see `standalone::resolve`)
+fn resolved(prefs: Prefs) -> Prefs {
     let Some(host) = Machine::host() else {
         return prefs;
     };
-    let plugged = |wanted: &Option<String>, list: Vec<String>| {
-        wanted.clone().filter(|name| list.contains(name))
-    };
-    prefs.input_device =
-        plugged(&prefs.input_device, host.input_devices().map(names).unwrap_or_default())
-            .or_else(|| host.default_input_device().and_then(|device| device.name().ok()));
-    prefs.output_device =
-        plugged(&prefs.output_device, host.output_devices().map(names).unwrap_or_default());
-    prefs
+    standalone::resolve(
+        prefs,
+        &host.input_devices().map(names).unwrap_or_default(),
+        &host.output_devices().map(names).unwrap_or_default(),
+        host.default_input_device().and_then(|device| device.name().ok()),
+    )
+}
+
+fn start(args: Vec<String>) -> bool {
+    nih_export_standalone_with_args::<amp::GuitarAmpPlugin, _>(args)
 }
 
 fn main() {
     standalone::install(Box::new(Machine));
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 {
-        nih_export_standalone_with_args::<amp::GuitarAmpPlugin, _>(args);
-        return;
+        standalone::set_launch(Prefs::from_args(&args));
+        start(args);
+    } else {
+        let path = standalone::prefs_path();
+        let saved = path.as_deref().map(Prefs::load).unwrap_or_default();
+        let launch = resolved(saved);
+        standalone::set_launch(launch.clone());
+        // A saved choice that does not open must not keep the amp from starting: set the
+        // file aside and start again on the defaults
+        if !start(launch.args(&args[0])) && launch != Prefs::default() {
+            if let Some(path) = path {
+                let _ = std::fs::rename(&path, path.with_extension("bad"));
+            }
+            start(Prefs::default().args(&args[0]));
+        }
     }
-    let prefs = standalone::prefs_path().map(|path| Prefs::load(&path)).unwrap_or_default();
-    nih_export_standalone_with_args::<amp::GuitarAmpPlugin, _>(resolved(prefs).args(&args[0]));
+    // The window is closed and the streams are let go: only now can the program open them again
+    if standalone::restart_requested() {
+        if let Ok(program) = std::env::current_exe() {
+            let _ = std::process::Command::new(program).spawn();
+        }
+    }
 }

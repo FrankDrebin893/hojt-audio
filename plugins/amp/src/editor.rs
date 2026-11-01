@@ -20,7 +20,9 @@ use crate::dial_memory;
 use crate::lamps::{LampReading, LampView};
 use crate::looks;
 use crate::presets::{self, PRESETS};
-use crate::standalone::{self, AudioChoice, Prefs};
+#[cfg(test)]
+use crate::standalone::Prefs;
+use crate::standalone::{self, AudioChoice};
 use crate::tuner::{Note, TunerReading};
 use crate::user_cab;
 use crate::user_presets::{self, Bank};
@@ -1218,14 +1220,9 @@ fn audio_button(ui: &mut Ui, origin: Pos2, view: &mut View, host: &dyn standalon
     if chrome_button(ui, at, "audio").clicked() {
         view.audio = match view.audio {
             Some(_) => None,
-            None => Some(AudioChoice::open(host, saved_prefs())),
+            None => Some(AudioChoice::open(host, standalone::launch())),
         };
     }
-}
-
-/// What was saved last, or the defaults
-fn saved_prefs() -> Prefs {
-    standalone::prefs_path().map(|path| Prefs::load(&path)).unwrap_or_default()
 }
 
 fn audio_panel(ui: &mut Ui, origin: Pos2, view: &mut View, host: &dyn standalone::Host) {

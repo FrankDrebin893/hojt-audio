@@ -112,8 +112,6 @@ dependencies = [
  "hound",
  "nih_plug",
  "nih_plug_egui",
- "serde",
- "serde_json",
  "suite_common",
 ]
 
