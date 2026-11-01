@@ -5,7 +5,7 @@
 # Only the workflow calls the approving commands, and only for the owner (it checks who acted).
 #
 #   scripts/approvals.sh list              write the list again from the open state:spec issues, and
-#                                          under "Waiting on you" the issues labelled needs:rasmus
+#                                          under "Awaiting engineer decision" the issues labelled needs:engineer
 #   scripts/approvals.sh approve <n|all>…  approve those specs (open and state:spec only)
 #   scripts/approvals.sh ticked            approve what is ticked on the list
 #
@@ -43,19 +43,19 @@ describe() {
 }
 
 # The issues that wait for the owner outside an approval: an answer, a pick, a listen. They carry
-# `needs:rasmus` (set by /next, cleared by needs-owner.yml when he comments), so nothing stalls
+# `needs:engineer` (set by /next, cleared by needs-owner.yml when the engineer comments), so nothing stalls
 # unseen once it has left the spec stage.
 waiting() {
     local lines
-    lines="$(gh issue list --repo "$repo" --state open --label needs:rasmus --limit 100 \
+    lines="$(gh issue list --repo "$repo" --state open --label needs:engineer --limit 100 \
         --json number,title,updatedAt --jq 'sort_by(.number) | .[] | "- #\(.number) \(.title) · since \(.updatedAt[:10])"')"
     [[ -n "$lines" ]] || return 0
-    printf '\n### Waiting on you\n\nAnswer on the issue (a comment of yours takes it off this list, and the Builder picks it up again):\n\n%s\n' "$lines"
+    printf '\n### Awaiting engineer decision\n\nAnswer on the issue (a comment of yours takes it off this list, and the Builder picks it up again):\n\n%s\n' "$lines"
 }
 
 cmd_list() {
     local specs body n pending
-    gh label create needs:rasmus --repo "$repo" --color d93f0b \
+    gh label create needs:engineer --repo "$repo" --color d93f0b \
         --description "Waits for the owner: an answer, a pick or a listen (needs-owner.yml)" > /dev/null 2>&1 || true
     pending="$(waiting)"
     gh label create approval-list --repo "$repo" --color 0e8a16 \

@@ -56,7 +56,7 @@ detail lives. Each detail is next to what it governs.
   the piano viz when `piano/` changes, releases it on `piano-vX.Y.Z`), `pages.yml`, `approval-guard.yml`, `sound.yml`
   (what a plugin's reports say changed against `main`), `weekly.yml` (a weekly run that only files
   `state:idea` issues, `scripts/weekly-checks.sh`), `health.yml` (the weekly health numbers, see
-  "Automation and health"), `approve-specs.yml` (the approval list), `needs-owner.yml` (clears `needs:rasmus` when he answers), `board-sync.yml` (the board's
+  "Automation and health"), `approve-specs.yml` (the approval list), `needs-owner.yml` (clears `needs:engineer` when he answers), `board-sync.yml` (the board's
   State follows the label). `.github/ISSUE_TEMPLATE/` and
   `pull_request_template.md` say what an issue and a pull request ask for
 
@@ -147,9 +147,9 @@ Two rules keep an issue from stalling once it leaves the spec stage:
   sets that label, so it must never have to put it back). Only the last one says `Closes`. Parents
   are not built: their sub-issues are, and `/next` takes a sub-issue (`Parent: #<p>`) on its
   parent's approval, unless its body has a sentence `Waits for ...` naming an issue that is still open
-- **Waiting on Rasmus is a label, `needs:rasmus`,** not a state: set when a session stops on a
+- **Awaiting an engineer decision is a label, `needs:engineer`,** not a state: set when a session stops on a
   question, a pick or a listen, with a comment saying what. It lists the issue on the pinned
-  "Specs to approve" under "Waiting on you", the Builder skips it, and his comment on the issue
+  "Specs to approve" under "Awaiting engineer decision", the Builder skips it, and his comment on the issue
   (not one signed with the agent's footer, which every agent comment on an issue carries) takes it off through `needs-owner.yml`, after which
   `/next` picks the issue up with his answer Labels `kind:*`, `plugin:*` (`app:piano` for the piano viz) and `area:*` say what it is
 and where; `from:user` marks issues from outside the project.

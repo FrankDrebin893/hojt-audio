@@ -12,7 +12,7 @@ state:building|fbca04|Being built on a branch
 state:review|5319e7|A pull request is open
 from:user|f9d0c4|Came from someone outside the project
 from:scout|c2e0c6|Filed by the Scout (/scout), from the market or our own plugins
-needs:rasmus|d93f0b|Waits for the owner: an answer, a pick or a listen (needs-owner.yml)
+needs:engineer|d93f0b|Waits for the owner: an answer, a pick or a listen (needs-owner.yml)
 approval-list|0e8a16|The list of specs to approve (approve-specs.yml)
 health|333333|The weekly health digest (health.yml)
 kind:feature|a2eeef|Something new
