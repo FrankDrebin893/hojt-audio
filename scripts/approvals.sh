@@ -4,7 +4,8 @@
 # comment `/approve all` or `/approve 130 133`, approves; so does `/approve` on a spec's own issue.
 # Only the workflow calls the approving commands, and only for the owner (it checks who acted).
 #
-#   scripts/approvals.sh list              write the list again from the open state:spec issues
+#   scripts/approvals.sh list              write the list again from the open state:spec issues, and
+#                                          under "Awaiting engineer decision" the issues labelled needs:engineer
 #   scripts/approvals.sh approve <n|all>…  approve those specs (open and state:spec only)
 #   scripts/approvals.sh ticked            approve what is ticked on the list
 #
@@ -41,14 +42,29 @@ describe() {
     printf '\n'
 }
 
+# The issues that wait for the owner outside an approval: an answer, a pick, a listen. They carry
+# `needs:engineer` (set by /next, cleared by needs-owner.yml when the engineer comments), so nothing stalls
+# unseen once it has left the spec stage.
+waiting() {
+    local lines
+    lines="$(gh issue list --repo "$repo" --state open --label needs:engineer --limit 100 \
+        --json number,title,updatedAt --jq 'sort_by(.number) | .[] | "- #\(.number) \(.title) · since \(.updatedAt[:10])"')"
+    [[ -n "$lines" ]] || return 0
+    printf '\n### Awaiting engineer decision\n\nAnswer on the issue (a comment of yours takes it off this list, and the Builder picks it up again):\n\n%s\n' "$lines"
+}
+
 cmd_list() {
-    local specs body n
+    local specs body n pending
+    gh label create needs:engineer --repo "$repo" --color d93f0b \
+        --description "Waits for the owner: an answer, a pick or a listen (needs-owner.yml)" > /dev/null 2>&1 || true
+    pending="$(waiting)"
     gh label create approval-list --repo "$repo" --color 0e8a16 \
         --description "The list of specs to approve (approve-specs.yml)" --force > /dev/null
     specs="$(gh issue list --repo "$repo" --state open --label state:spec --limit 100 --json number --jq 'sort_by(.number) | .[].number')"
     if [[ -z "$specs" ]]; then
         body="$marker
 No spec is waiting for approval.
+$pending
 
 _Written by \`approve-specs.yml\` on $(date -u +%Y-%m-%d)._"
     else
@@ -58,6 +74,7 @@ Tick a spec to approve it, or tick **Approve all**. A comment \`/approve all\` o
 - [ ] **Approve all** ($(wc -l <<< "$specs" | tr -d ' '))
 
 $(for n in $specs; do describe "$n"; done)
+$pending
 
 _Written by \`approve-specs.yml\` on $(date -u +%Y-%m-%d)._"
     fi

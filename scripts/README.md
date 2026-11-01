@@ -20,7 +20,8 @@ What each script in this folder does, and the detail behind the rules in `AGENTS
 - `health.sh` - The project's health as one line of JSON (Health below); `health-digest.sh` turns the
   last two lines of the history into the Monday digest
 - `approvals.sh` - The approval list of `approve-specs.yml`: writes the pinned "Specs to approve" and
-  approves what the owner ticked or named
+  approves what the owner ticked or named, and lists the issues labelled `needs:engineer` under
+  "Awaiting engineer decision"
 - `board-state.sh` - Sets an issue's State on the board without touching its label (`move-issue.sh`
   and `board-sync.yml` use it)
 - `page-check.sh` - Whether `/page` has looked at what changed since `main`, and whether
