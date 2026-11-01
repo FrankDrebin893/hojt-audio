@@ -146,11 +146,11 @@ Two rules keep an issue from stalling once it leaves the spec stage:
   several says `Part of #<issue>` and leaves the state as it is (`state:approved`; the agent never
   sets that label, so it must never have to put it back). Only the last one says `Closes`. Parents
   are not built: their sub-issues are, and `/next` takes a sub-issue (`Parent: #<p>`) on its
-  parent's approval, unless it says `Waits for #<m>` with #<m> still open
+  parent's approval, unless its body has a sentence `Waits for ...` naming an issue that is still open
 - **Waiting on Rasmus is a label, `needs:rasmus`,** not a state: set when a session stops on a
   question, a pick or a listen, with a comment saying what. It lists the issue on the pinned
   "Specs to approve" under "Waiting on you", the Builder skips it, and his comment on the issue
-  (not one signed with the agent's footer) takes it off through `needs-owner.yml`, after which
+  (not one signed with the agent's footer, which every agent comment on an issue carries) takes it off through `needs-owner.yml`, after which
   `/next` picks the issue up with his answer Labels `kind:*`, `plugin:*` (`app:piano` for the piano viz) and `area:*` say what it is
 and where; `from:user` marks issues from outside the project.
 
