@@ -44,6 +44,17 @@ GitHub release.
 
 ### Guitar Amp
 
+- The Guitar Amp has a metronome for practice, in a cluster on the strip between Save and
+  Output. The Metro switch starts it, a lamp flashes amber on each beat and cream on the first of
+  the bar, and the click goes on top of the finished sound, so the amp never distorts it and the
+  Output knob and On switch leave it alone (the tuner silences it). Tempo is 40 to 300 bpm: drag
+  or scroll the display, press its buttons, double-click it for 120, or tap the Tap button.
+  Meter picks 2/4, 3/4, 4/4 or 6/8 (six eighths), Sound picks Woodblock, Beep or Click, and the
+  Volume knob goes from -60 to 0 dB (-12 to start). Sync follows the DAW's tempo and position
+  and is quiet while the DAW is stopped. It runs on its own clock in the standalone program.
+  New controls: `metronome_on`, `metronome_bpm`, `metronome_sync`, `metronome_time_sig`,
+  `metronome_volume`, `metronome_sound`. Presets leave them alone. The strip's controls stand
+  closer together to make room; the window is the same size
 - The Guitar Amp standalone program has an Audio button on the strip, between the output meter
   and the Clip lamp. It opens a panel to pick the driver, the input and the output interface,
   the buffer (64 to 512 samples) and the sample rate (left unset, the host's own), and Apply

@@ -121,3 +121,53 @@ fn test_the_pitch_shifter_allocates_nothing() {
         });
     }
 }
+
+/// The metronome: off, on in each sound and time signature, following a host that plays and
+/// stops, with the tempo turned while it clicks, at the rates a host runs at
+#[test]
+fn test_the_metronome_allocates_nothing() {
+    use crate::metronome::{Metronome, MetronomeSettings, Sound, TimeSignature};
+    for sample_rate in [44_100.0, 96_000.0] {
+        let mut metronome = Metronome::new();
+        metronome.set_sample_rate(sample_rate);
+        let mut left = vec![0.0f32; host::BLOCKS[0]];
+        let mut right = vec![0.0f32; host::BLOCKS[0]];
+        let mut heard = false;
+        host::assert_allocates_nothing("The metronome", || {
+            for block in 0..600 {
+                let len = host::BLOCKS[block % host::BLOCKS.len()];
+                left.fill(0.0);
+                right.fill(0.0);
+                let settings = MetronomeSettings {
+                    on: block / 20 % 5 != 0,
+                    bpm: 40.0 + (block % 261) as f32,
+                    sync: block / 30 % 2 == 1,
+                    time_signature: TimeSignature::ALL[block / 7 % 4],
+                    sound: Sound::ALL[block / 11 % 3],
+                    gain: 0.5,
+                    host_tempo: (block % 9 != 0).then_some(60.0 + (block % 100) as f64),
+                    host_playing: block % 13 != 0,
+                    host_beats: (block % 5 != 0).then_some(block as f64 * 0.37),
+                };
+                metronome.process(&settings, &mut left[..len], Some(&mut right[..len]));
+                metronome.process(&settings, &mut left[..len], None);
+                heard |= left[..len].iter().any(|sample| *sample != 0.0);
+            }
+        });
+        assert!(heard, "the test did not play the metronome");
+    }
+}
+
+/// The plugin's own `process` with the metronome on, as a host calls it
+#[test]
+fn test_process_with_the_metronome_on_allocates_nothing() {
+    use nih_plug::prelude::BoolParam;
+    let mut plugin = GuitarAmpPlugin {
+        params: std::sync::Arc::new(crate::GuitarAmpParams {
+            metronome_on: BoolParam::new("Metronome", true),
+            ..crate::GuitarAmpParams::default()
+        }),
+        ..GuitarAmpPlugin::default()
+    };
+    host::assert_process_allocates_nothing("Guitar Amp with the metronome", &mut plugin, 200, &[]);
+}

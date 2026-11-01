@@ -1021,6 +1021,55 @@ pub fn signal_lamp(painter: &Painter, center: Pos2, on: bool) {
     lamp(painter, center, on, LED_OFF_DARK, true, SIGNAL_LAMP_SCALE);
 }
 
+/// What a `beat_lamp` shows
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Beat {
+    Dark,
+    /// Running, between beats: a dim amber
+    Armed,
+    /// A beat in the bar: amber
+    Regular,
+    /// The first beat of the bar: cream
+    Downbeat,
+}
+
+/// The lamp of a metronome on a black socket, the size of a `rig_led` and used as one on a
+/// switch: dark while off, a dim amber while running, amber on a beat and cream on the first of
+/// the bar
+pub fn beat_lamp(painter: &Painter, center: Pos2, beat: Beat) {
+    let radius = 9.0;
+    painter.circle_filled(center + vec2(0.0, 1.5), radius + 2.0, SHADOW);
+    painter.circle_filled(center, radius + 1.5, Color32::from_rgb(8, 7, 6));
+    let (lens, glow) = match beat {
+        Beat::Dark => (Color32::from_rgb(62, 36, 12), None),
+        Beat::Armed => (Color32::from_rgb(150, 92, 20), None),
+        Beat::Regular => (Color32::from_rgb(255, 168, 28), Some(Color32::from_rgb(255, 150, 20))),
+        Beat::Downbeat => {
+            (Color32::from_rgb(255, 242, 208), Some(Color32::from_rgb(255, 226, 170)))
+        }
+    };
+    if let Some(glow) = glow {
+        for (reach, alpha) in [(10.0, 30), (7.0, 40), (4.0, 50)] {
+            painter.circle_filled(
+                center,
+                radius + reach * 0.5,
+                Color32::from_rgba_unmultiplied(glow.r(), glow.g(), glow.b(), alpha),
+            );
+        }
+    }
+    painter.circle_filled(center, radius - 1.0, lens);
+    let shine = match beat {
+        Beat::Dark => 40,
+        Beat::Armed => 70,
+        _ => 150,
+    };
+    painter.circle_filled(
+        center + vec2(-2.5, -3.0),
+        radius * 0.3,
+        Color32::from_white_alpha(shine),
+    );
+}
+
 /// The measures in here are those of the full-size light
 fn lamp(painter: &Painter, center: Pos2, on: bool, off_color: Color32, socket: bool, scale: f32) {
     super::hardware::paint_lamp(painter, center, on, off_color, socket, scale);

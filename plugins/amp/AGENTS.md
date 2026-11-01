@@ -47,6 +47,8 @@ lead) and Drøn (a big, loose, dark amp with the low end let through). They shar
   chain tells the editor, and how long the editor shows it
 - `src/tuner.rs` - Tuner: pitch detector on the mono input, `TunerReading` (one atomic shared
   with the editor), `Note`
+- `src/metronome.rs` - Metronome: the click on a clock of its own or the host's (`Metronome`,
+  `MetronomeSettings`), its three sounds, `BeatReading` (what the editor's lamp reads) and `TapTempo`
 - `src/standalone.rs` - The standalone program's settings (`Prefs`, saved as
   `amp-standalone.json` in the system's settings folder or `HOJT_CONFIG_DIR`), the `Host` trait
   `main.rs` implements with cpal to list devices and restart, and the Audio panel's choices. The
@@ -94,6 +96,18 @@ How it behaves:
 - Tuner on gives the amp silence and turns its output down in 10 ms (exactly silent, tails
   included); off brings it back as fast. Bypass still passes the input while tuning. The tuner
   costs nothing when off and under 3 us in its worst 64-sample block when on
+- The metronome (`metronome.rs`) is added to the output after the whole chain, in `process` of
+  `lib.rs`: the amp never distorts it, and Output and Bypass leave it alone. The tuner silences
+  it (a click already sounding rings out, a few ms). Off, it adds nothing and the output is
+  bit-identical. Its clock is a count of samples to the next beat kept as an `f64`, so a tempo
+  that is not a whole number of samples per beat never drifts and the clicks fall on the
+  sample whatever the host's block size. A tempo change is taken at the next beat; switching
+  it on starts on the first sample, on the downbeat. Beats are quarter notes, in 6/8 eighths
+  (six to the bar). With Sync on and a tempo from the host it follows the host's tempo and
+  position every block: silent while the host is stopped, a jump or a loop is followed, bar
+  position from the position in the song. With no tempo it uses its own. Sounds: Woodblock,
+  Beep, Click, each higher and louder (1.0 against 0.6) on the downbeat. It keeps the plugin
+  awake (`KeepAlive`) while on. The six `metronome_*` parameters are not in presets
 - The tuner reads 48 Hz to 1420 Hz against A = 440 Hz (`REFERENCE_A_HZ`), a new reading every
   30 ms, none for silence, noise, hum or chords. A note is shown from a pluck on (a rise of
   12 dB within 50 ms; 6 dB to change notes or pluck again), and let go after a second if it
@@ -299,6 +313,12 @@ How it behaves:
 | Reverb Mix (`reverb_mix`) | 0-100 % | 20 % | Level of the tail |
 | Output (`out_level`) | -30 to +6 dB | 0 dB | Output level, in front of the safety clip |
 | Tuner (`tuner`) | on / off | off | Silent tuning. Not automatable, not in presets, not changed when a project is loaded |
+| Metronome (`metronome_on`) | on / off | off | The click, on top of the finished sound. Not in presets |
+| Metronome Tempo (`metronome_bpm`) | 40-300 bpm | 120 | Beats a minute: quarter notes, in 6/8 eighths |
+| Metronome Sync (`metronome_sync`) | on / off | off | Follow the host's tempo and position; silent while the host is stopped. With no tempo from the host, the Tempo knob's |
+| Metronome Time Signature (`metronome_time_sig`) | 2/4, 3/4, 4/4, 6/8 | 4/4 | Clicks to the bar. Variant ids `two_four`, `three_four`, `four_four`, `six_eight` |
+| Metronome Volume (`metronome_volume`) | -60 to 0 dB | -12 dB | The click's level; -60 is silence |
+| Metronome Sound (`metronome_sound`) | Woodblock, Beep, Click | Woodblock | Variant ids `woodblock`, `beep`, `click` |
 
 Dials are stored 0.0-1.0 and shown as 0.0-10.0.
 
@@ -336,6 +356,10 @@ cargo test -p amp --release comp_report -- --ignored --nocapture
 cargo test -p amp --release pitch_report -- --ignored --nocapture
 cargo test -p amp --release fuzz_report -- --ignored --nocapture
 cargo test -p amp --release mods_report -- --ignored --nocapture
+
+# The metronome's three sounds, in 4/4 and 6/8, at -12 and 0 dB, as WAV files in
+# target/renders (amp_metronome_*.wav), with their peaks: to listen to the downbeat and the level
+cargo test -p amp --release render_metronome -- --ignored --nocapture
 
 # Tuner: error in cents per note and signal, time to the first reading, drift, cost.
 cargo test -p amp --release tuner_report -- --ignored --nocapture
@@ -550,6 +574,17 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   says `NO FILES` for 1.5 s. Hovering the
   `Speaker` caption names the folder; a double-click on it opens the folder
 - **A file choice is never a parameter.** Keep the file name (not the path) in a `#[persist]` field
+- **Metronome:** one cluster on the strip between Save and Output, its controls closer
+  (`METRONOME_GAP`) than the strip's others (`STRIP_GAP`), left to right: a `small_footswitch`
+  with `rig_led` and its `Metro` caption like On and Tuner, a `beat_lamp` (amber on a beat, cream
+  on the first of the bar, lit 90 ms) with its `Beat` caption, the tempo on an LED display of three
+  characters with a chrome button at each end (also dragged up and down, 3 points a beat per
+  minute and a quarter of that with shift, scrolled, or double-clicked for 120), the Tap
+  `chrome_button`, a `stepper` each for the time signature and the sound, the Volume knob
+  (radius 20) and Sync, a `chrome_button` with a `rig_led` above it. Captions are on the preset
+  captions' line. The window is drawn again every 20 ms while it runs (the lamp follows the
+  sound) and not at all when off. The cluster is one control of the strip's row; a test holds
+  its parts clear of each other and of their neighbours
 - **Tuner:** a `small_footswitch` with `rig_led` and a `silk_label` at the end of the strip's
   right wing, beside the On switch. While it is on, a
   `tuner_display` (an LED display, `ui::led`) under its own caption takes the place of the

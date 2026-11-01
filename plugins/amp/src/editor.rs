@@ -5,12 +5,12 @@ use std::path::Path;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, PoisonError};
 use suite_common::ui::{
-    self, chrome_button, drop_panel, led_stepper, led_width, level_meter, nameplate_stepper,
-    panel_knob, param_knob, param_switch, print_label, rig_led, settings_panel, signal_lamp,
-    silk_label, small_footswitch, stepper, theme, tuner_display, type_into, type_on_tape, Column,
-    HeadFaces, MiniStyle, Motif, Ornament, PedalStyle, Pick, Row, SettingRow, SettingsEvent,
-    SettingsText, Step, Typed, BENCH_MARGIN, LED_HEIGHT, SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED,
-    SLIM_SWITCH,
+    self, beat_lamp, chrome_button, drop_panel, led_stepper, led_width, level_meter,
+    nameplate_stepper, panel_knob, param_knob, param_switch, print_label, rig_led, settings_panel,
+    signal_lamp, silk_label, small_footswitch, stepper, theme, tuner_display, type_into,
+    type_on_tape, Beat, Column, HeadFaces, MiniStyle, Motif, Ornament, PedalStyle, Pick, Row,
+    SettingRow, SettingsEvent, SettingsText, Step, Typed, BENCH_MARGIN, LED_HEIGHT, SLIM_KNOBS,
+    SLIM_KNOB_RADIUS, SLIM_LED, SLIM_SWITCH,
 };
 
 use crate::board::STACK_WIDTH;
@@ -19,6 +19,7 @@ use crate::cab_stage::{CabLoader, CabStatus, NO_FILES_SHOWN};
 use crate::dial_memory;
 use crate::lamps::{LampReading, LampView};
 use crate::looks;
+use crate::metronome::{BeatReading, Sound, TapTempo, TimeSignature, BPM_MAX, BPM_MIN};
 use crate::presets::{self, PRESETS};
 #[cfg(test)]
 use crate::standalone::Prefs;
@@ -55,7 +56,7 @@ pub(crate) const STYLE: PedalStyle = PedalStyle {
 // is picked is on the left: the input meter, then the bank and preset displays and the Save
 // button. What goes out is on the right: the output knob, the output meter, the clip lamp, and
 // the On and Tuner switches. Each one's place is the end of the one before it and the gap
-const STRIP_GAP: f32 = 134.0;
+const STRIP_GAP: f32 = 43.0;
 
 // The bank display and the preset display, each an LED display with a button at each end and
 // its caption over it: what set of presets the preset display picks from, and the preset.
@@ -117,8 +118,42 @@ const PRESET_X: f32 =
 // The Save button right of the preset display, its caption on the line of the display's
 const SAVE_X: f32 = PRESET_X + PRESET_WIDTH / 2.0 + STEPPER_REACH + STRIP_GAP + SAVE_REACH;
 
+// The metronome, one cluster between Save and Output, its controls closer than the strip's
+// others: the On switch, whose lamp flashes on the beat, the tempo display (drag or scroll it,
+// or tap the Tap button), the sound over the time signature, each on a stepper, the click's
+// volume and the Sync button. Every one is placed from the end of the one before
+const METRONOME_GAP: f32 = 14.0;
+const METRONOME_START: f32 = SAVE_X + SAVE_REACH + STRIP_GAP;
+const METRONOME_SWITCH_X: f32 = METRONOME_START + SWITCH_GROUP - SWITCH_REACH;
+const TEMPO_CHARS: usize = 3;
+const TEMPO_WIDTH: f32 = led_width(TEMPO_CHARS);
+const TEMPO_X: f32 =
+    METRONOME_SWITCH_X + SWITCH_REACH + METRONOME_GAP + TEMPO_WIDTH / 2.0 + STEPPER_REACH;
+const TAP_X: f32 = TEMPO_X + TEMPO_WIDTH / 2.0 + STEPPER_REACH + METRONOME_GAP + SAVE_REACH;
+// The sound over the time signature, on one column of steppers
+const SOUND_WIDTH: f32 = 100.0;
+const SIGNATURE_WIDTH: f32 = 54.0;
+const STEPPERS_X: f32 = TAP_X + SAVE_REACH + METRONOME_GAP + SOUND_WIDTH / 2.0 + STEPPER_REACH;
+const SOUND_CAPTION_Y: f32 = 33.0;
+const SOUND_Y: f32 = 54.0;
+const SIGNATURE_CAPTION_Y: f32 = 80.0;
+const SIGNATURE_Y: f32 = 101.0;
+const CLICK_RADIUS: f32 = 20.0;
+const CLICK_REACH: f32 = CLICK_RADIUS + 13.0;
+const CLICK_VOLUME: Vec2 =
+    vec2(STEPPERS_X + SOUND_WIDTH / 2.0 + STEPPER_REACH + METRONOME_GAP + CLICK_REACH, 56.0);
+const METRONOME_SYNC_X: f32 = CLICK_VOLUME.x + CLICK_REACH + METRONOME_GAP + SAVE_REACH;
+const METRONOME_END: f32 = METRONOME_SYNC_X + SAVE_REACH;
+// The Sync button stands lowest, under its LED and caption
+const SYNC_STACK: [f32; 3] = [PRESET_CAPTION_Y, 60.0, 90.0];
+// How long the lamp stays lit on a beat, and how often the window is drawn anew to see it
+const BEAT_LIT_S: f64 = 0.09;
+const BEAT_POLL_S: f64 = 0.02;
+// A turn of the tempo display: this many points of drag are one beat per minute
+const TEMPO_DRAG_POINTS: f32 = 3.0;
+
 // The output level, the plugin's own and not the amp's
-const OUTPUT_KNOB: Vec2 = vec2(SAVE_X + SAVE_REACH + STRIP_GAP + KNOB_REACH, 56.0);
+const OUTPUT_KNOB: Vec2 = vec2(METRONOME_END + STRIP_GAP + KNOB_REACH, 56.0);
 const OUTPUT_RADIUS: f32 = 22.0;
 const OUTPUT_METER: Vec2 = vec2(OUTPUT_KNOB.x + KNOB_REACH + STRIP_GAP + METER_REACH, 66.0);
 
@@ -524,6 +559,17 @@ pub(crate) struct View {
     cab_status: CabStatus,
     /// The Audio panel while it is open (the standalone program only)
     audio: Option<AudioChoice>,
+    /// The metronome's lamp, and the taps on its Tap button
+    beat: BeatView,
+}
+
+/// What the metronome's lamp shows: the last beat the audio counted that the window has seen
+#[derive(Default)]
+struct BeatView {
+    seen: u32,
+    lit_until: f64,
+    downbeat: bool,
+    taps: TapTempo,
 }
 
 /// The list of banks and presets while it is dropped open
@@ -1021,11 +1067,13 @@ pub fn create(
     editor_state: Arc<EguiState>,
     tuner: Arc<TunerReading>,
     lamp_reading: Arc<LampReading>,
+    beats: Arc<BeatReading>,
     cab_loader: Arc<CabLoader>,
     async_executor: AsyncExecutor<GuitarAmpPlugin>,
 ) -> Option<Box<dyn Editor>> {
     let (opened_loader, opened_executor) = (cab_loader.clone(), async_executor.clone());
     let opened_reading = lamp_reading.clone();
+    let opened_beats = beats.clone();
     let opened_params = params.clone();
     create_egui_editor(
         editor_state,
@@ -1037,6 +1085,7 @@ pub fn create(
             note: None,
             cab_status: CabStatus::Fine,
             audio: None,
+            beat: BeatView::default(),
         },
         move |egui_ctx, view| {
             ui::install(egui_ctx);
@@ -1046,6 +1095,8 @@ pub fn create(
             let bank = user_presets::bank_of(&opened_params);
             view.bank = Bank::read(&opened_params, user_presets::bank_dir(&bank).as_deref());
             view.menu = None;
+            // Beats counted while the window was closed are not news
+            view.beat.seen = opened_beats.read().0;
             // A cabinet file that was missing or unusable may have been put right since:
             // look again whenever the window opens
             if opened_loader.status() != CabStatus::Fine {
@@ -1057,6 +1108,7 @@ pub fn create(
             let shared = Shared {
                 tuner: &tuner,
                 lamp_reading: &lamp_reading,
+                beats: &beats,
                 cab_loader: &cab_loader,
                 load_cabinet: &load_cabinet,
                 audio_host: standalone::host(),
@@ -1071,6 +1123,7 @@ pub fn create(
 struct Shared<'a> {
     tuner: &'a TunerReading,
     lamp_reading: &'a LampReading,
+    beats: &'a BeatReading,
     cab_loader: &'a CabLoader,
     /// Has the chosen cabinet read in the background
     load_cabinet: &'a dyn Fn(),
@@ -1157,6 +1210,8 @@ fn draw(
         signal_lamp(ui.painter(), origin + CLIP_LAMP, clipping);
         silk_label(ui.painter(), origin + CLIP_LAMP + LAMP_CAPTION, "Clip", LAMP_CAPTION_SIZE);
 
+        metronome(ui, setter, params, origin, view, shared.beats, now);
+
         // Tuner switch, lit while tuning: the amp is silent then
         rig_led(ui.painter(), origin + vec2(TUNER_X + CAPTION_OFFSET, LED_Y), tuning);
         silk_label(
@@ -1206,11 +1261,162 @@ fn draw(
     });
 }
 
+/// The enum value a step of its stepper arrives at, round the list
+fn neighbour<T: Copy + PartialEq>(all: &[T], current: T, step: Step) -> T {
+    let index = all.iter().position(|&each| each == current).unwrap_or(0);
+    all[match step {
+        Step::Next => (index + 1) % all.len(),
+        Step::Previous => (index + all.len() - 1) % all.len(),
+    }]
+}
+
+/// Sets a parameter as one gesture
+fn set<P: Param>(setter: &ParamSetter, param: &P, value: P::Plain) {
+    setter.begin_set_parameter(param);
+    setter.set_parameter(param, value);
+    setter.end_set_parameter(param);
+}
+
+/// The metronome's cluster on the strip, between Save and Output
+fn metronome(
+    ui: &mut Ui,
+    setter: &ParamSetter,
+    params: &GuitarAmpParams,
+    origin: Pos2,
+    view: &mut View,
+    beats: &BeatReading,
+    now: f64,
+) {
+    let running = params.metronome_on.value() && !params.tuner_on.value();
+
+    // The lamp: dim amber while it runs, amber on a beat, cream on the first of the bar, lit
+    // for a moment. The window asks to be drawn again for as long as the metronome runs
+    let (count, downbeat) = beats.read();
+    if count != view.beat.seen {
+        view.beat.seen = count;
+        view.beat.lit_until = now + BEAT_LIT_S;
+        view.beat.downbeat = downbeat;
+    }
+    let lit = running && now < view.beat.lit_until;
+    let shown = match (running, lit, view.beat.downbeat) {
+        (false, ..) => Beat::Dark,
+        (true, false, _) => Beat::Armed,
+        (true, true, false) => Beat::Regular,
+        (true, true, true) => Beat::Downbeat,
+    };
+    if running {
+        ui.ctx().request_repaint_after(std::time::Duration::from_secs_f64(BEAT_POLL_S));
+    }
+
+    // The On switch with its lamp and caption, like the strip's others
+    let at = |x: f32, y: f32| origin + vec2(x, y);
+    beat_lamp(ui.painter(), at(METRONOME_SWITCH_X + CAPTION_OFFSET, LED_Y), shown);
+    silk_label(
+        ui.painter(),
+        at(METRONOME_SWITCH_X + CAPTION_OFFSET, CAPTION_Y),
+        "Metro",
+        CAPTION_SIZE,
+    );
+    if small_footswitch(ui, at(METRONOME_SWITCH_X, SWITCH_Y), "metronome").clicked() {
+        set(setter, &params.metronome_on, !params.metronome_on.value());
+    }
+
+    // The tempo: a display to drag up and down or to scroll, with a button at each end
+    let bpm = params.metronome_bpm.value();
+    let tempo = at(TEMPO_X, PRESET_Y);
+    silk_label(ui.painter(), at(TEMPO_X, PRESET_CAPTION_Y), "Tempo", 13.0);
+    let window = Rect::from_center_size(tempo, vec2(TEMPO_WIDTH, LED_HEIGHT));
+    let step = led_stepper(ui, tempo, TEMPO_CHARS, &format!("{}", bpm.round() as i32), "tempo");
+    let turn = ui.interact(window, Id::new("tempo-turn"), Sense::click_and_drag());
+    let mut wanted = None;
+    if let Some(Pick::Step(step)) = step {
+        let by = if matches!(step, Step::Next) { 1.0 } else { -1.0 };
+        wanted = Some((bpm.round() + by).clamp(BPM_MIN, BPM_MAX));
+    }
+    if turn.drag_started() {
+        setter.begin_set_parameter(&params.metronome_bpm);
+        ui.data_mut(|data| data.insert_temp(turn.id, bpm));
+    }
+    if turn.dragged() {
+        let fine = ui.input(|input| input.modifiers.shift);
+        let points = if fine { TEMPO_DRAG_POINTS * 4.0 } else { TEMPO_DRAG_POINTS };
+        let held = ui.data_mut(|data| {
+            let held = data.get_temp_mut_or(turn.id, bpm);
+            *held = (*held - turn.drag_delta().y / points).clamp(BPM_MIN, BPM_MAX);
+            *held
+        });
+        setter.set_parameter(&params.metronome_bpm, held.round());
+    }
+    if turn.drag_stopped() {
+        setter.end_set_parameter(&params.metronome_bpm);
+    }
+    if turn.hovered() {
+        let scrolled = ui.input(|input| input.raw_scroll_delta.y);
+        if scrolled != 0.0 {
+            wanted = Some((bpm.round() + scrolled.signum()).clamp(BPM_MIN, BPM_MAX));
+        }
+    }
+    if turn.double_clicked() {
+        wanted = Some(crate::metronome::BPM_DEFAULT);
+    }
+    if let Some(value) = wanted {
+        set(setter, &params.metronome_bpm, value);
+    }
+
+    // Tap: the tempo of the last few taps
+    silk_label(ui.painter(), at(TAP_X, PRESET_CAPTION_Y), "Tap", 13.0);
+    if chrome_button(ui, at(TAP_X, PRESET_Y), "metronome-tap").clicked() {
+        if let Some(tapped) = view.beat.taps.tap(now) {
+            set(setter, &params.metronome_bpm, tapped.round());
+        }
+    }
+
+    // The time signature and the sound
+    let signature = params.metronome_time_sig.value();
+    silk_label(ui.painter(), at(STEPPERS_X, SIGNATURE_CAPTION_Y), "Meter", 13.0);
+    if let Some(step) = stepper(
+        ui,
+        at(STEPPERS_X, SIGNATURE_Y),
+        SIGNATURE_WIDTH,
+        signature.name(),
+        "metronome-meter",
+    ) {
+        set(setter, &params.metronome_time_sig, neighbour(&TimeSignature::ALL, signature, step));
+    }
+    let sound = params.metronome_sound.value();
+    silk_label(ui.painter(), at(STEPPERS_X, SOUND_CAPTION_Y), "Sound", 13.0);
+    if let Some(step) =
+        stepper(ui, at(STEPPERS_X, SOUND_Y), SOUND_WIDTH, sound.name(), "metronome-sound")
+    {
+        set(setter, &params.metronome_sound, neighbour(&Sound::ALL, sound, step));
+    }
+
+    // The click's volume
+    param_knob(
+        ui,
+        setter,
+        &params.metronome_volume,
+        origin + CLICK_VOLUME,
+        CLICK_RADIUS,
+        "Volume",
+        None,
+    );
+
+    // Sync: follow the host's tempo and transport
+    let sync = params.metronome_sync.value();
+    let [caption, led, button] = SYNC_STACK;
+    silk_label(ui.painter(), at(METRONOME_SYNC_X, caption), "Sync", 13.0);
+    rig_led(ui.painter(), at(METRONOME_SYNC_X, led), sync);
+    if chrome_button(ui, at(METRONOME_SYNC_X, button), "metronome-sync").clicked() {
+        set(setter, &params.metronome_sync, !sync);
+    }
+}
+
 // The Audio button of the standalone program, in the gap between the output meter and the clip
-// lamp, with its caption under it
+// lamp, with its caption over it
 const AUDIO_BUTTON: Vec2 =
     vec2((OUTPUT_METER.x + METER_REACH + CLIP_LAMP.x - LAMP_REACH) / 2.0, CLIP_LAMP.y - 4.0);
-const AUDIO_CAPTION_Y: f32 = 26.0;
+const AUDIO_CAPTION_Y: f32 = -26.0;
 // Where the Audio panel stands: in the middle of the window, over the stack
 const AUDIO_PANEL: Vec2 = vec2(WINDOW_WIDTH as f32 / 2.0, 330.0);
 
@@ -1295,12 +1501,14 @@ mod tests {
             note: None,
             cab_status: CabStatus::Fine,
             audio: None,
+            beat: BeatView::default(),
         };
         open(&mut view);
         pedal_harness(WINDOW_WIDTH, WINDOW_HEIGHT, move |ctx| {
             let shared = Shared {
                 tuner: &tuner,
                 lamp_reading: &lamp_reading,
+                beats: &BeatReading::default(),
                 cab_loader: &cab_loader,
                 load_cabinet: &|| {},
                 audio_host,
@@ -1373,6 +1581,22 @@ mod tests {
         harness_of(&params, &setter, Some(81.0), |_| {}).snapshot("tuner");
     }
 
+    // The metronome running: its lamp dim between beats, Sync on, six eighths and the Click
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_metronome_looks_as_it_did() {
+        let params = GuitarAmpParams {
+            metronome_on: BoolParam::new("Metronome", true),
+            metronome_sync: BoolParam::new("Metronome Sync", true),
+            metronome_time_sig: EnumParam::new("Metronome Time Signature", TimeSignature::SixEight),
+            metronome_sound: EnumParam::new("Metronome Sound", Sound::Click),
+            ..GuitarAmpParams::default()
+        };
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        harness_of(&params, &setter, None, |_| {}).snapshot("metronome");
+    }
+
     // The preset list dropped open on the factory bank. The presets folder is one that is
     // not there, so the banks are the two every player has, whatever is on this machine
     #[test]
@@ -1437,6 +1661,7 @@ mod tests {
             ("the bank display", bank.0, bank.1),
             ("the preset display", preset.0, preset.1),
             ("Save", SAVE_X - SAVE_REACH, SAVE_X + SAVE_REACH),
+            ("the metronome", METRONOME_START, METRONOME_END),
             ("the output knob", OUTPUT_KNOB.x - knob, OUTPUT_KNOB.x + knob),
             ("the output meter", OUTPUT_METER.x - METER_REACH, OUTPUT_METER.x + METER_REACH),
             ("the clip lamp", CLIP_LAMP.x - LAMP_REACH, CLIP_LAMP.x + LAMP_REACH),
@@ -1471,6 +1696,62 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_the_metronome_stands_clear_of_itself_and_of_the_strips_edges() {
+        let stepper_reach = |width: f32| width / 2.0 + STEPPER_REACH;
+        in_a_row(&[
+            ("Save", SAVE_X - SAVE_REACH, SAVE_X + SAVE_REACH),
+            ("the Metro switch", METRONOME_START, METRONOME_SWITCH_X + SWITCH),
+            (
+                "the tempo",
+                TEMPO_X - stepper_reach(TEMPO_WIDTH),
+                TEMPO_X + stepper_reach(TEMPO_WIDTH),
+            ),
+            ("Tap", TAP_X - SAVE_REACH, TAP_X + SAVE_REACH),
+            (
+                "the steppers",
+                STEPPERS_X - stepper_reach(SOUND_WIDTH),
+                STEPPERS_X + stepper_reach(SOUND_WIDTH),
+            ),
+            ("the volume", CLICK_VOLUME.x - CLICK_REACH, CLICK_VOLUME.x + CLICK_REACH),
+            ("Sync", METRONOME_SYNC_X - SAVE_REACH, METRONOME_SYNC_X + SAVE_REACH),
+            ("the output knob", OUTPUT_KNOB.x - KNOB_REACH, OUTPUT_KNOB.x + KNOB_REACH),
+        ]);
+        // The narrower stepper is inside the column the wider one makes
+        const { assert!(SIGNATURE_WIDTH < SOUND_WIDTH) };
+        // Top to bottom in the column: caption, tape, caption, tape, each clear of the next,
+        // all on the strip
+        let tape = 11.0;
+        let caption = 7.0;
+        let column = [
+            SOUND_CAPTION_Y - caption,
+            SOUND_CAPTION_Y + caption,
+            SOUND_Y - tape,
+            SOUND_Y + tape,
+            SIGNATURE_CAPTION_Y - caption,
+            SIGNATURE_CAPTION_Y + caption,
+            SIGNATURE_Y - tape,
+            SIGNATURE_Y + tape,
+        ];
+        assert!(column.windows(2).all(|pair| pair[0] < pair[1]), "{column:?}");
+        assert!(column[0] > BENCH_MARGIN + 10.0);
+        assert!(column[7] < BENCH_MARGIN + STRIP_HEIGHT - 5.0);
+        // The Sync button under its LED under its caption, on the strip
+        let [caption, led, button] = SYNC_STACK;
+        assert!(caption + 8.0 < led - 12.0 && led + 12.0 < button - BUTTON - 2.0);
+        assert!(button + BUTTON < BENCH_MARGIN + STRIP_HEIGHT - 5.0);
+        // The tempo's caption is on the preset captions' line, Tap's too
+        const { assert!(PRESET_CAPTION_Y > BENCH_MARGIN + 10.0) };
+    }
+
+    #[test]
+    fn test_a_stepper_goes_round_its_list() {
+        use TimeSignature::*;
+        assert_eq!(neighbour(&TimeSignature::ALL, SixEight, Step::Next), TwoFour);
+        assert_eq!(neighbour(&TimeSignature::ALL, TwoFour, Step::Previous), SixEight);
+        assert_eq!(neighbour(&Sound::ALL, Sound::Beep, Step::Next), Sound::Click);
+    }
+
     // The standalone program's Audio button and its caption stand between the output meter
     // and the clip lamp, clear of both
     #[test]
@@ -1478,7 +1759,9 @@ mod tests {
         let reach = 18.0;
         assert!(AUDIO_BUTTON.x - reach > OUTPUT_METER.x + METER_REACH);
         assert!(AUDIO_BUTTON.x + reach < CLIP_LAMP.x - LAMP_REACH);
-        const { assert!(AUDIO_BUTTON.y + AUDIO_CAPTION_Y + 10.0 < STRIP_HEIGHT) };
+        // Its caption is over the button: the gap is too narrow for it beside the clip lamp's
+        const { assert!(AUDIO_BUTTON.y + AUDIO_CAPTION_Y > BENCH_MARGIN + 10.0) };
+        const { assert!(AUDIO_BUTTON.y + AUDIO_CAPTION_Y + 10.0 < CLIP_LAMP.y - LAMP_REACH / 2.0) };
     }
 
     #[test]
@@ -1490,10 +1773,14 @@ mod tests {
         assert!(most - least < 12.0, "the gaps are not even: {gaps:?}");
         // The ends are about as far from the strip's edges as the controls are from each other.
         // The right end keeps a little more room: the logo stands there
-        let (left, right) =
-            (controls[0].1 - BENCH_MARGIN, WINDOW_WIDTH as f32 - BENCH_MARGIN - controls[8].2);
+        let (left, right) = (
+            controls[0].1 - BENCH_MARGIN,
+            WINDOW_WIDTH as f32 - BENCH_MARGIN - controls[controls.len() - 1].2,
+        );
         assert!((0.0..30.0).contains(&(right - left)), "{left} on the left, {right} on the right");
-        assert!(left < most && most < 160.0, "{left} {most}");
+        // The jack's caption on the left and the logo on the right keep the ends further out than
+        // the gaps, which the metronome's cluster made narrow
+        assert!(most > 30.0 && left < 2.5 * most, "{left} {most}");
     }
 
     #[test]
