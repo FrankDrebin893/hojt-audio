@@ -162,10 +162,12 @@ fn test_the_metronome_allocates_nothing() {
 #[test]
 fn test_process_with_the_metronome_on_allocates_nothing() {
     use nih_plug::prelude::BoolParam;
-    let mut plugin = GuitarAmpPlugin::default();
-    plugin.params = std::sync::Arc::new(crate::GuitarAmpParams {
-        metronome_on: BoolParam::new("Metronome", true),
-        ..crate::GuitarAmpParams::default()
-    });
+    let mut plugin = GuitarAmpPlugin {
+        params: std::sync::Arc::new(crate::GuitarAmpParams {
+            metronome_on: BoolParam::new("Metronome", true),
+            ..crate::GuitarAmpParams::default()
+        }),
+        ..GuitarAmpPlugin::default()
+    };
     host::assert_process_allocates_nothing("Guitar Amp with the metronome", &mut plugin, 200, &[]);
 }
