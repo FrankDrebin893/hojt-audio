@@ -107,7 +107,7 @@ How it behaves:
   position every block: silent while the host is stopped, a jump or a loop is followed, bar
   position from the position in the song. With no tempo it uses its own. Sounds: Woodblock,
   Beep, Click, each higher and louder (1.0 against 0.6) on the downbeat. It keeps the plugin
-  awake (`KeepAlive`) while on, and while Metro and Sync are both on even with the host stopped (a host
+  awake (`KeepAlive`) while on, and while Metro and Sync are both on (the tuner not muting it) even with the host stopped (a host
   may otherwise stop calling a plugin that is waiting for the song). A click still ringing is cut
   when a synced host stops. The seven `metronome_*` parameters are not in presets
 - **The click's own output (`metronome_out`, follows #181):** both audio layouts carry one more
@@ -116,9 +116,12 @@ How it behaves:
   and the `Metronome` output is written with silence (a host does not clear an output it hands
   over). Separate writes the click, and only the click, to the `Metronome` output
   (`Metronome::process_alone`; the same clock and voice as Mixed, through one `render`), and the
-  main output is the amp alone. **Where the host gives no such output (the standalone program,
-  which has none, or a host that left the output off) Separate mixes the click into the main
-  output, as Mixed does**, so it is never lost. Tests: `Mixed` equals the old amp-then-click
+  main output is the amp alone. **In the standalone program, and where the host gives no
+  Metronome output (or leaves it off), Separate mixes the click into the main output, as Mixed
+  does**, so it is never lost. The standalone program is recognised by `plugin_api()`
+  (`PluginApi::Standalone`), not by the buffer: nih-plug's standalone audio backends hand the
+  plugin scratch aux buffers for every declared port and throw them away. The Click out
+  stepper is not drawn there (`standalone::host()` is `Some`). Tests: `Mixed` equals the old amp-then-click
   path, `Separate` leaves the main equal to the amp alone and the aux equal to the click alone,
   the fallback equals Mixed, and the `no_alloc` tests run with the test host's aux buffers
   (`suite_common::host` now hands a plugin the aux outputs its layout names). The parameter is
@@ -334,7 +337,7 @@ How it behaves:
 | Metronome Time Signature (`metronome_time_sig`) | 2/4, 3/4, 4/4, 6/8 | 4/4 | Clicks to the bar. Variant ids `two_four`, `three_four`, `four_four`, `six_eight` |
 | Metronome Volume (`metronome_volume`) | -60 to 0 dB | -12 dB | The click's level; -60 is silence |
 | Metronome Sound (`metronome_sound`) | Woodblock, Beep, Click | Woodblock | Variant ids `woodblock`, `beep`, `click` |
-| Metronome Output (`metronome_out`) | Mixed, Separate | Mixed | Where the click is heard: Mixed on the main output; Separate alone on the auxiliary stereo output `Metronome`, the main output the amp alone (mixed in where the host gives no such output, as in the standalone program). Variant ids `mixed`, `separate`. Not in presets |
+| Metronome Output (`metronome_out`) | Mixed, Separate | Mixed | Where the click is heard: Mixed on the main output; Separate alone on the auxiliary stereo output `Metronome`, the main output the amp alone (mixed in where the host gives no usable such output, always in the standalone program). Variant ids `mixed`, `separate`. Not in presets |
 
 Dials are stored 0.0-1.0 and shown as 0.0-10.0.
 

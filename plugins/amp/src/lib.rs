@@ -883,7 +883,9 @@ impl Plugin for GuitarAmpPlugin {
         // The click goes on top of the finished sound: the amp never distorts it, and
         // neither the Output knob nor Bypass changes it. The tuner silences it
         // The host's tempo and place are only asked for while the click follows them
-        let following = self.params.metronome_on.value() && self.params.metronome_sync.value();
+        let following = self.params.metronome_on.value()
+            && self.params.metronome_sync.value()
+            && !self.params.tuner_on.value();
         let (tempo, playing, beats) = if following {
             let transport = context.transport();
             (transport.tempo, transport.playing, transport.pos_beats())
@@ -894,7 +896,11 @@ impl Plugin for GuitarAmpPlugin {
         // Mixed: on top of the amp. Separate: alone on the "Metronome" output, and the main
         // output is the amp alone. Where the host gives no such output (the standalone
         // program, or a host that left it off) the click is mixed in, so it is never lost
-        let separate = self.params.metronome_out.value() == ClickOut::Separate;
+        // The standalone program is told apart by the wrapper's own api: its audio backends
+        // declare the aux output and then throw what is written there away, so the output is
+        // not to be trusted there even though it is handed over
+        let separate = self.params.metronome_out.value() == ClickOut::Separate
+            && context.plugin_api() != PluginApi::Standalone;
         let own = match aux.outputs.first_mut().map(|aux| aux.as_slice()) {
             Some([left, right, ..]) => Some((&mut **left, &mut **right)),
             _ => None,
@@ -1133,11 +1139,11 @@ mod tests {
     }
 
     /// A host with no transport and no events: enough while nothing follows the song
-    struct PlainHost;
+    struct PlainHost(PluginApi);
 
     impl ProcessContext<GuitarAmpPlugin> for PlainHost {
         fn plugin_api(&self) -> PluginApi {
-            PluginApi::Standalone
+            self.0
         }
         fn execute_background(&self, _task: Task) {}
         fn execute_gui(&self, _task: Task) {}
@@ -1178,6 +1184,16 @@ mod tests {
     /// the host gives the "Metronome" output, that one (which starts as noise: an amp that
     /// leaves it unwritten is heard)
     fn play(amp: &mut GuitarAmpPlugin, blocks: usize, with_aux: bool) -> (Vec<f32>, Vec<f32>) {
+        play_in(amp, blocks, with_aux, PluginApi::Vst3)
+    }
+
+    /// `play` in a host of the given kind
+    fn play_in(
+        amp: &mut GuitarAmpPlugin,
+        blocks: usize,
+        with_aux: bool,
+        api: PluginApi,
+    ) -> (Vec<f32>, Vec<f32>) {
         const LEN: usize = 480;
         let (mut main_out, mut aux_out) = (Vec::new(), Vec::new());
         for block in 0..blocks {
@@ -1208,7 +1224,7 @@ mod tests {
                 let mut aux_buffers = [aux_buffer];
                 let outputs: &mut [Buffer] = if with_aux { &mut aux_buffers } else { &mut [] };
                 let mut aux = AuxiliaryBuffers { inputs: &mut [], outputs };
-                amp.process(&mut buffer, &mut aux, &mut PlainHost);
+                amp.process(&mut buffer, &mut aux, &mut PlainHost(api));
             }
             drop(buffer);
             main_out.extend(left);
@@ -1296,6 +1312,64 @@ mod tests {
         let (mixed, _) = play(&mut clicking(true, ClickOut::Mixed), 40, false);
         let (separate, _) = play(&mut clicking(true, ClickOut::Separate), 40, false);
         assert_eq!(separate, mixed);
+    }
+
+    #[test]
+    fn test_in_the_standalone_program_separate_is_mixed_in_although_an_aux_output_is_handed_over() {
+        // The standalone wrapper declares the aux output and throws what is written there away
+        let (mixed, _) =
+            play_in(&mut clicking(true, ClickOut::Mixed), 40, false, PluginApi::Standalone);
+        let (main, aux) =
+            play_in(&mut clicking(true, ClickOut::Separate), 40, true, PluginApi::Standalone);
+        assert_eq!(main, mixed, "the click is on the main output");
+        assert!(aux.iter().all(|s| *s == 0.0), "and the aux output is silent");
+        let (amp_only, _) =
+            play_in(&mut clicking(false, ClickOut::Mixed), 40, false, PluginApi::Standalone);
+        assert_ne!(main, amp_only);
+    }
+
+    /// What `process` answers after `blocks` blocks of silence
+    fn status_after_silence(amp: &mut GuitarAmpPlugin, blocks: usize) -> ProcessStatus {
+        let mut status = ProcessStatus::Normal;
+        for _ in 0..blocks {
+            let (mut left, mut right) = (vec![0.0f32; 480], vec![0.0f32; 480]);
+            let mut buffer = Buffer::default();
+            // SAFETY: the slices are the vectors above, which outlive the buffer, 480 long
+            unsafe {
+                buffer.set_slices(480, |slices| {
+                    slices.clear();
+                    slices.extend([&mut left[..], &mut right[..]]);
+                });
+            }
+            let mut aux = AuxiliaryBuffers { inputs: &mut [], outputs: &mut [] };
+            status = amp.process(&mut buffer, &mut aux, &mut PlainHost(PluginApi::Vst3));
+        }
+        status
+    }
+
+    #[test]
+    fn test_a_tuner_that_mutes_the_metronome_lets_the_plugin_sleep() {
+        let make = |tuner: bool| GuitarAmpPlugin {
+            params: Arc::new(GuitarAmpParams {
+                metronome_on: BoolParam::new("Metronome", true),
+                metronome_sync: BoolParam::new("Metronome Sync", true),
+                tuner_on: BoolParam::new("Tuner", tuner),
+                ..GuitarAmpParams::default()
+            }),
+            ..GuitarAmpPlugin::default()
+        };
+        let mut tuning = make(true);
+        tuning.initialize(
+            &GuitarAmpPlugin::AUDIO_IO_LAYOUTS[0],
+            &BufferConfig {
+                sample_rate: 48_000.0,
+                min_buffer_size: None,
+                max_buffer_size: 512,
+                process_mode: ProcessMode::Realtime,
+            },
+            &mut CountingContext(std::cell::Cell::new(0)),
+        );
+        assert!(matches!(status_after_silence(&mut tuning, 200), ProcessStatus::Normal));
     }
 
     #[test]

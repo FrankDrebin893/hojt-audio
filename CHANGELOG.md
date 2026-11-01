@@ -48,8 +48,9 @@ GitHub release.
   metronome cluster picks Mixed (as before: the click is added to the amp's output, and
   existing projects sound the same) or Separate: the click then goes only to a second stereo
   output named "Metronome", which the DAW can route on its own, and the main output carries the
-  amp alone. Presets never touch it. Where the DAW gives no such output (the standalone program)
-  Separate mixes the click into the main output so it is still heard. New control:
+  amp alone. Presets never touch it. In the standalone program there is no such output, so the
+  stepper is not shown and the click is always with the amp; a DAW that leaves the output off
+  gets it mixed in too. New control:
   `metronome_out`, last in the parameter list. Also: a click still ringing stops when a synced
   DAW is stopped, and the plugin stays awake while Metro and Sync are on, so a DAW that sleeps
   idle plugins still hears it when the song starts. The strip's gaps are a little narrower; the

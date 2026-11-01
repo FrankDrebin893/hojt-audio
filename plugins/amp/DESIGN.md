@@ -170,7 +170,7 @@ The reasons behind choices that the code alone does not explain. What it does is
   nothing changes) or Separate, on an auxiliary stereo output `Metronome` that the DAW routes by
   itself, with the main output the amp alone. Decided without asking: a switch and not a
   second plugin or always-on aux, because a host that cannot use aux outputs keeps working;
-  Separate falls back to mixing where there is no such output (the standalone program), because
+  Separate falls back to mixing where there is no usable such output (always in the standalone program, which has no aux output and whose Click out stepper is left out), because
   a click you cannot hear is worse than one in the wrong place. Not a channel pair of the
   main output: a host would have to route the amp's own pair to the same place. The stepper
   stands under the sound beside the meter, because the column had no room for a third row

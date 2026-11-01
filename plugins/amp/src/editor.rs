@@ -1230,7 +1230,7 @@ fn draw(
         signal_lamp(ui.painter(), origin + CLIP_LAMP, clipping);
         silk_label(ui.painter(), origin + CLIP_LAMP + LAMP_CAPTION, "Clip", LAMP_CAPTION_SIZE);
 
-        metronome(ui, setter, params, origin, view, shared.beats, now);
+        metronome(ui, setter, params, origin, view, shared, now);
 
         // Tuner switch, lit while tuning: the amp is silent then
         rig_led(ui.painter(), origin + vec2(TUNER_X + CAPTION_OFFSET, LED_Y), tuning);
@@ -1304,9 +1304,10 @@ fn metronome(
     params: &GuitarAmpParams,
     origin: Pos2,
     view: &mut View,
-    beats: &BeatReading,
+    shared: &Shared,
     now: f64,
 ) {
+    let (beats, has_own_output) = (shared.beats, shared.audio_host.is_none());
     let running = params.metronome_on.value() && !params.tuner_on.value();
 
     // The lamp: dim amber while it runs, amber on a beat, cream on the first of the bar, lit
@@ -1412,12 +1413,16 @@ fn metronome(
     }
 
     // Where the click is heard: with the amp, or alone on the "Metronome" output
-    let out = params.metronome_out.value();
-    silk_label(ui.painter(), at(CLICK_OUT_X, SIGNATURE_CAPTION_Y), "Click out", 13.0);
-    if let Some(step) =
-        stepper(ui, at(CLICK_OUT_X, SIGNATURE_Y), OUT_WIDTH, out.name(), "metronome-out")
-    {
-        set(setter, &params.metronome_out, neighbour(&ClickOut::ALL, out, step));
+    // The standalone program has no such output: the click is always with the amp there, so
+    // the stepper is left out
+    if has_own_output {
+        let out = params.metronome_out.value();
+        silk_label(ui.painter(), at(CLICK_OUT_X, SIGNATURE_CAPTION_Y), "Click out", 13.0);
+        if let Some(step) =
+            stepper(ui, at(CLICK_OUT_X, SIGNATURE_Y), OUT_WIDTH, out.name(), "metronome-out")
+        {
+            set(setter, &params.metronome_out, neighbour(&ClickOut::ALL, out, step));
+        }
     }
 
     // The click's volume
