@@ -60,11 +60,13 @@ impl standalone::Host for Machine {
 
 /// The saved choices with this machine's devices put in (see `standalone::resolve`)
 fn resolved(prefs: Prefs) -> Prefs {
+    let drivers = standalone::Host::drivers(&Machine);
     let Some(host) = Machine::host() else {
-        return prefs;
+        return standalone::resolve(prefs, &drivers, &[], &[], None);
     };
     standalone::resolve(
         prefs,
+        &drivers,
         &host.input_devices().map(names).unwrap_or_default(),
         &host.output_devices().map(names).unwrap_or_default(),
         host.default_input_device().and_then(|device| device.name().ok()),

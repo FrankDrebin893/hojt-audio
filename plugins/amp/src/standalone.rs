@@ -166,8 +166,8 @@ impl Prefs {
             [("--input-device", &self.input_device), ("--output-device", &self.output_device)]
         {
             if let Some(device) = device {
-                args.push(flag.into());
-                args.push(device.clone());
+                // One argument, so a name that starts with a dash is not read as a flag
+                args.push(format!("{flag}={device}"));
             }
         }
         args
@@ -243,15 +243,21 @@ pub fn launch() -> Prefs {
 
 /// The saved choices with the defaults of this machine put in: an input is only connected
 /// when named (nih-plug does not connect one by itself, to keep a microphone from feeding
-/// back), and a device that is no longer plugged in is left to the default. `inputs` and
-/// `outputs` are what is plugged in, `default_input` the machine's own pick. JACK connects
+/// back), a device that is no longer plugged in is left to the default, and a driver the
+/// machine lacks is `auto`. `drivers`, `inputs` and `outputs` are what is plugged in, `default_input` the machine's own pick. JACK connects
 /// by port, so it is left as it is
 pub fn resolve(
     mut prefs: Prefs,
+    drivers: &[String],
     inputs: &[String],
     outputs: &[String],
     default_input: Option<String>,
 ) -> Prefs {
+    // A driver this machine does not have (a file from another system) would make the host
+    // quit on its command line, so it is `auto` instead
+    if !drivers.contains(&prefs.backend) {
+        prefs.backend = "auto".into();
+    }
     if prefs.backend != "jack" {
         prefs.input_device =
             prefs.input_device.filter(|name| inputs.contains(name)).or(default_input);
@@ -508,7 +514,8 @@ mod tests {
             output_device: Some("Gone".into()),
             ..Prefs::default()
         };
-        let resolved = resolve(saved, &inputs, &outputs, Some("Mic".into()));
+        let drivers = list(&["auto", "wasapi", "jack"]);
+        let resolved = resolve(saved, &drivers, &inputs, &outputs, Some("Mic".into()));
         assert_eq!(resolved.input_device.as_deref(), Some("Mic"));
         assert_eq!(resolved.output_device, None);
         // A device that is there is kept, and with none chosen the default input is used
@@ -517,13 +524,19 @@ mod tests {
             output_device: Some("Speakers".into()),
             ..Prefs::default()
         };
-        let resolved = resolve(kept.clone(), &inputs, &outputs, Some("Mic".into()));
+        let resolved = resolve(kept.clone(), &drivers, &inputs, &outputs, Some("Mic".into()));
         assert_eq!(resolved, kept);
-        let none = resolve(Prefs::default(), &inputs, &outputs, Some("Mic".into()));
+        let none = resolve(Prefs::default(), &drivers, &inputs, &outputs, Some("Mic".into()));
         assert_eq!(none.input_device.as_deref(), Some("Mic"));
         // JACK is left alone
         let jack = Prefs { backend: "jack".into(), ..Prefs::default() };
-        assert_eq!(resolve(jack.clone(), &inputs, &outputs, Some("Mic".into())), jack);
+        assert_eq!(resolve(jack.clone(), &drivers, &inputs, &outputs, Some("Mic".into())), jack);
+        // A driver the machine lacks, or a made-up one, is `auto`
+        for backend in ["alsa", "foo"] {
+            let odd = Prefs { backend: backend.into(), ..Prefs::default() };
+            let fixed = resolve(odd, &drivers, &inputs, &outputs, None);
+            assert_eq!(fixed.backend, "auto");
+        }
     }
 
     #[test]
@@ -575,8 +588,7 @@ mod tests {
                 "64",
                 "--sample-rate",
                 "44100",
-                "--input-device",
-                "Scarlett 2i2"
+                "--input-device=Scarlett 2i2"
             ]
         );
     }
