@@ -2799,7 +2799,6 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 name = "pitch_shifter"
 version = "0.2.1"
 dependencies = [
- "hound",
  "nih_plug",
  "nih_plug_egui",
  "suite_common",
@@ -3375,6 +3374,7 @@ version = "0.2.1"
 dependencies = [
  "egui-baseview",
  "egui_kittest",
+ "hound",
  "nih_plug",
  "nih_plug_egui",
  "png 0.17.16",

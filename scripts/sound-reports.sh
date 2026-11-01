@@ -9,6 +9,15 @@ out=$1
 shift
 mkdir -p "$out"
 
+# The Pitch Shifter's algorithm and its reports live in suite_common (the amp's pitch pedal
+# plays it too); every other report is in the package of its plugin
+package_of() {
+    case "$1" in
+        pitch_shifter) echo suite_common ;;
+        *) echo "$1" ;;
+    esac
+}
+
 reports='
 amp fingerprint_report
 amp loudness_report
@@ -18,6 +27,7 @@ amp preset_gate_report
 amp effects_report
 amp comp_report
 amp mods_report
+amp pitch_report
 drums kit_report
 bass bass_report
 pad pad_report
@@ -30,7 +40,7 @@ while read -r plugin report; do
     file="$out/${plugin}_${report}.txt"
     # Only what the report prints (stdout): cargo's build output and warnings go to stderr and
     # carry source line numbers, which move with any edit
-    if cargo test -q -p "$plugin" --release --locked "$report" -- --ignored --nocapture > "$file.raw" 2>/dev/null; then
+    if cargo test -q -p "$(package_of "$plugin")" --release --locked "$report" -- --ignored --nocapture > "$file.raw" 2>/dev/null; then
         # Timings differ from run to run and machine to machine: leave them out
         # (the cost tables of effects_report and the ns columns of comp_report)
         grep -vE 'of a core|ns per|us per|µs|finished in|^running [0-9]|^$| [0-9.]+ ns( |$)' "$file.raw"             | sed '/^Cost per block/,$d' > "$file"
@@ -43,6 +53,6 @@ done <<< "$reports"
 if [ "${1:-}" = "--renders" ]; then
     shift
     for plugin in "$@"; do
-        cargo test -q -p "$plugin" --release --locked render_wavs -- --ignored > /dev/null 2>&1 || true
+        cargo test -q -p "$(package_of "$plugin")" --release --locked render_wavs -- --ignored > /dev/null 2>&1 || true
     done
 fi

@@ -24,5 +24,9 @@ egui_kittest = { version = "=0.31.1", features = ["wgpu", "snapshot"], optional 
 # `ui::snapshot`, for the plugins' tests only: named in their dev-dependencies, never shipped
 snapshot = ["dep:egui_kittest"]
 
+[dev-dependencies]
+# The pitch shifter's render tests write WAV files
+hound = "3.5"
+
 [lints]
 workspace = true

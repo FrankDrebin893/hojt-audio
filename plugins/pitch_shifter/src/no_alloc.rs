@@ -1,7 +1,7 @@
 //! Nothing allocates on the audio thread (Code Conventions in AGENTS.md)
 
-use crate::pitch_shifter::PitchShifter;
 use crate::GuitarPitchShifterPlugin;
+use suite_common::dsp::pitch::PitchShifter;
 use suite_common::host::{self, NoAlloc};
 
 #[global_allocator]

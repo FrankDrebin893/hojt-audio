@@ -115,6 +115,20 @@ The reasons behind choices that the code alone does not explain. What it does is
 - The order is saved as ids, never a parameter. A new order fades out in 4.5 ms, swaps at the
   silent sample, fades in; a pedal that changes sides starts from rest
 
+## Pitch shifter
+
+- #179: the Pitch Shifter plugin's algorithm as a pedal, so the rig is self-contained for drop
+  tunings. It moved to `suite_common::dsp::pitch` (tests and reports with it) so both use one
+  copy. It stands in front of the amp only, first by default: pitch tracking works best on the
+  raw guitar, and the gate stays first (it listens to the guitar as it arrives). It runs in the
+  oversampled region like the other front pedals; a splice at 4x costs under 50 us, which a
+  block at 192 kHz absorbs. A third pedal of three knobs is a wide one, so the window grew
+  by one pedal (2747 px, the strip's gaps with it) and the persisted editor size key became
+  `editor-state-rig6`, as before. Its paint is the Pitch Shifter plugin's orange (`PAINT_ORANGE`,
+  added to `PEDAL_PAINTS`): the amp's other pedals leave no room between the ochre and the
+  ember for a darker orange at the distance the paint test asks for. Its art is the midnight sun on the sea
+- Not in the factory presets: they switch it off, as they do every pedal they do not use
+
 ## Tuner
 
 - Muting is the behaviour: the amp's input and its output fade in 10 ms so tails are silent

@@ -21,6 +21,7 @@ mod mods;
 #[cfg(test)]
 mod no_alloc;
 mod order;
+mod pitch;
 mod presets;
 mod reverb;
 mod second;
@@ -42,6 +43,7 @@ use mods::flanger::{self, FlangerSettings};
 use mods::phaser::{self, PhaserSettings};
 use mods::tremolo::{self, TremoloSettings};
 use order::StoredOrder;
+use pitch::{PitchSettings, LATENCY_MS, SEMITONES};
 use reverb::{ReverbSettings, DECAY_MAX_S, DECAY_MIN_S};
 use second::SecondSettings;
 use suite_common::dsp::NoteValue;
@@ -76,7 +78,7 @@ pub enum Task {
 // The full table of ids is in `ids.txt`, held by the `ids` test
 #[derive(Params)]
 pub struct GuitarAmpParams {
-    #[persist = "editor-state-rig5"]
+    #[persist = "editor-state-rig6"]
     pub editor_state: Arc<EguiState>,
 
     /// Index into `presets::PRESETS` of the preset loaded last. Not a parameter: the editor
@@ -305,6 +307,20 @@ pub struct GuitarAmpParams {
     // Tuner: a switch on the head, not part of the sound. Presets and saved projects leave it alone
     #[id = "tuner"]
     pub tuner_on: BoolParam,
+
+    // Pitch shifter pedal, in front of the amp. Last in the list so the parameters before it
+    // keep their places for a host that shows them in order
+    #[id = "pitch_on"]
+    pub pitch_on: BoolParam,
+
+    #[id = "pitch_semitones"]
+    pub pitch_semitones: IntParam,
+
+    #[id = "pitch_blend"]
+    pub pitch_blend: FloatParam,
+
+    #[id = "pitch_latency"]
+    pub pitch_latency: FloatParam,
 }
 
 impl Default for GuitarAmpPlugin {
@@ -487,6 +503,27 @@ impl Default for GuitarAmpParams {
             .with_string_to_value(formatters::s2v_f32_gain_to_db()),
 
             tuner_on: BoolParam::new("Tuner", defaults.tuner_on).non_automatable(),
+
+            pitch_on: BoolParam::new("Pitch", defaults.pitch.on),
+            pitch_semitones: IntParam::new(
+                "Pitch Semitones",
+                defaults.pitch.semitones,
+                IntRange::Linear { min: SEMITONES[0], max: SEMITONES[1] },
+            )
+            .with_value_to_string(Arc::new(|semitones| format!("{semitones:+}").replace("+0", "0")))
+            .with_string_to_value(Arc::new(|text| text.trim().parse::<i32>().ok())),
+            pitch_blend: percent_param("Pitch Blend", defaults.pitch.blend, 1.0),
+            pitch_latency: FloatParam::new(
+                "Pitch Tracking",
+                defaults.pitch.latency_ms,
+                FloatRange::Skewed {
+                    min: LATENCY_MS[0],
+                    max: LATENCY_MS[1],
+                    factor: FloatRange::skew_factor(-1.0), // More resolution at low end
+                },
+            )
+            .with_unit(" ms")
+            .with_value_to_string(formatters::v2s_f32_rounded(0)),
         }
     }
 }
@@ -527,6 +564,12 @@ impl GuitarAmpParams {
                 on: self.comp_on.value(),
                 sustain: self.comp_sustain.value(),
                 level: self.comp_level.value(),
+            },
+            pitch: PitchSettings {
+                on: self.pitch_on.value(),
+                semitones: self.pitch_semitones.value(),
+                blend: self.pitch_blend.value(),
+                latency_ms: self.pitch_latency.value(),
             },
             drive_on: self.drive_on.value(),
             drive_gain: self.drive_gain.value(),
@@ -838,6 +881,15 @@ mod tests {
         );
         assert_eq!((settings.fuzz.on, settings.fuzz.fuzz, settings.fuzz.tone), (false, 0.5, 0.5));
         assert_eq!(
+            (
+                settings.pitch.on,
+                settings.pitch.semitones,
+                settings.pitch.blend,
+                settings.pitch.latency_ms
+            ),
+            (false, 0, 1.0, 15.0)
+        );
+        assert_eq!(
             (settings.chorus.on, settings.chorus.rate_hz, settings.chorus.depth),
             (false, 0.8, 0.5)
         );
@@ -979,6 +1031,12 @@ mod tests {
         assert_eq!(range(&params.phaser_rate), (0.1, 8.0));
         assert_eq!(range(&params.flanger_rate), (0.05, 5.0));
         assert_eq!(range(&params.trem_rate), (0.5, 12.0));
+        assert_eq!(range(&params.pitch_latency), (2.0, 50.0));
+        assert_eq!(range(&params.pitch_blend), (0.0, 1.0));
+        assert_eq!(
+            (params.pitch_semitones.preview_plain(0.0), params.pitch_semitones.preview_plain(1.0)),
+            (-12, 12)
+        );
         for depth in
             [&params.chorus_depth, &params.phaser_depth, &params.flanger_depth, &params.trem_depth]
         {

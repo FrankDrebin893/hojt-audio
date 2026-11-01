@@ -228,6 +228,13 @@ impl PitchShifter {
         self.blend = blend.clamp(0.0, 1.0);
     }
 
+    /// Address and capacity of every buffer, for tests that hold a host's audio thread to
+    /// never allocating or resizing one
+    pub fn buffers(&self) -> Vec<(usize, usize)> {
+        let all = [&self.buffers[0], &self.buffers[1], &self.mix, &self.decimated, &self.scores];
+        all.iter().map(|buffer| (buffer.as_ptr() as usize, buffer.capacity())).collect()
+    }
+
     pub fn reset(&mut self) {
         for buffer in &mut self.buffers {
             buffer.fill(0.0);

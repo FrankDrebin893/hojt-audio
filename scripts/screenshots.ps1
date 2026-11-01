@@ -19,7 +19,7 @@ $env:CARGO_TARGET_DIR = Join-Path $root 'target'
 # The file in site/img and the window's size, from WINDOW_WIDTH and WINDOW_HEIGHT in each editor
 $shots = @{
     pitch_shifter = @('pitch-shifter.png', 400, 560); drums = @('drum-synth.png', 660, 600)
-    amp = @('guitar-amp.png', 2535, 650); bass = @('bass-synth.png', 660, 600)
+    amp = @('guitar-amp.png', 2747, 650); bass = @('bass-synth.png', 660, 600)
     pad = @('shimmer-pad.png', 660, 600); bells = @('glass-bells.png', 660, 600)
 }
 
