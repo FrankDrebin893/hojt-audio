@@ -269,7 +269,7 @@ fn enum_index<T: Enum>(id: &str) -> Option<usize> {
 
 /// Every parameter a preset holds, by its id: all of them but `LEFT_ALONE`. The amp comes
 /// first, so the host hears it change before its dials do
-fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 45] {
+fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 54] {
     use Control::{Knob, Mic, Note, Switch};
     [
         ("amp", Control::Amp(&params.amp)),
@@ -317,6 +317,17 @@ fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 45] {
         ("reverb_on", Switch(&params.reverb_on)),
         ("reverb_decay", Knob(&params.reverb_decay)),
         ("reverb_mix", Knob(&params.reverb_mix)),
+        // The second amp: a file saved before there were two names none of these, and loads
+        // with it off
+        ("amp2_on", Switch(&params.amp2_on)),
+        ("amp2", Control::Amp(&params.amp2)),
+        ("amp2_gain", Knob(&params.amp2_gain)),
+        ("amp2_bass", Knob(&params.amp2_bass)),
+        ("amp2_mid", Knob(&params.amp2_mid)),
+        ("amp2_treble", Knob(&params.amp2_treble)),
+        ("amp2_presence", Knob(&params.amp2_presence)),
+        ("amp2_master", Knob(&params.amp2_master)),
+        ("amp_blend", Knob(&params.amp_blend)),
     ]
 }
 
@@ -403,6 +414,9 @@ impl UserPreset {
         let dials = ["gain", "bass", "mid", "treble", "presence", "master"]
             .map(|id| params_dial(params, id, self.value(params, id)));
         dial_memory::preset_loaded(params, amp, dials);
+        let amp2 = Amp::from_index(self.value(params, "amp2") as usize);
+        let dials2 = SECOND_DIALS.map(|id| second_dial(params, id, self.value(params, id)));
+        dial_memory::second_preset_loaded(params, amp2, dials2);
         params.order.put(self.order);
         let edits: Vec<Edit> = controls(params)
             .iter()
@@ -436,6 +450,16 @@ fn params_dial(params: &GuitarAmpParams, id: &str, plain: f32) -> f32 {
         .iter()
         .position(|&each| each == id)
         .unwrap_or(0)];
+    dial.preview_plain(dial.preview_normalized(plain))
+}
+
+// The ids of the second amp's six dials, in the order they stand on the head
+const SECOND_DIALS: [&str; 6] =
+    ["amp2_gain", "amp2_bass", "amp2_mid", "amp2_treble", "amp2_presence", "amp2_master"];
+
+/// The same for a dial of the second amp
+fn second_dial(params: &GuitarAmpParams, id: &str, plain: f32) -> f32 {
+    let dial = params.amp2_dials()[SECOND_DIALS.iter().position(|&each| each == id).unwrap_or(0)];
     dial.preview_plain(dial.preview_normalized(plain))
 }
 
@@ -693,8 +717,51 @@ pub(crate) mod tests {
             assert!(text.lines().any(|each| each == line), "{line} is not in\n{text}");
         }
         // Every parameter is written out, also those at their defaults
-        assert_eq!(text.lines().filter(|line| line.contains(" = ")).count(), 47);
+        assert_eq!(text.lines().filter(|line| line.contains(" = ")).count(), 56);
         assert_eq!(UserPreset::parse(&params, &text), saved);
+    }
+
+    #[test]
+    fn test_a_file_from_before_the_second_amp_loads_with_it_off() {
+        // SAVED names none of the second amp's lines: they get their defaults
+        let params = GuitarAmpParams::default();
+        let saved = UserPreset::parse(&params, SAVED);
+        assert_eq!(saved.value(&params, "amp2_on"), 0.0);
+        assert_eq!(saved.value(&params, "amp2"), Amp::Klar.to_index() as f32);
+        assert_eq!(saved.value(&params, "amp_blend"), 0.5);
+        // Loading it switches the second amp off
+        let host = Host::default();
+        saved.load(&params, &ParamSetter::new(&host));
+        let set = host.set.lock().unwrap();
+        assert!(set
+            .iter()
+            .any(|(param, normalized)| *param == params.amp2_on.as_ptr() && *normalized == 0.0));
+    }
+
+    #[test]
+    fn test_the_second_amp_is_written_and_read_back() {
+        let params = GuitarAmpParams::default();
+        let saved = UserPreset::parse(
+            &params,
+            "amp = torden\namp2_on = on\namp2 = sang\namp2_gain = 0.31\namp2_master = 0.62\n\
+             amp_blend = 0.4\n",
+        );
+        assert_eq!(saved.value(&params, "amp2_on"), 1.0);
+        assert_eq!(saved.value(&params, "amp2"), Amp::Sang.to_index() as f32);
+        let text = saved.to_text(&params);
+        for line in ["amp2_on = on", "amp2 = sang", "amp2_gain = 0.31", "amp_blend = 0.4"] {
+            assert!(text.lines().any(|each| each == line), "{line} is not in\n{text}");
+        }
+        assert_eq!(UserPreset::parse(&params, &text), saved);
+
+        // Loading it sets the second amp in the same edit, and its dials are the second
+        // amp's memory
+        let host = Host::default();
+        saved.load(&params, &ParamSetter::new(&host));
+        assert!(as_one_edit(&host.told.lock().unwrap()));
+        assert_eq!(params.dial_memory_second.enter(Amp::Sang)[0], 0.31);
+        assert_eq!(params.dial_memory_second.enter(Amp::Sang)[5], 0.62);
+        assert_eq!(params.dial_memory.enter(Amp::Sang)[0], 0.5);
     }
 
     #[test]

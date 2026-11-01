@@ -25,9 +25,25 @@ pub(crate) const MATCH_TOLERANCE: f32 = 0.0004;
 const ON: bool = true;
 const OFF: bool = false;
 
+/// The second amp of a preset
+pub struct SecondPreset {
+    pub on: bool,
+    pub amp: Amp,
+    /// Gain, Bass, Mid, Treble, Presence, Master: 0.0 to 10.0
+    pub dials: [f32; 6],
+    /// 0.0 is the first amp alone, 10.0 the second alone
+    pub blend: f32,
+}
+
+// The second amp off, with its choice, dials and Blend where the parameters start: what
+// every preset from before there were two amps holds (`SecondSettings::default`)
+const NO_SECOND: SecondPreset =
+    SecondPreset { on: OFF, amp: Amp::Klar, dials: [5.0; 6], blend: 5.0 };
+
 pub struct Preset {
     pub name: &'static str,
     pub amp: Amp,
+    pub second: SecondPreset,
     /// Gain, Bass, Mid, Treble, Presence, Master: 0.0 to 10.0
     pub dials: [f32; 6],
     /// Switch, threshold in dB, release in ms
@@ -76,10 +92,11 @@ const USUAL_ORDER: &[&str] =
 // the gate starts to close on the tail of every mute. The gate closes 3 dB under its
 // threshold, so that is -60 dB, which was -54 dB with the 6 dB it had before. How fast a
 // gate shuts in a rest is its release, not its threshold: 8 dB of threshold are 9 ms
-pub static PRESETS: [Preset; 26] = [
+pub static PRESETS: [Preset; 27] = [
     Preset {
         name: "Init",
         amp: Amp::Brol,
+        second: NO_SECOND,
         dials: [5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
         gate: (ON, -60.0, 100.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
@@ -96,6 +113,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Glas",
         amp: Amp::Klar,
+        second: NO_SECOND,
         dials: [3.5, 4.5, 4.5, 6.0, 6.5, 5.0],
         gate: (ON, -66.0, 250.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
@@ -112,6 +130,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Varm",
         amp: Amp::Klar,
+        second: NO_SECOND,
         dials: [4.0, 5.0, 6.5, 3.5, 3.0, 5.5],
         gate: (ON, -66.0, 250.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
@@ -128,6 +147,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Tåge",
         amp: Amp::Klar,
+        second: NO_SECOND,
         dials: [3.0, 4.5, 5.0, 5.5, 5.5, 4.6],
         gate: (ON, -72.0, 500.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
@@ -144,6 +164,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Glød",
         amp: Amp::Klar,
+        second: NO_SECOND,
         dials: [6.5, 4.5, 6.0, 5.5, 5.0, 5.0],
         gate: (ON, -62.0, 150.0),
         drive: (ON, [5.5, 5.0, 7.0]),
@@ -160,6 +181,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Kobber",
         amp: Amp::Brol,
+        second: NO_SECOND,
         dials: [1.5, 5.5, 5.5, 6.0, 6.0, 4.3],
         gate: (ON, -64.0, 200.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
@@ -175,6 +197,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Grus",
         amp: Amp::Brol,
+        second: NO_SECOND,
         dials: [6.0, 5.0, 6.5, 5.5, 5.5, 4.2],
         gate: (ON, -58.0, 120.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
@@ -191,6 +214,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Flamme",
         amp: Amp::Brol,
+        second: NO_SECOND,
         dials: [8.0, 4.5, 7.5, 5.5, 5.0, 4.0],
         gate: (ON, -56.0, 200.0),
         drive: (ON, [2.0, 5.5, 7.0]),
@@ -208,6 +232,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Stram",
         amp: Amp::Torden,
+        second: NO_SECOND,
         dials: [5.5, 4.5, 5.0, 6.0, 6.0, 4.5],
         gate: (ON, -56.0, 50.0),
         drive: (ON, [1.0, 6.0, 8.0]),
@@ -224,6 +249,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Granit",
         amp: Amp::Torden,
+        second: NO_SECOND,
         dials: [7.5, 6.5, 3.0, 6.5, 6.5, 5.3],
         gate: (ON, -57.0, 60.0),
         drive: (ON, [1.5, 5.5, 7.0]),
@@ -240,6 +266,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Dyb",
         amp: Amp::Torden,
+        second: NO_SECOND,
         dials: [6.0, 4.0, 5.5, 6.0, 6.5, 4.3],
         gate: (ON, -57.0, 40.0),
         drive: (ON, [0.5, 6.5, 8.5]),
@@ -256,6 +283,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Lyn",
         amp: Amp::Torden,
+        second: NO_SECOND,
         dials: [7.0, 5.0, 6.5, 5.5, 5.5, 4.6],
         gate: (ON, -57.0, 180.0),
         drive: (ON, [2.5, 5.0, 7.0]),
@@ -275,6 +303,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Rav",
         amp: Amp::Klar,
+        second: NO_SECOND,
         dials: [3.5, 4.5, 5.0, 6.0, 6.0, 3.5],
         gate: (ON, -66.0, 250.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
@@ -290,6 +319,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Puls",
         amp: Amp::Klar,
+        second: NO_SECOND,
         dials: [4.5, 5.0, 5.5, 5.0, 4.5, 7.0],
         gate: (ON, -66.0, 250.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
@@ -306,6 +336,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Hvirvel",
         amp: Amp::Brol,
+        second: NO_SECOND,
         dials: [5.5, 5.0, 6.0, 5.5, 5.5, 4.5],
         gate: (ON, -58.0, 150.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
@@ -321,6 +352,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Sus",
         amp: Amp::Torden,
+        second: NO_SECOND,
         dials: [6.5, 5.0, 5.5, 5.5, 5.5, 4.5],
         gate: (ON, -57.0, 120.0),
         drive: (ON, [1.5, 5.5, 7.0]),
@@ -337,6 +369,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Dis",
         amp: Amp::Klar,
+        second: NO_SECOND,
         dials: [3.0, 4.5, 5.0, 5.5, 5.5, 3.7],
         gate: (ON, -72.0, 500.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
@@ -356,6 +389,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Pejs",
         amp: Amp::Glod,
+        second: NO_SECOND,
         dials: [5.0, 5.0, 5.5, 5.0, 5.0, 4.6],
         gate: (ON, -62.0, 150.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
@@ -372,6 +406,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Gnist",
         amp: Amp::Glod,
+        second: NO_SECOND,
         dials: [3.5, 4.5, 5.0, 6.5, 6.5, 4.4],
         gate: (ON, -64.0, 200.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
@@ -388,6 +423,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Bål",
         amp: Amp::Glod,
+        second: NO_SECOND,
         dials: [7.5, 4.5, 6.5, 5.0, 5.0, 4.5],
         gate: (ON, -58.0, 120.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
@@ -404,6 +440,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Mose",
         amp: Amp::Brol,
+        second: NO_SECOND,
         dials: [3.5, 6.0, 6.0, 4.5, 4.5, 3.6],
         gate: (ON, -58.0, 150.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
@@ -420,6 +457,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Sværm",
         amp: Amp::Glod,
+        second: NO_SECOND,
         dials: [4.0, 5.0, 6.0, 5.5, 5.5, 2.6],
         gate: (ON, -60.0, 200.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
@@ -435,6 +473,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Solo",
         amp: Amp::Sang,
+        second: NO_SECOND,
         dials: [6.0, 4.5, 6.5, 5.5, 5.0, 4.3],
         gate: (ON, -60.0, 200.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
@@ -450,6 +489,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Kor",
         amp: Amp::Sang,
+        second: NO_SECOND,
         dials: [4.5, 5.0, 6.0, 5.0, 4.5, 4.3],
         gate: (ON, -62.0, 200.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
@@ -465,6 +505,7 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Tung",
         amp: Amp::Dron,
+        second: NO_SECOND,
         dials: [5.5, 6.5, 4.5, 4.0, 4.0, 4.8],
         gate: (ON, -58.0, 120.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
@@ -480,12 +521,36 @@ pub static PRESETS: [Preset; 26] = [
     Preset {
         name: "Ørken",
         amp: Amp::Dron,
+        second: NO_SECOND,
         dials: [4.0, 6.0, 5.5, 4.5, 4.5, 4.5],
         gate: (ON, -60.0, 150.0),
         drive: (OFF, [3.0, 5.0, 5.0]),
         cab: (ON, [4.5, 5.0]),
         delay: (ON, 450.0, 32.0, 18.0),
         reverb: (ON, 2.2, 16.0),
+        comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
+        mods: MODS_OFF,
+        order: USUAL_ORDER,
+    },
+    // Torden and Klar. The tight rhythm of Stram with a clean Klar under it, at 0.4: the
+    // chords keep their edge and the notes get a clear body and a glassy top. The second amp
+    // is set up as Glas, with the top end let down so the two do not both bite
+    Preset {
+        name: "Tung og Klar",
+        amp: Amp::Torden,
+        second: SecondPreset {
+            on: ON,
+            amp: Amp::Klar,
+            dials: [3.5, 4.5, 4.5, 5.5, 5.5, 5.5],
+            blend: 4.0,
+        },
+        dials: [5.5, 4.5, 5.0, 6.0, 6.0, 4.6],
+        gate: (ON, -56.0, 50.0),
+        drive: (ON, [1.0, 6.0, 8.0]),
+        cab: (ON, [5.5, 5.0]),
+        delay: (OFF, 350.0, 30.0, 20.0),
+        reverb: (ON, 1.2, 12.0),
         comp: COMP_OFF,
         fuzz: FUZZ_OFF,
         mods: MODS_OFF,
@@ -516,7 +581,7 @@ pub fn index_or_first(stored: u32) -> usize {
 
 impl Preset {
     /// Every continuous parameter the preset holds, with the value it gets
-    fn knobs<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a FloatParam, f32); 30] {
+    fn knobs<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a FloatParam, f32); 37] {
         let [gain, bass, mid, treble, presence, master] = self.dials;
         let (_, gate_thresh_db, gate_release_ms) = self.gate;
         let (_, [drive_gain, drive_tone, drive_level]) = self.drive;
@@ -526,6 +591,7 @@ impl Preset {
         let (_, [comp_sustain, comp_level]) = self.comp;
         let (_, [fuzz_fuzz, fuzz_tone]) = self.fuzz;
         let [chorus, phaser, flanger, tremolo] = self.mods;
+        let [gain2, bass2, mid2, treble2, presence2, master2] = self.second.dials;
         [
             (&params.fuzz_fuzz, dial(fuzz_fuzz)),
             (&params.fuzz_tone, dial(fuzz_tone)),
@@ -557,12 +623,20 @@ impl Preset {
             (&params.delay_mix, percent(delay_mix)),
             (&params.reverb_decay, reverb_decay_s),
             (&params.reverb_mix, percent(reverb_mix)),
+            (&params.amp2_gain, dial(gain2)),
+            (&params.amp2_bass, dial(bass2)),
+            (&params.amp2_mid, dial(mid2)),
+            (&params.amp2_treble, dial(treble2)),
+            (&params.amp2_presence, dial(presence2)),
+            (&params.amp2_master, dial(master2)),
+            (&params.amp_blend, dial(self.second.blend)),
         ]
     }
 
     /// Every switch the preset holds, with the position it gets
-    fn switches<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a BoolParam, bool); 12] {
+    fn switches<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a BoolParam, bool); 13] {
         [
+            (&params.amp2_on, self.second.on),
             (&params.gate_on, self.gate.0),
             (&params.fuzz_on, self.fuzz.0),
             (&params.comp_on, self.comp.0),
@@ -588,15 +662,19 @@ impl Preset {
     /// older than the last preset loaded
     ///
     /// The amp that is left for the preset's remembers its dials, and the preset's amp
-    /// remembers the preset's: see `dial_memory`. The pedals go into the preset's order,
+    /// remembers the preset's: see `dial_memory`. The same for the second amp, which a
+    /// preset always sets: off, and with the dials where they start, unless it names it. The pedals go into the preset's order,
     /// which the host is not told: it is no parameter
     pub fn load(&self, params: &GuitarAmpParams, setter: &ParamSetter) {
         dial_memory::preset_loaded(params, self.amp, self.dials.map(dial));
+        dial_memory::second_preset_loaded(params, self.second.amp, self.second.dials.map(dial));
         params.order.put(self.chain_order());
-        let edits: Vec<Edit> = std::iter::once(Edit::of(&params.amp, self.amp))
-            .chain(self.switches(params).into_iter().map(|(param, on)| Edit::of(param, on)))
-            .chain(self.knobs(params).into_iter().map(|(param, value)| Edit::of(param, value)))
-            .collect();
+        let edits: Vec<Edit> =
+            [Edit::of(&params.amp, self.amp), Edit::of(&params.amp2, self.second.amp)]
+                .into_iter()
+                .chain(self.switches(params).into_iter().map(|(param, on)| Edit::of(param, on)))
+                .chain(self.knobs(params).into_iter().map(|(param, value)| Edit::of(param, value)))
+                .collect();
         set_together(setter, &edits);
     }
 
@@ -609,6 +687,7 @@ impl Preset {
     /// the pedals in its order
     pub fn matches(&self, params: &GuitarAmpParams) -> bool {
         params.amp.value() == self.amp
+            && params.amp2.value() == self.second.amp
             && params.order.get() == self.chain_order()
             && self.switches(params).into_iter().all(|(param, on)| param.value() == on)
             && self.knobs(params).into_iter().all(|(param, value)| {
@@ -671,8 +750,8 @@ mod tests {
             preset.load(&params, &ParamSetter::new(&host));
             let told = host.told.lock().unwrap();
             assert!(as_one_edit(&told), "{}", preset.name);
-            // The amp, the ten switches and every knob: each begun, set and ended once
-            let held = 1 + preset.switches(&params).len() + preset.knobs(&params).len();
+            // The two amps, the switches and every knob: each begun, set and ended once
+            let held = 2 + preset.switches(&params).len() + preset.knobs(&params).len();
             assert_eq!(told.len(), 3 * held, "{}", preset.name);
             assert!(told[0].1 == params.amp.as_ptr(), "{} begins with the amp", preset.name);
         }
@@ -693,6 +772,7 @@ mod tests {
     use crate::mods::tremolo::TremoloSettings;
     use crate::order::Pedal;
     use crate::reverb::ReverbSettings;
+    use crate::second::SecondSettings;
     use crate::test_util::*;
 
     const SAMPLE_RATE: f32 = 48_000.0;
@@ -709,7 +789,19 @@ mod tests {
             let [comp_sustain, comp_level] = self.comp.1.map(dial);
             let [fuzz, fuzz_tone] = self.fuzz.1.map(dial);
             let [chorus, phaser, flanger, tremolo] = self.mods;
+            let [gain2, bass2, mid2, treble2, presence2, master2] = self.second.dials.map(dial);
             AmpSettings {
+                second: SecondSettings {
+                    on: self.second.on,
+                    amp: self.second.amp,
+                    gain: gain2,
+                    bass: bass2,
+                    mid: mid2,
+                    treble: treble2,
+                    presence: presence2,
+                    master: master2,
+                },
+                blend: dial(self.second.blend),
                 fuzz: FuzzSettings { on: self.fuzz.0, fuzz, tone: fuzz_tone },
                 comp: CompSettings { on: self.comp.0, sustain: comp_sustain, level: comp_level },
                 chorus: ChorusSettings {

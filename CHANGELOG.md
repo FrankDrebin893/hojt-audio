@@ -44,6 +44,19 @@ GitHub release.
 
 ### Guitar Amp
 
+- A second amp can play beside the first. Switch it on (Amp 2 in the host's parameter list; the
+  window gets its own head in a later release) and the guitar goes through the pedals in front
+  of the amp, then splits: each amp plays through its own head and its own built-in cabinet,
+  and Blend mixes the two, 0 the first amp alone and 10 the second alone. The pedals behind the
+  cabinet work on the mix. Amp 2 has its own amp choice (any of the six, Klar to start with)
+  and its own six dials, Gain, Bass, Mid, Treble, Presence and Master, and remembers each amp's
+  dials as the first one does. Mic, Resonance, Mic Type and Cabinet act on both; the player's
+  own cabinet file and the built-in speaker stay on the first amp. Blend keeps the level even
+  between a heavy amp and a clean one. With Amp 2 off nothing changes: the sound, the cost and
+  every preset are as they were, and projects and presets from before open with it off.
+  Both amps on cost about 5 % of a core at 48 kHz
+- A new factory preset, Tung og Klar: Torden under a clean Klar at Blend 4.0, the tight rhythm
+  of Stram with a glassy body under it
 - Louder, so the guitar sits with the drums and the bass: every amp and factory preset is now
   matched for a guitar recorded with room to spare (-30 dBFS RMS, peaks around -12 dBFS), where
   every preset is heard at about -13 LUFS, the leads a little over the rest. The same guitar

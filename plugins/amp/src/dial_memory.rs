@@ -119,6 +119,41 @@ pub fn preset_loaded(params: &GuitarAmpParams, amp: Amp, dials: AmpDials) {
     params.dial_memory.leave(amp, dials);
 }
 
+/// The same for the second amp's selector: its own memory (`amp2-dials`), its own choice
+/// and six dials, as one edit of seven changes. The head's second nameplate calls it
+/// (milestone 2 of #177); until then the host's parameter list is the way to the second amp
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn switch_second_amp(params: &GuitarAmpParams, setter: &ParamSetter, to: Amp) {
+    let from = params.amp2.value();
+    if from == to {
+        return;
+    }
+    let dials = params.amp2_dials();
+    params.dial_memory_second.leave(from, dials.map(|dial| dial.unmodulated_plain_value()));
+
+    let edits: Vec<Edit> = std::iter::once(Edit::of(&params.amp2, to))
+        .chain(
+            dials
+                .into_iter()
+                .zip(params.dial_memory_second.enter(to))
+                .map(|(dial, value)| Edit::of(dial, value)),
+        )
+        .collect();
+    presets::set_together(setter, &edits);
+}
+
+/// A preset with the second amp set to `amp` and its dials at `dials` is about to be
+/// loaded: the second amp remembers as `preset_loaded` does for the first
+pub fn second_preset_loaded(params: &GuitarAmpParams, amp: Amp, dials: AmpDials) {
+    let from = params.amp2.value();
+    if from != amp {
+        params
+            .dial_memory_second
+            .leave(from, params.amp2_dials().map(|dial| dial.unmodulated_plain_value()));
+    }
+    params.dial_memory_second.leave(amp, dials);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -239,5 +274,45 @@ mod tests {
         preset_loaded(&params, Amp::Brol, KLAR);
         assert_eq!(params.dial_memory.enter(Amp::Brol), KLAR);
         assert_eq!(params.dial_memory.enter(Amp::Torden), TORDEN);
+    }
+
+    #[test]
+    fn test_the_second_amp_keeps_a_memory_of_its_own() {
+        let params = GuitarAmpParams::default();
+        // The first amp's memory is not touched by the second's
+        params.dial_memory.leave(Amp::Torden, TORDEN);
+        assert_eq!(params.dial_memory_second.enter(Amp::Torden), DEFAULTS);
+        params.dial_memory_second.leave(Amp::Torden, KLAR);
+        assert_eq!(params.dial_memory.enter(Amp::Torden), TORDEN);
+        assert_eq!(params.dial_memory_second.enter(Amp::Torden), KLAR);
+    }
+
+    #[test]
+    fn test_switching_the_second_amp_is_one_edit_and_moves_only_its_dials() {
+        use crate::user_presets::tests::{as_one_edit, Host};
+        let params = GuitarAmpParams::default();
+        params.dial_memory_second.leave(Amp::Torden, TORDEN);
+        let host = Host::default();
+        switch_second_amp(&params, &ParamSetter::new(&host), Amp::Torden);
+        let told = host.told.lock().unwrap();
+        assert!(as_one_edit(&told), "{told:?}");
+        assert_eq!(told.len(), 3 * 7);
+        assert!(told[0].1 == params.amp2.as_ptr());
+        // The first amp's choice and dials are not among them
+        assert!(told.iter().all(|(_, param)| *param != params.amp.as_ptr()));
+        assert!(told.iter().all(|(_, param)| *param != params.gain.as_ptr()));
+        let quiet = Host::default();
+        switch_second_amp(&params, &ParamSetter::new(&quiet), params.amp2.value());
+        assert!(quiet.told.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_loading_a_preset_remembers_the_second_amp_left_and_the_presets_dials() {
+        let params = GuitarAmpParams::default();
+        params.dial_memory_second.leave(Amp::Klar, TORDEN);
+        second_preset_loaded(&params, Amp::Torden, KLAR);
+        assert_eq!(params.dial_memory_second.enter(Amp::Torden), KLAR);
+        // Klar is remembered as it stood (the defaults)
+        assert_eq!(params.dial_memory_second.enter(Amp::Klar), DEFAULTS);
     }
 }

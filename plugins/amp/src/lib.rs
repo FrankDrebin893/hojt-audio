@@ -23,6 +23,7 @@ mod no_alloc;
 mod order;
 mod presets;
 mod reverb;
+mod second;
 #[cfg(test)]
 mod test_util;
 mod tuner;
@@ -42,6 +43,7 @@ use mods::phaser::{self, PhaserSettings};
 use mods::tremolo::{self, TremoloSettings};
 use order::StoredOrder;
 use reverb::{ReverbSettings, DECAY_MAX_S, DECAY_MIN_S};
+use second::SecondSettings;
 use suite_common::dsp::NoteValue;
 
 // The id of the tuner switch, as in `GuitarAmpParams`
@@ -104,6 +106,11 @@ pub struct GuitarAmpParams {
     /// The audio thread never reads it
     #[persist = "amp-dials"]
     pub dial_memory: DialMemory,
+
+    /// The same for the second amp: where each amp's six dials stood when the player last
+    /// switched the second amp away from it. Not parameters either
+    #[persist = "amp2-dials"]
+    pub dial_memory_second: DialMemory,
 
     /// The order the pedals stand in. Not a parameter: an arrangement cannot be automated.
     /// The editor changes it, and the audio thread reads it with the dials
@@ -180,6 +187,35 @@ pub struct GuitarAmpParams {
 
     #[id = "master"]
     pub master: FloatParam,
+
+    // The second amp, beside the first behind the same front pedals
+    #[id = "amp2_on"]
+    pub amp2_on: BoolParam,
+
+    #[id = "amp2"]
+    pub amp2: EnumParam<Amp>,
+
+    #[id = "amp2_gain"]
+    pub amp2_gain: FloatParam,
+
+    #[id = "amp2_bass"]
+    pub amp2_bass: FloatParam,
+
+    #[id = "amp2_mid"]
+    pub amp2_mid: FloatParam,
+
+    #[id = "amp2_treble"]
+    pub amp2_treble: FloatParam,
+
+    #[id = "amp2_presence"]
+    pub amp2_presence: FloatParam,
+
+    #[id = "amp2_master"]
+    pub amp2_master: FloatParam,
+
+    /// 0.0 is the first amp alone, 1.0 the second alone
+    #[id = "amp_blend"]
+    pub amp_blend: FloatParam,
 
     // Modulation pedals
     #[id = "chorus_on"]
@@ -304,6 +340,7 @@ impl Default for GuitarAmpParams {
                 defaults.presence,
                 defaults.master,
             ]),
+            dial_memory_second: DialMemory::new(defaults.second.dials()),
 
             bypass: BoolParam::new("Bypass", defaults.bypass).make_bypass(),
 
@@ -355,6 +392,16 @@ impl Default for GuitarAmpParams {
             treble: dial_param("Treble", defaults.treble),
             presence: dial_param("Presence", defaults.presence),
             master: dial_param("Master", defaults.master),
+
+            amp2_on: BoolParam::new("Amp 2", defaults.second.on),
+            amp2: EnumParam::new("Amp 2 Model", defaults.second.amp),
+            amp2_gain: dial_param("Amp 2 Gain", defaults.second.gain),
+            amp2_bass: dial_param("Amp 2 Bass", defaults.second.bass),
+            amp2_mid: dial_param("Amp 2 Mid", defaults.second.mid),
+            amp2_treble: dial_param("Amp 2 Treble", defaults.second.treble),
+            amp2_presence: dial_param("Amp 2 Presence", defaults.second.presence),
+            amp2_master: dial_param("Amp 2 Master", defaults.second.master),
+            amp_blend: dial_param("Amp Blend", defaults.blend),
 
             chorus_on: BoolParam::new("Chorus", defaults.chorus.on),
             chorus_rate: rate_param(
@@ -450,6 +497,18 @@ impl GuitarAmpParams {
         [&self.gain, &self.bass, &self.mid, &self.treble, &self.presence, &self.master]
     }
 
+    /// The second amp's six dials, in the order they stand on the head
+    pub fn amp2_dials(&self) -> [&FloatParam; 6] {
+        [
+            &self.amp2_gain,
+            &self.amp2_bass,
+            &self.amp2_mid,
+            &self.amp2_treble,
+            &self.amp2_presence,
+            &self.amp2_master,
+        ]
+    }
+
     /// What the knobs say now, with the song at `tempo_bpm` (`None` where the host gives
     /// no tempo)
     fn settings(&self, tempo_bpm: Option<f64>) -> AmpSettings {
@@ -480,6 +539,17 @@ impl GuitarAmpParams {
             treble: self.treble.value(),
             presence: self.presence.value(),
             master: self.master.value(),
+            second: SecondSettings {
+                on: self.amp2_on.value(),
+                amp: self.amp2.value(),
+                gain: self.amp2_gain.value(),
+                bass: self.amp2_bass.value(),
+                mid: self.amp2_mid.value(),
+                treble: self.amp2_treble.value(),
+                presence: self.amp2_presence.value(),
+                master: self.amp2_master.value(),
+            },
+            blend: self.amp_blend.value(),
             chorus: ChorusSettings {
                 on: self.chorus_on.value(),
                 rate_hz: self.chorus_rate.value(),
