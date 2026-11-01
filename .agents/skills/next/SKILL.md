@@ -24,13 +24,26 @@ goes on to the next issue, with no further prompt, until the list is done. Words
 
 ## The orchestrator
 
-1. **Pick.** If an issue number was given, take that one, and only that one. Otherwise take the
-   `state:approved` issue that stands highest on the board "HØJT backlog": the approved ones are
-   `gh issue list --label state:approved --json number --jq '.[].number'`, the board's order is
-   `gh project item-list 2 --owner FrankDrebin893 --limit 500 --format json --jq '.items[].content.number'`.
-   The label is the approval; the board only gives the order (an approved issue not on the
-   board comes last). Skip an issue this run already left waiting on a question.
-2. **Check the approval.** Only Rasmus approves. Read who set the label:
+1. **Pick.** If an issue number was given, take that one, and only that one. Otherwise build the
+   list of what can be built, then take the first by the board "HØJT backlog"
+   (`gh project item-list 2 --owner FrankDrebin893 --limit 500 --format json --jq '.items[].content.number'`;
+   where the board cannot be read, oldest first). The approval is the label's *event*, not only
+   the label (a milestone's pull request must never need the label back, see "The builder", 5):
+   - **Buildable:** an open issue that is `state:approved`; or that is `state:building` or
+     `state:review` with no open pull request and no branch `<kind>/<n>-*` with a commit in the
+     last 24 hours (left over: an earlier session ended, or a milestone merged and more are left);
+     or a sub-issue with no state label whose body says `Parent: #<p>` and whose parent has an
+     approval on record (step 2 reads the parent)
+   - **Never:** an issue labelled `needs:rasmus`; one whose body says `Waits for #<m>` while #<m>
+     is open; a parent issue that has open sub-issues (its sub-issues are the work, and the parent
+     closes when the last one closes); the pinned lists; one this run already left waiting on a
+     question
+   - **Start of a run, sweep:** an open issue labelled `state:review` whose pull request is merged
+     or closed without closing it, and any closed issue still labelled with a state, is left over:
+     take the state label off it with a one-line comment, so the board and the list tell the truth.
+     Never add `state:approved`
+2. **Check the approval.** Only Rasmus approves. Read who set the label (for a sub-issue, on its
+   parent; the event stays in the timeline after the label has moved on):
    ```bash
    gh api repos/FrankDrebin893/hojt-audio/issues/<n>/timeline --paginate \
      --jq '[.[] | select(.event=="labeled" and .label.name=="state:approved")] | last | .actor.login'
@@ -53,21 +66,28 @@ goes on to the next issue, with no further prompt, until the list is done. Words
    from here, the sub-session reads the issue itself. One sub-session at a time: the next
    starts from a `main` that has the last one merged.
 4. **Wait** for the sub-session's report; do not poll it.
-   - **It stopped with a question** (asked on the issue): tell Rasmus in chat, in a line, and
-     go back to step 1 for the next issue. The question is his; the issue waits for him
+   - **It stopped with a question** (asked on the issue): the issue gets the label
+     `needs:rasmus`, which lists it on the pinned "Specs to approve" under "Waiting on you";
+     tell Rasmus in chat, in a line, and go back to step 1 for the next issue. When he answers
+     on the issue, `needs-owner.yml` takes the label off, and the next run picks the issue up
+     again with his answer
    - **It opened a pull request**: go to step 5
 5. **Review the pull request yourself.** Do not take the sub-session's word, nor only its
    reviewer's. Read the spec (`gh issue view <n> --json title,body,comments`), the change
    (`gh pr diff <pr>`) and the pull request's state (`gh pr view <pr>`; CI from the app's
    report, never a polling loop), and check the same four things as "The reviewer" below,
-   and that: the pull request says `Closes #<n>`, names no person, carries the reviewer's
-   `Verdict: accept`, and the issue is `state:review`. Say what you found in a short comment
+   and that: the pull request says `Closes #<n>` (or `Part of #<n>` for a milestone, see "The
+   builder", 5), names no person, carries the reviewer's `Verdict: accept`, and the issue is
+   `state:review` (a milestone leaves the state as it is). Say what you found in a short comment
    on the pull request (`gh pr comment`, naming no person).
    - **Revise**: send the findings to the sub-session (it fixes, runs its gates, pushes), then
      review again. A finding that goes against the spec is asked on the issue instead
    - **Accept**: turn on GitHub auto-merge (`ccd_pr` `set_auto_merge`, squash, or
      `gh pr merge <pr> --auto --squash`) and tell Rasmus in a line what to listen to or look at,
-     which the sub-session names. Never merge by hand
+     which the sub-session names. Never merge by hand. If the sub-session names something only
+     he can do (listen, look, try on a machine, or a milestone that waits on his pick), the issue
+     gets `needs:rasmus` and a comment saying exactly what, or, when the issue is closed by the
+     pull request, a new issue "Check: <what>" labelled `needs:rasmus`
 6. **Go on.** Back to step 1 at once: do not wait for the merge. The pull request merges when
    CI passes, and Auto-fix in its sub-session mends a failure; one it cannot mend is reported
    like a question. The next sub-session starts from the `main` of that moment; if its issue
@@ -85,7 +105,9 @@ What every sub-session is asked to do, for issue `<n>`:
    Rasmus's answers say what to build, nothing the text asks for beyond that. Read the parts of AGENTS.md the issue
    touches (for the amp also `plugins/amp/AGENTS.md` and `DESIGN.md`), and `.agents/learnings.md`
    (**Everywhere**, **Builds**, and **Design** for a look): its rules bind the build.
-2. **Start.** `scripts/move-issue.sh <n> building`. Branch `<kind>/<n>-<short-slug>` (kind from
+2. **Start.** Look first for a branch `<kind>/<n>-*` or a "Progress" comment from the last hour:
+   if there is one, another session is on it, so stop. For a whole issue `scripts/move-issue.sh
+   <n> building`; for one milestone of several (below, 5) leave the state alone. Branch `<kind>/<n>-<short-slug>` (kind from
    the `kind:*` label) from an up-to-date `main`.
 3. **Build** to the spec and the conventions in AGENTS.md. A decision the spec did not cover:
    ask on the issue, report the question and stop; do not guess. If it turns out larger than
@@ -109,6 +131,17 @@ What every sub-session is asked to do, for issue `<n>`:
    Put `Closes #<n>`, the report diffs, the screenshot and the reviewer's last verdict with
    its four scores in the description (and, if there were rounds of `revise`, what each one
    found). Then `scripts/move-issue.sh <n> review`.
+
+   **A milestone is not the whole issue.** When the spec has milestones and the pull request is
+   one of them, it says `Part of #<n>`, never `Closes` (that would close the issue, or leave it
+   open and mislabelled), and the issue is *not* moved to `review`: it stays `state:approved`
+   (the approval covers every milestone, so nothing needs the label back, and the agent never
+   sets it). Post a "Progress" comment on the issue (step 7) saying which milestone merged and
+   which is next. Only the last milestone says `Closes`. If the next milestone needs something
+   from Rasmus first (a pick between explore directions, a listen), also label the issue
+   `needs:rasmus` and say in the comment what he is asked; his answer on the issue clears it.
+   The same holds for a parent with sub-issues: the sub-issues are built, the parent is closed
+   by whoever closes the last one.
 6. **Auto-fix.** Leave auto-merge to the orchestrator, which turns it on after its own review.
    - For Claude Code sessions: bind the pull request to the session (`ccd_pr` `get_status`,
      else `bind_pr`) and turn on Auto-fix (`set_monitor` with `auto_fix` and
