@@ -148,6 +148,13 @@ pub fn assert_process_allocates_nothing<P: Plugin>(
     plugin.reset();
 
     let mut audio = vec![vec![0.0f32; BLOCKS[0]]; channels];
+    // The layout's auxiliary outputs, which a host gives too. They are not
+    // counted as the plugin having made a sound
+    let mut aux_audio: Vec<Vec<Vec<f32>>> = layout
+        .aux_output_ports
+        .iter()
+        .map(|ports| vec![vec![0.0f32; BLOCKS[0]]; ports.get() as usize])
+        .collect();
     let mut played = 0;
     let mut loudest = 0.0f32;
     for block in 0..blocks {
@@ -172,7 +179,21 @@ pub fn assert_process_allocates_nothing<P: Plugin>(
                 slices.extend(audio.iter_mut().map(|channel| &mut channel[..len]));
             });
         }
-        let mut aux = AuxiliaryBuffers { inputs: &mut [], outputs: &mut [] };
+        let mut aux_buffers: Vec<Buffer> = aux_audio
+            .iter_mut()
+            .map(|port| {
+                let mut aux_buffer = Buffer::default();
+                // SAFETY: the slices are `aux_audio`'s, which outlives `aux_buffers`, `len` long
+                unsafe {
+                    aux_buffer.set_slices(len, |slices| {
+                        slices.clear();
+                        slices.extend(port.iter_mut().map(|channel| &mut channel[..len]));
+                    });
+                }
+                aux_buffer
+            })
+            .collect();
+        let mut aux = AuxiliaryBuffers { inputs: &mut [], outputs: &mut aux_buffers };
         let mut context = Events { events, block, next: 0 };
         let what = format!("{name}'s process, in block {block},");
         assert_allocates_nothing(&what, || plugin.process(&mut buffer, &mut aux, &mut context));

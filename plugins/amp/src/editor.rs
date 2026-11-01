@@ -19,7 +19,7 @@ use crate::cab_stage::{CabLoader, CabStatus, NO_FILES_SHOWN};
 use crate::dial_memory;
 use crate::lamps::{LampReading, LampView};
 use crate::looks;
-use crate::metronome::{BeatReading, Sound, TapTempo, TimeSignature, BPM_MAX, BPM_MIN};
+use crate::metronome::{BeatReading, ClickOut, Sound, TapTempo, TimeSignature, BPM_MAX, BPM_MIN};
 use crate::presets::{self, PRESETS};
 #[cfg(test)]
 use crate::standalone::Prefs;
@@ -56,7 +56,10 @@ pub(crate) const STYLE: PedalStyle = PedalStyle {
 // is picked is on the left: the input meter, then the bank and preset displays and the Save
 // button. What goes out is on the right: the output knob, the output meter, the clip lamp, and
 // the On and Tuner switches. Each one's place is the end of the one before it and the gap
-const STRIP_GAP: f32 = 43.0;
+const STRIP_GAP: f32 = 32.5;
+// The gap that holds the standalone program's Audio button, between the output meter and the clip
+// lamp: a little wider than the others
+const AUDIO_GAP: f32 = 43.0;
 
 // The bank display and the preset display, each an LED display with a button at each end and
 // its caption over it: what set of presets the preset display picks from, and the preset.
@@ -133,7 +136,24 @@ const TAP_X: f32 = TEMPO_X + TEMPO_WIDTH / 2.0 + STEPPER_REACH + METRONOME_GAP +
 // The sound over the time signature, on one column of steppers
 const SOUND_WIDTH: f32 = 100.0;
 const SIGNATURE_WIDTH: f32 = 54.0;
-const STEPPERS_X: f32 = TAP_X + SAVE_REACH + METRONOME_GAP + SOUND_WIDTH / 2.0 + STEPPER_REACH;
+// and under the sound, side by side, the time signature and where the click is heard
+const OUT_WIDTH: f32 = 70.0;
+const LOWER_GAP: f32 = 6.0;
+const METER_STEP_REACH: f32 = SIGNATURE_WIDTH / 2.0 + STEPPER_REACH;
+const OUT_REACH: f32 = OUT_WIDTH / 2.0 + STEPPER_REACH;
+// The column is as wide as its lower row, or as the sound's stepper if that is wider
+const COLUMN_WIDTH: f32 = {
+    let lower = 2.0 * METER_STEP_REACH + LOWER_GAP + 2.0 * OUT_REACH;
+    let upper = SOUND_WIDTH + 2.0 * STEPPER_REACH;
+    if lower > upper {
+        lower
+    } else {
+        upper
+    }
+};
+const STEPPERS_X: f32 = TAP_X + SAVE_REACH + METRONOME_GAP + COLUMN_WIDTH / 2.0;
+const SIGNATURE_X: f32 = STEPPERS_X - COLUMN_WIDTH / 2.0 + METER_STEP_REACH;
+const CLICK_OUT_X: f32 = STEPPERS_X + COLUMN_WIDTH / 2.0 - OUT_REACH;
 const SOUND_CAPTION_Y: f32 = 33.0;
 const SOUND_Y: f32 = 54.0;
 const SIGNATURE_CAPTION_Y: f32 = 80.0;
@@ -141,7 +161,7 @@ const SIGNATURE_Y: f32 = 101.0;
 const CLICK_RADIUS: f32 = 20.0;
 const CLICK_REACH: f32 = CLICK_RADIUS + 13.0;
 const CLICK_VOLUME: Vec2 =
-    vec2(STEPPERS_X + SOUND_WIDTH / 2.0 + STEPPER_REACH + METRONOME_GAP + CLICK_REACH, 56.0);
+    vec2(STEPPERS_X + COLUMN_WIDTH / 2.0 + METRONOME_GAP + CLICK_REACH, 56.0);
 const METRONOME_SYNC_X: f32 = CLICK_VOLUME.x + CLICK_REACH + METRONOME_GAP + SAVE_REACH;
 const METRONOME_END: f32 = METRONOME_SYNC_X + SAVE_REACH;
 // The Sync button stands lowest, under its LED and caption
@@ -159,7 +179,7 @@ const OUTPUT_METER: Vec2 = vec2(OUTPUT_KNOB.x + KNOB_REACH + STRIP_GAP + METER_R
 
 // The clip lamp, right of the output meter: lit while the output is rounded off by the
 // safety clip. A signal lamp has its caption this far under it
-const CLIP_LAMP: Vec2 = vec2(OUTPUT_METER.x + METER_REACH + STRIP_GAP + LAMP_REACH, 58.0);
+const CLIP_LAMP: Vec2 = vec2(OUTPUT_METER.x + METER_REACH + AUDIO_GAP + LAMP_REACH, 58.0);
 const LAMP_CAPTION: Vec2 = vec2(0.0, 18.0);
 const LAMP_CAPTION_SIZE: f32 = 13.0;
 
@@ -1373,10 +1393,10 @@ fn metronome(
 
     // The time signature and the sound
     let signature = params.metronome_time_sig.value();
-    silk_label(ui.painter(), at(STEPPERS_X, SIGNATURE_CAPTION_Y), "Meter", 13.0);
+    silk_label(ui.painter(), at(SIGNATURE_X, SIGNATURE_CAPTION_Y), "Meter", 13.0);
     if let Some(step) = stepper(
         ui,
-        at(STEPPERS_X, SIGNATURE_Y),
+        at(SIGNATURE_X, SIGNATURE_Y),
         SIGNATURE_WIDTH,
         signature.name(),
         "metronome-meter",
@@ -1389,6 +1409,15 @@ fn metronome(
         stepper(ui, at(STEPPERS_X, SOUND_Y), SOUND_WIDTH, sound.name(), "metronome-sound")
     {
         set(setter, &params.metronome_sound, neighbour(&Sound::ALL, sound, step));
+    }
+
+    // Where the click is heard: with the amp, or alone on the "Metronome" output
+    let out = params.metronome_out.value();
+    silk_label(ui.painter(), at(CLICK_OUT_X, SIGNATURE_CAPTION_Y), "Click out", 13.0);
+    if let Some(step) =
+        stepper(ui, at(CLICK_OUT_X, SIGNATURE_Y), OUT_WIDTH, out.name(), "metronome-out")
+    {
+        set(setter, &params.metronome_out, neighbour(&ClickOut::ALL, out, step));
     }
 
     // The click's volume
@@ -1581,7 +1610,7 @@ mod tests {
         harness_of(&params, &setter, Some(81.0), |_| {}).snapshot("tuner");
     }
 
-    // The metronome running: its lamp dim between beats, Sync on, six eighths and the Click
+    // The metronome running: its lamp dim between beats, Sync on, six eighths, the Click and its output apart
     #[test]
     #[cfg(target_os = "linux")]
     fn test_the_metronome_looks_as_it_did() {
@@ -1590,6 +1619,8 @@ mod tests {
             metronome_sync: BoolParam::new("Metronome Sync", true),
             metronome_time_sig: EnumParam::new("Metronome Time Signature", TimeSignature::SixEight),
             metronome_sound: EnumParam::new("Metronome Sound", Sound::Click),
+            // The longer of the click output's two names, the one that must fit its tape
+            metronome_out: EnumParam::new("Metronome Output", ClickOut::Separate),
             ..GuitarAmpParams::default()
         };
         let host = NoHost;
@@ -1708,17 +1739,31 @@ mod tests {
                 TEMPO_X + stepper_reach(TEMPO_WIDTH),
             ),
             ("Tap", TAP_X - SAVE_REACH, TAP_X + SAVE_REACH),
-            (
-                "the steppers",
-                STEPPERS_X - stepper_reach(SOUND_WIDTH),
-                STEPPERS_X + stepper_reach(SOUND_WIDTH),
-            ),
+            ("the steppers", STEPPERS_X - COLUMN_WIDTH / 2.0, STEPPERS_X + COLUMN_WIDTH / 2.0),
             ("the volume", CLICK_VOLUME.x - CLICK_REACH, CLICK_VOLUME.x + CLICK_REACH),
             ("Sync", METRONOME_SYNC_X - SAVE_REACH, METRONOME_SYNC_X + SAVE_REACH),
             ("the output knob", OUTPUT_KNOB.x - KNOB_REACH, OUTPUT_KNOB.x + KNOB_REACH),
         ]);
         // The narrower stepper is inside the column the wider one makes
         const { assert!(SIGNATURE_WIDTH < SOUND_WIDTH) };
+        // Under the sound, the meter and the click's output side by side, clear of each other
+        // and inside the column, which the sound's stepper is centred over
+        in_a_row(&[
+            (
+                "the meter",
+                SIGNATURE_X - stepper_reach(SIGNATURE_WIDTH),
+                SIGNATURE_X + stepper_reach(SIGNATURE_WIDTH),
+            ),
+            (
+                "the click's output",
+                CLICK_OUT_X - stepper_reach(OUT_WIDTH),
+                CLICK_OUT_X + stepper_reach(OUT_WIDTH),
+            ),
+        ]);
+        assert!(
+            SIGNATURE_X - stepper_reach(SIGNATURE_WIDTH) >= STEPPERS_X - COLUMN_WIDTH / 2.0 - 0.01
+        );
+        assert!(CLICK_OUT_X + stepper_reach(OUT_WIDTH) <= STEPPERS_X + COLUMN_WIDTH / 2.0 + 0.01);
         // Top to bottom in the column: caption, tape, caption, tape, each clear of the next,
         // all on the strip
         let tape = 11.0;
@@ -1779,8 +1824,9 @@ mod tests {
         );
         assert!((0.0..30.0).contains(&(right - left)), "{left} on the left, {right} on the right");
         // The jack's caption on the left and the logo on the right keep the ends further out than
-        // the gaps, which the metronome's cluster made narrow
-        assert!(most > 30.0 && left < 2.5 * most, "{left} {most}");
+        // the gaps, which the metronome's cluster made narrow, and which the click's output
+        // narrowed again: the window kept its width
+        assert!(most > 30.0 && left < 3.0 * most, "{left} {most}");
     }
 
     #[test]

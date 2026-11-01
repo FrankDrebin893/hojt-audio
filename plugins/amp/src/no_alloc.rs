@@ -171,3 +171,26 @@ fn test_process_with_the_metronome_on_allocates_nothing() {
     };
     host::assert_process_allocates_nothing("Guitar Amp with the metronome", &mut plugin, 200, &[]);
 }
+
+/// The click on its own output: `process` is given the "Metronome" pair by the test host,
+/// writes the click there and the amp alone to the main output, and allocates nothing
+#[test]
+fn test_process_with_the_click_on_its_own_output_allocates_nothing() {
+    use crate::metronome::ClickOut;
+    use nih_plug::prelude::{BoolParam, EnumParam, Plugin};
+    let mut plugin = GuitarAmpPlugin {
+        params: std::sync::Arc::new(crate::GuitarAmpParams {
+            metronome_on: BoolParam::new("Metronome", true),
+            metronome_out: EnumParam::new("Metronome Output", ClickOut::Separate),
+            ..crate::GuitarAmpParams::default()
+        }),
+        ..GuitarAmpPlugin::default()
+    };
+    assert_eq!(GuitarAmpPlugin::AUDIO_IO_LAYOUTS[0].aux_output_ports.len(), 1);
+    host::assert_process_allocates_nothing(
+        "Guitar Amp with the click apart",
+        &mut plugin,
+        200,
+        &[],
+    );
+}

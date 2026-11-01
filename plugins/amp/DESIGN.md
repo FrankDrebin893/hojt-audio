@@ -164,6 +164,18 @@ The reasons behind choices that the code alone does not explain. What it does is
   practice click, what goes out. The strip's gaps shrank (the window did not grow) and the
   cluster's parts stand closer than the strip's others, so it reads as one thing
 
+- The click's own signal (follows #181: "unaffected by the currently running preset"): presets
+  already never touch the click's settings, so what was left was that the click shared the main
+  output with the amp. It now can have an output of its own, `metronome_out`: Mixed (default,
+  nothing changes) or Separate, on an auxiliary stereo output `Metronome` that the DAW routes by
+  itself, with the main output the amp alone. Decided without asking: a switch and not a
+  second plugin or always-on aux, because a host that cannot use aux outputs keeps working;
+  Separate falls back to mixing where there is no such output (the standalone program), because
+  a click you cannot hear is worse than one in the wrong place. Not a channel pair of the
+  main output: a host would have to route the amp's own pair to the same place. The stepper
+  stands under the sound beside the meter, because the column had no room for a third row
+  without growing the strip; the strip's gaps gave up 10.5 points each instead
+
 ## Look
 
 - The strip has 50 px small footswitches with the LED beside the switch; its band tilts -1.5
