@@ -3,6 +3,15 @@ name Hojt Guitar Amp
 clap com.guitarpitchshifter.guitar-amp
 vst3 HojtGuitarAmp003
 param amp
+param amp2
+param amp2_bass
+param amp2_gain
+param amp2_master
+param amp2_mid
+param amp2_on
+param amp2_presence
+param amp2_treble
+param amp_blend
 param bass
 param bypass
 param cab_mic
@@ -52,6 +61,7 @@ param trem_on
 param trem_rate
 param tuner
 persist amp-dials
+persist amp2-dials
 persist cabinet
 persist chain-order
 persist editor-state-rig5

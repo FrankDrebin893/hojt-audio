@@ -20,6 +20,9 @@ use crate::mods::phaser::{Phaser, PhaserSettings};
 use crate::mods::tremolo::{Tremolo, TremoloSettings};
 use crate::order::{ChainOrder, Pedal, Zone};
 use crate::reverb::{Reverb, ReverbSettings};
+#[cfg(test)]
+use crate::second::BLEND_LAW;
+use crate::second::{Second, SecondSettings, Timing};
 use crate::tuner::{Tuner, TunerReading};
 use std::sync::Arc;
 
@@ -116,6 +119,12 @@ pub struct AmpSettings {
     pub presence: f32,
     pub master: f32,
 
+    /// The second amp, which plays beside the first one behind the same front pedals and
+    /// through its own cabinet, and the share of it in the mix: 0.0 is the first amp alone,
+    /// 1.0 the second alone. With the second amp off the blend is not heard
+    pub second: SecondSettings,
+    pub blend: f32,
+
     /// The modulation pedals. They smooth their own settings
     pub chorus: ChorusSettings,
     pub phaser: PhaserSettings,
@@ -167,6 +176,8 @@ impl Default for AmpSettings {
             treble: 0.5,
             presence: 0.5,
             master: 0.5,
+            second: SecondSettings::default(),
+            blend: 0.5,
             chorus: ChorusSettings::default(),
             phaser: PhaserSettings::default(),
             flanger: FlangerSettings::default(),
@@ -294,6 +305,8 @@ pub struct AmpChain {
     tone: ToneStack,
     power: PowerAmp,
     cabinet: Cabinet,
+    // The second amp with its own cabinet, run only while it is switched on
+    second: Second,
     // Every cabinet designed here, when the sample rate is set: the amps' own in the order
     // of `Amp::ALL`, then the built-in ones of `SPEAKERS` (`cab_ir_index`)
     cab_irs: Vec<CabIr>,
@@ -388,6 +401,7 @@ impl AmpChain {
             tone: ToneStack::new(),
             power: PowerAmp::new(),
             cabinet: Cabinet::new(),
+            second: Second::new(),
             cab_irs: Vec::new(),
             cab_stage: Arc::new(CabStage::new()),
             playing: Playing::Own,
@@ -459,8 +473,14 @@ impl AmpChain {
         // the stage again for this one. Until then the amp plays through its own
         self.cabinet.set_ir(&self.cab_irs[self.amp.index()]);
         self.playing = Playing::Own;
+        self.second.set_sample_rate(
+            sample_rate,
+            self.factor,
+            &self.cab_irs[self.second.amp.index()],
+        );
 
         self.configure_amp();
+        self.second.configure(self.oversampled_rate());
         self.reset();
     }
 
@@ -557,6 +577,46 @@ impl AmpChain {
         // from where the old amp had them. Nothing of the amp is heard at this sample
         self.dials.arrive_at_amp_dials(&self.dial_target);
         self.apply_dials(true);
+    }
+
+    /// The second amp's counterpart of `follow_amp`, and puts its stages to rest once it is
+    /// switched off and has faded out. Does not allocate. Its cabinet is always its own amp's
+    fn follow_second(&mut self) {
+        if !self.second.runs() && !self.second.at_rest {
+            self.second.reset_stages();
+            self.second.amp_fade = self.amp_fade_len;
+            self.second.cabinet_busy = 0;
+        }
+        if self.second.wanted_amp == self.second.amp {
+            return;
+        }
+        // Nothing of the second amp is heard before the first block, while bypassed and
+        // while it is faded out
+        let unheard = !self.primed || self.wet == 0.0 || self.second.on_fade == 0;
+        let silent = self.second.amp_fade == 0 && self.second.cabinet_busy == 0;
+        if !unheard && !silent {
+            return;
+        }
+
+        self.second.amp = self.second.wanted_amp;
+        let ir = &self.cab_irs[self.second.amp.index()];
+        if unheard {
+            self.second.cabinet.set_ir(ir);
+            self.second.amp_fade = self.amp_fade_len;
+        } else {
+            debug_assert!(!self.second.cabinet.is_swapping());
+            self.second.cabinet.swap_ir(ir);
+            self.second.cabinet_busy = self.second.cabinet.swap_len();
+        }
+        self.second.configure(self.oversampled_rate());
+        self.second.reset_amp_stages();
+        if self.second.runs() {
+            // The new amp starts where the dials are going, not on the way there from where
+            // the old amp had them. Nothing of it is heard at this sample
+            self.second.dials = self.second.target;
+            self.second.at_rest = false;
+            self.apply_second_dials(true);
+        }
     }
 
     /// Takes the cabinet that was left on the stage, if there is one and the cabinet is
@@ -678,6 +738,10 @@ impl AmpChain {
         self.reset_amp_stages();
         self.cabinet.reset();
         self.cab_voicing.reset();
+        self.second.reset_stages();
+        self.second.on_fade = 0;
+        self.second.amp_fade = self.amp_fade_len;
+        self.second.cabinet_busy = 0;
         self.dc.reset();
         // An idle effect has nothing left to be heard already. Clearing its lines would
         // only cost time, and this is also called on the audio thread, when Bypass has faded
@@ -725,6 +789,7 @@ impl AmpChain {
         mut right: Option<&mut [f32]>,
     ) {
         self.wanted_amp = settings.amp;
+        self.second.wanted_amp = settings.second.amp;
         self.mic_type = settings.mic_type;
         let wet_target = if settings.bypass { 0.0 } else { 1.0 };
         if !self.primed {
@@ -737,6 +802,7 @@ impl AmpChain {
             self.follow_amp();
             self.follow_order();
             self.follow_cabinet();
+            self.follow_second();
             if self.until_tick == 0 {
                 self.read_dials(settings);
                 self.until_tick = CHUNK;
@@ -751,6 +817,17 @@ impl AmpChain {
                     len = len.min(wait);
                 }
             }
+            if self.second.wanted_amp != self.second.amp && self.second.on_fade > 0 {
+                // And likewise for the second amp, while it is heard
+                let wait = if self.second.amp_fade > 0 {
+                    self.second.amp_fade as usize
+                } else {
+                    self.second.cabinet_busy
+                };
+                if wait > 0 {
+                    len = len.min(wait);
+                }
+            }
             if self.wanted_order != self.order && self.order_fade > 0 {
                 // Likewise where the output has faded to silence for another order
                 len = len.min(self.order_fade as usize);
@@ -759,6 +836,7 @@ impl AmpChain {
             let right_chunk = right.as_deref_mut().map(|right| &mut right[start..end]);
             self.process_chunk(wet_target, &mut left[start..end], right_chunk);
             self.cabinet_busy = self.cabinet_busy.saturating_sub(len);
+            self.second.cabinet_busy = self.second.cabinet_busy.saturating_sub(len);
             self.until_tick -= len;
             start = end;
         }
@@ -842,7 +920,50 @@ impl AmpChain {
             self.cab_mix.snap();
         }
         self.apply_dials(jump);
+        self.read_second(settings, jump);
         self.primed = true;
+    }
+
+    /// Reads the second amp's switch, dials and the Blend dial with the others. It is only
+    /// worked on while it is heard: switched on, or fading out
+    fn read_second(&mut self, settings: &AmpSettings, jump: bool) {
+        self.second.wanted_on = settings.second.on;
+        self.second.target = settings.second.dials();
+        let blend = settings.blend.clamp(0.0, 1.0);
+        self.second.blend.set_target(blend, CHUNK as u32);
+        if jump {
+            // Nothing is heard of it while bypassed, or before the first block
+            self.second.on_fade = if self.second.wanted_on { self.amp_fade_len } else { 0 };
+        }
+        // The stages follow the first amp's drive pedal like the first amp's own
+        self.second.preamp.set_driven(settings.drive_on, self.drive.fade_steps());
+        self.second.power.set_driven(settings.drive_on, self.drive.fade_steps());
+        if !self.second.runs() {
+            self.second.dials = self.second.target;
+            self.second.blend.snap();
+            return;
+        }
+        // Coming from rest the dials start where they are going
+        let starting = self.second.at_rest;
+        if jump || starting {
+            self.second.dials = self.second.target;
+            self.second.blend.snap();
+        } else {
+            self.second.approach(self.dial_coeff, DIAL_SETTLED);
+        }
+        self.second.at_rest = false;
+        self.apply_second_dials(jump || starting);
+    }
+
+    fn apply_second_dials(&mut self, snap: bool) {
+        let cab_dials = [self.dials.cab_mic, self.dials.cab_res];
+        let timing = Timing {
+            oversampled_rate: self.oversampled_rate(),
+            sample_rate: self.sample_rate,
+            oversampled_chunk: self.oversampled_chunk(),
+            chunk: CHUNK as u32,
+        };
+        self.second.apply_dials(snap, timing, cab_dials, self.mic_type);
     }
 
     /// Passes the amp's own dials on to its stages and its cabinet, as the amp they are set
@@ -909,23 +1030,42 @@ impl AmpChain {
         }
     }
 
-    /// The cabinet with its dials, or the amp's own signal, or on the way between the two.
-    /// The cabinet always runs, so it has its history when it is switched back on
-    fn process_cabinet(&mut self, block: &mut [f32]) {
+    /// The share of the cabinet in what follows it for each sample of a piece of `len`:
+    /// 1.0 on, 0.0 the amp's own signal. None while it is all cabinet, which is what runs
+    /// when nothing is switched
+    fn cabinet_shares(&mut self, len: usize) -> Option<[f32; CHUNK]> {
         let all_cabinet = self.cab_mix.value() == 1.0 && self.cab_mix.target() == 1.0;
+        if all_cabinet {
+            return None;
+        }
+        let mut shares = [1.0f32; CHUNK];
+        for share in &mut shares[..len] {
+            *share = self.cab_mix.next();
+        }
+        Some(shares)
+    }
+
+    /// A cabinet with its dials, or the amp's own signal, or on the way between the two.
+    /// The cabinet always runs, so it has its history when it is switched back on
+    fn run_cabinet(
+        cabinet: &mut Cabinet,
+        voicing: &mut CabVoicing,
+        shares: Option<&[f32; CHUNK]>,
+        block: &mut [f32],
+    ) {
         let mut direct = [0.0f32; CHUNK];
-        if !all_cabinet {
+        if shares.is_some() {
             direct[..block.len()].copy_from_slice(block);
         }
 
-        self.cabinet.process(block);
-        self.cab_voicing.process(block);
+        cabinet.process(block);
+        voicing.process(block);
 
-        if !all_cabinet {
+        if let Some(shares) = shares {
             let direct_gain = db_to_gain(CAB_OFF_DB);
-            for (sample, &direct) in block.iter_mut().zip(&direct) {
+            for ((sample, &direct), &share) in block.iter_mut().zip(&direct).zip(shares) {
                 let direct = direct * direct_gain;
-                *sample = direct + self.cab_mix.next() * (*sample - direct);
+                *sample = direct + share * (*sample - direct);
             }
         }
     }
@@ -997,13 +1137,50 @@ impl AmpChain {
                 Pedal::Delay | Pedal::Reverb => {}
             }
         }
+        // The second amp hears what the first one hears
+        let second_runs = self.second.runs();
+        let mut second_high = [0.0f32; OVERSAMPLED_CHUNK];
+        if second_runs {
+            second_high[..high.len()].copy_from_slice(high);
+        }
         self.preamp.process(high);
         self.tone.process(high);
         self.power.process(high);
         self.oversampler.downsample(high, &mut signal[..len]);
 
         self.fade_amp(&mut signal[..len]);
-        self.process_cabinet(&mut signal[..len]);
+        let shares = self.cabinet_shares(len);
+        Self::run_cabinet(
+            &mut self.cabinet,
+            &mut self.cab_voicing,
+            shares.as_ref(),
+            &mut signal[..len],
+        );
+
+        // The second amp plays beside the first one, from the same pedals, and is mixed in
+        // behind the cabinets, so both reach what follows on time. The Blend law is between
+        // linear and equal power (`second::BLEND_LAW`). At Blend 0 and 1 one share is exactly
+        // 1 and the other 0
+        if second_runs {
+            let high_second = &mut second_high[..len * self.factor];
+            self.second.preamp.process(high_second);
+            self.second.tone.process(high_second);
+            self.second.power.process(high_second);
+            let mut second_signal = [0.0f32; CHUNK];
+            self.second.down.downsample(high_second, &mut second_signal[..len]);
+            self.second.fade_amp(&mut second_signal[..len], self.amp_fade_len);
+            Self::run_cabinet(
+                &mut self.second.cabinet,
+                &mut self.second.voicing,
+                shares.as_ref(),
+                &mut second_signal[..len],
+            );
+            for (sample, &second) in signal[..len].iter_mut().zip(&second_signal) {
+                let weight = self.second.weight(self.amp_fade_len);
+                let [first_gain, second_gain] = self.second.gains(weight);
+                *sample = *sample * first_gain + second * second_gain;
+            }
+        }
 
         // Two channels from here on. The effects add to what they are given and leave the
         // amp's own signal as it is, on time. Both are called whether they are on or not:
@@ -1300,6 +1477,7 @@ mod tests {
         layout
             .extend(chain.cab_irs.iter().map(|ir| (ir.taps.as_ptr() as usize, ir.taps.capacity())));
         layout.extend(chain.cabinet.buffers());
+        layout.extend(chain.second.cabinet.buffers());
         layout.extend(chain.cab_stage.buffer());
         layout.extend(chain.delay.buffers());
         layout.extend(chain.reverb.buffers());
@@ -6218,6 +6396,22 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
             }
             println!();
         }
+        // The second amp on beside it: Klar at Gain 10, Blend 0.5
+        let dual_settings =
+            dual_dials(dual(profile_settings, Amp::Klar, 0.5), [1.0, 0.5, 0.5, 0.5, 0.5, 0.5]);
+        print!("{:<10}", "whole, 2");
+        for (sample_rate, _, _) in &profile {
+            let chords = power_chords(*sample_rate, 2.0);
+            let mut chain = new_chain(*sample_rate);
+            run_stereo_blocks(&mut chain, &dual_settings, &chords, BLOCK);
+            let ns = (0..3)
+                .map(|_| block_time_stereo_us(&mut chain, &dual_settings, &chords))
+                .fold(f64::MAX, f64::min)
+                * 1000.0
+                / BLOCK as f64;
+            print!("{:>8.1} ns{:>6.2} %", ns, share(ns, *sample_rate));
+        }
+        println!("   (the second amp on beside the first)");
     }
 
     /// A guitar through `amp` at `gain` and one of the built-in cabinets
@@ -6465,5 +6659,392 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
         }
 
         println!("Wrote renders to {}", dir.display());
+    }
+
+    // The second amp
+
+    /// `base` with the second amp on as `second`, at `blend`
+    fn dual(base: AmpSettings, second: Amp, blend: f32) -> AmpSettings {
+        AmpSettings {
+            second: SecondSettings { on: true, amp: second, ..SecondSettings::default() },
+            blend,
+            ..base
+        }
+    }
+
+    /// The second amp's dials set to `dials`, as the first amp's are
+    fn dual_dials(settings: AmpSettings, dials: [f32; 6]) -> AmpSettings {
+        let [gain, bass, mid, treble, presence, master] = dials;
+        AmpSettings {
+            second: SecondSettings { gain, bass, mid, treble, presence, master, ..settings.second },
+            ..settings
+        }
+    }
+
+    /// The first amp's dials, as a list
+    fn first_dials(settings: &AmpSettings) -> [f32; 6] {
+        [
+            settings.gain,
+            settings.bass,
+            settings.mid,
+            settings.treble,
+            settings.presence,
+            settings.master,
+        ]
+    }
+
+    /// The single amp that the second one of `settings` plays alone
+    fn second_alone(settings: &AmpSettings) -> AmpSettings {
+        let [gain, bass, mid, treble, presence, master] = settings.second.dials();
+        AmpSettings {
+            amp: settings.second.amp,
+            gain,
+            bass,
+            mid,
+            treble,
+            presence,
+            master,
+            second: SecondSettings::default(),
+            ..*settings
+        }
+    }
+
+    /// Every pedal on, effects too: the second amp's mix goes through all of them
+    fn busy(amp: Amp, gain: f32) -> AmpSettings {
+        with_default_effects(everything_on(amp, gain))
+    }
+
+    const RATES: [f32; 3] = [44100.0, 48000.0, 96000.0];
+
+    #[test]
+    fn test_second_amp_off_leaves_nothing_of_itself_in_the_sound() {
+        // Whatever its amp, dials and Blend say, the second amp switched off changes not a
+        // bit: its stages are not run
+        let input = power_chords(SAMPLE_RATE, 0.6);
+        for rate in RATES {
+            for amp in [Amp::Torden, Amp::Klar, Amp::Dron] {
+                let plain = busy(amp, 0.7);
+                let reference = run_stereo(&plain, &input, rate);
+                let moved = AmpSettings {
+                    second: SecondSettings {
+                        on: false,
+                        amp: Amp::Torden,
+                        gain: 0.9,
+                        bass: 0.1,
+                        ..SecondSettings::default()
+                    },
+                    blend: 0.93,
+                    ..plain
+                };
+                assert!(run_stereo(&moved, &input, rate) == reference, "{amp:?} at {rate}");
+            }
+        }
+    }
+
+    #[test]
+    fn test_second_amp_switched_off_again_is_at_rest() {
+        let input = power_chords(SAMPLE_RATE, 1.0);
+        let mut chain = new_chain(SAMPLE_RATE);
+        let on = dual(busy(Amp::Torden, 0.7), Amp::Klar, 0.5);
+        let off = AmpSettings { second: SecondSettings { on: false, ..on.second }, ..on };
+        run_blocks(&mut chain, &on, &input, BLOCK);
+        assert!(chain.second.runs());
+        run_blocks(&mut chain, &off, &input, BLOCK);
+        assert!(!chain.second.runs() && chain.second.at_rest);
+    }
+
+    #[test]
+    fn test_blend_zero_is_the_first_amp_alone_and_blend_one_the_second_alone() {
+        let input = power_chords(SAMPLE_RATE, 0.6);
+        for rate in RATES {
+            for (first, second) in [
+                (Amp::Torden, Amp::Klar),
+                (Amp::Glod, Amp::Sang),
+                (Amp::Brol, Amp::Glod),
+                (Amp::Dron, Amp::Sang),
+                (Amp::Klar, Amp::Dron),
+            ] {
+                let both = dual_dials(
+                    dual(busy(first, 0.7), second, 0.0),
+                    [0.3, 0.6, 0.4, 0.55, 0.7, 0.45],
+                );
+                // The other path still runs, so that its tail is ready
+                let first_alone = AmpSettings { second: SecondSettings::default(), ..both };
+                assert!(
+                    run_stereo(&both, &input, rate) == run_stereo(&first_alone, &input, rate),
+                    "{first:?} + {second:?} at blend 0, {rate} Hz"
+                );
+                let only_second = AmpSettings { blend: 1.0, ..both };
+                assert!(
+                    run_stereo(&only_second, &input, rate)
+                        == run_stereo(&second_alone(&only_second), &input, rate),
+                    "{first:?} + {second:?} at blend 1, {rate} Hz"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_the_same_amp_twice_is_that_amp_at_any_blend() {
+        // Both slots share the oversampler's latency and the cabinet's, so two equal amps
+        // add up in phase: that amp, no comb, at the gain of the law (the two shares of an
+        // equal-power blend add to more than one when the signals are the same)
+        let input = at_rms_db(&power_chords(SAMPLE_RATE, 0.6), -36.0);
+        for rate in RATES {
+            for amp in [Amp::Torden, Amp::Klar] {
+                let single = everything_on(amp, 0.6);
+                for blend in [0.1, 0.25, 0.5, 0.75, 0.9] {
+                    // Quiet enough that nothing rounds off: the effects are linear there,
+                    // so the output is the amp's, turned up by the law's gain
+                    let gain = (1.0f32 - blend).powf(BLEND_LAW) + blend.powf(BLEND_LAW);
+                    let reference =
+                        run_stereo(&AmpSettings { out_level: 0.4 * gain, ..single }, &input, rate);
+                    let top = peak(&reference.0).max(peak(&reference.1));
+                    let both = AmpSettings {
+                        out_level: 0.4,
+                        ..dual_dials(dual(single, amp, blend), first_dials(&single))
+                    };
+                    let output = run_stereo(&both, &input, rate);
+                    let off = largest_difference(&output.0, &reference.0)
+                        .max(largest_difference(&output.1, &reference.1));
+                    assert!(
+                        off < 1e-5 * top,
+                        "{amp:?} twice at blend {blend}, {rate} Hz: off by {off} of {top}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_dual_output_does_not_depend_on_block_size() {
+        let input = power_chords(SAMPLE_RATE, 0.3);
+        let settings = dual_dials(
+            dual(busy(Amp::Torden, 0.7), Amp::Klar, 0.4),
+            [0.35, 0.45, 0.45, 0.55, 0.55, 0.5],
+        );
+        let reference = run_blocks(&mut new_chain(SAMPLE_RATE), &settings, &input, input.len());
+        for block in [1, 7, 32, 64, 1000] {
+            let output = run_blocks(&mut new_chain(SAMPLE_RATE), &settings, &input, block);
+            let off = largest_difference(&reference, &output);
+            assert!(off < 1e-5, "in blocks of {block}: off by {off}");
+        }
+    }
+
+    /// How much steeper than its own the output is around sample `at`, where `before`
+    /// changes to `after`
+    fn click_of(before: &AmpSettings, after: &AmpSettings, input: &[f32], at: usize) -> f32 {
+        step_ratio(&run_change(before, after, input, at), at)
+    }
+
+    /// Pairs the clicks are tried on: heavy and clean either way round, and others
+    const DUAL_PAIRS: [(Amp, Amp); 4] = [
+        (Amp::Torden, Amp::Klar),
+        (Amp::Klar, Amp::Torden),
+        (Amp::Glod, Amp::Sang),
+        (Amp::Brol, Amp::Dron),
+    ];
+
+    #[test]
+    fn test_switching_the_second_amp_on_and_off_does_not_click() {
+        let input = power_chords(SAMPLE_RATE, 2.0);
+        let at = 300 * BLOCK;
+        for (first, second) in DUAL_PAIRS {
+            for pedals in [with_amp(first, 0.6), busy(first, 0.6)] {
+                let alone = pedals;
+                let both = dual(pedals, second, 0.5);
+                let limit = from_rest(second).max(1.35);
+                let on = click_of(&alone, &both, &input, at);
+                assert!(on < limit, "{first:?} + {second:?} switched on: {on} times its own");
+                let off = click_of(&both, &alone, &input, at);
+                assert!(off < limit, "{first:?} + {second:?} switched off: {off} times its own");
+            }
+        }
+    }
+
+    #[test]
+    fn test_switching_the_second_amp_does_not_click() {
+        let input = power_chords(SAMPLE_RATE, 2.0);
+        let at = 300 * BLOCK;
+        for (from, to) in transitions() {
+            let base = busy(Amp::Torden, 0.6);
+            let ratio = click_of(&dual(base, from, 0.5), &dual(base, to, 0.5), &input, at);
+            assert!(ratio < from_rest(to).max(1.35), "{from:?} to {to:?}: {ratio} times its own");
+        }
+    }
+
+    #[test]
+    fn test_switching_the_second_amp_with_its_dials_jumping_does_not_click() {
+        // The editor turns all six dials along with the selector
+        let input = power_chords(SAMPLE_RATE, 2.0);
+        let at = 300 * BLOCK;
+        let base = busy(Amp::Torden, 0.6);
+        for (from, to) in [(Amp::Klar, Amp::Dron), (Amp::Dron, Amp::Klar), (Amp::Glod, Amp::Sang)] {
+            let before = dual_dials(dual(base, from, 0.5), [0.3; 6]);
+            let after = dual_dials(dual(base, to, 0.5), [0.8, 0.2, 0.7, 0.4, 0.6, 0.5]);
+            let ratio = click_of(&before, &after, &input, at);
+            assert!(ratio < after_a_jump(to).max(1.35), "{from:?} to {to:?}: {ratio}");
+        }
+    }
+
+    #[test]
+    fn test_the_second_amp_switched_to_ends_up_as_that_amp_itself() {
+        let input = power_chords(SAMPLE_RATE, 2.0);
+        let at = 300 * BLOCK;
+        let base = everything_on(Amp::Torden, 0.6);
+        for (from, to) in [(Amp::Klar, Amp::Dron), (Amp::Sang, Amp::Klar)] {
+            let switched = run_change(&dual(base, from, 1.0), &dual(base, to, 1.0), &input, at);
+            let reference = run(&second_alone(&dual(base, to, 1.0)), &input, SAMPLE_RATE);
+            let settled = input.len() - 24_000;
+            let off = largest_difference(&switched[settled..], &reference[settled..]);
+            assert!(off < 0.01 * rms(&reference[settled..]), "{from:?} to {to:?}: off by {off}");
+        }
+    }
+
+    #[test]
+    fn test_the_blend_moves_without_a_click() {
+        let input = power_chords(SAMPLE_RATE, 2.0);
+        let at = 300 * BLOCK;
+        for (first, second) in DUAL_PAIRS {
+            let base = busy(first, 0.6);
+            for (from, to) in [(0.0, 1.0), (1.0, 0.0), (0.2, 0.8), (0.5, 0.0), (0.5, 1.0)] {
+                let ratio =
+                    click_of(&dual(base, second, from), &dual(base, second, to), &input, at);
+                assert!(
+                    ratio < 1.3,
+                    "{first:?} + {second:?}, Blend {from} to {to}: {ratio} times its own"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_the_second_amp_does_not_allocate() {
+        let layout = buffer_layout;
+        for sample_rate in [44100.0, 192000.0] {
+            let mut chain = new_chain(sample_rate);
+            let before = layout(&chain);
+            let mut block = sine(220.0, 0.2, sample_rate, 96_000);
+            for (index, piece) in block.chunks_mut(BLOCK).enumerate() {
+                let settings = AmpSettings {
+                    second: SecondSettings {
+                        on: (index / 17) % 3 != 0,
+                        amp: Amp::ALL[(index / 40) % Amp::ALL.len()],
+                        ..SecondSettings::default()
+                    },
+                    ..with_amp(Amp::ALL[(index / 55) % Amp::ALL.len()], 0.5)
+                };
+                chain.process(&settings, piece, None);
+            }
+            assert_eq!(layout(&chain), before);
+        }
+    }
+
+    #[test]
+    fn test_the_second_amp_uses_its_own_cabinet_and_the_cabinet_dials_act_on_both() {
+        // Klar through Torden's cabinet is not Klar through its own: each plays its own
+        let input = power_chords(SAMPLE_RATE, 0.6);
+        let heavy = dual(with_amp(Amp::Torden, 0.7), Amp::Klar, 1.0);
+        let klar = run(&with_amp(Amp::Klar, 0.5), &input, SAMPLE_RATE);
+        let output = run(&heavy, &input, SAMPLE_RATE);
+        assert!(largest_difference(&output, &klar) < 1e-6 * peak(&klar).max(1.0));
+
+        // Mic and Cab Off reach the second amp: at Blend 1 they move its sound as they do
+        // the first amp's
+        for tweak in [
+            AmpSettings { cab_mic: 0.9, ..heavy },
+            AmpSettings { cab_res: 0.1, ..heavy },
+            AmpSettings { mic_type: MicType::Close, ..heavy },
+            AmpSettings { cab_on: false, ..heavy },
+        ] {
+            let both = run(&tweak, &input, SAMPLE_RATE);
+            let alone = run(&second_alone(&tweak), &input, SAMPLE_RATE);
+            assert!(both == alone);
+            assert!(largest_difference(&both, &output) > 0.01 * peak(&output));
+        }
+    }
+
+    /// The pairs of amps the blend is measured on: heavy with clean, and others
+    const BLEND_PAIRS: [(Amp, Amp); 5] = [
+        (Amp::Torden, Amp::Klar),
+        (Amp::Glod, Amp::Sang),
+        (Amp::Brol, Amp::Glod),
+        (Amp::Dron, Amp::Sang),
+        (Amp::Klar, Amp::Dron),
+    ];
+    /// The first amp of a pair at its default dials, except that Torden's Master is a
+    /// little up: it is heard 1.8 LU under the other amps at the centre of every dial
+    fn levelled(amp: Amp) -> AmpSettings {
+        let master = if amp == Amp::Torden { 0.53 } else { 0.5 };
+        AmpSettings { master, ..with_amp(amp, 0.5) }
+    }
+
+    const BLENDS: [f32; 5] = [0.0, 0.25, 0.5, 0.75, 1.0];
+
+    /// How loud the pair is heard at each of `blends` with the guitar at the reference
+    /// level, in LUFS, and the highest peak of chords at that level over all of them
+    fn blend_loudness(first: Amp, second: Amp, blends: &[f32]) -> (Vec<f32>, f32) {
+        let recording = at_rms_db(&guitar_di(SAMPLE_RATE), REFERENCE_DI_DB);
+        let chords = at_rms_db(&power_chords(SAMPLE_RATE, 2.0), REFERENCE_DI_DB);
+        let mut top = 0.0f32;
+        let heard = blends
+            .iter()
+            .map(|&blend| {
+                let settings = dual(levelled(first), second, blend);
+                top = top.max(peak(&run(&settings, &chords, SAMPLE_RATE)));
+                loudness_lufs(&[&run(&settings, &recording, SAMPLE_RATE)], SAMPLE_RATE)
+            })
+            .collect();
+        (heard, top)
+    }
+
+    #[test]
+    fn test_blended_pairs_stay_level_and_under_the_safety_clip() {
+        for (first, second) in BLEND_PAIRS {
+            let (heard, top) = blend_loudness(first, second, &BLENDS);
+            // The middle of the blend is about as loud as any amp of the suite is heard
+            assert!(
+                (heard[2] - (-13.0)).abs() < 2.0,
+                "{first:?} + {second:?} at Blend 0.5 is at {:.1} LUFS",
+                heard[2]
+            );
+            assert!(
+                top < OUTPUT_CLIP_KNEE,
+                "{first:?} + {second:?} peaks at {top} over the safety clip's knee"
+            );
+        }
+        // Heavy and clean: no dip or bulge across the useful part of the dial
+        let blends = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8];
+        let (heard, _) = blend_loudness(Amp::Torden, Amp::Klar, &blends);
+        let (lowest, highest) =
+            heard.iter().fold((f32::MAX, f32::MIN), |(lo, hi), &lufs| (lo.min(lufs), hi.max(lufs)));
+        assert!(highest - lowest < 1.0, "Torden + Klar from Blend 0.2 to 0.8: {heard:?}");
+    }
+
+    /// Loudness of the pairs of amps across the Blend dial, so a dip from the two amps'
+    /// phase responses cancelling, or a bulge from summing, shows before anyone listens:
+    /// cargo test -p amp --release blend_report -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn blend_report() {
+        println!(
+            "\nLoudness in LUFS of the left channel, guitar recorded at {REFERENCE_DI_DB} dBFS RMS"
+        );
+        println!(
+            "{:<16} {:>8}{:>8}{:>8}{:>8}{:>8}   {:>9}",
+            "pair", "0", "0.25", "0.5", "0.75", "1", "peak dBFS"
+        );
+        for (first, second) in BLEND_PAIRS {
+            let (heard, top) = blend_loudness(first, second, &BLENDS);
+            let name = format!("{first:?} + {second:?}");
+            print!("{name:<16}");
+            for lufs in &heard {
+                print!("{lufs:>8.1}");
+            }
+            println!("   {:>9.1}", to_db(top));
+        }
+        let blends = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8];
+        let (heard, _) = blend_loudness(Amp::Torden, Amp::Klar, &blends);
+        println!("Torden + Klar, Blend 0.2 to 0.8 in steps of 0.1: {heard:.1?}");
     }
 }
