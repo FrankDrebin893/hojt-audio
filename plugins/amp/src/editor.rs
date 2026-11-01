@@ -29,6 +29,9 @@ use crate::user_cab;
 use crate::user_presets::{self, Bank};
 use crate::{Amp, GuitarAmpParams, GuitarAmpPlugin, Task};
 
+#[cfg(test)]
+mod explore;
+
 const WINDOW_WIDTH: u32 = crate::board::WINDOW_WIDTH;
 const WINDOW_HEIGHT: u32 = 650;
 
@@ -407,6 +410,10 @@ impl Pedals<'_> {
     /// picked, and the cabinet it stands on, as tall as the pedals and looking as the cabinet
     /// that plays. Returns where the cables go in and out
     pub(crate) fn stack(&self, ui: &mut Ui, top_left: Pos2) -> Jacks {
+        #[cfg(test)]
+        if let Ok(variant) = std::env::var("EXPLORE") {
+            return explore::stack(self, ui, top_left, &variant);
+        }
         let (params, setter) = (self.params, self.setter);
         let amp_shown = params.amp.value();
         let look = looks::look(amp_shown);
@@ -1520,6 +1527,19 @@ mod tests {
     // What the editor draws in its window, every parameter at its default, against the
     // picture in tests/snapshots/editor.png. On a change it leaves editor.new.png and
     // editor.diff.png there to look at (see suite_common::ui::snapshot)
+    // The mock-ups of #177's explore step: `EXPLORE=a UPDATE_SNAPSHOTS=1 cargo test -p amp
+    // explore_render -- --ignored`. Not a test of anything
+    #[test]
+    #[ignore]
+    #[cfg(target_os = "linux")]
+    fn explore_render() {
+        let params = GuitarAmpParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let name = format!("explore_{}", std::env::var("EXPLORE").unwrap());
+        harness_of(&params, &setter, None, |_| {}).snapshot(&name);
+    }
+
     #[test]
     #[cfg(target_os = "linux")]
     fn test_the_editor_looks_as_it_did() {
