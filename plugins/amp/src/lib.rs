@@ -40,7 +40,7 @@ use comp::CompSettings;
 use delay::{DelaySettings, FEEDBACK_MAX, TIME_MAX_MS, TIME_MIN_MS};
 use dial_memory::DialMemory;
 use fuzz::FuzzSettings;
-use metronome::{Metronome, MetronomeSettings, Sound, TimeSignature};
+use metronome::{ClickOut, Metronome, MetronomeSettings, Sound, TimeSignature};
 use mods::chorus::{self, ChorusSettings};
 use mods::flanger::{self, FlangerSettings};
 use mods::phaser::{self, PhaserSettings};
@@ -53,6 +53,16 @@ use suite_common::dsp::NoteValue;
 
 // The id of the tuner switch, as in `GuitarAmpParams`
 const TUNER_ID: &str = "tuner";
+
+// The click's own output: one stereo pair, named for the host's routing
+const CLICK_PORT: &[NonZeroU32] = &[new_nonzero_u32(2)];
+const CLICK_PORT_NAME: PortNames = PortNames {
+    layout: None,
+    main_input: None,
+    main_output: None,
+    aux_inputs: &[],
+    aux_outputs: &["Metronome"],
+};
 
 // The note the delay's Time knob picks when Sync is first switched on
 const DELAY_NOTE: NoteValue = NoteValue::DottedEighth;
@@ -314,7 +324,7 @@ pub struct GuitarAmpParams {
     pub tuner_on: BoolParam,
 
     // Metronome: a click for practice, added to the output after the chain. Not part of a
-    // sound, so presets leave all six alone
+    // sound, so presets leave them alone (and the seventh, `metronome_out`, last in the list)
     #[id = "metronome_on"]
     pub metronome_on: BoolParam,
 
@@ -347,6 +357,12 @@ pub struct GuitarAmpParams {
 
     #[id = "pitch_latency"]
     pub pitch_latency: FloatParam,
+
+    // Where the metronome's click is heard. After the others, so every parameter before it
+    // keeps its place for a host that shows them in order; not part of a sound, so presets
+    // leave it alone like the metronome's other six
+    #[id = "metronome_out"]
+    pub metronome_out: EnumParam<ClickOut>,
 }
 
 impl Default for GuitarAmpPlugin {
@@ -571,6 +587,8 @@ impl Default for GuitarAmpParams {
             )
             .with_unit(" ms")
             .with_value_to_string(formatters::v2s_f32_rounded(0)),
+
+            metronome_out: EnumParam::new("Metronome Output", ClickOut::Mixed),
         }
     }
 }
@@ -760,15 +778,21 @@ impl Plugin for GuitarAmpPlugin {
     const EMAIL: &'static str = "";
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
+    // Both layouts carry one more stereo output, "Metronome", for the click when Metronome
+    // Output is Separate. A host that does not use it leaves it off
     const AUDIO_IO_LAYOUTS: &'static [AudioIOLayout] = &[
         AudioIOLayout {
             main_input_channels: NonZeroU32::new(2),
             main_output_channels: NonZeroU32::new(2),
+            aux_output_ports: CLICK_PORT,
+            names: CLICK_PORT_NAME,
             ..AudioIOLayout::const_default()
         },
         AudioIOLayout {
             main_input_channels: NonZeroU32::new(1),
             main_output_channels: NonZeroU32::new(1),
+            aux_output_ports: CLICK_PORT,
+            names: CLICK_PORT_NAME,
             ..AudioIOLayout::const_default()
         },
     ];
@@ -839,7 +863,7 @@ impl Plugin for GuitarAmpPlugin {
     fn process(
         &mut self,
         buffer: &mut Buffer,
-        _aux: &mut AuxiliaryBuffers,
+        aux: &mut AuxiliaryBuffers,
         context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
         if std::mem::take(&mut self.cab_load_due) {
@@ -859,7 +883,9 @@ impl Plugin for GuitarAmpPlugin {
         // The click goes on top of the finished sound: the amp never distorts it, and
         // neither the Output knob nor Bypass changes it. The tuner silences it
         // The host's tempo and place are only asked for while the click follows them
-        let following = self.params.metronome_on.value() && self.params.metronome_sync.value();
+        let following = self.params.metronome_on.value()
+            && self.params.metronome_sync.value()
+            && !self.params.tuner_on.value();
         let (tempo, playing, beats) = if following {
             let transport = context.transport();
             (transport.tempo, transport.playing, transport.pos_beats())
@@ -867,17 +893,43 @@ impl Plugin for GuitarAmpPlugin {
             (None, false, None)
         };
         let metronome = self.params.metronome_settings(tempo, playing, beats);
-        match buffer.as_slice() {
-            [left, right] => self.metronome.process(&metronome, left, Some(&mut **right)),
-            [mono] => self.metronome.process(&metronome, mono, None),
-            _ => {}
+        // Mixed: on top of the amp. Separate: alone on the "Metronome" output, and the main
+        // output is the amp alone. Where the host gives no such output (the standalone
+        // program, or a host that left it off) the click is mixed in, so it is never lost
+        // The standalone program is told apart by the wrapper's own api: its audio backends
+        // declare the aux output and then throw what is written there away, so the output is
+        // not to be trusted there even though it is handed over
+        let separate = self.params.metronome_out.value() == ClickOut::Separate
+            && context.plugin_api() != PluginApi::Standalone;
+        let own = match aux.outputs.first_mut().map(|aux| aux.as_slice()) {
+            Some([left, right, ..]) => Some((&mut **left, &mut **right)),
+            _ => None,
+        };
+        match own {
+            Some((left, right)) if separate => {
+                self.metronome.process_alone(&metronome, left, Some(right));
+            }
+            own => {
+                // A host does not clear an output it is given: silence, not what was there
+                if let Some((left, right)) = own {
+                    left.fill(0.0);
+                    right.fill(0.0);
+                }
+                match buffer.as_slice() {
+                    [left, right] => self.metronome.process(&metronome, left, Some(&mut **right)),
+                    [mono] => self.metronome.process(&metronome, mono, None),
+                    _ => {}
+                }
+            }
         }
 
         // The repeats and the reverb tail go on after the input has stopped. The chain
         // knows when the last of them has died away, to the sample; the host may stop
         // calling from there on. `Tail` would need their length ahead of time, which with
         // feedback is a guess, and gains nothing: CLAP hosts are told to go on either way
-        if self.chain.is_idle() && self.metronome.is_idle() {
+        // A click that follows the host waits for the song to play: asleep, the plugin would
+        // not be called when it does
+        if self.chain.is_idle() && self.metronome.is_idle() && !following {
             ProcessStatus::Normal
         } else {
             ProcessStatus::KeepAlive
@@ -1080,9 +1132,257 @@ mod tests {
             "metronome_time_sig",
             "metronome_volume",
             "metronome_sound",
+            "metronome_out",
         ] {
             assert!(ids.iter().any(|each| each == id), "{id}");
         }
+    }
+
+    /// A host with no transport and no events: enough while nothing follows the song
+    struct PlainHost(PluginApi);
+
+    impl ProcessContext<GuitarAmpPlugin> for PlainHost {
+        fn plugin_api(&self) -> PluginApi {
+            self.0
+        }
+        fn execute_background(&self, _task: Task) {}
+        fn execute_gui(&self, _task: Task) {}
+        fn transport(&self) -> &Transport {
+            unimplemented!("nothing here follows the host")
+        }
+        fn next_event(&mut self) -> Option<PluginNoteEvent<GuitarAmpPlugin>> {
+            None
+        }
+        fn send_event(&mut self, _event: PluginNoteEvent<GuitarAmpPlugin>) {}
+        fn set_latency_samples(&self, _samples: u32) {}
+        fn set_current_voice_capacity(&self, _capacity: u32) {}
+    }
+
+    /// An amp playing a guitar-like tone with the metronome on, the click going `out`
+    fn clicking(on: bool, out: ClickOut) -> GuitarAmpPlugin {
+        let mut amp = GuitarAmpPlugin {
+            params: Arc::new(GuitarAmpParams {
+                metronome_on: BoolParam::new("Metronome", on),
+                metronome_out: EnumParam::new("Metronome Output", out),
+                ..GuitarAmpParams::default()
+            }),
+            ..GuitarAmpPlugin::default()
+        };
+        let config = BufferConfig {
+            sample_rate: 48_000.0,
+            min_buffer_size: None,
+            max_buffer_size: 512,
+            process_mode: ProcessMode::Realtime,
+        };
+        let mut context = CountingContext(std::cell::Cell::new(0));
+        assert!(amp.initialize(&GuitarAmpPlugin::AUDIO_IO_LAYOUTS[0], &config, &mut context));
+        amp.reset();
+        amp
+    }
+
+    /// Plays `blocks` blocks of 480 samples through `amp`. Returns the main output and, if
+    /// the host gives the "Metronome" output, that one (which starts as noise: an amp that
+    /// leaves it unwritten is heard)
+    fn play(amp: &mut GuitarAmpPlugin, blocks: usize, with_aux: bool) -> (Vec<f32>, Vec<f32>) {
+        play_in(amp, blocks, with_aux, PluginApi::Vst3)
+    }
+
+    /// `play` in a host of the given kind
+    fn play_in(
+        amp: &mut GuitarAmpPlugin,
+        blocks: usize,
+        with_aux: bool,
+        api: PluginApi,
+    ) -> (Vec<f32>, Vec<f32>) {
+        const LEN: usize = 480;
+        let (mut main_out, mut aux_out) = (Vec::new(), Vec::new());
+        for block in 0..blocks {
+            let tone = |channel: f32| -> Vec<f32> {
+                (0..LEN)
+                    .map(|i| {
+                        let t = (block * LEN + i) as f32 / 48_000.0;
+                        0.3 * (std::f32::consts::TAU * (110.0 + channel) * t).sin()
+                    })
+                    .collect()
+            };
+            let (mut left, mut right) = (tone(0.0), tone(1.0));
+            let (mut aux_left, mut aux_right) = (vec![0.7f32; LEN], vec![-0.7f32; LEN]);
+            let mut buffer = Buffer::default();
+            let mut aux_buffer = Buffer::default();
+            // SAFETY: the slices are the vectors above, which outlive the buffers, `LEN` long
+            unsafe {
+                buffer.set_slices(LEN, |slices| {
+                    slices.clear();
+                    slices.extend([&mut left[..], &mut right[..]]);
+                });
+                aux_buffer.set_slices(LEN, |slices| {
+                    slices.clear();
+                    slices.extend([&mut aux_left[..], &mut aux_right[..]]);
+                });
+            }
+            {
+                let mut aux_buffers = [aux_buffer];
+                let outputs: &mut [Buffer] = if with_aux { &mut aux_buffers } else { &mut [] };
+                let mut aux = AuxiliaryBuffers { inputs: &mut [], outputs };
+                amp.process(&mut buffer, &mut aux, &mut PlainHost(api));
+            }
+            drop(buffer);
+            main_out.extend(left);
+            main_out.extend(right);
+            if with_aux {
+                aux_out.extend(aux_left);
+                aux_out.extend(aux_right);
+            }
+        }
+        (main_out, aux_out)
+    }
+
+    #[test]
+    fn test_mixed_is_the_click_added_after_the_amp_bit_for_bit_with_or_without_the_aux_output() {
+        // What the plugin did before the click had an output of its own: the amp, then the
+        // click added to it
+        let mut chain = AmpChain::new();
+        chain.set_sample_rate(48_000.0);
+        let mut old = Metronome::new();
+        old.set_sample_rate(48_000.0);
+        let params = GuitarAmpParams {
+            metronome_on: BoolParam::new("Metronome", true),
+            ..GuitarAmpParams::default()
+        };
+        let settings = params.settings(None);
+        let click = params.metronome_settings(None, false, None);
+        let mut expected = Vec::new();
+        for block in 0..40 {
+            let tone = |channel: f32| -> Vec<f32> {
+                (0..480)
+                    .map(|i| {
+                        let t = (block * 480 + i) as f32 / 48_000.0;
+                        0.3 * (std::f32::consts::TAU * (110.0 + channel) * t).sin()
+                    })
+                    .collect()
+            };
+            let (mut left, mut right) = (tone(0.0), tone(1.0));
+            chain.process(&settings, &mut left, Some(&mut right));
+            old.process(&click, &mut left, Some(&mut right));
+            expected.extend(left);
+            expected.extend(right);
+        }
+        assert!(expected.iter().any(|s| s.abs() > 0.0));
+
+        let (alone, _) = play(&mut clicking(true, ClickOut::Mixed), 40, false);
+        assert_eq!(alone, expected, "without the aux output");
+        let (with_aux, aux) = play(&mut clicking(true, ClickOut::Mixed), 40, true);
+        assert_eq!(with_aux, expected, "with the aux output");
+        assert!(aux.iter().all(|s| *s == 0.0), "Mixed leaves the click output silent");
+    }
+
+    #[test]
+    fn test_separate_leaves_the_amp_alone_on_main_and_the_click_alone_on_its_output() {
+        let (amp_only, _) = play(&mut clicking(false, ClickOut::Mixed), 40, false);
+        let (mixed, _) = play(&mut clicking(true, ClickOut::Mixed), 40, false);
+        assert_ne!(amp_only, mixed, "the test must hear the click");
+
+        let (main, aux) = play(&mut clicking(true, ClickOut::Separate), 40, true);
+        assert_eq!(main, amp_only, "the main output is the amp alone");
+        // The click on its own: what Mixed added, by itself, the same in both channels
+        let mut click = Metronome::new();
+        click.set_sample_rate(48_000.0);
+        let params = GuitarAmpParams {
+            metronome_on: BoolParam::new("Metronome", true),
+            ..GuitarAmpParams::default()
+        };
+        let settings = params.metronome_settings(None, false, None);
+        let mut expected = Vec::new();
+        for _ in 0..40 {
+            let (mut left, mut right) = (vec![0.0f32; 480], vec![0.0f32; 480]);
+            click.process(&settings, &mut left, Some(&mut right));
+            expected.extend(left);
+            expected.extend(right);
+        }
+        assert!(expected.iter().any(|s| s.abs() > 0.1));
+        assert_eq!(aux, expected);
+
+        // Off: the click output is silence, not what the host left in it
+        let (_, aux) = play(&mut clicking(false, ClickOut::Separate), 4, true);
+        assert!(aux.iter().all(|s| *s == 0.0));
+    }
+
+    #[test]
+    fn test_separate_without_a_click_output_is_mixed_in_so_it_is_still_heard() {
+        let (mixed, _) = play(&mut clicking(true, ClickOut::Mixed), 40, false);
+        let (separate, _) = play(&mut clicking(true, ClickOut::Separate), 40, false);
+        assert_eq!(separate, mixed);
+    }
+
+    #[test]
+    fn test_in_the_standalone_program_separate_is_mixed_in_although_an_aux_output_is_handed_over() {
+        // The standalone wrapper declares the aux output and throws what is written there away
+        let (mixed, _) =
+            play_in(&mut clicking(true, ClickOut::Mixed), 40, false, PluginApi::Standalone);
+        let (main, aux) =
+            play_in(&mut clicking(true, ClickOut::Separate), 40, true, PluginApi::Standalone);
+        assert_eq!(main, mixed, "the click is on the main output");
+        assert!(aux.iter().all(|s| *s == 0.0), "and the aux output is silent");
+        let (amp_only, _) =
+            play_in(&mut clicking(false, ClickOut::Mixed), 40, false, PluginApi::Standalone);
+        assert_ne!(main, amp_only);
+    }
+
+    /// What `process` answers after `blocks` blocks of silence
+    fn status_after_silence(amp: &mut GuitarAmpPlugin, blocks: usize) -> ProcessStatus {
+        let mut status = ProcessStatus::Normal;
+        for _ in 0..blocks {
+            let (mut left, mut right) = (vec![0.0f32; 480], vec![0.0f32; 480]);
+            let mut buffer = Buffer::default();
+            // SAFETY: the slices are the vectors above, which outlive the buffer, 480 long
+            unsafe {
+                buffer.set_slices(480, |slices| {
+                    slices.clear();
+                    slices.extend([&mut left[..], &mut right[..]]);
+                });
+            }
+            let mut aux = AuxiliaryBuffers { inputs: &mut [], outputs: &mut [] };
+            status = amp.process(&mut buffer, &mut aux, &mut PlainHost(PluginApi::Vst3));
+        }
+        status
+    }
+
+    #[test]
+    fn test_a_tuner_that_mutes_the_metronome_lets_the_plugin_sleep() {
+        let make = |tuner: bool| GuitarAmpPlugin {
+            params: Arc::new(GuitarAmpParams {
+                metronome_on: BoolParam::new("Metronome", true),
+                metronome_sync: BoolParam::new("Metronome Sync", true),
+                tuner_on: BoolParam::new("Tuner", tuner),
+                ..GuitarAmpParams::default()
+            }),
+            ..GuitarAmpPlugin::default()
+        };
+        let mut tuning = make(true);
+        tuning.initialize(
+            &GuitarAmpPlugin::AUDIO_IO_LAYOUTS[0],
+            &BufferConfig {
+                sample_rate: 48_000.0,
+                min_buffer_size: None,
+                max_buffer_size: 512,
+                process_mode: ProcessMode::Realtime,
+            },
+            &mut CountingContext(std::cell::Cell::new(0)),
+        );
+        assert!(matches!(status_after_silence(&mut tuning, 200), ProcessStatus::Normal));
+    }
+
+    #[test]
+    fn test_the_amp_has_a_stereo_metronome_output_and_the_click_switch_is_last() {
+        for layout in GuitarAmpPlugin::AUDIO_IO_LAYOUTS {
+            assert_eq!(layout.aux_output_ports.len(), 1);
+            assert_eq!(layout.aux_output_ports[0].get(), 2);
+            assert_eq!(layout.names.aux_outputs, &["Metronome"]);
+        }
+        let ids: Vec<String> =
+            GuitarAmpParams::default().param_map().into_iter().map(|(id, _, _)| id).collect();
+        assert_eq!(ids.last().map(String::as_str), Some("metronome_out"));
+        assert_eq!(GuitarAmpParams::default().metronome_out.value(), ClickOut::Mixed);
     }
 
     /// Where the first repeat of an impulse lands, in ms, through the delay at `time_ms`:

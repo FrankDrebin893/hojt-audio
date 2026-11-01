@@ -44,6 +44,17 @@ GitHub release.
 
 ### Guitar Amp
 
+- The Guitar Amp's metronome click can have a signal of its own. A new Click out stepper in the
+  metronome cluster picks Mixed (as before: the click is added to the amp's output, and
+  existing projects sound the same) or Separate: the click then goes only to a second stereo
+  output named "Metronome", which the DAW can route on its own, and the main output carries the
+  amp alone. Presets never touch it. In the standalone program there is no such output, so the
+  stepper is not shown and the click is always with the amp; a DAW that leaves the output off
+  gets it mixed in too. New control:
+  `metronome_out`, last in the parameter list. Also: a click still ringing stops when a synced
+  DAW is stopped, and the plugin stays awake while Metro and Sync are on, so a DAW that sleeps
+  idle plugins still hears it when the song starts. The strip's gaps are a little narrower; the
+  window is the same size
 - The Guitar Amp has a metronome for practice, in a cluster on the strip between Save and
   Output. The Metro switch starts it, a lamp flashes amber on each beat and cream on the first of
   the bar, and the click goes on top of the finished sound, so the amp never distorts it and the

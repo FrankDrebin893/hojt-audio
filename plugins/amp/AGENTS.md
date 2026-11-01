@@ -107,7 +107,25 @@ How it behaves:
   position every block: silent while the host is stopped, a jump or a loop is followed, bar
   position from the position in the song. With no tempo it uses its own. Sounds: Woodblock,
   Beep, Click, each higher and louder (1.0 against 0.6) on the downbeat. It keeps the plugin
-  awake (`KeepAlive`) while on. The six `metronome_*` parameters are not in presets
+  awake (`KeepAlive`) while on, and while Metro and Sync are both on (the tuner not muting it) even with the host stopped (a host
+  may otherwise stop calling a plugin that is waiting for the song). A click still ringing is cut
+  when a synced host stops. The seven `metronome_*` parameters are not in presets
+- **The click's own output (`metronome_out`, follows #181):** both audio layouts carry one more
+  stereo output, the auxiliary port named `Metronome` (`CLICK_PORT`). Mixed (the default, so
+  existing projects are unchanged) is the click added to the main output as above, bit for bit,
+  and the `Metronome` output is written with silence (a host does not clear an output it hands
+  over). Separate writes the click, and only the click, to the `Metronome` output
+  (`Metronome::process_alone`; the same clock and voice as Mixed, through one `render`), and the
+  main output is the amp alone. **In the standalone program, and where the host gives no
+  Metronome output (or leaves it off), Separate mixes the click into the main output, as Mixed
+  does**, so it is never lost. The standalone program is recognised by `plugin_api()`
+  (`PluginApi::Standalone`), not by the buffer: nih-plug's standalone audio backends hand the
+  plugin scratch aux buffers for every declared port and throw them away. The Click out
+  stepper is not drawn there (`standalone::host()` is `Some`). Tests: `Mixed` equals the old amp-then-click
+  path, `Separate` leaves the main equal to the amp alone and the aux equal to the click alone,
+  the fallback equals Mixed, and the `no_alloc` tests run with the test host's aux buffers
+  (`suite_common::host` now hands a plugin the aux outputs its layout names). The parameter is
+  last in `GuitarAmpParams` so every parameter before it keeps its place in a host's list
 - The tuner reads 48 Hz to 1420 Hz against A = 440 Hz (`REFERENCE_A_HZ`), a new reading every
   30 ms, none for silence, noise, hum or chords. A note is shown from a pluck on (a rise of
   12 dB within 50 ms; 6 dB to change notes or pluck again), and let go after a second if it
@@ -319,6 +337,7 @@ How it behaves:
 | Metronome Time Signature (`metronome_time_sig`) | 2/4, 3/4, 4/4, 6/8 | 4/4 | Clicks to the bar. Variant ids `two_four`, `three_four`, `four_four`, `six_eight` |
 | Metronome Volume (`metronome_volume`) | -60 to 0 dB | -12 dB | The click's level; -60 is silence |
 | Metronome Sound (`metronome_sound`) | Woodblock, Beep, Click | Woodblock | Variant ids `woodblock`, `beep`, `click` |
+| Metronome Output (`metronome_out`) | Mixed, Separate | Mixed | Where the click is heard: Mixed on the main output; Separate alone on the auxiliary stereo output `Metronome`, the main output the amp alone (mixed in where the host gives no usable such output, always in the standalone program). Variant ids `mixed`, `separate`. Not in presets |
 
 Dials are stored 0.0-1.0 and shown as 0.0-10.0.
 
@@ -580,10 +599,10 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   on the first of the bar, lit 90 ms) with its `Beat` caption, the tempo on an LED display of three
   characters with a chrome button at each end (also dragged up and down, 3 points a beat per
   minute and a quarter of that with shift, scrolled, or double-clicked for 120), the Tap
-  `chrome_button`, a `stepper` each for the time signature and the sound, the Volume knob
+  `chrome_button`, a `stepper` for the sound over two side by side, the time signature and the click's output (`Click out`: Mixed or Separate, on a 70 point tape that Separate fills), the Volume knob
   (radius 20) and Sync, a `chrome_button` with a `rig_led` above it. Captions are on the preset
   captions' line. The window is drawn again every 20 ms while it runs (the lamp follows the
-  sound) and not at all when off. The cluster is one control of the strip's row; a test holds
+  sound) and not at all when off. The cluster is one control of the strip's row, wider by the click's output (the window is not: `STRIP_GAP` went from 43 to 32.5 points, and the gap holding the standalone program's Audio button, `AUDIO_GAP`, stayed 43); a test holds
   its parts clear of each other and of their neighbours
 - **Tuner:** a `small_footswitch` with `rig_led` and a `silk_label` at the end of the strip's
   right wing, beside the On switch. While it is on, a

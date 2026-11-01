@@ -69,6 +69,31 @@ impl TimeSignature {
     }
 }
 
+/// Where the click is heard. Frozen like the time signatures
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClickOut {
+    /// Added to the main output, after the amp
+    #[id = "mixed"]
+    #[name = "Mixed"]
+    Mixed,
+    /// On the auxiliary output "Metronome" alone, so the DAW can route it by itself. Where
+    /// the host gives no such output (the standalone program) it is mixed in, to stay audible
+    #[id = "separate"]
+    #[name = "Separate"]
+    Separate,
+}
+
+impl ClickOut {
+    pub const ALL: [Self; 2] = [Self::Mixed, Self::Separate];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Mixed => "Mixed",
+            Self::Separate => "Separate",
+        }
+    }
+}
+
 // Frozen like the time signatures
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Sound {
@@ -336,6 +361,44 @@ impl Metronome {
         left: &mut [f32],
         mut right: Option<&mut [f32]>,
     ) {
+        let len = left.len();
+        self.render(settings, len, |index, click| {
+            left[index] = (left[index] + click).clamp(-1.0, 1.0);
+            if let Some(right) = right.as_deref_mut() {
+                right[index] = (right[index] + click).clamp(-1.0, 1.0);
+            }
+        });
+    }
+
+    /// Writes the click of a block, and only the click, to its own stereo pair (`right` is
+    /// left out for a mono one): the pair is overwritten, silence where there is no click
+    pub fn process_alone(
+        &mut self,
+        settings: &MetronomeSettings,
+        left: &mut [f32],
+        mut right: Option<&mut [f32]>,
+    ) {
+        left.fill(0.0);
+        if let Some(right) = right.as_deref_mut() {
+            right.fill(0.0);
+        }
+        let len = left.len();
+        self.render(settings, len, |index, click| {
+            let click = click.clamp(-1.0, 1.0);
+            left[index] = click;
+            if let Some(right) = right.as_deref_mut() {
+                right[index] = click;
+            }
+        });
+    }
+
+    /// The clock and the voice for `len` samples; `emit` is given each sample that has a click
+    fn render(
+        &mut self,
+        settings: &MetronomeSettings,
+        len: usize,
+        mut emit: impl FnMut(usize, f32),
+    ) {
         if !settings.on {
             self.was_on = false;
         }
@@ -370,6 +433,9 @@ impl Metronome {
             if !settings.host_playing {
                 waiting = true;
                 self.was_on = false;
+                // A stopped song is silent at once: a click still ringing is cut, not
+                // finished after the stop
+                self.voice = Voice::IDLE;
             } else if let Some(position) = settings.host_beats {
                 let units = position / quarters;
                 let whole = units.ceil();
@@ -382,7 +448,7 @@ impl Metronome {
         }
 
         let active = settings.on && !waiting;
-        for index in 0..left.len() {
+        for index in 0..len {
             if active {
                 if self.until_beat <= 0.0 {
                     let accent = self.next_beat == 0;
@@ -394,11 +460,7 @@ impl Metronome {
                 self.until_beat -= 1.0;
             }
             if self.voice.live() {
-                let click = self.voice.next() * settings.gain;
-                left[index] = (left[index] + click).clamp(-1.0, 1.0);
-                if let Some(right) = right.as_deref_mut() {
-                    right[index] = (right[index] + click).clamp(-1.0, 1.0);
-                }
+                emit(index, self.voice.next() * settings.gain);
             }
         }
     }
@@ -690,6 +752,38 @@ pub(crate) mod tests {
         let (starts, _) = onsets(&mut metronome, &no_tempo, 48_000 * 3, &[512]);
         assert_eq!(starts.len(), 6);
         assert!((starts[1] as i64 - 24_000).abs() <= 1);
+    }
+
+    #[test]
+    fn test_a_click_still_ringing_is_cut_when_the_synced_song_stops() {
+        let mut metronome = Metronome::new();
+        let playing = MetronomeSettings {
+            sync: true,
+            host_tempo: Some(100.0),
+            host_playing: true,
+            host_beats: Some(0.0),
+            ..running(120.0)
+        };
+        let mut buffer = vec![0.0f32; 300];
+        metronome.process(&playing, &mut buffer, None);
+        assert!(buffer[299] != 0.0, "the click is still ringing");
+        let stopped = MetronomeSettings { host_playing: false, ..playing };
+        let mut buffer = vec![0.0f32; 4800];
+        metronome.process(&stopped, &mut buffer, None);
+        assert!(buffer.iter().all(|s| *s == 0.0));
+    }
+
+    #[test]
+    fn test_the_click_alone_is_what_the_mixed_click_adds() {
+        let (mut mixed, mut alone) = (Metronome::new(), Metronome::new());
+        let settings = MetronomeSettings { sound: Sound::Click, ..running(200.0) };
+        for _ in 0..30 {
+            let (mut left, mut right) = (vec![0.0f32; 777], vec![0.0f32; 777]);
+            mixed.process(&settings, &mut left, Some(&mut right));
+            let (mut own_left, mut own_right) = (vec![9.0f32; 777], vec![9.0f32; 777]);
+            alone.process_alone(&settings, &mut own_left, Some(&mut own_right));
+            assert_eq!((left, right), (own_left, own_right));
+        }
     }
 
     #[test]
