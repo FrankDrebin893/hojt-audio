@@ -6,10 +6,11 @@ use std::sync::atomic::Ordering;
 use std::sync::{Arc, PoisonError};
 use suite_common::ui::{
     self, chrome_button, drop_panel, led_stepper, led_width, level_meter, nameplate_stepper,
-    panel_knob, param_knob, param_switch, print_label, rig_led, signal_lamp, silk_label,
-    small_footswitch, stepper, theme, tuner_display, type_into, type_on_tape, Column, HeadFaces,
-    MiniStyle, Motif, Ornament, PedalStyle, Pick, Row, Step, Typed, BENCH_MARGIN, LED_HEIGHT,
-    SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED, SLIM_SWITCH,
+    panel_knob, param_knob, param_switch, print_label, rig_led, settings_panel, signal_lamp,
+    silk_label, small_footswitch, stepper, theme, tuner_display, type_into, type_on_tape, Column,
+    HeadFaces, MiniStyle, Motif, Ornament, PedalStyle, Pick, Row, SettingRow, SettingsEvent,
+    SettingsText, Step, Typed, BENCH_MARGIN, LED_HEIGHT, SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED,
+    SLIM_SWITCH,
 };
 
 use crate::board::STACK_WIDTH;
@@ -19,6 +20,7 @@ use crate::dial_memory;
 use crate::lamps::{LampReading, LampView};
 use crate::looks;
 use crate::presets::{self, PRESETS};
+use crate::standalone::{self, AudioChoice, Prefs};
 use crate::tuner::{Note, TunerReading};
 use crate::user_cab;
 use crate::user_presets::{self, Bank};
@@ -518,6 +520,8 @@ pub(crate) struct View {
     note: Option<(&'static str, f64)>,
     /// What the cabinet showed when the window was last drawn
     cab_status: CabStatus,
+    /// The Audio panel while it is open (the standalone program only)
+    audio: Option<AudioChoice>,
 }
 
 /// The list of banks and presets while it is dropped open
@@ -1030,6 +1034,7 @@ pub fn create(
             saving: None,
             note: None,
             cab_status: CabStatus::Fine,
+            audio: None,
         },
         move |egui_ctx, view| {
             ui::install(egui_ctx);
@@ -1052,6 +1057,7 @@ pub fn create(
                 lamp_reading: &lamp_reading,
                 cab_loader: &cab_loader,
                 load_cabinet: &load_cabinet,
+                audio_host: standalone::host(),
             };
             draw(egui_ctx, setter, &params, view, &shared);
         },
@@ -1066,6 +1072,8 @@ struct Shared<'a> {
     cab_loader: &'a CabLoader,
     /// Has the chosen cabinet read in the background
     load_cabinet: &'a dyn Fn(),
+    /// The machine's audio, in the standalone program; a plugin in a DAW has none
+    audio_host: Option<&'a dyn standalone::Host>,
 }
 
 /// The whole window, once the fonts are in: what the plugin shows and its snapshot tests draw
@@ -1187,7 +1195,61 @@ fn draw(
 
         // The preset list after everything else, in a layer above the window
         presets.menu(ui, origin, view, now);
+
+        // The standalone program has the machine's audio to set
+        if let Some(host) = shared.audio_host {
+            audio_button(ui, origin, view, host);
+            audio_panel(ui, origin, view, host);
+        }
     });
+}
+
+// The Audio button of the standalone program, in the gap between the output meter and the clip
+// lamp, with its caption under it
+const AUDIO_BUTTON: Vec2 =
+    vec2((OUTPUT_METER.x + METER_REACH + CLIP_LAMP.x - LAMP_REACH) / 2.0, CLIP_LAMP.y - 4.0);
+const AUDIO_CAPTION_Y: f32 = 26.0;
+// Where the Audio panel stands: in the middle of the window, over the stack
+const AUDIO_PANEL: Vec2 = vec2(WINDOW_WIDTH as f32 / 2.0, 330.0);
+
+fn audio_button(ui: &mut Ui, origin: Pos2, view: &mut View, host: &dyn standalone::Host) {
+    let at = origin + AUDIO_BUTTON;
+    silk_label(ui.painter(), at + vec2(0.0, AUDIO_CAPTION_Y), "Audio", CAPTION_SIZE);
+    if chrome_button(ui, at, "audio").clicked() {
+        view.audio = match view.audio {
+            Some(_) => None,
+            None => Some(AudioChoice::open(host, saved_prefs())),
+        };
+    }
+}
+
+/// What was saved last, or the defaults
+fn saved_prefs() -> Prefs {
+    standalone::prefs_path().map(|path| Prefs::load(&path)).unwrap_or_default()
+}
+
+fn audio_panel(ui: &mut Ui, origin: Pos2, view: &mut View, host: &dyn standalone::Host) {
+    let Some(choice) = view.audio.as_mut() else {
+        return;
+    };
+    let rows = choice.rows();
+    let shown: Vec<SettingRow> =
+        rows.iter().map(|(caption, shown)| SettingRow { caption, shown }).collect();
+    let note = choice.error.as_deref().unwrap_or("Apply starts the amp again on the new settings");
+    let text = SettingsText { title: "Audio Settings", note, apply: "Apply", cancel: "Cancel" };
+    let event = settings_panel(ui, origin + AUDIO_PANEL, &text, &shown, "audio");
+    match event {
+        Some(SettingsEvent::Step(row, step)) => {
+            choice.step(host, row, step == Step::Next);
+        }
+        Some(SettingsEvent::Apply) => match host.restart(&choice.prefs) {
+            // The new program is on its way: this window is done
+            Ok(()) => ui.ctx().send_viewport_cmd(nih_plug_egui::egui::ViewportCommand::Close),
+            Err(error) => choice.error = Some(format!("Could not restart: {error}")),
+        },
+        Some(SettingsEvent::Cancel) => view.audio = None,
+        None => {}
+    }
 }
 
 #[cfg(test)]
@@ -1212,6 +1274,18 @@ mod tests {
         tuner_hz: Option<f32>,
         open: impl FnOnce(&mut View),
     ) -> Harness<'a> {
+        harness_with(params, setter, tuner_hz, None, open)
+    }
+
+    /// `harness_of` in the standalone program, if there is a `host` for the machine's audio
+    #[cfg(target_os = "linux")]
+    fn harness_with<'a>(
+        params: &'a GuitarAmpParams,
+        setter: &'a ParamSetter<'a>,
+        tuner_hz: Option<f32>,
+        audio_host: Option<&'a dyn standalone::Host>,
+        open: impl FnOnce(&mut View),
+    ) -> Harness<'a> {
         let tuner = TunerReading::new();
         tuner.set(tuner_hz);
         let lamp_reading = LampReading::new();
@@ -1223,6 +1297,7 @@ mod tests {
             saving: None,
             note: None,
             cab_status: CabStatus::Fine,
+            audio: None,
         };
         open(&mut view);
         pedal_harness(WINDOW_WIDTH, WINDOW_HEIGHT, move |ctx| {
@@ -1231,6 +1306,7 @@ mod tests {
                 lamp_reading: &lamp_reading,
                 cab_loader: &cab_loader,
                 load_cabinet: &|| {},
+                audio_host,
             };
             draw(ctx, setter, params, &mut view, &shared);
         })
@@ -1246,6 +1322,45 @@ mod tests {
         let host = NoHost;
         let setter = ParamSetter::new(&host);
         harness_of(&params, &setter, None, |_| {}).snapshot("editor");
+    }
+
+    /// A machine with two interfaces, for the standalone window's tests
+    #[cfg(target_os = "linux")]
+    struct TwoInterfaces;
+    #[cfg(target_os = "linux")]
+    impl standalone::Host for TwoInterfaces {
+        fn drivers(&self) -> Vec<String> {
+            ["auto", "alsa", "jack"].map(String::from).to_vec()
+        }
+        fn devices(&self, _: &str) -> standalone::DriverDevices {
+            standalone::DriverDevices {
+                inputs: vec!["Scarlett 2i2 USB".into(), "Built-in Microphone".into()],
+                outputs: vec!["Scarlett 2i2 USB".into(), "Speakers".into()],
+            }
+        }
+        fn restart(&self, _: &Prefs) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    // The standalone program's window: the Audio button in the strip's corner, and the panel
+    // open over the stack. A plugin in a DAW (the other snapshots) has neither
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_standalone_audio_panel_looks_as_it_did() {
+        let params = GuitarAmpParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let machine = TwoInterfaces;
+        let prefs = Prefs {
+            backend: "alsa".into(),
+            input_device: Some("Scarlett 2i2 USB".into()),
+            ..Prefs::default()
+        };
+        harness_with(&params, &setter, None, Some(&machine), |view| {
+            view.audio = Some(AudioChoice::open(&machine, prefs));
+        })
+        .snapshot("audio_panel");
     }
 
     // The tuner in the place of the preset display, hearing a low E a little flat
@@ -1357,6 +1472,16 @@ mod tests {
         ] {
             assert!(strip.contains(&y), "{y} is off the strip");
         }
+    }
+
+    // The standalone program's Audio button and its caption stand between the output meter
+    // and the clip lamp, clear of both
+    #[test]
+    fn test_the_audio_button_stands_clear_of_the_meter_and_the_clip_lamp() {
+        let reach = 18.0;
+        assert!(AUDIO_BUTTON.x - reach > OUTPUT_METER.x + METER_REACH);
+        assert!(AUDIO_BUTTON.x + reach < CLIP_LAMP.x - LAMP_REACH);
+        const { assert!(AUDIO_BUTTON.y + AUDIO_CAPTION_Y + 10.0 < STRIP_HEIGHT) };
     }
 
     #[test]

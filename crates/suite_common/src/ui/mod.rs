@@ -12,6 +12,8 @@
 //! - `frame`: the enclosure every editor is drawn on. `pedal` is one stompbox filling the window;
 //!   `rig` is the bare bench for a `strip` with `mini_pedal`s below it,
 //!   joined by `coupler`s and `patch_cable`s
+//! - `settings`: the panel a standalone program drops over its window for the machine's own
+//!   settings (the audio interface)
 //! - `snapshot` (feature `snapshot`, tests only): draws an editor off screen into a picture
 
 pub mod amp;
@@ -22,6 +24,7 @@ pub mod hardware;
 pub mod host_keys;
 pub mod led;
 pub mod raster;
+pub mod settings;
 #[cfg(feature = "snapshot")]
 pub mod snapshot;
 pub mod theme;
@@ -39,6 +42,7 @@ pub use frame::{
 };
 pub use led::{led_display, led_width, tuner_display, LED_HEIGHT};
 pub use raster::{Grille, KnobCap, Plate, Tolex};
+pub use settings::{settings_panel, SettingRow, SettingsEvent, SettingsText};
 pub use theme::install;
 pub use widgets::{
     cents_meter, chrome_button, drop_panel, footswitch, led, led_stepper, level_meter,

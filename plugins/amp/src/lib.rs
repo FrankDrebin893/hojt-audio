@@ -25,6 +25,7 @@ mod pitch;
 mod presets;
 mod reverb;
 mod second;
+pub mod standalone;
 #[cfg(test)]
 mod test_util;
 mod tuner;

@@ -44,6 +44,15 @@ GitHub release.
 
 ### Guitar Amp
 
+- The Guitar Amp standalone program has an Audio button on the strip, between the output meter
+  and the Clip lamp. It opens a panel to pick the driver, the input and the output interface,
+  the buffer (64 to 512 samples) and the sample rate, and Apply starts the amp again on them.
+  The choices are kept in `amp-standalone.json` in the `Hojt Audio` folder of the system's
+  settings (`%APPDATA%` on Windows), so the next launch needs no command line, and the
+  input is the machine's default input instead of none. Arguments given at launch still win.
+  Only the drivers nih-plug's host has are offered (WASAPI on Windows, CoreAudio on macOS, ALSA
+  on Linux, and JACK); ASIO is not among them yet. In a DAW nothing changes.
+
 - A Pitch pedal, in front of the amp: shift the guitar up or down by whole semitones, an octave
   either way, for drop tunings (-2 drop D, -4 drop C, -5 and -7 baritone) or a harmony,
   without another plugin in front of the amp. Four controls on an orange stompbox with the

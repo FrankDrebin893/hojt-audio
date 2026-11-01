@@ -108,9 +108,12 @@ dependencies = [
 name = "amp"
 version = "0.2.1"
 dependencies = [
+ "cpal",
  "hound",
  "nih_plug",
  "nih_plug_egui",
+ "serde",
+ "serde_json",
  "suite_common",
 ]
 
