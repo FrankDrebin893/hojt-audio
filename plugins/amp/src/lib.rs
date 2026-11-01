@@ -858,12 +858,15 @@ impl Plugin for GuitarAmpPlugin {
 
         // The click goes on top of the finished sound: the amp never distorts it, and
         // neither the Output knob nor Bypass changes it. The tuner silences it
-        let transport = context.transport();
-        let metronome = self.params.metronome_settings(
-            transport.tempo,
-            transport.playing,
-            transport.pos_beats(),
-        );
+        // The host's tempo and place are only asked for while the click follows them
+        let following = self.params.metronome_on.value() && self.params.metronome_sync.value();
+        let (tempo, playing, beats) = if following {
+            let transport = context.transport();
+            (transport.tempo, transport.playing, transport.pos_beats())
+        } else {
+            (None, false, None)
+        };
+        let metronome = self.params.metronome_settings(tempo, playing, beats);
         match buffer.as_slice() {
             [left, right] => self.metronome.process(&metronome, left, Some(&mut **right)),
             [mono] => self.metronome.process(&metronome, mono, None),

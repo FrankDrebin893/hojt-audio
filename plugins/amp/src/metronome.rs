@@ -741,4 +741,40 @@ pub(crate) mod tests {
         }
         assert!((tap.tap(8.0).unwrap() - 150.0).abs() < 0.01);
     }
+
+    /// Writes WAV files to target/renders for listening: eight bars of each sound in 4/4 and
+    /// six eighths in 6/8, at 100 bpm, at -12 dB and at 0 dB
+    #[test]
+    #[ignore]
+    fn render_metronome() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/renders");
+        std::fs::create_dir_all(&dir).unwrap();
+        for (sound, name) in
+            [(Sound::Woodblock, "woodblock"), (Sound::Beep, "beep"), (Sound::Click, "click")]
+        {
+            for (signature, bars, label) in
+                [(TimeSignature::FourFour, 8, "4-4"), (TimeSignature::SixEight, 8, "6-8")]
+            {
+                for (db, level) in [(-12.0, "-12db"), (0.0, "0db")] {
+                    let settings = MetronomeSettings {
+                        sound,
+                        time_signature: signature,
+                        gain: volume_gain(db),
+                        ..running(100.0)
+                    };
+                    let beats = bars * signature.beats() as usize;
+                    let total =
+                        (60.0 / 100.0 * signature.quarters_per_beat() * 48_000.0 * beats as f64)
+                            as usize;
+                    let mut metronome = Metronome::new();
+                    let (_, out) = onsets(&mut metronome, &settings, total, &[512]);
+                    let peak = out.iter().fold(0.0f32, |peak, s| peak.max(s.abs()));
+                    println!("{name} {label} {level}: peak {:.1} dBFS", 20.0 * peak.log10());
+                    let path = dir.join(format!("amp_metronome_{name}_{label}_{level}.wav"));
+                    crate::test_util::write_wav(&path, &[&out], 48_000);
+                }
+            }
+        }
+        println!("Wrote renders to {}", dir.display());
+    }
 }

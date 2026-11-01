@@ -357,6 +357,10 @@ cargo test -p amp --release pitch_report -- --ignored --nocapture
 cargo test -p amp --release fuzz_report -- --ignored --nocapture
 cargo test -p amp --release mods_report -- --ignored --nocapture
 
+# The metronome's three sounds, in 4/4 and 6/8, at -12 and 0 dB, as WAV files in
+# target/renders (amp_metronome_*.wav), with their peaks: to listen to the downbeat and the level
+cargo test -p amp --release render_metronome -- --ignored --nocapture
+
 # Tuner: error in cents per note and signal, time to the first reading, drift, cost.
 cargo test -p amp --release tuner_report -- --ignored --nocapture
 

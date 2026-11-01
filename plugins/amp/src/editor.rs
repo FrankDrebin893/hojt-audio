@@ -1741,7 +1741,7 @@ mod tests {
         assert!(caption + 8.0 < led - 12.0 && led + 12.0 < button - BUTTON - 2.0);
         assert!(button + BUTTON < BENCH_MARGIN + STRIP_HEIGHT - 5.0);
         // The tempo's caption is on the preset captions' line, Tap's too
-        assert!(PRESET_CAPTION_Y > BENCH_MARGIN + 10.0);
+        const { assert!(PRESET_CAPTION_Y > BENCH_MARGIN + 10.0) };
     }
 
     #[test]
