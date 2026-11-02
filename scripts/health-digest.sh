@@ -35,8 +35,8 @@ tail -n 2 "$history" | jq -rs '
       (if ($now.releases.days_since // 0) > 30 and $now.releases.unreleased_entries > 0
         then "\($now.releases.unreleased_entries) changes wait for a release, \($now.releases.days_since) days after the last" else empty end),
       (if ($now.releases.unreleased_entries // 0) >= 1 and (($now.releases.days_since // 0) >= 7 or $now.releases.unreleased_entries >= 5)
-        then "release due: \($now.releases.unreleased_entries) entries unreleased, \($now.releases.days_since) days after the last (/release-prep opens the pull request on Fridays)" else empty end),
-      (if ($now.releases | has("reviewed")) and $now.releases.last_tag != null and ($now.releases.days_since // 0) >= 7
+        then "release possibly due: \($now.releases.unreleased_entries) entries unreleased, \($now.releases.days_since) days after the last; count and age say a release may be due, /release-prep checks the content on Fridays" else empty end),
+      (if ($now.releases.reviewed != null) and $now.releases.last_tag != null and ($now.releases.days_since // 0) >= 7
           and (($now.releases.reviewed | index("\($now.releases.last_tag) 7d")) == null)
         then "release not reviewed: \($now.releases.last_tag) is \($now.releases.days_since) days old and has no 7-day review on the issue \"Release reviews\" (/release-review runs on Mondays)" else empty end),
       (if $now.plugins and $was.plugins then

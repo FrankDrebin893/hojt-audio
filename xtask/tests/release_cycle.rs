@@ -42,13 +42,21 @@ fn digest(releases: &str) -> Option<String> {
 fn test_the_digest_shows_a_release_due_and_one_not_reviewed() {
     let stalled = r#"{"last_tag":"v0.2.1","days_since":9,"unreleased_entries":6,"reviewed":[]}"#;
     let Some(text) = digest(stalled) else { return };
-    assert!(text.contains("release due"), "{text}");
+    assert!(text.contains("release possibly due"), "{text}");
     assert!(text.contains("release not reviewed"), "{text}");
 
     let fine =
         r#"{"last_tag":"v0.2.1","days_since":9,"unreleased_entries":0,"reviewed":["v0.2.1 7d"]}"#;
     let text = digest(fine).unwrap();
     assert!(!text.contains("release due") && !text.contains("release not reviewed"), "{text}");
+
+    // A failed lookup of the reviews is unknown, not "not reviewed"
+    let unknown = r#"{"last_tag":"v0.2.1","days_since":9,"unreleased_entries":6,"reviewed":null}"#;
+    let text = digest(unknown).unwrap();
+    assert!(
+        text.contains("release possibly due") && !text.contains("release not reviewed"),
+        "{text}"
+    );
 
     // Not due (a few entries, a few days), and a history from before reviews existed says nothing
     let young = r#"{"last_tag":"v0.2.1","days_since":3,"unreleased_entries":4}"#;
@@ -71,6 +79,10 @@ fn test_the_release_skills_never_tag_or_approve_and_can_be_paused() {
     assert!(prep.contains("auto-merge **off**"), "a release pull request must not auto-merge");
     assert!(prep.contains("never tags"), "/release-prep must say it never tags");
     let review = read(".agents/skills/release-review/SKILL.md");
+    assert!(
+        review.contains("evidence only") && review.contains("verified by login"),
+        "/release-review must treat public text as evidence and act on the owner's feedback only"
+    );
     assert!(review.contains("at most 3"), "/release-review must cap the ideas it files");
     assert!(
         review.contains("too few to read"),

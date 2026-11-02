@@ -94,11 +94,11 @@ issue "Project health". Nothing in it changes `main`.
 The digest lists under **Look at** what crossed a line: `main` green under 90% of the time or red
 now, a spec waiting over a week, changes unreleased more than 30 days after the last release, a
 timed line more than 10% dearer than the week before, a render more than 1 LU louder or quieter,
-and the release cycle: **release due** when `/release-prep` would say so by what the history knows
+and the release cycle: **release possibly due** when count and age say a release may be due (`/release-prep` checks the content)
 (at least one entry under `Unreleased` and 7 or more days since the last release, or 5 or more
-entries; it cannot see a fix to something that sounds wrong), and **release not reviewed** when the
+entries; it cannot see the content, such as a fix to something that sounds wrong), and **release not reviewed** when the
 last release is 7 or more days old and the issue "Release reviews" has no 7-day review of it.
-`releases.reviewed` lists the reviews found (`"v0.2.1 7d"`), read from the markers
+`releases.reviewed` lists the reviews found (`null` when the lookup failed: unknown, so no "not reviewed" line) (`"v0.2.1 7d"`), read from the markers
 `<!-- release-review: <tag> <age>d -->` that `/release-review` puts in its comments. The
 Monday digest is written before the review runs (04:37 and 07:15 UTC), so on the Monday a release
 turns 7 days old the line shows until the review has run; if it is still there a week later, the cycle stalled.
