@@ -13,13 +13,24 @@ fn read(path: &str) -> String {
     std::fs::read_to_string(root().join(path)).unwrap().replace("\r\n", "\n")
 }
 
+/// The bash to run the script with: on Windows Git's own, since `bash` on the PATH can be the
+/// WSL launcher, which cannot run a script there
+fn bash() -> Option<std::path::PathBuf> {
+    if cfg!(windows) {
+        let git = Path::new(r"C:\Program Files\Git\bin\bash.exe");
+        return git.exists().then(|| git.to_path_buf());
+    }
+    Some("bash".into())
+}
+
 /// The digest of a history whose only line has these `releases`, or None where `bash` or `jq`
 /// is missing
 fn digest(releases: &str) -> Option<String> {
-    for tool in ["bash", "jq"] {
-        if Command::new(tool).arg("--version").output().is_err() {
-            return None;
-        }
+    let bash = bash()?;
+    if Command::new(&bash).arg("--version").output().is_err()
+        || Command::new("jq").arg("--version").output().is_err()
+    {
+        return None;
     }
     let line = format!(
         r#"{{"at":"2026-11-02T04:37:00Z","commit":"abc1234","flow":{{"wip":{{"idea":0,"spec":0,"approved":0,"building":0,"review":0}},"merged_7d":1,"merged_28d":4,"scout":{{"filed":0,"approved":0,"declined":0,"hit_rate":null}}}},"ci":{{"main_pass_pct":100,"pr_pass_pct":100,"pr_minutes_median":10}},"releases":{releases}}}"#
@@ -28,7 +39,7 @@ fn digest(releases: &str) -> Option<String> {
     std::fs::create_dir_all(&dir).unwrap();
     let history = dir.join("history.jsonl");
     std::fs::write(&history, format!("{line}\n")).unwrap();
-    let out = Command::new("bash")
+    let out = Command::new(&bash)
         .arg(root().join("scripts/health-digest.sh"))
         .arg(&history)
         .output()
