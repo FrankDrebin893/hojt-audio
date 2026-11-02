@@ -145,28 +145,75 @@ def fork(draw, rng, x, y, angle, length, width, depth):
                      length * 0.4, width * 0.55, depth - 1)
 
 
+# The amp's print covers the strip across the top of its window (2727 x 125 points of top face,
+# from (10, 10) in the window), so only a band of the picture shows: the loader scales the
+# picture to cover the face and cuts the rest off. These are what that mapping is, and where the
+# strip's labels and controls stand, in window points: the print keeps clear of them
+AMP_FACE = (2727.0, 125.0)
+AMP_ORIGIN = (10.0, 10.0)
+# (left, top, right, bottom) of what is printed or standing on the strip where the print must
+# not be: each label with its lamp or button, a little wider than the ink. The tests of the
+# amp's editor hold that the picture is clear behind every one of them
+AMP_CLEAR = [
+    (32, 28, 78, 50),        # the input jack's arrow and IN
+    (32, 74, 86, 114),       # MODEL and GA-3
+    (108, 20, 162, 130),     # the input meter and INPUT
+    (193, 40, 226, 104),     # the bank display's left button
+    (2104, 16, 2186, 112),   # the output knob and OUTPUT
+    (2210, 20, 2270, 130),   # the output meter and OUTPUT
+    (2306, 46, 2358, 88),    # the clip lamp and CLIP
+    (2384, 50, 2440, 99),    # the On lamp and ON
+    (2440, 42, 2499, 102),   # the On switch
+    (2528, 50, 2584, 99),    # the Tuner lamp and TUNER
+    (2584, 42, 2644, 102),   # the Tuner switch
+    (2616, 28, 2714, 50),    # STEREO OUT and its arrow
+    (2642, 76, 2714, 114),   # the badge
+]
+
+
 def amp(w=1920, h=708):
-    """Storm: inked clouds with contour lines, forked lightning down each side, and a hatched
-    ridge of mountains along the foot of the head"""
+    """Storm: a few inked clouds in the corners and one thin forked bolt at each end, kept in
+    the gaps between the strip's labels and controls (AMP_CLEAR) and fading out before them"""
     paint = (124, 28, 32)
-    x, y = grid(w, h)
     rng = np.random.default_rng(7)
-    edge = edges(w, h, 0.42)
+    x, y = grid(w, h)
+    s = AMP_FACE[0] / w
+    top = (h - AMP_FACE[1] / s) / 2          # the picture's row at the top of the face
+    wx = AMP_ORIGIN[0] + x * s               # where each pixel lands in the window, in points
+    wy = AMP_ORIGIN[1] + (y - top) * s
 
-    # Clouds: two noise fields, a body in halftone and contour lines on top
+    # Clear zones: 0 inside a padded rectangle, rising to 1 within a few points of it
+    clear = np.ones((h, w), np.float32)
+    for left, up, right, down in AMP_CLEAR:
+        dx = np.maximum(np.maximum(left - wx, wx - right), 0)
+        dy = np.maximum(np.maximum(up - wy, wy - down), 0)
+        clear = np.minimum(clear, smooth(0.0, 7.0, np.sqrt(dx * dx + dy * dy)))
+    # Weather only at the two ends of the strip, gone well before the middle
+    ends = np.maximum(smooth(330.0, 90.0, wx), smooth(2200.0, 2520.0, wx))
+    edge = ends * clear
+
     cloud = noise(w, h, 240, 71) * 0.55 + noise(w, h, 90, 72) * 0.3 + noise(w, h, 34, 73) * 0.15
-    cloud_field = smooth(0.38, 0.72, cloud) * edge
-    body = halftone(cloud_field * 0.9, 10, 45)
-    lines = contour_lines(cloud, (0.44, 0.52, 0.60), 0.012) * edge
+    # A halftone leaves a pin-prick where its field is 0, so the zones are cut from the dots too
+    body = halftone(smooth(0.4, 0.74, cloud) * edge * 0.8, 10, 45) * clear * smooth(0.0, 0.05, ends)
 
-    # Lightning: two forks from the top corners, with a wide soft glow under each
+    # Lightning: one thin zig-zag down a gap at each end, a single short fork off it
     img = Image.new("L", (w, h), 0)
     draw = ImageDraw.Draw(img)
-    for cx, lean in ((w * 0.07, 0.25), (w * 0.93, -0.25)):
-        fork(draw, rng, cx, -10, lean, h * 0.95, 13, 1)
-    mask = np.asarray(img.filter(ImageFilter.GaussianBlur(0.7)), dtype=np.float32) / 255
-    glow = np.asarray(img.filter(ImageFilter.GaussianBlur(14)), dtype=np.float32) / 255
-    glow = np.clip(glow * 3.0, 0, 1) * edge
+
+    def put(px, py):
+        return ((px - AMP_ORIGIN[0]) / s, top + (py - AMP_ORIGIN[1]) / s)
+
+    fork_side = 1
+    for gap_x, swing in ((177.0, 7.0), (2513.0, 8.0)):
+        pts, side, py = [], 1, -6.0
+        while py < 140.0:
+            pts.append(put(gap_x + side * swing, py))
+            side, py = -side, py + rng.uniform(19, 26)
+        draw.line(pts, fill=255, width=3, joint="curve")
+        mid = pts[len(pts) // 2]
+        draw.line([mid, (mid[0] + fork_side * 12.0 / s, mid[1] + 14.0 / s)], fill=255, width=2)
+        fork_side = -fork_side
+    bolt = np.asarray(img.filter(ImageFilter.GaussianBlur(0.8)), dtype=np.float32) / 255 * clear
 
     # Mountains: a ridge from layered noise, hatched, with a lighter ridge line
     peaks = np.abs(np.sin(np.arange(w) / 61.0 + 1.3)) * 0.6 + np.abs(np.sin(np.arange(w) / 23.0)) * 0.25         + noise(w, 2, 120, 74)[0] * 0.5
@@ -176,12 +223,10 @@ def amp(w=1920, h=708):
     foot = hatch(ground, 6, 62, 2.4) * smooth(0.0, 0.1, (x / w) * (1 - x / w)) * 1.0
 
     layers = [
-        ink(glow, tint(paint, 0.5), 0.35, w, h, 79),
-        ink(body, tint(paint, 0.38), 0.6, w, h, 81),
-        ink(np.roll(lines, (2, 3), axis=(0, 1)), shadeof(paint, 0.55), 0.7, w, h, 83),
+        ink(body, tint(paint, 0.32), 0.5, w, h, 81),
         ink(foot, shadeof(paint, 0.6), 0.65, w, h, 85),
         ink(ridge, tint(paint, 0.55), 0.7, w, h, 87),
-        ink(np.maximum(mask, 0), CREAM, 0.85, w, h, 89),
+        ink(bolt, CREAM, 0.55, w, h, 89),
     ]
     return compose(layers, w, h)
 
