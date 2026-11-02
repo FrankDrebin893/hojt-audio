@@ -44,6 +44,11 @@ GitHub release.
 
 ### Guitar Amp
 
+- The strip's displays look like modern LEDs: the bank, preset, tuner and tempo readouts are made
+  of flat amber bars with sharp ends instead of a dot matrix with a glow, in black glass with a
+  thin frame. The lightning of the print is calmer and thinner, one bolt at each end in the
+  gaps, and nothing of it shows behind INPUT, OUTPUT, TUNER, STEREO OUT or MODEL any more.
+  No sound or parameter changed
 - The Guitar Amp's metronome click can have a signal of its own. A new Click out stepper in the
   metronome cluster picks Mixed (as before: the click is added to the amp's output, and
   existing projects sound the same) or Separate: the click then goes only to a second stereo

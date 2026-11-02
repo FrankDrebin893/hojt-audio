@@ -1732,6 +1732,63 @@ mod tests {
         }
     }
 
+    /// What is printed on the strip, or stands on it where its print must not show: the left,
+    /// top, right and bottom of each, in points from the window's top left corner. The jack
+    /// captions, the model number and the badge are printed by `ui::strip`, 30 in from the
+    /// edge of the face (the window less the bench margin)
+    fn strip_labels() -> Vec<(&'static str, [f32; 4])> {
+        let around = |x: f32, y: f32, half: f32, above: f32, below: f32| {
+            [x - half, y - above, x + half, y + below]
+        };
+        let (left, right) = (BENCH_MARGIN + 30.0, WINDOW_WIDTH as f32 - BENCH_MARGIN - 30.0);
+        let switch_label =
+            |x: f32| around(x + CAPTION_OFFSET, LED_Y, 24.0, 8.0, CAPTION_Y + 8.0 - LED_Y);
+        let knob = OUTPUT_RADIUS + TICKS;
+        let meter = |at: Vec2, half: f32| {
+            around(at.x, at.y, half, METER_HEIGHT / 2.0, METER_CAPTION.y + 8.0)
+        };
+        vec![
+            ("the input jack's caption", [left, 31.0, left + 32.0, 47.0]),
+            ("the model number", [left, 78.0, left + 40.0, 112.0]),
+            ("INPUT", meter(INPUT_METER, 20.0)),
+            (
+                "the bank display's left button",
+                around(BANK_X - reach(BANK_WIDTH), PRESET_Y, BUTTON, BUTTON, BUTTON),
+            ),
+            ("the output knob", around(OUTPUT_KNOB.x, OUTPUT_KNOB.y, knob, knob, knob + 20.0)),
+            ("OUTPUT", meter(OUTPUT_METER, 24.0)),
+            ("the clip lamp", around(CLIP_LAMP.x, CLIP_LAMP.y, 18.0, LAMP, LAMP_CAPTION.y + 8.0)),
+            ("ON", switch_label(BYPASS_X)),
+            ("the On switch", around(BYPASS_X, SWITCH_Y, SWITCH, SWITCH, SWITCH)),
+            ("TUNER", switch_label(TUNER_X)),
+            ("the Tuner switch", around(TUNER_X, SWITCH_Y, SWITCH, SWITCH, SWITCH)),
+            ("STEREO OUT", [right - 94.0, 31.0, right, 47.0]),
+            ("the badge", [right - 58.0, 80.0, right, 112.0]),
+        ]
+    }
+
+    // The storm of the print stays out from under every label: nothing of the picture shows
+    // behind them but the paint (this holds the clear zones of scripts/make-art.py)
+    #[test]
+    fn test_the_art_is_clear_behind_every_label_of_the_strip() {
+        let face = vec2(WINDOW_WIDTH as f32 - 2.0 * BENCH_MARGIN, STRIP_HEIGHT - 5.0);
+        let art = ui::artwork::fit_image(ui::artwork::AMP, face.x as usize, face.y as usize, 24.0);
+        for (name, [left, top, right, bottom]) in strip_labels() {
+            let across = (left - BENCH_MARGIN).floor().max(0.0) as usize
+                ..((right - BENCH_MARGIN).ceil() as usize).min(art.size[0]);
+            let down = (top - BENCH_MARGIN).floor().max(0.0) as usize
+                ..((bottom - BENCH_MARGIN).ceil() as usize).min(art.size[1]);
+            let heaviest = down
+                .flat_map(|y| across.clone().map(move |x| (x, y)))
+                .map(|(x, y)| art.pixels[y * art.size[0] + x].a())
+                .max()
+                .unwrap();
+            assert!(heaviest <= 6, "the art shows behind {name}: alpha {heaviest} of 255");
+        }
+        // And it is still there: a storm in the gaps and the corners
+        assert!(art.pixels.iter().filter(|pixel| pixel.a() > 60).count() > 400);
+    }
+
     #[test]
     fn test_the_metronome_stands_clear_of_itself_and_of_the_strips_edges() {
         let stepper_reach = |width: f32| width / 2.0 + STEPPER_REACH;

@@ -1,15 +1,15 @@
-//! A built-in LED display: a dark recessed window with a dot-matrix readout in amber, lit pixel
-//! by pixel like the rest of `raster` (no image files). The dots that are not lit stay faintly
+//! A built-in LED display: a black glass window with a readout in flat amber light, lit cell by
+//! cell like the rest of `raster` (no image files). The cells that are not lit stay very faintly
 //! visible, so the grid reads as a real display.
 //!
-//! The window and the two kinds of dot are rendered once by `cached`; a readout is only a
-//! row of blits, so it costs nothing until the text changes and the window is painted again.
+//! The window and the cells are rendered once by `cached`; a readout is only a row of blits, so
+//! it costs nothing until the text changes and the window is painted again.
 
 use nih_plug_egui::egui::{vec2, Color32, ColorImage, Painter, Pos2, Rect, Vec2};
 
-use super::raster::{blit, cached, device, hash, image, rounded_box, smoothstep, Pixel, Rgb};
+use super::raster::{blit, cached, device, image, rounded_box, smoothstep, Pixel, Rgb};
 
-/// Space from one dot to the next, in points, across and down
+/// Space from one cell to the next, in points, across and down
 pub const LED_PITCH: f32 = 5.0;
 /// A character is this many dots wide and high
 const GLYPH_COLS: usize = 5;
@@ -23,18 +23,26 @@ pub const LED_HEIGHT: f32 = GLYPH_ROWS as f32 * LED_PITCH + 2.0 * PAD.y;
 
 // Room around the window for its shadow, and the width of its bezel, in points
 const WINDOW_MARGIN: f32 = 3.0;
-const BEZEL: f32 = 3.0;
-const WINDOW_RADIUS: f32 = 5.0;
+const BEZEL: f32 = 2.0;
+const WINDOW_RADIUS: f32 = 4.0;
 
-// The dot: its lit core and its glow, in points from its middle
-const DOT_CORE: f32 = 1.95;
-const DOT_REACH: f32 = 5.6;
+// A cell of the readout is a square with sharp corners; `CELL_GAP` of the pitch is left dark
+// between two of them, and a lit cell joins the lit one beside it and the one under it across the
+// gap, so the strokes of a letter run on like the bars of a segment display. A lit cell has a
+// thin even bloom of `BLOOM_REACH` points
+const CELL_GAP: f32 = 2.0;
+const BLOOM_REACH: f32 = 3.0;
+const BLOOM: f32 = 0.30;
+// The reflection on the glass: how far down it goes, as a part of the window, and how strong
+const REFLECTION_END: f32 = 0.42;
+const REFLECTION: f32 = 0.05;
+/// Half the side of the picture of one cell, in points: the cell, the join and the bloom
+const CELL_HALF: f32 = LED_PITCH / 2.0 + BLOOM_REACH;
 
-const AMBER: Rgb = [255.0, 168.0, 28.0];
-const AMBER_HOT: Rgb = [255.0, 236.0, 176.0];
-const GHOST: Rgb = [58.0, 33.0, 12.0];
-const GLASS: Rgb = [12.0, 7.0, 5.0];
-/// The colour of anything drawn on the display that is not a dot
+const LIT: Rgb = [255.0, 186.0, 52.0];
+const GHOST: Rgb = [30.0, 20.0, 12.0];
+const GLASS: Rgb = [5.0, 4.0, 4.0];
+/// The colour of anything drawn on the display that is not a cell
 const AMBER_DIM: Color32 = Color32::from_rgb(92, 54, 16);
 
 /// How wide a display is that holds `chars` characters
@@ -165,42 +173,57 @@ pub fn window_image(size: Vec2, ppp: f32) -> ColorImage {
             let lip = 26.0 + 30.0 * smoothstep(0.55, 1.0, down);
             pixel.over([lip, lip - 2.0, lip - 5.0], (0.5 - d).clamp(0.0, 1.0));
 
-            // The glass, with the shadow the bezel throws on its top edge and a faint sheen
+            // The glass: flat black, with a faint reflection over its upper part that ends in
+            // a clean edge, the way a pane of glass over a display catches a window
             let glass = rounded_box(p, c, [half[0] - bezel, half[1] - bezel], radius - bezel);
-            let depth = (-glass).max(0.0);
-            let shade = 1.0 - 0.7 * (-(depth / device(3.0, ppp)).powi(2)).exp() * (1.0 - down);
-            let sheen =
-                1.0 + 0.9 * smoothstep(0.6, 0.0, down) * smoothstep(0.0, 0.4, (p[0] - m) / w);
-            let grain = 1.0 + (hash(x as i32, y as i32, 53) - 0.5) * 0.12;
-            let glass_rgb = GLASS.map(|channel| channel * shade * sheen * grain);
-            pixel.over(glass_rgb, (0.5 - glass).clamp(0.0, 1.0));
+            pixel.over(GLASS, (0.5 - glass).clamp(0.0, 1.0));
+            let reflection = (0.5 - glass).clamp(0.0, 1.0)
+                * smoothstep(0.0, 0.1, down)
+                * smoothstep(0.0, -0.08, down - REFLECTION_END);
+            pixel.over([255.0; 3], REFLECTION * reflection);
             pixels[y * width + x] = pixel;
         }
     }
     image(width, height, pixels)
 }
 
-/// One dot of the display: its unlit self, or lit with the glow round it
-pub fn dot_image(lit: bool, ppp: f32) -> ColorImage {
-    let side = (2.0 * DOT_REACH * ppp).ceil() as usize;
+/// How far `p` is from the box of half sides `half` centred on `c`: negative inside
+fn box_distance(p: [f32; 2], c: [f32; 2], half: [f32; 2]) -> f32 {
+    let q = [(p[0] - c[0]).abs() - half[0], (p[1] - c[1]).abs() - half[1]];
+    (q[0].max(0.0).powi(2) + q[1].max(0.0).powi(2)).sqrt() + q[0].max(q[1]).min(0.0)
+}
+
+/// One cell of the display, as a square picture `2 * CELL_HALF` points across with the cell in
+/// its middle: lit with its bloom, or unlit. A lit cell reaches across the gap to the lit cell
+/// `right` of it and the one `down` under it
+pub fn cell_image(lit: bool, right: bool, down: bool, ppp: f32) -> ColorImage {
+    let side = (2.0 * CELL_HALF * ppp).round() as usize;
     let c = side as f32 / 2.0;
+    let core = (LED_PITCH - CELL_GAP) / 2.0;
+    let mut boxes = vec![([0.0, 0.0], [core, core])];
+    // A join is as wide as the cell and runs on to the middle of the next one
+    let reach = LED_PITCH / 2.0;
+    if lit && right {
+        boxes.push(([reach, 0.0], [reach, core]));
+    }
+    if lit && down {
+        boxes.push(([0.0, reach], [core, reach]));
+    }
     let mut pixels = vec![Pixel::default(); side * side];
     for y in 0..side {
         for x in 0..side {
-            let (dx, dy) = (x as f32 + 0.5 - c, y as f32 + 0.5 - c);
-            let dist = (dx * dx + dy * dy).sqrt() / ppp;
+            let p = [(x as f32 + 0.5 - c) / ppp, (y as f32 + 0.5 - c) / ppp];
+            let dist = boxes
+                .iter()
+                .map(|&(center, half)| box_distance(p, center, half))
+                .fold(f32::MAX, f32::min);
+            let cover = (0.5 - dist * ppp).clamp(0.0, 1.0);
             let mut pixel = Pixel::default();
             if lit {
-                pixel.over(AMBER, (-(dist / 3.0).powi(2)).exp() * 0.42);
-            }
-            let core = (DOT_CORE - dist + 0.5 / ppp).clamp(0.0, 1.0);
-            if lit {
-                // White hot in the middle, amber at the rim
-                let heat = (1.0 - dist / DOT_CORE).clamp(0.0, 1.0).powi(2) * 0.6;
-                let colour = [0, 1, 2].map(|i| AMBER[i] + (AMBER_HOT[i] - AMBER[i]) * heat);
-                pixel.over(colour, core);
+                pixel.over(LIT, BLOOM * (-(dist.max(0.0) / (BLOOM_REACH / 2.2)).powi(2)).exp());
+                pixel.over(LIT, cover);
             } else {
-                pixel.over(GHOST, core);
+                pixel.over(GHOST, cover);
             }
             pixels[y * side + x] = pixel;
         }
@@ -217,32 +240,52 @@ pub fn paint_window(painter: &Painter, rect: Rect) {
     blit(painter, &texture, rect.expand(device(WINDOW_MARGIN, ppp).round() / ppp));
 }
 
-/// A dot centred on `center`, lit `level` of the way (0 to 1): the unlit dot is always there
-fn paint_dot(painter: &Painter, center: Pos2, level: f32) {
+/// The middle of a cell on the middle of a device pixel, so that its edges fall between two pixels
+fn snapped(center: Pos2, ppp: f32) -> Pos2 {
+    let snap = |at: f32| ((at * ppp - 0.5).round() + 0.5) / ppp;
+    Pos2::new(snap(center.x), snap(center.y))
+}
+
+/// The picture of the cell `key` (see `cell_image`) on `center`, tinted `tint`
+fn blit_cell(painter: &Painter, center: Pos2, lit: bool, right: bool, down: bool, tint: Color32) {
     let ctx = painter.ctx();
     let ppp = ctx.pixels_per_point();
-    for lit in [false, true] {
-        if lit && level <= 0.0 {
-            continue;
-        }
-        let texture = cached(ctx, ("led-dot", lit, ppp.to_bits()), || dot_image(lit, ppp));
-        let rect = Rect::from_center_size(center, Vec2::splat(2.0 * DOT_REACH));
-        let tint = if lit { Color32::WHITE.gamma_multiply(level.min(1.0)) } else { Color32::WHITE };
-        painter.image(
-            texture.id(),
-            rect,
-            Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)),
-            tint,
+    let rect = Rect::from_center_size(snapped(center, ppp), Vec2::splat(2.0 * CELL_HALF));
+    let key = ("led-cell", lit, right, down, ppp.to_bits());
+    let texture = cached(ctx, key, || cell_image(lit, right, down, ppp));
+    let uv = Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0));
+    painter.image(texture.id(), rect, uv, tint);
+}
+
+/// A lit cell centred on `center`, `level` of the way (0 to 1), joined to the lit cell `right` of
+/// it and the one `down` under it. Over the unlit cell that `paint_grid` drew
+fn paint_cell(painter: &Painter, center: Pos2, level: f32, right: bool, down: bool) {
+    if level > 0.0 {
+        blit_cell(
+            painter,
+            center,
+            true,
+            right,
+            down,
+            Color32::WHITE.gamma_multiply(level.min(1.0)),
         );
     }
 }
 
-/// Every dot of the display in `window`, unlit
+/// Every cell of the display in `window`, unlit
 fn paint_grid(painter: &Painter, window: Rect, chars: usize) {
     for col in 0..columns(chars) {
         for row in 0..GLYPH_ROWS {
-            paint_dot(painter, dot_center(window, col, row), 0.0);
+            blit_cell(painter, dot_center(window, col, row), false, false, false, Color32::WHITE);
         }
+    }
+}
+
+/// The lit cells `lit` of the display in `window`, each joined to its lit neighbours
+fn paint_lit(painter: &Painter, window: Rect, lit: &[(usize, usize)]) {
+    for &(col, row) in lit {
+        let (right, down) = (lit.contains(&(col + 1, row)), lit.contains(&(col, row + 1)));
+        paint_cell(painter, dot_center(window, col, row), 1.0, right, down);
     }
 }
 
@@ -253,9 +296,7 @@ pub fn led_display(painter: &Painter, center: Pos2, chars: usize, text: &str) ->
     let window = Rect::from_center_size(center, vec2(led_width(chars), LED_HEIGHT));
     paint_window(painter, window);
     paint_grid(painter, window, chars);
-    for (col, row) in text_dots(&text.to_uppercase(), chars) {
-        paint_dot(painter, dot_center(window, col, row), 1.0);
-    }
+    paint_lit(painter, window, &text_dots(&text.to_uppercase(), chars));
     window
 }
 
@@ -304,9 +345,7 @@ pub fn tuner_display(
     paint_window(painter, window);
     paint_grid(painter, window, chars);
 
-    for (col, row) in text_dots(note.unwrap_or("--"), TUNER_NOTE_CHARS) {
-        paint_dot(painter, dot_center(window, col, row), 1.0);
-    }
+    paint_lit(painter, window, &text_dots(note.unwrap_or("--"), TUNER_NOTE_CHARS));
     // A divider between the name and the needle, in the gap between two columns
     let divider_col = TUNER_NOTE_CHARS * ADVANCE_COLS;
     let divider = dot_center(window, divider_col, 0).x - LED_PITCH / 2.0 - LED_PITCH;
@@ -327,9 +366,11 @@ pub fn tuner_display(
         let col = first + (lamp + 8) as usize * NEEDLE_STEP;
         // The middle lamp is the whole height of the letters, the others the middle three rows
         let rows = if lamp == 0 { 0..GLYPH_ROWS } else { 2..5 };
+        let last = rows.end;
         for row in rows {
             for across in 0..NEEDLE_WIDTH {
-                paint_dot(painter, dot_center(window, col + across, row), level);
+                let (right, down) = (across + 1 < NEEDLE_WIDTH, row + 1 < last);
+                paint_cell(painter, dot_center(window, col + across, row), level, right, down);
             }
         }
     }
@@ -338,6 +379,10 @@ pub fn tuner_display(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn image_middle(image: &ColorImage) -> Color32 {
+        image.pixels[image.size[1] / 2 * image.size[0] + image.size[0] / 2]
+    }
 
     fn luminance(color: Color32) -> f32 {
         0.299 * color.r() as f32 + 0.587 * color.g() as f32 + 0.114 * color.b() as f32
@@ -388,17 +433,36 @@ mod tests {
     }
 
     #[test]
-    fn test_a_lit_dot_is_amber_and_glows_and_an_unlit_one_is_dark() {
-        let (lit, ghost) = (dot_image(true, 1.0), dot_image(false, 1.0));
-        let middle = |image: &ColorImage| {
-            image.pixels[image.size[1] / 2 * image.size[0] + image.size[0] / 2]
-        };
-        let color = middle(&lit);
-        assert!(color.r() > 240 && color.r() > color.g() && color.g() > color.b());
-        assert!(luminance(middle(&ghost)) < luminance(color) / 3.0);
-        // Only a lit dot glows past its core
-        let edge = |image: &ColorImage| image.pixels[image.size[1] / 2 * image.size[0] + 1].a();
-        assert!(edge(&lit) > 0 && edge(&ghost) == 0);
+    fn test_a_lit_cell_is_flat_amber_with_sharp_corners_and_a_thin_bloom() {
+        let (lit, ghost) =
+            (cell_image(true, false, false, 1.0), cell_image(false, false, false, 1.0));
+        let at = |image: &ColorImage, x: usize, y: usize| image.pixels[y * image.size[0] + x];
+        let middle = image_middle(&lit);
+        assert!(middle.r() > 240 && middle.r() > middle.g() && middle.g() > middle.b());
+        // Flat: the corner of the cell is as lit as its middle, which a round dot is not
+        let corner = at(&lit, 4, 4);
+        assert_eq!((corner.r(), corner.g(), corner.b()), (middle.r(), middle.g(), middle.b()));
+        // The unlit cell is only just there
+        assert!(luminance(image_middle(&ghost)) < luminance(middle) / 8.0);
+        // The bloom is thin: a little light in the gap, none at the edge of the picture
+        let (gap, edge) = (at(&lit, 7, 5), at(&lit, 10, 5));
+        assert!(gap.a() > 0 && gap.a() < 120, "the gap holds the bloom only: {}", gap.a());
+        assert_eq!(edge.a(), 0);
+        assert_eq!(at(&ghost, 7, 5).a(), 0);
+    }
+
+    #[test]
+    fn test_a_lit_cell_runs_into_the_lit_cell_beside_it_and_under_it() {
+        let alone = cell_image(true, false, false, 1.0);
+        let joined = cell_image(true, true, true, 1.0);
+        let at = |image: &ColorImage, x: usize, y: usize| image.pixels[y * image.size[0] + x];
+        // In the gap to the right and the one below
+        for (x, y) in [(7, 5), (5, 7)] {
+            assert_eq!(at(&joined, x, y).a(), 255, "{x},{y}");
+            assert!(at(&alone, x, y).a() < 255);
+        }
+        // Not to the left or above
+        assert!(at(&joined, 3, 5).a() < 255 && at(&joined, 5, 3).a() < 255);
     }
 
     #[test]
