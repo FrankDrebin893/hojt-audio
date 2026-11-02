@@ -49,7 +49,7 @@ detail lives. Each detail is next to what it governs.
   `site-design/DESIGN.md` - the site's look: its tokens, named rules, voice and references; not published
 - `scripts/` - Build, install, check, page and release tools; see `scripts/README.md`
 - `.agents/skills/` - The agent's skills (`/issue`, `/spec`, `/next`, `/groom`, `/release`, `/page`,
-  `/design`, `/scout`, `/specwriter`, `/feedback`, and the piano viz's `/piano-release` and `/piano-readme`).
+  `/design`, `/scout`, `/specwriter`, `/release-prep`, `/release-review`, `/feedback`, and the piano viz's `/piano-release` and `/piano-readme`).
   `.claude/commands/` mirrors them for Claude Code (`xtask/tests/skills_mirror.rs` holds it);
   `.claude/settings.json` has the hooks
 - `.github/workflows/` - `ci.yml` (tests), `release.yml` (the plugins, on `vX.Y.Z`), `piano.yml` (builds
@@ -202,7 +202,7 @@ without hooks runs `scripts/page-check.sh` itself before it ends
 
 ## Automation and health
 
-Three scheduled Claude tasks keep the backlog moving; each runs a skill and stops early while an
+Scheduled Claude tasks keep the backlog moving and the releases coming; each runs a skill and stops early while an
 open issue titled `Pause automation` exists:
 
 | Task | When (UTC) | Runs | Its limit |
@@ -210,6 +210,8 @@ open issue titled `Pause automation` exists:
 | Scout | Mondays 06:41 | `/scout` | 3 ideas a run; none while 10 of its ideas are ungroomed |
 | Specwriter | Daily 06:52 | `/specwriter` | 2 specs a run; none while 5 wait for approval |
 | Builder | Nightly 01:47 | `/next` | Only what Rasmus approved; nothing to do, it stops at once |
+| Release Manager | Fridays 06:30 | `/release-prep` | Only when a release is due (`/release-prep`, step 2) and no `release/*` pull request is open; it opens that pull request with auto-merge off and never tags: Rasmus merges and tags |
+| Release Analyst | Mondays 07:15 | `/release-review` | A review per release at 7 and 28 days on the issue "Release reviews"; 3 ideas a run (`from:review`), none while 10 of them are ungroomed, none from thin evidence |
 
 The board's State follows the label by `board-sync.yml`, so a session that sets a label needs no
 `scripts/move-issue.sh` (it needs the secret `BOARD_TOKEN`, a classic token with the `project`
@@ -225,6 +227,10 @@ The short version: the version is set in `Cargo.toml`, the changelog gets a `## 
 the page is brought up to the release with `/page release <version>`, and the release goes in through
 a `release/<version>` pull request, then a tag `v<version>`, which `release.yml` builds and publishes.
 The page's sound and look (`site/audio/`, `site/img/`) change only in a release commit.
+
+The weekly `/release-prep` prepares that pull request when a release is due, with auto-merge off; merging
+it and tagging `v<version>` stay with Rasmus. `/release-review` looks at how each release did, 7 and 28 days
+after it, on the issue "Release reviews", and files what it learns as `from:review` ideas.
 
 The piano viz releases on its own, with `/piano-release`: a tag `piano-v<version>` on `main`, which
 `piano.yml` builds and publishes. Its releases are never marked latest, since the plugins' page links

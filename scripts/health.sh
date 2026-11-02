@@ -121,9 +121,19 @@ unreleased="$(awk '/^## Unreleased/ {on = 1; next} /^## / {on = 0} on && /^- / {
 downloads="$(gh api "repos/$repo/releases" --paginate \
     --jq '[.[] | select((.draft | not) and (.tag_name | startswith("v"))) | .tag_name as $t | .published_at as $p | .assets[]
         | {tag: $t, published: $p, asset: .name, count: .download_count}]' | jq -sc 'add // []')"
-releases="$(jq -nc --argjson r "$release" --arg now "$now" --argjson u "$unreleased" --argjson d "$downloads" "$jqlib"'
+# The reviews /release-review has written: its comments on the issue "Release reviews" each carry
+# `<!-- release-review: <tag> <age>d -->`; the digest says when the last release has no 7-day one
+review_issue="$(gh issue list --repo "$repo" --state all --search '"Release reviews" in:title' --limit 20 --json number,title \
+    --jq '[.[] | select(.title == "Release reviews")] | first | .number // empty' || true)"
+reviewed='[]'
+if [ -n "$review_issue" ]; then
+    reviewed="$(gh api "repos/$repo/issues/$review_issue/comments" --paginate --jq '.[].body' \
+        | { grep -oE '<!-- release-review: v[0-9][^ ]* [0-9]+d -->' || true; } \
+        | sed -E 's/<!-- release-review: (.*) -->/\1/' | jq -R . | jq -sc 'unique')" || reviewed='[]'
+fi
+releases="$(jq -nc --argjson r "$release" --arg now "$now" --argjson u "$unreleased" --argjson d "$downloads" --argjson rv "$reviewed" "$jqlib"'
     {last_tag: ($r.tagName // null), days_since: (if $r.publishedAt then (hours($r.publishedAt; $now) / 24 | floor) else null end),
-     unreleased_entries: $u, downloads_total: ([$d[].count] | add // 0), downloads: $d}')"
+     unreleased_entries: $u, downloads_total: ([$d[].count] | add // 0), downloads: $d, reviewed: $rv}')"
 
 # --- The plugins (--sound) ---------------------------------------------------------------------
 
