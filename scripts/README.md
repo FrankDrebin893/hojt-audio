@@ -93,5 +93,23 @@ issue "Project health". Nothing in it changes `main`.
 
 The digest lists under **Look at** what crossed a line: `main` green under 90% of the time or red
 now, a spec waiting over a week, changes unreleased more than 30 days after the last release, a
-timed line more than 10% dearer than the week before, a render more than 1 LU louder or quieter.
+timed line more than 10% dearer than the week before, a render more than 1 LU louder or quieter,
+and the release cycle: **release possibly due** when count and age say a release may be due (`/release-prep` checks the content)
+(at least one entry under `Unreleased` and 7 or more days since the last release, or 5 or more
+entries; it cannot see the content, such as a fix to something that sounds wrong), and **release not reviewed** when the
+last release is 7 or more days old and the issue "Release reviews" has no 7-day review of it.
+`releases.reviewed` lists the reviews found (`null` when the lookup failed: unknown, so no "not reviewed" line) (`"v0.2.1 7d"`), read from the markers
+`<!-- release-review: <tag> <age>d -->` that `/release-review` puts in its comments. The
+Monday digest is written before the review runs (04:37 and 07:15 UTC), so on the Monday a release
+turns 7 days old the line shows until the review has run; if it is still there a week later, the cycle stalled.
+
+## Release cycle
+
+Two scheduled tasks (AGENTS.md, "Automation and health") run it, their prompts in
+`automation/scheduled-tasks.md` of the project files: the Release Manager (`/release-prep`, Fridays
+06:30 UTC) prepares a `release/<version>` pull request when a release is due, with auto-merge off,
+and somebody merges it and tags; the Release Analyst (`/release-review`, Mondays 07:15 UTC) writes a
+review per release at 7 and 28 days on the issue "Release reviews" and files at most 3 `from:review`
+ideas. `scripts/sync-labels.sh` creates the label `from:review`. `xtask/tests/release_cycle.rs`
+holds that the skills never tag or approve and that the digest shows the two lines.
 

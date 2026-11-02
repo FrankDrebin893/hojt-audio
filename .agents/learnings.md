@@ -31,3 +31,5 @@ is changed to carry a learning, its entry stays here with `In the skill:` and th
 ## Builds (`/next`)
 
 ## Page and releases (`/page`, `/release`, `/piano-release`, `/piano-readme`)
+
+## Release cycle (`/release-prep`, `/release-review`)

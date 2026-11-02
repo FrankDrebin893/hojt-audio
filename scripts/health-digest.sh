@@ -34,6 +34,11 @@ tail -n 2 "$history" | jq -rs '
       (if ($f.oldest_spec_wait_h // 0) > 168 then "a spec has waited over a week for approval" else empty end),
       (if ($now.releases.days_since // 0) > 30 and $now.releases.unreleased_entries > 0
         then "\($now.releases.unreleased_entries) changes wait for a release, \($now.releases.days_since) days after the last" else empty end),
+      (if ($now.releases.unreleased_entries // 0) >= 1 and (($now.releases.days_since // 0) >= 7 or $now.releases.unreleased_entries >= 5)
+        then "release possibly due: \($now.releases.unreleased_entries) entries unreleased, \($now.releases.days_since) days after the last; count and age say a release may be due, /release-prep checks the content on Fridays" else empty end),
+      (if ($now.releases.reviewed != null) and $now.releases.last_tag != null and ($now.releases.days_since // 0) >= 7
+          and (($now.releases.reviewed | index("\($now.releases.last_tag) 7d")) == null)
+        then "release not reviewed: \($now.releases.last_tag) is \($now.releases.days_since) days old and has no 7-day review on the issue \"Release reviews\" (/release-review runs on Mondays)" else empty end),
       (if $now.plugins and $was.plugins then
         ($now.plugins.cpu[] as $c | ($was.plugins.cpu[] | select(.plugin == $c.plugin and .what == $c.what)) as $o
           | select($o.core_pct > 0 and $c.core_pct > $o.core_pct * 1.1)
