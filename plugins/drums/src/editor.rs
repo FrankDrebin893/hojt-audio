@@ -55,18 +55,18 @@ fn draw(ctx: &Context, setter: &ParamSetter, params: &DrumSynthParams) {
     ui::pedal(ctx, &STYLE, |ui, origin| {
         // Overall sound
         let sound_y = 98.0;
-        param_knob(ui, setter, &params.gain, origin + vec2(130.0, sound_y), 31.0, "Gain", None);
-        param_knob(ui, setter, &params.room, origin + vec2(263.0, sound_y), 31.0, "Room", None);
-        param_knob(ui, setter, &params.tune, origin + vec2(397.0, sound_y), 31.0, "Tune", None);
-        param_knob(
-            ui,
-            setter,
-            &params.damping,
-            origin + vec2(530.0, sound_y),
-            31.0,
-            "Damping",
-            None,
-        );
+        // Five knobs, evenly across the frame, the middle one over the Mixer's middle one
+        let knobs: [(&FloatParam, &str); 5] = [
+            (&params.gain, "Gain"),
+            (&params.room, "Room"),
+            (&params.tune, "Tune"),
+            (&params.damping, "Damping"),
+            (&params.human, "Human"),
+        ];
+        for (i, (param, label)) in knobs.into_iter().enumerate() {
+            let x = 115.0 + 107.5 * i as f32;
+            param_knob(ui, setter, param, origin + vec2(x, sound_y), 31.0, label, None);
+        }
 
         // Mixer
         let frame =
