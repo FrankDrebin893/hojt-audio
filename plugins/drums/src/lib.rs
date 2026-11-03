@@ -6,14 +6,18 @@ mod drum_kit;
 mod dsp;
 mod editor;
 mod engines;
+mod human;
 mod kit;
 #[cfg(test)]
 mod no_alloc;
+#[cfg(test)]
+mod render_test;
 mod reverb;
 #[cfg(test)]
 mod test_util;
 mod voices;
 use drum_kit::{DrumKit, Stems, STEM_COUNT};
+use human::{Event, Humanizer};
 use kit::Kit;
 
 const LEVEL_MIN_DB: f32 = -30.0;
@@ -26,6 +30,8 @@ pub struct DrumSynthPlugin {
     drums: DrumKit,
     // Samples played before the current block
     played: u64,
+    // Human: delays and shades the hits. Not touched while Human is 0 and nothing waits in it
+    human: Humanizer,
 }
 
 #[derive(Params)]
@@ -67,11 +73,21 @@ pub struct DrumSynthParams {
     // A note-off on a cymbal that was held for a moment damps it. Off: note-offs are ignored
     #[id = "choke"]
     pub choke: BoolParam,
+
+    // Every hit a little late and a little louder or softer, by a different amount each time.
+    // 0: the hits are handled where they arrive. Last, as new parameters go
+    #[id = "human"]
+    pub human: FloatParam,
 }
 
 impl Default for DrumSynthPlugin {
     fn default() -> Self {
-        Self { params: Arc::new(DrumSynthParams::default()), drums: DrumKit::new(), played: 0 }
+        Self {
+            params: Arc::new(DrumSynthParams::default()),
+            drums: DrumKit::new(),
+            played: 0,
+            human: Humanizer::new(),
+        }
     }
 }
 
@@ -99,6 +115,7 @@ impl Default for DrumSynthParams {
             hihat: level_param("Hi-Hat", 0.0),
             cymbals: level_param("Cymbals", 0.0),
             choke: BoolParam::new("Choke", false),
+            human: percent_param("Human", 0.0),
         }
     }
 }
@@ -126,6 +143,35 @@ fn percent_param(name: &str, default: f32) -> FloatParam {
         .with_unit(" %")
         .with_value_to_string(formatters::v2s_f32_percentage(0))
         .with_string_to_value(formatters::s2v_f32_percentage())
+}
+
+/// What a drum does with an event at sample `due`: the kit tells time from it
+fn play(drums: &mut DrumKit, due: u64, event: Event) {
+    drums.set_time(due);
+    match event {
+        Event::NoteOn { note, velocity } => drums.note_on(note, velocity),
+        Event::NoteOff { note } => drums.note_off(note),
+        Event::Pedal { openness } => drums.set_hat_openness(openness),
+    }
+}
+
+impl DrumSynthPlugin {
+    /// What the drums make of a MIDI event, if anything
+    fn drum_event(event: NoteEvent<()>, choke: bool) -> Option<Event> {
+        match event {
+            // A note-on of velocity 0 is how some MIDI sources say note-off
+            NoteEvent::NoteOn { note, velocity, .. } if velocity <= 0.0 && choke => {
+                Some(Event::NoteOff { note })
+            }
+            NoteEvent::NoteOn { note, velocity, .. } => Some(Event::NoteOn { note, velocity }),
+            NoteEvent::NoteOff { note, .. } if choke => Some(Event::NoteOff { note }),
+            // The foot controller: 127 is the pedal shut, as electronic kits send it
+            NoteEvent::MidiCC { cc: HAT_PEDAL_CC, value, .. } => {
+                Some(Event::Pedal { openness: 1.0 - value })
+            }
+            _ => None,
+        }
+    }
 }
 
 impl Plugin for DrumSynthPlugin {
@@ -175,12 +221,14 @@ impl Plugin for DrumSynthPlugin {
         _context: &mut impl InitContext<Self>,
     ) -> bool {
         self.drums.set_sample_rate(buffer_config.sample_rate);
+        self.human.set_sample_rate(buffer_config.sample_rate);
         true
     }
 
     fn reset(&mut self) {
         self.played = 0;
         self.drums.reset();
+        self.human.reset();
     }
 
     fn process(
@@ -194,35 +242,35 @@ impl Plugin for DrumSynthPlugin {
         self.drums.set_tune(self.params.tune.value());
         self.drums.set_damping(self.params.damping.value());
 
+        let human = self.params.human.value();
+        let choke = self.params.choke.value();
         let mut next_event = context.next_event();
 
         for (sample_id, mut frame) in buffer.iter_samples().enumerate() {
+            let now = self.played + sample_id as u64;
+
             // Handle all events that land on this sample
             while let Some(event) = next_event {
                 if event.timing() > sample_id as u32 {
                     break;
                 }
-                self.drums.set_time(self.played + sample_id as u64);
-
-                match event {
-                    // A note-on of velocity 0 is how some MIDI sources say note-off
-                    NoteEvent::NoteOn { note, velocity, .. }
-                        if velocity <= 0.0 && self.params.choke.value() =>
-                    {
-                        self.drums.note_off(note)
+                let timing = event.timing() as u64;
+                if let Some(event) = Self::drum_event(event, choke) {
+                    if human > 0.0 || !self.human.is_empty() {
+                        // Kept until it is due, which is now or later. With Human just turned
+                        // down to 0 what waits still goes first, in its order
+                        let at = self.played + timing;
+                        if let Some((due, event)) = self.human.push(at, event, human) {
+                            play(&mut self.drums, due, event);
+                        }
+                    } else {
+                        play(&mut self.drums, now, event);
                     }
-                    NoteEvent::NoteOn { note, velocity, .. } => self.drums.note_on(note, velocity),
-                    NoteEvent::NoteOff { note, .. } if self.params.choke.value() => {
-                        self.drums.note_off(note)
-                    }
-                    // The foot controller: 127 is the pedal shut, as electronic kits send it
-                    NoteEvent::MidiCC { cc: HAT_PEDAL_CC, value, .. } => {
-                        self.drums.set_hat_openness(1.0 - value)
-                    }
-                    _ => {}
                 }
-
                 next_event = context.next_event();
+            }
+            while let Some((due, event)) = self.human.pop_due(now) {
+                play(&mut self.drums, due, event);
             }
 
             let mix = &mut self.drums.mix;

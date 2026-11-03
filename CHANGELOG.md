@@ -37,6 +37,13 @@ GitHub release.
 
 ### Drum Synth
 
+- A Human knob (0 to 100 %, 0 % by default) so a part drawn on a grid sounds played. Turned up,
+  every hit is a little louder or softer (up to 15 % at full) and a little late (up to 8 ms at
+  full, most of them within a few ms), by a different amount each time, so a repeated hit is
+  never a copy of the one before. A kick and a crash that arrive together stay together, and a
+  hit is never early, so the plugin still adds no latency. The same part renders the same way
+  every time. At 0 % the sound is exactly what it was, and the pedal's top row is now five
+  knobs, Human at the right
 - The Jazz kit's cymbals are dry and defined: every ride stroke is a clear ping over a quieter,
   even wash, and the hats and crashes keep their sizzle without the swirl of beating tones. They
   are a little darker, and the ride bell is rounder. A project on the Jazz kit sounds different;

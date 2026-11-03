@@ -15,6 +15,7 @@ instruments of their own (`src/engines/`), ported from `prototypes/jsfx`.
 - `src/voices/` - `kick.rs`, `snare.rs`, `tom.rs`, `cymbal.rs`, and `mod.rs` (`Hit`, `Voice`, `VoicePair`)
 - `src/dsp.rs` - Shared building blocks: noise, filters, membrane modes, clippers
 - `src/reverb.rs` - Room: 8-line feedback delay network
+- `src/human.rs` - `Humanizer`: the queue and the seeded generator behind the Human knob
 - `src/editor.rs` - egui GUI: teal pedal, knobs, one footswitch per kit
 
 How the modal voices (Rock, Jazz) work:
@@ -96,6 +97,25 @@ at once, as a hand does, and a note-off on anything else does nothing. Hi-hats a
 | Tune | -6 to +6 st | 0 | Pitch of kick, snare and toms |
 | Damping | 0-100 % | 0 % | Shortens the decay of drums and cymbals |
 | Kick, Snare, Toms, Hi-Hat, Cymbals | -30 to +6 dB | 0 dB | Level per group |
+| Human | 0-100 % | 0 % | Every hit a little late and a little louder or softer, by a different amount each time. Added last: its id is `human` |
+
+Human (`human.rs`, used by `process` in `lib.rs`; the kit does not know of it): while the knob is
+above 0, note-ons, note-offs and CC4 go through a first-in first-out queue (256 events, made in
+`new`, never resized) instead of straight to the kit, and come out at their due sample, where
+`set_time` is told that sample, so the choke's 120 ms rule and the pedal see the order they would
+without it. One draw is made per instant: a delay of 0 to 8 ms at 100 % (a squared uniform,
+so mostly small; `MAX_DELAY_S`) and a velocity factor of 1 ± 15 % (three uniforms added,
+`VELOCITY_SPREAD`), both scaled by the knob and the velocity then clamped to 1.0. Events of one
+instant share the draw, so a kick and a crash together stay together. A hit is only ever late, so
+there is no lookahead and no latency. An event is never due before the one ahead of it (its due
+time is raised to that one's), so a cymbal's off follows its on and a pedal move lands before
+its hat; the queue is then in due order by construction. A full queue plays the new event at
+once. The generator starts from one fixed seed and `reset` takes it again, so a render repeats.
+With the knob at 0 and the queue empty an event is handled where it arrives, to the bit as before
+(`test_human_at_0_renders_what_the_build_before_did_to_the_bit` holds the render of four kits
+from before Human; Linux only, as other platforms' `sin` differ in the last bit). The kit's own
+noise is not reseeded by `reset`, so only a new instance, not a rewound one, repeats to the bit.
+`render_human_wavs` (ignored) writes a four-bar beat at 0 and 100 % through every kit to listen to.
 
 Stereo positions are from the drummer's seat (hi-hat left, floor tom right).
 

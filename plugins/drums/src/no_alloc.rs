@@ -24,6 +24,26 @@ fn test_process_allocates_nothing() {
     host::assert_process_allocates_nothing("Drum Synth", &mut plugin, 200, &notes);
 }
 
+/// Human at 100 %: hits wait in the queue across blocks, and still nothing is made
+#[test]
+fn test_process_allocates_nothing_with_human_at_100_percent() {
+    let notes = host::notes(35, 47, 1, 2, 1);
+    let params = crate::DrumSynthParams {
+        human: crate::percent_param("Human", 1.0),
+        choke: nih_plug::prelude::BoolParam::new("Choke", true),
+        ..crate::DrumSynthParams::default()
+    };
+    let mut plugin = DrumSynthPlugin { params: std::sync::Arc::new(params), ..Default::default() };
+    plugin.params.kick.smoothed.reset(plugin.params.kick.value());
+    plugin.params.snare.smoothed.reset(plugin.params.snare.value());
+    plugin.params.toms.smoothed.reset(plugin.params.toms.value());
+    plugin.params.hihat.smoothed.reset(plugin.params.hihat.value());
+    plugin.params.cymbals.smoothed.reset(plugin.params.cymbals.value());
+    plugin.params.room.smoothed.reset(plugin.params.room.value());
+    plugin.params.gain.smoothed.reset(plugin.params.gain.value());
+    host::assert_process_allocates_nothing("Drum Synth at Human 100 %", &mut plugin, 200, &notes);
+}
+
 /// The default kit is Rock: every kit, through the kit itself
 #[test]
 fn test_every_kit_allocates_nothing() {
