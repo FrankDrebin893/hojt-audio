@@ -55,11 +55,11 @@ lead) and Drøn (a big, loose, dark amp with the low end let through). They shar
   panel itself is `suite_common::ui::settings`. nih-plug's host opens its streams once from its
   command line, so Apply saves and starts the program again; no host is installed in a DAW and
   the editor then shows no Audio button
-- `src/editor.rs` - egui GUI (2747 x 650 window): the oxblood strip across the top with the
+- `src/editor.rs` - egui GUI (2997 x 650 window): the oxblood strip across the top with the
   Bank and Preset displays, the list they drop open, or the tuner display in its left wing and
-  Output, meters, Clip, On and Tuner in its right; the stack (the head of the amp that is
-  picked, with its nameplate and dials, the cabinet with its control plate); each of the eleven
-  pedals in its own paint with its own art
+  Output, meters, Clip, On and Tuner in its right; the stack (two lanes, one per amp: its head
+  with nameplate and dials, and the cabinet it plays through beside it; the plate where they meet
+  with the Blend fader); each of the eleven pedals in its own paint with its own art
 - `src/looks.rs` - What each amp's head looks like: a `Look` (its `HeadStyle` and knob cap) per
   amp, in the order of `Amp::ALL`. The sound stays in `amp/model.rs`
 - `src/board.rs` - The line under the strip in the chain's order: the pedals and the stack,
@@ -417,8 +417,8 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
 - **Rigs:** a plugin made of several components (the Guitar Amp) is the one exception to one
   pedal per plugin. Its window is a `rig`: a `strip` across the top, a shallow enclosure in the
   plugin's paint that carries the jack captions, model number, logo and art (no name band), with a wing at each end for the plugin's own controls; and under it one line in signal
-  order: the gate, the pedals in front of the amp, the stack (the head standing on the cabinet,
-  `STACK_WIDTH` wide), the pedals behind the cabinet. The pedals stand on the floor beside the
+  order: the gate, the pedals in front of the amp, the stack (two lanes, a head
+  with its cabinet each, and the plate where they meet, `STACK_WIDTH` wide), the pedals behind the cabinet. The pedals stand on the floor beside the
   cabinet, as tall as it. Each mini pedal has a paint of its own. On a strip, a head and mini
   pedals the switches are `small_footswitch` and the LEDs `rig_led` (an unlit `led` disappears
   on dark paint), beside or above the switch. A mini pedal holds two knobs of radius 24 side by
@@ -428,6 +428,21 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   output meter, Clip, On, Tuner). Its jack captions read `In` at the left and `Stereo Out` at
   the right, arrows left to right: the signal runs along the window. Nothing in a wing reaches
   the band (a test holds it)
+- **The stack is two lanes** (#177): the first amp's head with the cabinet beside it, and under
+  it the second amp's, as tall as the pedals together (`LANE_HEIGHT`). Each lane has a head
+  that looks as its amp (below), a nameplate, six dials of radius 15, and a line under the dials
+  with the lane's name (`Amp 1`, `Amp 2`), the `Cabinet` stepper of its own cabinet and, on the
+  second lane, its `On` switch with a `rig_led`. The cabinet beside it looks as the cabinet that
+  plays through that amp and has no plate. Both input jacks take the guitar (a cable links
+  them), and both lanes end at a black plate, `MIX_WIDTH` wide, through a coupler each. The
+  plate holds, from the top: `Blend` over a `crossfader` (`ui::crossfader`: `Amp 1` at the
+  top of the slot, `Amp 2` at the bottom, the value on label tape under it), the Mic and Res
+  knobs (radius 17), the `Mic Type` stepper, the output jack with its `Out` caption, at the
+  height of the pedals' plugs, and the Cab switch with its LED and caption. Mic, Res, Mic Type
+  and Cab act on both amps' cabinets. The first lane's `Cabinet` stepper goes through the amp's
+  own, the built-in cabinets and the files, as the Speaker stepper did; the second's through its
+  own and the built-in ones (`cabinet2`, never a file). Nothing of the lanes is dimmed while
+  the second amp is off: its lamp and its switch say so
 - **Head and cabinet:** each amp has a head of its own (`looks.rs`, drawn by `ui::amp_head`),
   which changes the moment another amp is picked:
 
@@ -475,11 +490,9 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   with `!` (unusable) plays the amp's own cabinet and shows its look. Switching the cabinet off
   does not change the look: its LED says so. A new built-in cabinet needs a look in
   `SPEAKER_CABS` (a test walks `SPEAKERS`), and no two built-in looks share covering, grille
-  and speakers. Every cabinet is the same size with the same black control plate across its
-  top (`CAB_PLATE_HEIGHT`, cream print): the `Speaker` stepper over the `Mic Type` stepper, the
-  Mic and Res knobs (radius 17), and its switch with LED and caption above it. Its output jack
-  is under the plate, at the height of the pedals' plugs, on a small plate of the same black
-  with its `Out` caption, so the caption reads on every cloth
+  and speakers. Every cabinet is the same size (a lane's, `LANE_CAB_WIDTH` wide and
+  as tall as the lane); its controls are not on it but on its lane's head and the shared plate
+  (above)
 - **Pedal art:** every mini pedal has its own `PAINT_*` and its own `Motif`, all on one theme
   per rig (the Guitar Amp: northern weather and nature). Two coats and a print: a large motif
   in darker tones of the pedal's paint (`theme::shade`) that may run under the controls, with
@@ -488,7 +501,7 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   letters, numbers or cream triangles in it, and nothing that moves. A new paint goes in
   `PEDAL_PAINTS`, where tests hold it to cream print reading on it and to being clearly apart
   from the others; a new motif is drawn in `art.rs` for the layout of its pedal
-- **Equal pedals:** every pedal of the row is `PEDAL_WIDTH` (180 px) wide (eleven of them and the stack: the window is 2747 px wide); only the stack has its
+- **Equal pedals:** every pedal of the row is `PEDAL_WIDTH` (180 px) wide (eleven of them and the stack: the window is 2997 px wide); only the stack has its
   own width. The gap between neighbours is what is left of the window after the margin at each
   end (`GAP` in `board.rs`, a test holds it even and every pedal as wide as the next). A pedal
   with two knobs is either a pair side by side (radius 24) or on a diagonal (`SLIM_LED`,
@@ -586,12 +599,12 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   `ParamSetter` and keeps only the index in a `#[persist]` field
 - **Pick a file (cabinets):** files are never picked in a dialog. They live in one folder and are
   stepped through in name order with a `stepper` under a `silk_label` caption, after the built-in
-  choices: the amp's own (`OWN`), then the built-in cabinets. On the cabinet's control plate
-  the tape is 100 px wide and shows at most 10 characters: no extension, capitals, long names as the first 5 and last 4
+  choices: the amp's own (`OWN`), then the built-in cabinets. On the first lane's line under
+  the dials the tape is 90 px wide and shows at most 10 characters: no extension, capitals, long names as the first 5 and last 4
   with `~` between. `!` in front of the name of a file that cannot be used, `?` in front of the name of one
   that is not there. Stepping on to `OWN` past where the files would be, with none in the folder,
   says `NO FILES` for 1.5 s. Hovering the
-  `Speaker` caption names the folder; a double-click on it opens the folder
+  `Cabinet` caption names the folder; a double-click on it opens the folder
 - **A file choice is never a parameter.** Keep the file name (not the path) in a `#[persist]` field
 - **Metronome:** one cluster on the strip between Save and Output, its controls closer
   (`METRONOME_GAP`) than the strip's others (`STRIP_GAP`), left to right: a `small_footswitch`

@@ -8,8 +8,8 @@ use suite_common::ui::{
     self, beat_lamp, chrome_button, drop_panel, led_stepper, led_width, level_meter,
     nameplate_stepper, panel_knob, param_knob, param_switch, print_label, rig_led, settings_panel,
     signal_lamp, silk_label, small_footswitch, stepper, theme, tuner_display, type_into,
-    type_on_tape, Beat, Column, HeadFaces, MiniStyle, Motif, Ornament, PedalStyle, Pick, Row,
-    SettingRow, SettingsEvent, SettingsText, Step, Typed, BENCH_MARGIN, LED_HEIGHT, SLIM_KNOBS,
+    type_on_tape, Beat, Column, MiniStyle, Motif, Ornament, PedalStyle, Pick, Row, SettingRow,
+    SettingsEvent, SettingsText, Step, Typed, BENCH_MARGIN, LED_HEIGHT, SLIM_KNOBS,
     SLIM_KNOB_RADIUS, SLIM_LED, SLIM_SWITCH,
 };
 
@@ -56,10 +56,10 @@ pub(crate) const STYLE: PedalStyle = PedalStyle {
 // is picked is on the left: the input meter, then the bank and preset displays and the Save
 // button. What goes out is on the right: the output knob, the output meter, the clip lamp, and
 // the On and Tuner switches. Each one's place is the end of the one before it and the gap
-const STRIP_GAP: f32 = 32.5;
+const STRIP_GAP: f32 = 59.5;
 // The gap that holds the standalone program's Audio button, between the output meter and the clip
 // lamp: a little wider than the others
-const AUDIO_GAP: f32 = 43.0;
+const AUDIO_GAP: f32 = 70.0;
 
 // The bank display and the preset display, each an LED display with a button at each end and
 // its caption over it: what set of presets the preset display picks from, and the preset.
@@ -200,36 +200,60 @@ const CAPTION_SIZE: f32 = 17.0;
 const NAMEPLATE_WIDTH: f32 = 140.0;
 // The middle of the jack, the first dial and the line of the dials, from the panel's top left
 // corner; captions are on one line above them
-const HEAD_JACK_X: f32 = 18.0;
-const DIAL_FIRST_X: f32 = 59.0;
 const DIAL_Y: f32 = 52.0;
-const DIAL_RADIUS: f32 = 18.0;
-const DIAL_SPACING: f32 = 61.0;
 const DIALS: [&str; 6] = ["Gain", "Bass", "Mid", "Treble", "Presence", "Master"];
-// On the cabinet, which looks as the cabinet that plays (`looks::cab_look`), from its top left
-// corner: on the control plate across its top, the cabinet that plays (the amp's own, a
-// built-in one or a file) over the microphone that hears it, the Mic and Res knobs, and the
-// cabinet's switch with its LED and caption above it. The output jack the cable to the pedals
-// behind it leaves from is under the plate
-const SPEAKER_CAPTION: Vec2 = vec2(110.0, 38.0);
-const SPEAKER_STEPPER: Vec2 = vec2(110.0, 60.0);
-// The tape is as wide as fits beside the knobs, and holds this many letters
-const SPEAKER_WIDTH: f32 = 100.0;
+// The stack is two lanes, one per amp, one above the other: a head with the cabinet beside it,
+// that play together. Each lane's head looks as its amp (`looks`), its cabinet as the cabinet
+// that plays through it (`looks::cab_look`; no plate: the lane's own choice is on the head's
+// lower line). The lanes end at a black plate where the signal meets, with the Blend fader
+// between the two, and what both share: Mic, Res, the microphone, the cabinets' switch and the
+// one output jack. Positions are from the stack's top left corner
+const LANE_GAP: f32 = 18.0;
+const LANE_HEIGHT: f32 = (HEAD_HEIGHT + PEDAL_HEIGHT - LANE_GAP) / 2.0;
+const LANE_HEAD_WIDTH: f32 = 420.0;
+const LANE_CAB_WIDTH: f32 = 120.0;
+const LANE_CAB_GAP: f32 = 6.0;
+// The plate starts after the cabinets, with room for a coupler between
+const MIX_GAP: f32 = 12.0;
+const MIX_X: f32 = LANE_HEAD_WIDTH + LANE_CAB_WIDTH + LANE_CAB_GAP + MIX_GAP - LANE_CAB_GAP;
+const MIX_WIDTH: f32 = STACK_WIDTH - MIX_X;
+// On the plate, from its top: the fader with the amps' captions, its tape, and under it
+// what both cabinets share
+const MIX_AMP1_CAPTION_Y: f32 = 38.0;
+const FADER_TOP: f32 = 62.0;
+const FADER_LENGTH: f32 = 60.0;
+const MIX_AMP2_CAPTION_Y: f32 = 146.0;
+const MIX_BLEND_CAPTION_Y: f32 = 18.0;
+const MIX_BLEND_TAPE_Y: f32 = 161.0;
+const MIX_KNOB_Y: f32 = 214.0;
+const MIX_KNOB_DX: f32 = 34.0;
+const MIX_KNOB_RADIUS: f32 = 17.0;
+const MIC_CAPTION_Y: f32 = 298.0;
+const MIC_STEPPER_Y: f32 = 321.0;
+const MIC_STEPPER_WIDTH: f32 = 44.0;
+const MIX_JACK_Y: f32 = 349.0;
+const MIX_JACK_CAPTION_Y: f32 = 369.0;
+const MIX_SWITCH_CAPTION_Y: f32 = 393.0;
+const MIX_LED_Y: f32 = 416.0;
+const MIX_SWITCH_Y: f32 = 457.0;
+
+// On a lane's head, from the panel's top left corner: the dials in a row, the lane's name,
+// its cabinet's stepper and, on the second lane, its switch, on the line under the dials
+const LANE_JACK_X: f32 = 16.0;
+const LANE_DIAL_FIRST_X: f32 = 54.0;
+const LANE_DIAL_SPACING: f32 = 55.0;
+const LANE_DIAL_RADIUS: f32 = 15.0;
+const LANE_LINE_DY: f32 = 72.0;
+const LANE_NAME_X: f32 = 48.0;
+const LANE_CAB_X: f32 = 170.0;
+const LANE_CAB_CAPTION_DY: f32 = -24.0;
+const LANE_CAB_STEPPER_WIDTH: f32 = 90.0;
+// From the panel's right edge
+const LANE_ON_CAPTION_DX: f32 = -116.0;
+const LANE_ON_LED_DX: f32 = -88.0;
+const LANE_ON_SWITCH_DX: f32 = -46.0;
 const CAB_NAME_CHARS: usize = 10;
-// The microphone: three letters on its tape
-const MIC_CAPTION: Vec2 = vec2(110.0, 88.0);
-const MIC_STEPPER: Vec2 = vec2(110.0, 110.0);
-const MIC_STEPPER_WIDTH: f32 = 54.0;
-const CAB_KNOBS: [Vec2; 2] = [vec2(240.0, 62.0), vec2(310.0, 62.0)];
-const CAB_KNOB_RADIUS: f32 = 17.0;
-const CAB_SWITCH_CAPTION: Vec2 = vec2(385.0, 38.0);
-const CAB_LED: Vec2 = vec2(385.0, 60.0);
-const CAB_SWITCH: Vec2 = vec2(385.0, 104.0);
-const CAB_JACK: Vec2 = vec2(425.0, 160.0);
-const CAB_JACK_CAPTION: Vec2 = vec2(425.0, 182.0);
-// The jack and its caption are on a small plate of their own over the grille's corner, so the
-// caption reads on every cloth
-const CAB_JACK_PLATE: Rect = Rect::from_min_max(Pos2::new(400.0, 150.0), Pos2::new(448.0, 196.0));
+const JACK_RADIUS: f32 = 8.0;
 
 // The pedals, all as wide as each other: four with a trio or a pair of knobs side by side and
 // six with two knobs on a diagonal; the pitch shifter, last, is a trio like the first three
@@ -423,115 +447,238 @@ impl Pedals<'_> {
         face
     }
 
-    /// Draws the stack with its top left corner at `top_left`: the head of the amp that is
-    /// picked, and the cabinet it stands on, as tall as the pedals and looking as the cabinet
-    /// that plays. Returns where the cables go in and out
+    /// Draws the stack with its top left corner at `top_left`: two lanes, the first amp's
+    /// head with its cabinet beside it and the second amp's under it, and the plate where
+    /// they meet. Returns where the cables go in and out
     pub(crate) fn stack(&self, ui: &mut Ui, top_left: Pos2) -> Jacks {
+        let params = self.params;
+        let mut jacks = [Pos2::ZERO; 2];
+        let mut ends = [Pos2::ZERO; 2];
+        for lane in 0..2 {
+            let origin = top_left + vec2(0.0, (LANE_HEIGHT + LANE_GAP) * lane as f32);
+            (jacks[lane], ends[lane]) = self.lane(ui, origin, lane == 1);
+        }
+        // The guitar goes into both heads: a link from the first jack to the second's, round
+        // the left edge of the panels
+        let bow = vec2(-70.0, 50.0);
+        link_cable(ui, [jacks[1], jacks[1] + vec2(bow.x, -bow.y), jacks[0] + bow, jacks[0]]);
+        for jack in jacks {
+            jack_socket(ui, jack);
+        }
+
+        let plate = Rect::from_min_size(
+            top_left + vec2(MIX_X, 0.0),
+            vec2(MIX_WIDTH, 2.0 * LANE_HEIGHT + LANE_GAP),
+        );
+        let first = looks::cab_look(params.amp.value(), &self.chosen(), self.cab_loader.status());
+        ui::amp::mounted_plate(ui.painter(), plate, first.plate);
+        for end in ends {
+            ui::coupler(ui.painter(), end.x, plate.left(), end.y);
+        }
+        Jacks { input: jacks[1], output: self.mix_plate(ui, plate) }
+    }
+
+    /// The first amp's cabinet choice: the amp's own, a built-in one or a file
+    fn chosen(&self) -> String {
+        self.params.cabinet.lock().unwrap_or_else(PoisonError::into_inner).clone()
+    }
+
+    /// One lane at `origin`: the head of its amp with its nameplate and six dials, the cabinet
+    /// it plays through beside it, and the line under the dials with its name, its cabinet's
+    /// stepper and, for the second, its On switch. Returns the middle of the head's input jack
+    /// and where its cabinet ends on the right
+    fn lane(&self, ui: &mut Ui, origin: Pos2, second: bool) -> (Pos2, Pos2) {
         let (params, setter) = (self.params, self.setter);
-        let amp_shown = params.amp.value();
-        let look = looks::look(amp_shown);
+        let amp = if second { params.amp2.value() } else { params.amp.value() };
+        let look = looks::look(amp);
         let (panel, print) = (look.head.panel, look.head.print);
-        let head = Rect::from_min_size(top_left, vec2(STACK_WIDTH, HEAD_HEIGHT));
-        let faces = ui::amp_head(ui, head, &look.head, !params.bypass.value());
-        let places = HeadPlaces::new(faces);
-        let cab = Rect::from_min_size(
-            Pos2::new(top_left.x, top_left.y + HEAD_HEIGHT),
-            vec2(STACK_WIDTH, PEDAL_HEIGHT),
-        );
-        // The cabinet that plays: the amp's own, a built-in one or a file from the
-        // cabinets folder. The buttons of its display step through them
-        let chosen = params.cabinet.lock().unwrap_or_else(PoisonError::into_inner).clone();
-        let cab_look = looks::cab_look(amp_shown, &chosen, self.cab_loader.status());
-        ui::cabinet(ui, cab, cab_look);
-        let cab = cab.min;
-        ui::amp::mounted_plate(
-            ui.painter(),
-            CAB_JACK_PLATE.translate(cab.to_vec2()),
-            cab_look.plate,
-        );
+        let on = if second { params.amp2_on.value() } else { true } && !params.bypass.value();
 
-        // The nameplate picks the amp: the amp that is left keeps its dials, and the one
-        // picked gets its own back
-        let name = amp_shown.model().name;
-        if let Some(step) =
-            nameplate_stepper(ui, places.nameplate, NAMEPLATE_WIDTH, panel, print, name, "amp")
-        {
-            dial_memory::switch_amp(params, setter, neighbour_amp(amp_shown, step));
-        }
-        for ((param, label), at) in params.amp_dials().into_iter().zip(DIALS).zip(places.dials) {
-            panel_knob(ui, setter, param, at, DIAL_RADIUS, label, look.knobs, print);
-        }
-        print_label(ui.painter(), places.jack_caption, "In", LAMP_CAPTION_SIZE, print);
-
-        let shown = self.cab_loader.display_name(&chosen, CAB_NAME_CHARS);
-        silk_label(ui.painter(), cab + SPEAKER_CAPTION, "Speaker", LAMP_CAPTION_SIZE);
-        // Where the files go: shown when the caption is hovered, and opened by a
-        // double-click on it
-        if let Some(dir) = user_cab::cabinets_dir() {
-            let caption = Rect::from_center_size(cab + SPEAKER_CAPTION, vec2(70.0, 18.0));
-            let response = ui
-                .interact(caption, Id::new("cabinet-folder"), Sense::click())
-                .on_hover_text(format!("Cabinet files go in {}", dir.display()));
-            if response.double_clicked() {
-                let _ = std::fs::create_dir_all(&dir);
-                user_cab::open_folder(&dir);
+        // The head
+        let head = Rect::from_min_size(origin, vec2(LANE_HEAD_WIDTH, LANE_HEIGHT));
+        let faces = ui::amp_head(ui, head, &look.head, on);
+        let corner = faces.panel.left_top();
+        let dials = std::array::from_fn::<Pos2, 6, _>(|index| {
+            corner + vec2(LANE_DIAL_FIRST_X + LANE_DIAL_SPACING * index as f32, DIAL_Y)
+        });
+        let id = if second { "amp2" } else { "amp" };
+        if let Some(step) = nameplate_stepper(
+            ui,
+            faces.grille.center(),
+            NAMEPLATE_WIDTH,
+            panel,
+            print,
+            amp.model().name,
+            id,
+        ) {
+            if second {
+                dial_memory::switch_second_amp(params, setter, neighbour_amp(amp, step));
+            } else {
+                dial_memory::switch_amp(params, setter, neighbour_amp(amp, step));
             }
         }
-        if self.cab_loader.no_files_showing() {
-            // Draw once more when the note is over
-            ui.ctx().request_repaint_after(NO_FILES_SHOWN);
+        let own_dials = if second { params.amp2_dials() } else { params.amp_dials() };
+        for ((param, label), at) in own_dials.into_iter().zip(DIALS).zip(dials) {
+            panel_knob(ui, setter, param, at, LANE_DIAL_RADIUS, label, look.knobs, print);
         }
-        if let Some(step) = stepper(ui, cab + SPEAKER_STEPPER, SPEAKER_WIDTH, &shown, "cabinet") {
-            step_cabinet(params, self.cab_loader, self.load_cabinet, step == Step::Next);
+        let jack = corner + vec2(LANE_JACK_X, DIAL_Y);
+        let caption = ui::panel_caption(dials[0], LANE_DIAL_RADIUS).y;
+        print_label(ui.painter(), Pos2::new(jack.x, caption), "In", LAMP_CAPTION_SIZE, print);
+
+        // The line under the dials
+        let line = corner.y + DIAL_Y + LANE_LINE_DY;
+        print_label(
+            ui.painter(),
+            Pos2::new(corner.x + LANE_NAME_X, line),
+            if second { "Amp 2" } else { "Amp 1" },
+            18.0,
+            print,
+        );
+        let cab_at = Pos2::new(corner.x + LANE_CAB_X, line);
+        print_label(
+            ui.painter(),
+            cab_at + vec2(0.0, LANE_CAB_CAPTION_DY),
+            "Cabinet",
+            LAMP_CAPTION_SIZE,
+            print,
+        );
+        if second {
+            let right = faces.panel.right();
+            print_label(
+                ui.painter(),
+                Pos2::new(right + LANE_ON_CAPTION_DX, line),
+                "On",
+                15.0,
+                print,
+            );
+            rig_led(ui.painter(), Pos2::new(right + LANE_ON_LED_DX, line), params.amp2_on.value());
+            if small_footswitch(ui, Pos2::new(right + LANE_ON_SWITCH_DX, line), "amp2_on").clicked()
+            {
+                let now = params.amp2_on.value();
+                setter.begin_set_parameter(&params.amp2_on);
+                setter.set_parameter(&params.amp2_on, !now);
+                setter.end_set_parameter(&params.amp2_on);
+            }
         }
 
-        // The microphone the cabinet is heard with
+        // The cabinet it plays through
+        let chosen = if second { params.cabinet_second.choice() } else { self.chosen() };
+        let status = if second { CabStatus::Fine } else { self.cab_loader.status() };
+        let mut style = *looks::cab_look(amp, &chosen, status);
+        style.plate_height = 0.0;
+        let cab = Rect::from_min_size(
+            origin + vec2(LANE_HEAD_WIDTH + LANE_CAB_GAP, 0.0),
+            vec2(LANE_CAB_WIDTH, LANE_HEIGHT),
+        );
+        ui::cabinet(ui, cab, &style);
+
+        // Its stepper: the amp's own, the built-in ones and, for the first, the files too
+        if second {
+            let shown = match params.cabinet_second.get() {
+                Some(speaker) => crate::amp::model::SPEAKERS[speaker].name.to_owned(),
+                None => "OWN".to_owned(),
+            };
+            if let Some(step) = stepper(ui, cab_at, LANE_CAB_STEPPER_WIDTH, &shown, "cabinet2") {
+                params.cabinet_second.step(step == Step::Next);
+            }
+        } else {
+            // Where the files go: shown when the caption is hovered, and opened by a
+            // double-click on it
+            if let Some(dir) = user_cab::cabinets_dir() {
+                let caption = Rect::from_center_size(
+                    cab_at + vec2(0.0, LANE_CAB_CAPTION_DY),
+                    vec2(70.0, 18.0),
+                );
+                let response = ui
+                    .interact(caption, Id::new("cabinet-folder"), Sense::click())
+                    .on_hover_text(format!("Cabinet files go in {}", dir.display()));
+                if response.double_clicked() {
+                    let _ = std::fs::create_dir_all(&dir);
+                    user_cab::open_folder(&dir);
+                }
+            }
+            if self.cab_loader.no_files_showing() {
+                // Draw once more when the note is over
+                ui.ctx().request_repaint_after(NO_FILES_SHOWN);
+            }
+            let shown = self.cab_loader.display_name(&chosen, CAB_NAME_CHARS);
+            if let Some(step) = stepper(ui, cab_at, LANE_CAB_STEPPER_WIDTH, &shown, "cabinet") {
+                step_cabinet(params, self.cab_loader, self.load_cabinet, step == Step::Next);
+            }
+        }
+        (jack, cab.right_center())
+    }
+
+    /// The plate where the lanes meet: the Blend fader between the two amps, then what both
+    /// share. Returns the output jack
+    fn mix_plate(&self, ui: &mut Ui, plate: Rect) -> Pos2 {
+        let (params, setter) = (self.params, self.setter);
+        let x = plate.center().x;
+        let at = |dy: f32| Pos2::new(x, plate.top() + dy);
+        silk_label(ui.painter(), at(MIX_BLEND_CAPTION_Y), "Blend", LAMP_CAPTION_SIZE);
+        silk_label(ui.painter(), at(MIX_AMP1_CAPTION_Y), "Amp 1", LAMP_CAPTION_SIZE);
+        ui::crossfader(ui, setter, &params.amp_blend, at(FADER_TOP), FADER_LENGTH, theme::SILK);
+        silk_label(ui.painter(), at(MIX_AMP2_CAPTION_Y), "Amp 2", LAMP_CAPTION_SIZE);
+        let blend = params.amp_blend.unmodulated_normalized_value();
+        ui::widgets::label_tape(
+            ui.painter(),
+            at(MIX_BLEND_TAPE_Y),
+            &params.amp_blend.normalized_value_to_string(blend, true),
+            12.0,
+        );
+
+        for ((param, caption), dx) in [(&params.cab_mic, "Mic"), (&params.cab_res, "Res")]
+            .into_iter()
+            .zip([-MIX_KNOB_DX, MIX_KNOB_DX])
+        {
+            param_knob(
+                ui,
+                setter,
+                param,
+                at(MIX_KNOB_Y) + vec2(dx, 0.0),
+                MIX_KNOB_RADIUS,
+                caption,
+                None,
+            );
+        }
         let mic_shown = params.cab_mic_type.value();
-        silk_label(ui.painter(), cab + MIC_CAPTION, "Mic Type", LAMP_CAPTION_SIZE);
+        silk_label(ui.painter(), at(MIC_CAPTION_Y), "Mic Type", LAMP_CAPTION_SIZE);
         if let Some(step) =
-            stepper(ui, cab + MIC_STEPPER, MIC_STEPPER_WIDTH, mic_shown.short_name(), "mic")
+            stepper(ui, at(MIC_STEPPER_Y), MIC_STEPPER_WIDTH, mic_shown.short_name(), "mic")
         {
             setter.begin_set_parameter(&params.cab_mic_type);
             setter.set_parameter(&params.cab_mic_type, neighbour_mic(mic_shown, step));
             setter.end_set_parameter(&params.cab_mic_type);
         }
 
-        for ((param, caption), offset) in
-            [(&params.cab_mic, "Mic"), (&params.cab_res, "Res")].into_iter().zip(CAB_KNOBS)
-        {
-            param_knob(ui, setter, param, cab + offset, CAB_KNOB_RADIUS, caption, None);
-        }
-        silk_label(ui.painter(), cab + CAB_SWITCH_CAPTION, "Cab", LAMP_CAPTION_SIZE);
-        param_switch(ui, setter, &params.cab_on, cab + CAB_SWITCH, cab + CAB_LED);
-        silk_label(ui.painter(), cab + CAB_JACK_CAPTION, "Out", LAMP_CAPTION_SIZE);
-
-        Jacks { input: places.jack, output: cab + CAB_JACK }
+        let out = at(MIX_JACK_Y);
+        jack_socket(ui, out);
+        silk_label(ui.painter(), at(MIX_JACK_CAPTION_Y), "Out", LAMP_CAPTION_SIZE);
+        silk_label(ui.painter(), at(MIX_SWITCH_CAPTION_Y), "Cab", LAMP_CAPTION_SIZE);
+        param_switch(ui, setter, &params.cab_on, at(MIX_SWITCH_Y), at(MIX_LED_Y));
+        out
     }
 }
 
-/// Where the controls of a head go, from its faces
-struct HeadPlaces {
-    nameplate: Pos2,
-    jack: Pos2,
-    jack_caption: Pos2,
-    dials: [Pos2; DIALS.len()],
+/// A jack socket: the nut a patch cable's plug goes into
+fn jack_socket(ui: &Ui, at: Pos2) {
+    use ui::theme::{CHROME, CHROME_DARK};
+    ui.painter().circle_filled(at, JACK_RADIUS, CHROME_DARK);
+    ui.painter().circle_filled(at, JACK_RADIUS - 2.0, CHROME);
+    ui.painter().circle_filled(at, JACK_RADIUS - 4.0, CHROME_DARK);
 }
 
-impl HeadPlaces {
-    fn new(faces: HeadFaces) -> Self {
-        let corner = faces.panel.left_top();
-        let dials = std::array::from_fn(|index| {
-            corner + vec2(DIAL_FIRST_X + DIAL_SPACING * index as f32, DIAL_Y)
-        });
-        let jack = corner + vec2(HEAD_JACK_X, DIAL_Y);
-        // On the line of the dials' captions
-        let caption = ui::panel_caption(dials[0], DIAL_RADIUS).y;
-        Self {
-            nameplate: faces.grille.center(),
-            jack,
-            jack_caption: Pos2::new(jack.x, caption),
-            dials,
-        }
+/// The cable between the two heads' input jacks, with its shadow
+fn link_cable(ui: &Ui, points: [Pos2; 4]) {
+    use nih_plug_egui::egui::{epaint::CubicBezierShape, Stroke};
+    let shadow = points.map(|point| point + vec2(2.0, 3.0));
+    for (points, color) in [(shadow, Color32::from_black_alpha(90)), (points, theme::CABLE)] {
+        ui.painter().add(CubicBezierShape::from_points_stroke(
+            points,
+            false,
+            Color32::TRANSPARENT,
+            Stroke::new(5.0_f32, color),
+        ));
     }
 }
 
@@ -1563,6 +1710,22 @@ mod tests {
         harness_of(&params, &setter, None, |_| {}).snapshot("editor");
     }
 
+    // The second amp on beside the first: Torden and Klar, each through a cabinet of its own
+    // (Torden's own, Klar through a 1x15), a Blend of 5.0 and the amps on their way
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_second_amp_looks_as_it_did() {
+        let params = GuitarAmpParams {
+            amp: EnumParam::new("Amp", Amp::Torden),
+            amp2_on: BoolParam::new("Amp 2", true),
+            ..GuitarAmpParams::default()
+        };
+        params.cabinet_second.put(crate::amp::model::speaker_index("1x15-deep"));
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        harness_of(&params, &setter, None, |_| {}).snapshot("dual");
+    }
+
     /// A machine with two interfaces, for the standalone window's tests
     #[cfg(target_os = "linux")]
     struct TwoInterfaces;
@@ -1658,11 +1821,6 @@ mod tests {
     /// How far a stepper's buttons stand out from the middle of its tape
     fn reach(width: f32) -> f32 {
         width / 2.0 + 22.0
-    }
-
-    /// The bottom edge of a stepper's tape, from the top of the window
-    fn tape_bottom(y: f32) -> f32 {
-        y + 11.0
     }
 
     /// The bottom edge of an LED display's window, from the top of the window
@@ -1897,32 +2055,6 @@ mod tests {
         assert!(BANK_X + reach(BANK_WIDTH) < PRESET_X - reach(PRESET_WIDTH));
     }
 
-    /// The control plate of every cabinet's look, from the cabinet's top left corner
-    fn cab_plates() -> impl Iterator<Item = Rect> {
-        let cab = Rect::from_min_size(Pos2::ZERO, vec2(STACK_WIDTH, PEDAL_HEIGHT));
-        let files = ["", "room.wav"].map(str::to_owned);
-        let speakers = (0..crate::amp::model::SPEAKERS.len()).map(user_cab::speaker_choice);
-        let choices: Vec<String> = files.into_iter().chain(speakers).collect();
-        Amp::ALL.into_iter().flat_map(move |amp| {
-            let choices = choices.clone();
-            choices.into_iter().map(move |chosen| {
-                ui::cab_faces(cab, looks::cab_look(amp, &chosen, CabStatus::Fine)).plate
-            })
-        })
-    }
-
-    #[test]
-    fn test_every_cab_has_its_plate_in_one_place() {
-        let mut plates = cab_plates();
-        let first = plates.next().unwrap();
-        assert!(plates.all(|plate| plate == first));
-    }
-
-    /// Where the cabinet's controls go
-    fn plate() -> Rect {
-        cab_plates().next().unwrap()
-    }
-
     #[test]
     fn test_the_delays_sync_button_stands_clear_of_the_knobs_and_on_the_face() {
         let knob = TRIO_RADIUS + TICKS;
@@ -1958,52 +2090,10 @@ mod tests {
         ]);
     }
 
-    #[test]
-    fn test_the_cab_plate_controls_stand_clear_of_their_neighbours() {
-        let plate = plate();
-        let display =
-            |at: Vec2, width: f32| (at.x - reach(width) - BUTTON, at.x + reach(width) + BUTTON);
-        let knob = CAB_KNOB_RADIUS + TICKS;
-        for stepper in
-            [display(SPEAKER_STEPPER, SPEAKER_WIDTH), display(MIC_STEPPER, MIC_STEPPER_WIDTH)]
-        {
-            in_a_row(&[
-                ("the plate's edge", 0.0, plate.left()),
-                ("a stepper", stepper.0, stepper.1),
-                ("the Mic knob", CAB_KNOBS[0].x - knob, CAB_KNOBS[0].x + knob),
-                ("the Res knob", CAB_KNOBS[1].x - knob, CAB_KNOBS[1].x + knob),
-                ("the Cab switch", CAB_SWITCH.x - SWITCH, CAB_SWITCH.x + SWITCH),
-                ("the plate's edge", plate.right(), STACK_WIDTH),
-            ]);
-        }
-        // The speaker's tape over the microphone's caption, and both on the plate
-        assert!(tape_bottom(SPEAKER_STEPPER.y) + 4.0 < MIC_CAPTION.y - 7.0);
-        assert!(tape_bottom(MIC_STEPPER.y) < plate.bottom());
-        assert!(CAB_SWITCH.y + SWITCH < plate.bottom());
-        // From top to bottom, the switch's LED over the switch
-        in_a_row(&[
-            ("the Cab LED", CAB_LED.y - LAMP, CAB_LED.y + LAMP),
-            ("the Cab switch", CAB_SWITCH.y - SWITCH, CAB_SWITCH.y + SWITCH),
-        ]);
-        // The output jack under the plate, at the height of the pedals' plugs
-        assert!(CAB_JACK.y - 8.0 > plate.bottom());
-        assert!((CAB_JACK.y - ui::PLUG_Y).abs() < 20.0);
-        // On its own plate with its caption, clear of the plate's screws, on the cabinet
-        let cab = Rect::from_min_size(Pos2::ZERO, vec2(STACK_WIDTH, PEDAL_HEIGHT));
-        assert!(cab.contains_rect(CAB_JACK_PLATE));
-        assert!(CAB_JACK_PLATE.top() > plate.bottom());
-        let screws = CAB_JACK_PLATE.shrink(7.0);
-        let caption = Rect::from_center_size(CAB_JACK_CAPTION.to_pos2(), vec2(24.0, 14.0));
-        let jack = Rect::from_center_size(CAB_JACK.to_pos2(), Vec2::splat(2.0 * JACK));
-        for (name, rect) in [("the jack", jack), ("its caption", caption)] {
-            assert!(CAB_JACK_PLATE.contains_rect(rect), "{name} is off its plate");
-            assert!(screws.left() + 2.0 < rect.left() && rect.right() < screws.right() - 2.0);
-        }
-    }
-
-    /// The faces of every amp's head, as the window has them
-    fn heads() -> impl Iterator<Item = (Amp, Rect, HeadFaces)> {
-        let head = Rect::from_min_size(Pos2::new(0.0, STACK_TOP), vec2(STACK_WIDTH, HEAD_HEIGHT));
+    /// The faces of every amp's head in the lane it stands in (the first or the second)
+    fn heads() -> impl Iterator<Item = (Amp, Rect, ui::HeadFaces)> {
+        let head =
+            Rect::from_min_size(Pos2::new(0.0, STACK_TOP), vec2(LANE_HEAD_WIDTH, LANE_HEIGHT));
         Amp::ALL
             .into_iter()
             .map(move |amp| (amp, head, ui::head_faces(head, &looks::look(amp).head)))
@@ -2014,44 +2104,138 @@ mod tests {
     const PILOT: f32 = 9.0;
 
     #[test]
+    fn test_the_lanes_fill_the_stack_and_stand_on_the_floor_with_the_pedals() {
+        assert_eq!(2.0 * LANE_HEIGHT + LANE_GAP, HEAD_HEIGHT + PEDAL_HEIGHT);
+        assert_eq!(PEDAL_TOP + PEDAL_HEIGHT + BENCH_MARGIN, WINDOW_HEIGHT as f32);
+        // Head, cabinet and plate across the stack, each clear of the next, with room for
+        // the couplers
+        let cab_left = LANE_HEAD_WIDTH + LANE_CAB_GAP;
+        in_a_row(&[
+            ("the head", 0.0, LANE_HEAD_WIDTH),
+            ("the cabinet", cab_left, cab_left + LANE_CAB_WIDTH),
+            ("the plate", MIX_X, STACK_WIDTH),
+        ]);
+        assert_eq!(MIX_X - (cab_left + LANE_CAB_WIDTH), MIX_GAP - LANE_CAB_GAP);
+    }
+
+    #[test]
     fn test_the_head_panel_holds_the_jack_the_dials_and_the_lamp_in_a_row() {
         for (amp, _, faces) in heads() {
-            let places = HeadPlaces::new(faces);
+            let corner = faces.panel.left_top();
+            let jack = corner + vec2(LANE_JACK_X, DIAL_Y);
             let jewel = faces.panel.right() - ui::amp::JEWEL_INSET;
             let mut row = vec![
                 ("the panel's edge", 0.0, faces.panel.left()),
-                ("the jack", places.jack.x - JACK, places.jack.x + JACK),
+                ("the jack", jack.x - JACK, jack.x + JACK),
             ];
-            for (dial, label) in places.dials.iter().zip(DIALS) {
-                let room = ui::panel_knob_rect(*dial, DIAL_RADIUS);
+            for (index, label) in DIALS.iter().enumerate() {
+                let at =
+                    corner + vec2(LANE_DIAL_FIRST_X + LANE_DIAL_SPACING * index as f32, DIAL_Y);
+                let room = ui::panel_knob_rect(at, LANE_DIAL_RADIUS);
                 // Its scale, caption and tape all on the panel
                 assert!(faces.panel.contains_rect(room), "{amp:?}: {label} is off the panel");
                 row.push((label, room.left(), room.right()));
             }
             row.push(("the pilot lamp", jewel - PILOT, jewel + PILOT));
-            row.push(("the panel's edge", faces.panel.right(), STACK_WIDTH));
+            row.push(("the panel's edge", faces.panel.right(), LANE_HEAD_WIDTH));
             in_a_row(&row);
             // The jack's caption over the jack, on the panel
-            assert!(places.jack_caption.y + 7.0 < places.jack.y - JACK);
-            assert!(places.jack_caption.y - 7.0 > faces.panel.top(), "{amp:?}");
+            let first = corner + vec2(LANE_DIAL_FIRST_X, DIAL_Y);
+            let caption = ui::panel_caption(first, LANE_DIAL_RADIUS).y;
+            assert!(caption + 7.0 < corner.y + DIAL_Y - JACK);
+            assert!(caption - 7.0 > faces.panel.top(), "{amp:?}");
         }
-        assert_eq!(PEDAL_TOP + PEDAL_HEIGHT + BENCH_MARGIN, WINDOW_HEIGHT as f32);
+    }
+
+    #[test]
+    fn test_the_line_under_the_dials_holds_the_name_the_cabinet_and_the_switch_apart() {
+        for (amp, _, faces) in heads() {
+            let line = DIAL_Y + LANE_LINE_DY;
+            let stepper = reach(LANE_CAB_STEPPER_WIDTH) + BUTTON;
+            let right = faces.panel.width();
+            // Across: the name, the cabinet's stepper, the switch's caption, LED and switch
+            in_a_row(&[
+                ("the panel's edge", 0.0, 0.0),
+                ("the name", LANE_NAME_X - 32.0, LANE_NAME_X + 32.0),
+                ("the cabinet", LANE_CAB_X - stepper, LANE_CAB_X + stepper),
+                (
+                    "the On caption",
+                    right + LANE_ON_CAPTION_DX - 10.0,
+                    right + LANE_ON_CAPTION_DX + 10.0,
+                ),
+                ("the On LED", right + LANE_ON_LED_DX - LAMP, right + LANE_ON_LED_DX + LAMP),
+                (
+                    "the On switch",
+                    right + LANE_ON_SWITCH_DX - SWITCH,
+                    right + LANE_ON_SWITCH_DX + SWITCH,
+                ),
+                ("the panel's edge", right, right),
+            ]);
+            // Down: the dials' tapes, then the cabinet's caption, then its stepper, and the
+            // switch inside the panel
+            let tape = ui::panel_knob_rect(Pos2::new(0.0, DIAL_Y), LANE_DIAL_RADIUS).bottom();
+            let caption_top = line + LANE_CAB_CAPTION_DY - 7.0;
+            let caption_bottom = line + LANE_CAB_CAPTION_DY + 7.0;
+            assert!(tape + 2.0 < caption_top, "{amp:?}: the caption is under the dials' tapes");
+            assert!(caption_bottom + 4.0 < line - 11.0, "{amp:?}");
+            assert!(line + SWITCH < faces.panel.height(), "{amp:?}: the switch is off the panel");
+        }
+    }
+
+    #[test]
+    fn test_the_plate_holds_the_fader_and_what_the_cabinets_share_in_order() {
+        let knob = MIX_KNOB_RADIUS + TICKS;
+        // Across: both knobs, the stepper and the fader on the plate, clear of its screws
+        let stepper = reach(MIC_STEPPER_WIDTH) + BUTTON;
+        let half = MIX_WIDTH / 2.0;
+        let (cap, ticks) = (ui::widgets::FADER_CAP_HALF_WIDTH, ui::widgets::FADER_REACH);
+        for (name, from, to) in [
+            ("the Mic knob", -MIX_KNOB_DX - knob, -MIX_KNOB_DX + knob),
+            ("the Res knob", MIX_KNOB_DX - knob, MIX_KNOB_DX + knob),
+            ("the microphone's stepper", -stepper, stepper),
+            ("the fader's cap", -cap, cap),
+            ("the fader's ticks", -ticks, ticks),
+            ("the Cab switch", -SWITCH, SWITCH),
+        ] {
+            assert!(-half + 8.0 < from && to < half - 8.0, "{name} is off the plate");
+        }
+        assert!(-MIX_KNOB_DX + knob + 4.0 < MIX_KNOB_DX - knob);
+        // Down: from the top, each clear of the next
+        let cap_half = ui::widgets::FADER_CAP_HEIGHT / 2.0;
+        let knob_tape = MIX_KNOB_Y + MIX_KNOB_RADIUS + 18.0 + 15.0 + 2.0 + 16.0;
+        in_a_row(&[
+            ("the plate's top", 0.0, 0.0),
+            ("the Blend caption", MIX_BLEND_CAPTION_Y - 7.0, MIX_BLEND_CAPTION_Y + 7.0),
+            ("the Amp 1 caption", MIX_AMP1_CAPTION_Y - 7.0, MIX_AMP1_CAPTION_Y + 7.0),
+            ("the fader", FADER_TOP - cap_half, FADER_TOP + FADER_LENGTH + cap_half),
+            ("the Amp 2 caption", MIX_AMP2_CAPTION_Y - 7.0, MIX_AMP2_CAPTION_Y + 7.0),
+            ("the Blend tape", MIX_BLEND_TAPE_Y, MIX_BLEND_TAPE_Y + 17.0),
+            ("the Mic and Res knobs", MIX_KNOB_Y - MIX_KNOB_RADIUS - TICKS, knob_tape),
+            ("the microphone's caption", MIC_CAPTION_Y - 7.0, MIC_CAPTION_Y + 7.0),
+            ("the microphone's stepper", MIC_STEPPER_Y - 11.0, MIC_STEPPER_Y + 11.0),
+            ("the output jack", MIX_JACK_Y - JACK, MIX_JACK_Y + JACK),
+            ("its caption", MIX_JACK_CAPTION_Y - 7.0, MIX_JACK_CAPTION_Y + 7.0),
+            ("the Cab caption", MIX_SWITCH_CAPTION_Y - 7.0, MIX_SWITCH_CAPTION_Y + 7.0),
+            ("the Cab LED", MIX_LED_Y - LAMP, MIX_LED_Y + LAMP),
+            ("the Cab switch", MIX_SWITCH_Y - SWITCH, MIX_SWITCH_Y + SWITCH),
+            ("the plate's bottom", 2.0 * LANE_HEIGHT + LANE_GAP, 2.0 * LANE_HEIGHT + LANE_GAP),
+        ]);
+        // The output jack is at the height of the pedals' plugs, so the cable runs level
+        assert!((HEAD_HEIGHT + ui::PLUG_Y - MIX_JACK_Y).abs() < 20.0);
     }
 
     #[test]
     fn test_the_nameplate_and_its_buttons_sit_on_the_grille_clear_of_the_handle() {
         for (amp, head, faces) in heads() {
-            let places = HeadPlaces::new(faces);
+            let nameplate = faces.grille.center();
             let plate = Rect::from_center_size(
-                places.nameplate,
+                nameplate,
                 vec2(NAMEPLATE_WIDTH, ui::widgets::NAMEPLATE_HEIGHT),
             );
             assert!(faces.grille.contains_rect(plate), "{amp:?}: {plate:?}");
             let reach = reach(NAMEPLATE_WIDTH) - 2.0;
-            let buttons = Rect::from_center_size(
-                places.nameplate,
-                vec2(2.0 * (reach + BUTTON), 2.0 * BUTTON),
-            );
+            let buttons =
+                Rect::from_center_size(nameplate, vec2(2.0 * (reach + BUTTON), 2.0 * BUTTON));
             // Inside the grille, away from its edge and the piping round it
             assert!(faces.grille.shrink(4.0).contains_rect(buttons), "{amp:?}: {buttons:?}");
             // The handle stands on the box, over the grille

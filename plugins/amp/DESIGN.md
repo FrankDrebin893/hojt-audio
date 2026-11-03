@@ -11,10 +11,9 @@ The reasons behind choices that the code alone does not explain. What it does is
 - Presets: good defaults first, a browser later. Cabinets: our own at first, a loader later
 - The window is one rig: a strip over one line in signal order, the half stack (head on cabinet)
   among the pedals, each pedal with its own paint and art (#96)
-- The cabinet looks as the cabinet that plays (#100), but its box keeps one size and its
-  control plate one place for all twelve looks: the pedals stand beside it as tall as it, the
-  head stands on it, and the cables, the plate's controls and every click stay where they are
-  whatever is picked. A real 1x10 and 4x12 differ in size; here only the speakers behind the
+- The cabinet looks as the cabinet that plays (#100), but its box keeps one size for all
+  twelve looks (a lane's, since #177): the pedals stand beside the stack as tall as it, and
+  the cables, the controls and every click stay where they are whatever is picked. A real 1x10 and 4x12 differ in size; here only the speakers behind the
   grille do. What a missing or unusable choice shows is the amp's own cabinet, because that is
   what plays. The cabinet is not dimmed while switched off: nothing else in the rig changes
   look when off, and the LED on its plate says it
@@ -177,6 +176,17 @@ The reasons behind choices that the code alone does not explain. What it does is
   without growing the strip; the strip's gaps gave up 10.5 points each instead
 
 ## Look
+
+- Two lanes, not a tower (#177, picked by the owner out of three: two heads on one cabinet, one
+  head with a flip, two lanes): each amp is a lane of its own, a head with the cabinet it plays
+  through beside it, because the player mixes any amp with any cabinet in each branch, and the
+  lanes meet where the signal does, on a black plate with the Blend as a crossfader, the one
+  control that is a balance between two paths. The window grew 250 px for it
+  (`editor-state-rig7`) and the strip's gaps with it, the print of its art regenerated for the new
+  width. The dials went to radius 15 and the cabinet to 120 px to fit one lane beside the plate. The
+  cabinet's Speaker and Mic Type, which stood on its plate, moved: the cabinet's choice to its
+  lane's line under the dials, the microphone to the shared plate. The second amp's cabinet is
+  its own or a built-in one: a file is the first amp's only
 
 - The strip has 50 px small footswitches with the LED beside the switch; its band tilts -1.5
   degrees, pedals -4. The amp is picked with a stepper, not a switch per amp: three switches

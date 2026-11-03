@@ -250,6 +250,115 @@ fn turn_param<P: Param>(
     (response, normalized)
 }
 
+// A crossfader: the slot, its tick scale at both sides and the cap that slides in it
+const FADER_SLOT_WIDTH: f32 = 8.0;
+const FADER_CAP_SIZE: Vec2 = vec2(34.0, 22.0);
+const FADER_TICK_GAP: f32 = 12.0;
+const FADER_TICKS: usize = 10;
+/// How far the ticks of a `crossfader` reach from its middle
+pub const FADER_REACH: f32 = FADER_TICK_GAP + 12.0;
+/// The room a `crossfader`'s cap takes across, from its middle
+pub const FADER_CAP_HALF_WIDTH: f32 = FADER_CAP_SIZE.x / 2.0;
+/// The height of a `crossfader`'s cap
+pub const FADER_CAP_HEIGHT: f32 = FADER_CAP_SIZE.y;
+
+/// A vertical fader for a 0 to 1 parameter that is a balance between two things: 0 at the top
+/// of the slot, 1 at the bottom. The slot is `length` high from `top` (the middle of the
+/// slot's upper end), a tick on each side every tenth with longer ones at the ends and the
+/// middle, and the chrome cap slides in it. Drag the cap (or the slot: it jumps there, Shift
+/// slows it), double-click for the default. Returns the cap's rect. Nothing else is drawn
+pub fn crossfader<P: Param>(
+    ui: &mut Ui,
+    setter: &ParamSetter,
+    param: &P,
+    top: Pos2,
+    length: f32,
+    print: Color32,
+) -> Rect {
+    let id = Id::new(("crossfader", param.name()));
+    let normalized = param.unmodulated_normalized_value();
+    let slot = Rect::from_min_size(
+        Pos2::new(top.x - FADER_SLOT_WIDTH / 2.0, top.y),
+        vec2(FADER_SLOT_WIDTH, length),
+    );
+    let at = |position: f32| top.y + length * position;
+    let touch = Rect::from_min_max(
+        Pos2::new(top.x - FADER_CAP_SIZE.x / 2.0 - 2.0, top.y - FADER_CAP_SIZE.y / 2.0),
+        Pos2::new(top.x + FADER_CAP_SIZE.x / 2.0 + 2.0, top.y + length + FADER_CAP_SIZE.y / 2.0),
+    );
+    let response = ui.interact(touch, id, Sense::click_and_drag());
+    if response.drag_started() {
+        setter.begin_set_parameter(param);
+        let grabbed =
+            response.interact_pointer_pos().map_or(0.0, |pointer| pointer.y - at(normalized));
+        // A grip on the cap keeps where on the cap it was held; one on the slot takes the cap
+        let held = if grabbed.abs() <= FADER_CAP_SIZE.y / 2.0 { grabbed } else { 0.0 };
+        ui.data_mut(|data| data.insert_temp(id, (held, normalized)));
+    }
+    if response.dragged() {
+        let fine = ui.input(|input| input.modifiers.shift);
+        let (held, position) = ui.data_mut(|data| *data.get_temp_mut_or(id, (0.0, normalized)));
+        let position = if fine {
+            position + response.drag_delta().y / length * FINE_DRAG_FACTOR
+        } else if let Some(pointer) = response.interact_pointer_pos() {
+            (pointer.y - held - top.y) / length
+        } else {
+            position
+        };
+        let position = position.clamp(0.0, 1.0);
+        ui.data_mut(|data| data.insert_temp(id, (0.0, position)));
+        setter.set_parameter_normalized(param, position);
+    }
+    if response.drag_stopped() {
+        setter.end_set_parameter(param);
+    }
+    if response.double_clicked() {
+        setter.begin_set_parameter(param);
+        setter.set_parameter_normalized(param, param.default_normalized_value());
+        setter.end_set_parameter(param);
+    }
+
+    let painter = ui.painter();
+    painter.rect_filled(slot, 4.0, Color32::from_rgb(8, 8, 8));
+    painter.rect_stroke(slot, 4.0, Stroke::new(1.0_f32, CHROME_DARK), StrokeKind::Outside);
+    for tick in 0..=FADER_TICKS {
+        let y = at(tick as f32 / FADER_TICKS as f32);
+        let long = tick % (FADER_TICKS / 2) == 0;
+        let reach = if long { 12.0 } else { 6.0 };
+        for side in [-1.0, 1.0] {
+            painter.line_segment(
+                [
+                    Pos2::new(top.x + side * FADER_TICK_GAP, y),
+                    Pos2::new(top.x + side * (FADER_TICK_GAP + reach), y),
+                ],
+                Stroke::new(1.5_f32, print),
+            );
+        }
+    }
+    let y = at(normalized);
+    let cap = Rect::from_center_size(Pos2::new(top.x, y), FADER_CAP_SIZE);
+    painter.rect_filled(cap.translate(vec2(1.0, 3.0)), 3.0, Color32::from_black_alpha(120));
+    painter.rect_filled(cap, 3.0, CHROME);
+    // Lit from above: a bright upper half, a darker lower one, and the line that points
+    painter.rect_filled(
+        Rect::from_min_max(cap.min, Pos2::new(cap.right(), y)).shrink2(vec2(1.0, 1.0)),
+        3.0,
+        CHROME_LIGHT,
+    );
+    painter.rect_stroke(cap, 3.0, Stroke::new(1.0_f32, CHROME_DARK), StrokeKind::Inside);
+    for grip in [-5.0, 5.0] {
+        painter.line_segment(
+            [Pos2::new(cap.left() + 6.0, y + grip), Pos2::new(cap.right() - 6.0, y + grip)],
+            Stroke::new(1.0_f32, CHROME_DARK),
+        );
+    }
+    painter.line_segment(
+        [Pos2::new(cap.left() + 3.0, y), Pos2::new(cap.right() - 3.0, y)],
+        Stroke::new(2.0_f32, INK),
+    );
+    cap
+}
+
 /// How far a panel knob's caption is above its middle, past the top of the scale, and how
 /// far its tape is under it, between the ends of the scale
 const PANEL_CAPTION_ABOVE: f32 = 22.0;

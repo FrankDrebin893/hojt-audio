@@ -19,9 +19,9 @@ use crate::order::{self, ChainOrder};
 
 // Eleven pedals and the stack
 const PEDALS: usize = 12;
-/// The head and the cabinet it stands on
-pub const STACK_WIDTH: f32 = 450.0;
-pub const WINDOW_WIDTH: u32 = 2747;
+/// The two lanes (a head and its cabinet each) and the plate where they meet
+pub const STACK_WIDTH: f32 = 700.0;
+pub const WINDOW_WIDTH: u32 = 2997;
 /// The space between two neighbours of the row: what is left of the window, after a margin at
 /// each end, eleven pedals of one width and the stack, shared by the eleven gaps
 const GAP: f32 =

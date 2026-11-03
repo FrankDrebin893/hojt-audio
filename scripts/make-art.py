@@ -145,11 +145,11 @@ def fork(draw, rng, x, y, angle, length, width, depth):
                      length * 0.4, width * 0.55, depth - 1)
 
 
-# The amp's print covers the strip across the top of its window (2727 x 125 points of top face,
+# The amp's print covers the strip across the top of its window (2977 x 125 points of top face,
 # from (10, 10) in the window), so only a band of the picture shows: the loader scales the
 # picture to cover the face and cuts the rest off. These are what that mapping is, and where the
 # strip's labels and controls stand, in window points: the print keeps clear of them
-AMP_FACE = (2727.0, 125.0)
+AMP_FACE = (2977.0, 125.0)
 AMP_ORIGIN = (10.0, 10.0)
 # (left, top, right, bottom) of what is printed or standing on the strip where the print must
 # not be: each label with its lamp or button, a little wider than the ink. The tests of the
@@ -158,16 +158,16 @@ AMP_CLEAR = [
     (32, 28, 78, 50),        # the input jack's arrow and IN
     (32, 74, 86, 114),       # MODEL and GA-3
     (108, 20, 162, 130),     # the input meter and INPUT
-    (193, 40, 226, 104),     # the bank display's left button
-    (2104, 16, 2186, 112),   # the output knob and OUTPUT
-    (2210, 20, 2270, 130),   # the output meter and OUTPUT
-    (2306, 46, 2358, 88),    # the clip lamp and CLIP
-    (2384, 50, 2440, 99),    # the On lamp and ON
-    (2440, 42, 2499, 102),   # the On switch
-    (2528, 50, 2584, 99),    # the Tuner lamp and TUNER
-    (2584, 42, 2644, 102),   # the Tuner switch
-    (2616, 28, 2714, 50),    # STEREO OUT and its arrow
-    (2642, 76, 2714, 114),   # the badge
+    (220, 40, 253, 104),     # the bank display's left button
+    (2239, 16, 2321, 112),   # the output knob and OUTPUT
+    (2372, 20, 2432, 130),   # the output meter and OUTPUT
+    (2495, 46, 2547, 88),    # the clip lamp and CLIP
+    (2600, 50, 2656, 99),    # the On lamp and ON
+    (2656, 42, 2715, 102),   # the On switch
+    (2771, 50, 2827, 99),    # the Tuner lamp and TUNER
+    (2827, 42, 2887, 102),   # the Tuner switch
+    (2866, 28, 2964, 50),    # STEREO OUT and its arrow
+    (2892, 76, 2964, 114),   # the badge
 ]
 
 
@@ -189,7 +189,7 @@ def amp(w=1920, h=708):
         dy = np.maximum(np.maximum(up - wy, wy - down), 0)
         clear = np.minimum(clear, smooth(0.0, 7.0, np.sqrt(dx * dx + dy * dy)))
     # Weather only at the two ends of the strip, gone well before the middle
-    ends = np.maximum(smooth(330.0, 90.0, wx), smooth(2200.0, 2520.0, wx))
+    ends = np.maximum(smooth(330.0, 90.0, wx), smooth(2440.0, 2760.0, wx))
     edge = ends * clear
 
     cloud = noise(w, h, 240, 71) * 0.55 + noise(w, h, 90, 72) * 0.3 + noise(w, h, 34, 73) * 0.15
@@ -204,7 +204,7 @@ def amp(w=1920, h=708):
         return ((px - AMP_ORIGIN[0]) / s, top + (py - AMP_ORIGIN[1]) / s)
 
     fork_side = 1
-    for gap_x, swing in ((177.0, 7.0), (2513.0, 8.0)):
+    for gap_x, swing in ((191.0, 7.0), (2743.0, 8.0)):
         pts, side, py = [], 1, -6.0
         while py < 140.0:
             pts.append(put(gap_x + side * swing, py))

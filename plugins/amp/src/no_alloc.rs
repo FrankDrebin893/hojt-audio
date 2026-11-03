@@ -54,6 +54,17 @@ fn test_the_second_amp_allocates_nothing() {
         blend: 0.4,
         ..AmpSettings::default()
     };
+    // The same with a built-in cabinet for the second amp, switched while it plays
+    let second_through = |on: bool, speaker: usize| AmpSettings {
+        amp: Amp::Torden,
+        second: SecondSettings {
+            on,
+            speaker: Some(speaker % crate::amp::model::SPEAKERS.len()),
+            ..SecondSettings::default()
+        },
+        blend: 0.4,
+        ..AmpSettings::default()
+    };
     host::assert_allocates_nothing("The second amp", || {
         for block in 0..400 {
             let len = host::BLOCKS[block % host::BLOCKS.len()];
@@ -66,6 +77,7 @@ fn test_the_second_amp_allocates_nothing() {
             let settings = match block / 25 % 4 {
                 0 => second(false, Amp::Klar),
                 1 => second(true, Amp::ALL[block / 5 % Amp::ALL.len()]),
+                2 if block % 2 == 0 => second_through(true, block / 3),
                 2 => second(block % 3 != 0, Amp::Klar),
                 _ => AmpSettings {
                     amp: Amp::ALL[block % Amp::ALL.len()],
