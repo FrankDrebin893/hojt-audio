@@ -56,10 +56,12 @@ pub(crate) const STYLE: PedalStyle = PedalStyle {
 // is picked is on the left: the input meter, then the bank and preset displays and the Save
 // button. What goes out is on the right: the output knob, the output meter, the clip lamp, and
 // the On and Tuner switches. Each one's place is the end of the one before it and the gap
-const STRIP_GAP: f32 = 84.125;
+const STRIP_GAP: f32 = 126.5;
+// Between two controls on one module plate the gap is this much, much less than between plates
+const INNER_GAP: f32 = 36.0;
 // The gap that holds the standalone program's Audio button, between the output meter and the clip
 // lamp: a little wider than the others
-const AUDIO_GAP: f32 = 80.0;
+const AUDIO_GAP: f32 = 76.0;
 
 // The bank display and the preset display, each an LED display with a button at each end and
 // its caption over it: what set of presets the preset display picks from, and the preset.
@@ -67,7 +69,7 @@ const AUDIO_GAP: f32 = 80.0;
 // where the preset display is, under its own caption
 const PRESET_CAPTION_Y: f32 = 38.0;
 const PRESET_Y: f32 = 72.0;
-const PRESET_CHARS: usize = 16;
+const PRESET_CHARS: usize = 13;
 const PRESET_WIDTH: f32 = led_width(PRESET_CHARS);
 // The longest name of a player's preset the display shows, with room for the edited mark
 const USER_NAME_CHARS: usize = PRESET_CHARS - 1;
@@ -77,7 +79,7 @@ const SAVE_NOTE_S: f64 = 1.5;
 // The bank display left of the preset display. Its caption is on the preset caption's line and
 // its window on the preset window's line; its buttons go round the banks and its window drops
 // the whole list open
-const BANK_CHARS: usize = 10;
+const BANK_CHARS: usize = 8;
 const BANK_WIDTH: f32 = led_width(BANK_CHARS);
 const BANK_NAME_CHARS: usize = BANK_CHARS;
 
@@ -117,15 +119,15 @@ const METER_CAPTION: Vec2 = vec2(0.0, 52.0);
 
 const BANK_X: f32 = INPUT_METER.x + METER_REACH + STRIP_GAP + BANK_WIDTH / 2.0 + STEPPER_REACH;
 const PRESET_X: f32 =
-    BANK_X + BANK_WIDTH / 2.0 + STEPPER_REACH + STRIP_GAP + PRESET_WIDTH / 2.0 + STEPPER_REACH;
+    BANK_X + BANK_WIDTH / 2.0 + STEPPER_REACH + INNER_GAP + PRESET_WIDTH / 2.0 + STEPPER_REACH;
 // The Save button right of the preset display, its caption on the line of the display's
-const SAVE_X: f32 = PRESET_X + PRESET_WIDTH / 2.0 + STEPPER_REACH + STRIP_GAP + SAVE_REACH;
+const SAVE_X: f32 = PRESET_X + PRESET_WIDTH / 2.0 + STEPPER_REACH + INNER_GAP + SAVE_REACH;
 
 // The metronome, one cluster between Save and Output, its controls closer than the strip's
 // others: the On switch, whose lamp flashes on the beat, the tempo display (drag or scroll it,
 // or tap the Tap button), the sound over the time signature, each on a stepper, the click's
 // volume and the Sync button. Every one is placed from the end of the one before
-const METRONOME_GAP: f32 = 14.0;
+const METRONOME_GAP: f32 = 28.0;
 const METRONOME_START: f32 = SAVE_X + SAVE_REACH + STRIP_GAP;
 const METRONOME_SWITCH_X: f32 = METRONOME_START + SWITCH_GROUP - SWITCH_REACH;
 const TEMPO_CHARS: usize = 3;
@@ -138,7 +140,7 @@ const SOUND_WIDTH: f32 = 100.0;
 const SIGNATURE_WIDTH: f32 = 54.0;
 // and under the sound, side by side, the time signature and where the click is heard
 const OUT_WIDTH: f32 = 70.0;
-const LOWER_GAP: f32 = 6.0;
+const LOWER_GAP: f32 = 20.0;
 const METER_STEP_REACH: f32 = SIGNATURE_WIDTH / 2.0 + STEPPER_REACH;
 const OUT_REACH: f32 = OUT_WIDTH / 2.0 + STEPPER_REACH;
 // The column is as wide as its lower row, or as the sound's stepper if that is wider
@@ -175,7 +177,7 @@ const TEMPO_DRAG_POINTS: f32 = 3.0;
 // The output level, the plugin's own and not the amp's
 const OUTPUT_KNOB: Vec2 = vec2(METRONOME_END + STRIP_GAP + KNOB_REACH, 56.0);
 const OUTPUT_RADIUS: f32 = 22.0;
-const OUTPUT_METER: Vec2 = vec2(OUTPUT_KNOB.x + KNOB_REACH + STRIP_GAP + METER_REACH, 66.0);
+const OUTPUT_METER: Vec2 = vec2(OUTPUT_KNOB.x + KNOB_REACH + INNER_GAP + METER_REACH, 66.0);
 
 // The clip lamp, right of the output meter: lit while the output is rounded off by the
 // safety clip. A signal lamp has its caption this far under it
@@ -2169,9 +2171,15 @@ mod tests {
     fn test_the_strip_is_used_evenly_with_no_hole_in_the_middle() {
         let controls = strip_controls();
         let gaps: Vec<f32> = controls.windows(2).map(|pair| pair[1].1 - pair[0].2).collect();
-        let (least, most) =
-            gaps.iter().fold((f32::MAX, 0.0_f32), |(l, m), &g| (l.min(g), m.max(g)));
-        assert!(most - least < 12.0, "the gaps are not even: {gaps:?}");
+        // Two kinds of gap: a narrow one between controls on one plate, a wide one between
+        // plates; each kind is even
+        let (narrow, wide): (Vec<f32>, Vec<f32>) = gaps.iter().partition(|gap| **gap < 90.0);
+        let spread = |gaps: &[f32]| {
+            gaps.iter().fold(0.0_f32, |m, &g| m.max(g))
+                - gaps.iter().fold(f32::MAX, |l, &g| l.min(g))
+        };
+        assert!(spread(&narrow) < 45.0 && spread(&wide) < 12.0, "the gaps are not even: {gaps:?}");
+        let most = gaps.iter().fold(0.0_f32, |m, &g| m.max(g));
         // The ends are about as far from the strip's edges as the controls are from each other.
         // The right end keeps a little more room: the logo stands there
         let (left, right) = (
