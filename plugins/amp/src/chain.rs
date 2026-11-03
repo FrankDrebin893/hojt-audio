@@ -11,6 +11,7 @@ use crate::dsp::filters::DcBlocker;
 use crate::dsp::oversample::{factor_for, Oversampler, MAX_FACTOR};
 use crate::dsp::shaper::{output_clip, OUTPUT_CLIP_KNEE};
 use crate::dsp::{curve, db_to_gain, smoothing_coeff, Ramp};
+use crate::eq::{Eq, EqSettings};
 use crate::fuzz::{Fuzz, FuzzSettings};
 use crate::gate::Gate;
 use crate::lamps::LampReading;
@@ -106,6 +107,8 @@ pub struct AmpSettings {
     pub comp: CompSettings,
     /// The pitch shifter pedal, in front of the amp only. It smooths its own settings
     pub pitch: PitchSettings,
+    /// The EQ pedal, on either side of the amp. It smooths its own settings
+    pub eq: EqSettings,
 
     pub drive_on: bool,
     /// The drive pedal's dials, 0.0 to 1.0
@@ -169,6 +172,7 @@ impl Default for AmpSettings {
             fuzz: FuzzSettings::default(),
             comp: CompSettings::default(),
             pitch: PitchSettings::default(),
+            eq: EqSettings::default(),
             drive_on: false,
             drive_gain: 0.3,
             drive_tone: 0.5,
@@ -297,6 +301,8 @@ pub struct AmpChain {
     comp_settings: CompSettings,
     pitch: Pitch,
     pitch_settings: PitchSettings,
+    eq: Eq,
+    eq_settings: EqSettings,
     chorus: Chorus,
     phaser: Phaser,
     flanger: Flanger,
@@ -396,6 +402,8 @@ impl AmpChain {
             comp_settings: CompSettings::default(),
             pitch: Pitch::new(),
             pitch_settings: PitchSettings::default(),
+            eq: Eq::new(),
+            eq_settings: EqSettings::default(),
             chorus: Chorus::new(),
             phaser: Phaser::new(),
             flanger: Flanger::new(),
@@ -515,6 +523,7 @@ impl AmpChain {
             Pedal::Fuzz => self.fuzz.set_sample_rate(rate, zone == Zone::Back),
             Pedal::Comp => self.comp.set_sample_rate(rate),
             Pedal::Pitch => self.pitch.set_sample_rate(rate),
+            Pedal::Eq => self.eq.set_sample_rate(rate),
             Pedal::Chorus => self.chorus.set_sample_rate(rate),
             Pedal::Phaser => self.phaser.set_sample_rate(rate),
             Pedal::Flanger => self.flanger.set_sample_rate(rate),
@@ -738,6 +747,7 @@ impl AmpChain {
         self.fuzz.reset();
         self.comp.reset();
         self.pitch.reset();
+        self.eq.reset();
         // As for the delay and the reverb below: a pedal with nothing in it is left alone
         if !self.chorus.is_idle() {
             self.chorus.reset();
@@ -907,6 +917,7 @@ impl AmpChain {
         self.fuzz_settings = settings.fuzz;
         self.comp_settings = settings.comp;
         self.pitch_settings = settings.pitch;
+        self.eq_settings = settings.eq;
         self.chorus_settings = settings.chorus;
         self.phaser_settings = settings.phaser;
         self.flanger_settings = settings.flanger;
@@ -1145,6 +1156,7 @@ impl AmpChain {
                 Pedal::Fuzz => self.fuzz.process_mono(&self.fuzz_settings, high),
                 Pedal::Comp => self.comp.process_mono(&self.comp_settings, high),
                 Pedal::Pitch => self.pitch.process_mono(&self.pitch_settings, high),
+                Pedal::Eq => self.eq.process_mono(&self.eq_settings, high),
                 Pedal::Drive => self.drive.process(high),
                 Pedal::Chorus => self.chorus.process_mono(&self.chorus_settings, high),
                 Pedal::Phaser => self.phaser.process_mono(&self.phaser_settings, high),
@@ -1214,6 +1226,7 @@ impl AmpChain {
             match self.order.back()[index] {
                 Pedal::Fuzz => self.fuzz.process_stereo(&self.fuzz_settings, wide_left, wide_right),
                 Pedal::Comp => self.comp.process_stereo(&self.comp_settings, wide_left, wide_right),
+                Pedal::Eq => self.eq.process_stereo(&self.eq_settings, wide_left, wide_right),
                 Pedal::Delay => self.delay.process(&self.delay_settings, wide_left, wide_right),
                 Pedal::Reverb => self.reverb.process(&self.reverb_settings, wide_left, wide_right),
                 Pedal::Chorus => {

@@ -20,7 +20,7 @@
 //! amp = torden
 //! gain = 0.55
 //! gate_on = on
-//! order = pitch fuzz comp drive phaser amp chorus flanger tremolo delay reverb
+//! order = pitch fuzz comp drive phaser amp chorus flanger tremolo eq delay reverb
 //! cabinet = speaker:4x12-mid
 //! cabinet2 = speaker:1x12-open
 //! ```
@@ -280,7 +280,7 @@ fn enum_index<T: Enum>(id: &str) -> Option<usize> {
 
 /// Every parameter a preset holds, by its id: all of them but `LEFT_ALONE`. The amp comes
 /// first, so the host hears it change before its dials do
-fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 58] {
+fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 63] {
     use Control::{Knob, Mic, Note, Switch, Whole};
     [
         ("amp", Control::Amp(&params.amp)),
@@ -344,6 +344,12 @@ fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 58] {
         ("pitch_semitones", Whole(&params.pitch_semitones)),
         ("pitch_blend", Knob(&params.pitch_blend)),
         ("pitch_latency", Knob(&params.pitch_latency)),
+        // The EQ: likewise
+        ("eq_on", Switch(&params.eq_on)),
+        ("eq_low", Knob(&params.eq_low)),
+        ("eq_mid", Knob(&params.eq_mid)),
+        ("eq_freq", Knob(&params.eq_freq)),
+        ("eq_high", Knob(&params.eq_high)),
     ]
 }
 
@@ -766,7 +772,7 @@ pub(crate) mod tests {
         }
         // Every parameter is written out, also those at their defaults, and the pedal order and
         // the two cabinets after them
-        assert_eq!(text.lines().filter(|line| line.contains(" = ")).count(), 61);
+        assert_eq!(text.lines().filter(|line| line.contains(" = ")).count(), 66);
         assert_eq!(UserPreset::parse(&params, &text), saved);
     }
 

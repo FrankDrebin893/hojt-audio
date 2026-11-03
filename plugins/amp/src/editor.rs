@@ -56,7 +56,7 @@ pub(crate) const STYLE: PedalStyle = PedalStyle {
 // is picked is on the left: the input meter, then the bank and preset displays and the Save
 // button. What goes out is on the right: the output knob, the output meter, the clip lamp, and
 // the On and Tuner switches. Each one's place is the end of the one before it and the gap
-const STRIP_GAP: f32 = 59.5;
+const STRIP_GAP: f32 = 85.375;
 // The gap that holds the standalone program's Audio button, between the output meter and the clip
 // lamp: a little wider than the others
 const AUDIO_GAP: f32 = 70.0;
@@ -269,10 +269,12 @@ const CAB_NAME_CHARS: usize = 10;
 const JACK_RADIUS: f32 = 8.0;
 
 // The pedals, all as wide as each other: four with a trio or a pair of knobs side by side and
-// six with two knobs on a diagonal; the pitch shifter, last, is a trio like the first three
+// six with two knobs on a diagonal; the pitch shifter is a trio like the first three, and the
+// EQ, last, has four knobs in two rows
 const WIDE_PEDALS: usize = 4;
 const PEDAL_SLOTS: usize = 10;
 pub(crate) const PITCH_SLOT: usize = PEDAL_SLOTS;
+pub(crate) const EQ_SLOT: usize = PEDAL_SLOTS + 1;
 
 // On every pedal, from its top centre: the LED under the title, the knobs, the switch at the bottom.
 // Two knobs sit side by side. Three do not fit in a row, so they are smaller and in a triangle,
@@ -282,6 +284,10 @@ const PEDAL_SWITCH: Vec2 = vec2(0.0, 273.0);
 const PAIR_RADIUS: f32 = 24.0;
 const PAIR_KNOBS: [Vec2; 2] = [vec2(-45.0, 144.0), vec2(45.0, 144.0)];
 const TRIO_RADIUS: f32 = 17.0;
+// The EQ's four: Low and High, the shelves, in the left column, and Mid with its Freq under it
+// in the right one, the LED between the upper two as on a trio
+const QUAD_KNOBS: [Vec2; 4] =
+    [vec2(-45.0, 71.0), vec2(45.0, 71.0), vec2(45.0, 169.0), vec2(-45.0, 169.0)];
 const TRIO_KNOBS: [Vec2; 3] = [vec2(-45.0, 71.0), vec2(45.0, 71.0), vec2(0.0, 169.0)];
 
 // The Gate pedal has a lamp beside its lowest knob that is lit while the gate lets the
@@ -344,11 +350,29 @@ impl Pedals<'_> {
         face
     }
 
+    /// The EQ: four knobs in two rows. Returns its top face
+    fn eq_pedal(&self, ui: &mut Ui, rect: Rect) -> Rect {
+        let (params, setter) = (self.params, self.setter);
+        let face = ui::mini_pedal(ui, rect, &look("EQ", theme::PAINT_BARK, Motif::Columns));
+        let top = face.center_top();
+        let [low, mid, freq, high] = QUAD_KNOBS;
+        let radius = TRIO_RADIUS;
+        param_knob(ui, setter, &params.eq_low, top + low, radius, "Low", None);
+        param_knob(ui, setter, &params.eq_mid, top + mid, radius, "Mid", None);
+        param_knob(ui, setter, &params.eq_freq, top + freq, radius, "Freq", None);
+        param_knob(ui, setter, &params.eq_high, top + high, radius, "High", None);
+        param_switch(ui, setter, &params.eq_on, top + PEDAL_SWITCH, top + PEDAL_LED);
+        face
+    }
+
     /// Draws the pedal of `slot` in `rect`: the wide ones first, as the chain had them
     /// before there were more, then the slim ones. Returns its top face
     pub(crate) fn pedal(&self, ui: &mut Ui, slot: usize, rect: Rect) -> Rect {
         if slot == PITCH_SLOT {
             return self.pitch_pedal(ui, rect);
+        }
+        if slot == EQ_SLOT {
+            return self.eq_pedal(ui, rect);
         }
         let (params, setter) = (self.params, self.setter);
         let pedals: [Pedal; PEDAL_SLOTS] = [
