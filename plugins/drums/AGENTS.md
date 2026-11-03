@@ -112,8 +112,9 @@ time is raised to that one's), so a cymbal's off follows its on and a pedal move
 its hat; the queue is then in due order by construction. A full queue plays the oldest waiting event
 at once and keeps the new one, so nothing is dropped or overtaken. The generator starts from one fixed seed and `reset` takes it again, so a render repeats.
 With the knob at 0 and the queue empty an event is handled where it arrives, to the bit as before
-(`test_human_at_0_renders_what_the_build_before_did_to_the_bit` holds the render of four kits
-from before Human; Linux only, as other platforms' `sin` differ in the last bit). The kit's own
+(`test_human_at_0_renders_what_the_build_before_did_to_the_bit` renders a part through the plugin and through
+a kit driven directly as the plugin did before Human, on all four kits, and compares the bits;
+both run on the same machine). The kit's own
 noise is not reseeded by `reset`, so only a new instance, not a rewound one, repeats to the bit.
 `render_human_wavs` (ignored) writes a four-bar beat at 0 and 100 % through every kit to listen to.
 

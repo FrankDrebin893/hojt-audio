@@ -197,29 +197,67 @@ mod tests {
         part
     }
 
-    /// What the build before Human rendered, to the bit, on every kit: a bar of rock, a pedal,
-    /// a hat and a cymbal let go. Taken from `main` before this change, so only where the maths
-    /// of the platform is the one it was taken on (the other systems' sin and exp differ in the
-    /// last bit)
+    /// The plugin as it was before Human, as a host plays it: every event goes to the kit at the
+    /// sample it arrives on (`set_time` there), with choke on and the parameters as `plugin`
+    /// leaves them. The left channel
+    fn reference(kit: Kit, part: &Part, samples: usize) -> Vec<f32> {
+        use crate::drum_kit::{DrumKit, Stems};
+        let params = plugin(kit, 0.0, true).params.clone();
+        let mut drums = DrumKit::new();
+        drums.set_sample_rate(SAMPLE_RATE);
+        drums.reset();
+        drums.set_kit(params.kit.value());
+        drums.set_tune(params.tune.value());
+        drums.set_damping(params.damping.value());
+        let mut next = 0;
+        let mut out = Vec::with_capacity(samples);
+        for now in 0..samples as u64 {
+            while let Some((at, event)) = part.get(next) {
+                if *at > now {
+                    break;
+                }
+                drums.set_time(now);
+                match event {
+                    NoteEvent::NoteOn { note, velocity, .. } if *velocity <= 0.0 => {
+                        drums.note_off(*note)
+                    }
+                    NoteEvent::NoteOn { note, velocity, .. } => drums.note_on(*note, *velocity),
+                    NoteEvent::NoteOff { note, .. } => drums.note_off(*note),
+                    NoteEvent::MidiCC { cc: 4, value, .. } => drums.set_hat_openness(1.0 - value),
+                    _ => {}
+                }
+                next += 1;
+            }
+            let mix = &mut drums.mix;
+            mix.kick = params.kick.value();
+            mix.snare = params.snare.value();
+            mix.toms = params.toms.value();
+            mix.hihat = params.hihat.value();
+            mix.cymbals = params.cymbals.value();
+            mix.room = params.room.value();
+            let (left, _) = drums.process_stems(&mut Stems::default());
+            out.push(left * params.gain.value());
+        }
+        out
+    }
+
+    /// Human at 0 is the plugin as it was, to the bit, on every kit: the same part through the
+    /// plugin and through a kit driven directly the way the plugin did before Human. Both run on
+    /// this machine, so no platform's maths comes into it
     #[test]
-    #[cfg(target_os = "linux")]
     fn test_human_at_0_renders_what_the_build_before_did_to_the_bit() {
-        const BEFORE: [(Kit, u64); 4] = [
-            (Kit::Rock, 0xd4e9646a914b01e9),
-            (Kit::Jazz, 0xe38ceb6849362e4f),
-            (Kit::Metal, 0x876afc21fc25111f),
-            (Kit::Groove, 0x8d3484d34d099f46),
-        ];
-        for (kit, before) in BEFORE {
-            let mut p = plugin(kit, 0.0, true);
+        for kit in Kit::ALL {
             let mut part = rock_beat(1);
             part.push((30_000, pedal(0.2)));
             part.push((60_000, pedal(1.0)));
             part.push((60_001, on(46, 0.8)));
             part.push((70_000, off(51)));
             part.sort_by_key(|(at, _)| *at);
-            let out = render(&mut p, &part, 120_000, 512);
-            assert_eq!(fingerprint(&out), before, "{kit:?} at Human 0 is not what it was");
+            let before = reference(kit, &part, 120_000);
+            for block in [512, 77] {
+                let now = render(&mut plugin(kit, 0.0, true), &part, 120_000, block);
+                assert_eq!(fingerprint(&now), fingerprint(&before), "{kit:?}, blocks of {block}");
+            }
         }
     }
 
