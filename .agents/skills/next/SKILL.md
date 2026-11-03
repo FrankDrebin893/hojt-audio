@@ -41,7 +41,14 @@ goes on to the next issue, with no further prompt, until the list is done. Words
      the work); the pinned lists; one this run already left waiting on a question
    - **Start of a run, sweep:** take the state label off any closed issue that still has one, and
      close a parent whose sub-issues are all closed, each with a one-line comment ending in the
-     footer below. An open issue keeps its label. Never add `state:approved`
+     footer below. An open issue keeps its label, except the two leftovers below. Never add
+     `state:approved`
+   - **Sweep, finished explore:** an open `state:building` issue whose work is done is closed with
+     a one-line comment, so what waits on it (`Waits for #<n>`) can start. That is (a) an explore
+     issue the engineer has answered with a pick: first post a "Pick recorded" comment that says
+     how the answer was read (as on #182), then close it; and (b) an issue whose sub-issues or
+     dependents are all closed and whose own spec has nothing left. The sweep runs also when the
+     list of buildable issues is empty
 2. **Check the approval.** Only Rasmus approves. Read who set the label (for a sub-issue, on its
    parent; the event stays in the timeline after the label has moved on):
    ```bash
