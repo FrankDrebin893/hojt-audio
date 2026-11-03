@@ -404,8 +404,15 @@ impl UserPreset {
                 }
             } else if key == SECOND_CABINET_KEY {
                 // Only a built-in cabinet: the second amp never plays a file
-                if value.is_empty() || user_cab::is_speaker_choice(value) {
+                // that this build has: an id it does not know is the amp's own, as it is
+                // when loaded, so the preset does not look edited once it is
+                let known = value
+                    .strip_prefix("speaker:")
+                    .is_some_and(|id| crate::amp::model::speaker_index(id).is_some());
+                if value.is_empty() || known {
                     value.clone_into(&mut preset.cabinet_second);
+                } else if user_cab::is_speaker_choice(value) {
+                    preset.cabinet_second.clear();
                 }
             } else if let Some(index) = controls.iter().position(|&(id, _)| id == key) {
                 if let Some(plain) = controls[index].1.read(value) {
@@ -816,6 +823,11 @@ pub(crate) mod tests {
         assert_eq!(file.cabinet_second, "");
         file.load(&params, &ParamSetter::new(&host));
         assert_eq!(params.cabinet_second.get(), None);
+        // an id this build does not have is the amp's own, so it matches once loaded
+        let unknown = UserPreset::parse(&params, "cabinet2 = speaker:9x99-nothing\n");
+        assert_eq!(unknown.cabinet_second, "");
+        unknown.load(&params, &ParamSetter::new(&host));
+        assert!(unknown.matches(&params));
     }
 
     #[test]
