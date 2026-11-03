@@ -53,8 +53,10 @@ The reasons behind choices that the code alone does not explain. What it does is
 - Brøl below Gain 5 is made up in front of its power stage so Gain 0 is clean on pick attacks
   and the safety clip is not what holds the peaks
 - Switching amp fades out over 4.5 ms in front of the cabinet, switches at the silent sample,
-  fades in; the cabinet crossfades over 10 ms. Two amps never run side by side (double the
-  oversampled cost). The six dials are shared parameters; each amp's own positions are kept by
+  fades in; the cabinet crossfades over 10 ms. Two amps never run side by side
+  while switching within a slot (double the oversampled cost); the one exception is the second
+  amp (#177), a slot of its own that runs beside the first only while it is switched on, so a
+  heavy and a clean amp can be mixed, and costs nothing while off. The six dials are shared parameters; each amp's own positions are kept by
   the editor (`amp-dials`, atomics because nih-plug restores state on the audio thread)
 - Cost figures are from a fast core; cores 2 to 9 of the development machine take 1.33 times
   as long, so the reports pin their thread
