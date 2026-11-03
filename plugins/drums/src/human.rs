@@ -104,8 +104,9 @@ impl Humanizer {
     }
 
     /// An event for the sample `at` (counted from `reset`), with Human at `amount` (0.0 to
-    /// 1.0). Returns the event to play at once, with the sample it is due, if there is no room
-    /// to keep it; otherwise it is kept for `pop_due`
+    /// 1.0). The event is kept for `pop_due`. If there is no room, the oldest waiting event is
+    /// returned instead, to be played at once at sample `at`, and the new one takes its place:
+    /// nothing is dropped and nothing is played ahead of an older event
     pub fn push(&mut self, at: u64, event: Event, amount: f32) -> Option<(u64, Event)> {
         let draw = match self.instant {
             Some((instant, draw)) if instant == at => draw,
@@ -124,13 +125,18 @@ impl Humanizer {
         };
         let delay = (draw.delay * amount * MAX_DELAY_S * self.sample_rate).round() as u64;
         let due = (at + delay).max(self.last_due);
-        if self.len == CAPACITY {
-            return Some((at, event));
-        }
+        let flushed = if self.len == CAPACITY {
+            let (_, oldest) = self.queue[self.head];
+            self.head = (self.head + 1) % CAPACITY;
+            self.len -= 1;
+            Some((at, oldest))
+        } else {
+            None
+        };
         self.last_due = due;
         self.queue[(self.head + self.len) % CAPACITY] = (due, event);
         self.len += 1;
-        None
+        flushed
     }
 
     /// The oldest event if it is due at sample `now` or before
@@ -297,17 +303,34 @@ mod tests {
     }
 
     #[test]
-    fn test_a_full_queue_plays_at_once_and_drops_nothing() {
+    fn test_a_full_queue_flushes_the_oldest_first_and_drops_nothing() {
         let mut humanizer = Humanizer::new();
-        let mut at_once = 0;
-        for i in 0..(CAPACITY + 50) {
-            if let Some((due, _)) = humanizer.push(100, on((i % 100) as u8), 1.0) {
-                assert_eq!(due, 100, "not played at the sample it came for");
-                at_once += 1;
+        // A crash is struck and its off follows, with the queue already full behind them:
+        // the on must reach the kit before the off
+        let mut played = Vec::new();
+        let mut sent = vec![on(49), Event::NoteOff { note: 49 }];
+        for i in 0..CAPACITY + 50 {
+            if i >= 2 {
+                sent.push(on((i % 40) as u8));
             }
         }
-        assert_eq!(at_once, 50);
-        assert_eq!(drain(&mut humanizer).len(), CAPACITY);
+        for event in &sent {
+            if let Some((at, flushed)) = humanizer.push(100, *event, 1.0) {
+                assert_eq!(at, 100, "not played at the sample it came for");
+                played.push(flushed);
+            }
+        }
+        played.extend(drain(&mut humanizer).into_iter().map(|(_, event)| event));
+        // Velocities are shaded, so compare what was played by kind and note
+        let kind = |event: &Event| match event {
+            Event::NoteOn { note, .. } => (true, *note),
+            Event::NoteOff { note } => (false, *note),
+            Event::Pedal { .. } => unreachable!(),
+        };
+        let played: Vec<_> = played.iter().map(kind).collect();
+        let sent: Vec<_> = sent.iter().map(kind).collect();
+        assert_eq!(played, sent, "something was dropped or came out of order");
+        assert_eq!(played[..2], [(true, 49), (false, 49)]);
     }
 
     #[test]
