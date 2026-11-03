@@ -13,8 +13,8 @@ The reasons behind choices that the code alone does not explain. What it does is
   among the pedals, each pedal with its own paint and art (#96)
 - The cabinet looks as the cabinet that plays (#100), but its box keeps one size for all
   twelve looks (a lane's, since #177): the pedals stand beside the stack as tall as it, and
-  the cables, the controls and every click stay where they are whatever is picked. A real 1x10 and 4x12 differ in size; here only the speakers behind the
-  grille do. What a missing or unusable choice shows is the amp's own cabinet, because that is
+  the cables, the controls and every click stay where they are whatever is picked. A real 1x10 and 4x12 differ in size; here only the speakers behind
+  the grille do. What a missing or unusable choice shows is the amp's own cabinet, because that is
   what plays. The cabinet is not dimmed while switched off: nothing else in the rig changes
   look when off, and the LED on its plate says it
 
@@ -187,6 +187,18 @@ The reasons behind choices that the code alone does not explain. What it does is
   cabinet's Speaker and Mic Type, which stood on its plate, moved: the cabinet's choice to its
   lane's line under the dials, the microphone to the shared plate. The second amp's cabinet is
   its own or a built-in one: a file is the first amp's only
+- The plate has three zones, ruled apart. Blend leads: a silk frame of its own, the longest
+  slot and the biggest cap in the rig, large Amp 1 and Amp 2 at its ends and its value on a tape
+  beside the slot, so it cannot be read as Amp 2's. Under it a frame, Cabinets, for what both
+  cabinets share: Mic, Res, Mic Type and the Cab switch, whose LED says whether both cabinets
+  are in the signal. Last, under a rule, the plate's one output jack, its own zone, so the
+  cable that leaves is the plate's. Mic and Res are radius 15, the lane dials' size, not the 19 of a
+  secondary row in a frame: the plate is 148 px wide and two 19s with their ticks do not fit
+  inside a frame. All four screws are on, as `mounted_plate` puts them
+- Amp 1 has no switch and Amp 2 has On and a lamp: the first amp is always in the signal (its
+  lamp is always lit, the rig's one exception to a footswitch per path), and Amp 2 with its
+  switch is what Blend balances it against
+- A lane's captions (Cabinet, In) are 15 px, as large as the head's panel lets them be
 
 - The strip has 50 px small footswitches with the LED beside the switch; its band tilts -1.5
   degrees, pedals -4. The amp is picked with a stepper, not a switch per amp: three switches

@@ -7,10 +7,10 @@ use std::sync::{Arc, PoisonError};
 use suite_common::ui::{
     self, beat_lamp, chrome_button, drop_panel, led_stepper, led_width, level_meter,
     nameplate_stepper, panel_knob, param_knob, param_switch, print_label, rig_led, settings_panel,
-    signal_lamp, silk_label, small_footswitch, stepper, theme, tuner_display, type_into,
-    type_on_tape, Beat, Column, MiniStyle, Motif, Ornament, PedalStyle, Pick, Row, SettingRow,
-    SettingsEvent, SettingsText, Step, Typed, BENCH_MARGIN, LED_HEIGHT, SLIM_KNOBS,
-    SLIM_KNOB_RADIUS, SLIM_LED, SLIM_SWITCH,
+    signal_lamp, silk_frame, silk_label, small_footswitch, stepper, theme, tuner_display,
+    type_into, type_on_tape, Beat, Column, MiniStyle, Motif, Ornament, PedalStyle, Pick, Plate,
+    Row, SettingRow, SettingsEvent, SettingsText, Step, Typed, BENCH_MARGIN, LED_HEIGHT,
+    SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED, SLIM_SWITCH,
 };
 
 use crate::board::STACK_WIDTH;
@@ -182,6 +182,7 @@ const OUTPUT_METER: Vec2 = vec2(OUTPUT_KNOB.x + KNOB_REACH + STRIP_GAP + METER_R
 const CLIP_LAMP: Vec2 = vec2(OUTPUT_METER.x + METER_REACH + AUDIO_GAP + LAMP_REACH, 58.0);
 const LAMP_CAPTION: Vec2 = vec2(0.0, 18.0);
 const LAMP_CAPTION_SIZE: f32 = 13.0;
+const LANE_CAPTION_SIZE: f32 = 15.0;
 
 // Small switches, left of each its LED above its caption: the bypass, and the tuner beside
 // it at the end of the strip
@@ -217,25 +218,37 @@ const LANE_CAB_GAP: f32 = 6.0;
 const MIX_GAP: f32 = 12.0;
 const MIX_X: f32 = LANE_HEAD_WIDTH + LANE_CAB_WIDTH + LANE_CAB_GAP + MIX_GAP - LANE_CAB_GAP;
 const MIX_WIDTH: f32 = STACK_WIDTH - MIX_X;
-// On the plate, from its top: the fader with the amps' captions, its tape, and under it
-// what both cabinets share
-const MIX_AMP1_CAPTION_Y: f32 = 38.0;
-const FADER_TOP: f32 = 62.0;
-const FADER_LENGTH: f32 = 60.0;
-const MIX_AMP2_CAPTION_Y: f32 = 146.0;
-const MIX_BLEND_CAPTION_Y: f32 = 18.0;
-const MIX_BLEND_TAPE_Y: f32 = 161.0;
-const MIX_KNOB_Y: f32 = 214.0;
-const MIX_KNOB_DX: f32 = 34.0;
-const MIX_KNOB_RADIUS: f32 = 17.0;
-const MIC_CAPTION_Y: f32 = 298.0;
-const MIC_STEPPER_Y: f32 = 321.0;
+// On the plate, from its top, in three zones: the Blend frame (the fader with its end captions
+// and its value beside the slot, to the left of the middle), the Cabinets frame (Mic and Res,
+// Mic Type, and the Cab switch with its LED, all of them for both cabinets), and under them the
+// output jack. Across, from the plate's middle
+const PLATE_FRAME_INSET: f32 = 10.0;
+const BLEND_FRAME_TOP: f32 = 14.0;
+const BLEND_FRAME_BOTTOM: f32 = 192.0;
+const FADER_DX: f32 = -12.0;
+const MIX_AMP1_CAPTION_Y: f32 = 40.0;
+const FADER_TOP: f32 = 66.0;
+const FADER_LENGTH: f32 = 80.0;
+const MIX_AMP2_CAPTION_Y: f32 = 176.0;
+const MIX_END_CAPTION_SIZE: f32 = 15.0;
+const MIX_BLEND_TAPE_DX: f32 = 38.0;
+const MIX_BLEND_TAPE_Y: f32 = FADER_TOP + FADER_LENGTH / 2.0 - 8.0;
+const CABS_FRAME_TOP: f32 = 206.0;
+const CABS_FRAME_BOTTOM: f32 = 444.0;
+const MIX_KNOB_Y: f32 = 251.0;
+const MIX_KNOB_DX: f32 = 31.0;
+const MIX_KNOB_RADIUS: f32 = 15.0;
+const MIC_CAPTION_Y: f32 = 331.0;
+const MIC_STEPPER_Y: f32 = 355.0;
 const MIC_STEPPER_WIDTH: f32 = 44.0;
-const MIX_JACK_Y: f32 = 349.0;
-const MIX_JACK_CAPTION_Y: f32 = 369.0;
-const MIX_SWITCH_CAPTION_Y: f32 = 393.0;
-const MIX_LED_Y: f32 = 416.0;
-const MIX_SWITCH_Y: f32 = 457.0;
+const MIX_SWITCH_CAPTION_Y: f32 = 386.0;
+const MIX_LED_Y: f32 = 410.0;
+const MIX_LED_DX: f32 = -30.0;
+const MIX_SWITCH_Y: f32 = 407.0;
+const MIX_SWITCH_DX: f32 = 22.0;
+const MIX_JACK_Y: f32 = 462.0;
+const MIX_JACK_DX: f32 = 16.0;
+const MIX_JACK_CAPTION_DX: f32 = -24.0;
 
 // On a lane's head, from the panel's top left corner: the dials in a row, the lane's name,
 // its cabinet's stepper and, on the second lane, its switch, on the line under the dials
@@ -451,7 +464,6 @@ impl Pedals<'_> {
     /// head with its cabinet beside it and the second amp's under it, and the plate where
     /// they meet. Returns where the cables go in and out
     pub(crate) fn stack(&self, ui: &mut Ui, top_left: Pos2) -> Jacks {
-        let params = self.params;
         let mut jacks = [Pos2::ZERO; 2];
         let mut ends = [Pos2::ZERO; 2];
         for lane in 0..2 {
@@ -470,8 +482,7 @@ impl Pedals<'_> {
             top_left + vec2(MIX_X, 0.0),
             vec2(MIX_WIDTH, 2.0 * LANE_HEIGHT + LANE_GAP),
         );
-        let first = looks::cab_look(params.amp.value(), &self.chosen(), self.cab_loader.status());
-        ui::amp::mounted_plate(ui.painter(), plate, first.plate);
+        ui::amp::mounted_plate(ui.painter(), plate, Plate::BlackAnodised);
         for end in ends {
             ui::coupler(ui.painter(), end.x, plate.left(), end.y);
         }
@@ -539,7 +550,7 @@ impl Pedals<'_> {
             ui.painter(),
             cab_at + vec2(0.0, LANE_CAB_CAPTION_DY),
             "Cabinet",
-            LAMP_CAPTION_SIZE,
+            LANE_CAPTION_SIZE,
             print,
         );
         if second {
@@ -615,18 +626,40 @@ impl Pedals<'_> {
         let (params, setter) = (self.params, self.setter);
         let x = plate.center().x;
         let at = |dy: f32| Pos2::new(x, plate.top() + dy);
-        silk_label(ui.painter(), at(MIX_BLEND_CAPTION_Y), "Blend", LAMP_CAPTION_SIZE);
-        silk_label(ui.painter(), at(MIX_AMP1_CAPTION_Y), "Amp 1", LAMP_CAPTION_SIZE);
-        ui::crossfader(ui, setter, &params.amp_blend, at(FADER_TOP), FADER_LENGTH, theme::SILK);
-        silk_label(ui.painter(), at(MIX_AMP2_CAPTION_Y), "Amp 2", LAMP_CAPTION_SIZE);
+        let frame = |top: f32, bottom: f32| {
+            Rect::from_min_max(
+                Pos2::new(plate.left() + PLATE_FRAME_INSET, plate.top() + top),
+                Pos2::new(plate.right() - PLATE_FRAME_INSET, plate.top() + bottom),
+            )
+        };
+        let paint = Plate::BlackAnodised.color();
+
+        // Blend, the plate's lead: its frame, the fader and the value on a tape beside it
+        silk_frame(ui.painter(), frame(BLEND_FRAME_TOP, BLEND_FRAME_BOTTOM), "Blend", paint);
+        let fader = at(0.0) + vec2(FADER_DX, 0.0);
+        let end = |ui: &Ui, dy: f32, caption: &str| {
+            silk_label(ui.painter(), fader + vec2(0.0, dy), caption, MIX_END_CAPTION_SIZE);
+        };
+        end(ui, MIX_AMP1_CAPTION_Y, "Amp 1");
+        ui::crossfader(
+            ui,
+            setter,
+            &params.amp_blend,
+            fader + vec2(0.0, FADER_TOP),
+            FADER_LENGTH,
+            theme::SILK,
+        );
+        end(ui, MIX_AMP2_CAPTION_Y, "Amp 2");
         let blend = params.amp_blend.unmodulated_normalized_value();
         ui::widgets::label_tape(
             ui.painter(),
-            at(MIX_BLEND_TAPE_Y),
+            at(MIX_BLEND_TAPE_Y) + vec2(MIX_BLEND_TAPE_DX, 0.0),
             &params.amp_blend.normalized_value_to_string(blend, true),
             12.0,
         );
 
+        // What both cabinets share
+        silk_frame(ui.painter(), frame(CABS_FRAME_TOP, CABS_FRAME_BOTTOM), "Cabinets", paint);
         for ((param, caption), dx) in [(&params.cab_mic, "Mic"), (&params.cab_res, "Res")]
             .into_iter()
             .zip([-MIX_KNOB_DX, MIX_KNOB_DX])
@@ -650,12 +683,24 @@ impl Pedals<'_> {
             setter.set_parameter(&params.cab_mic_type, neighbour_mic(mic_shown, step));
             setter.end_set_parameter(&params.cab_mic_type);
         }
+        silk_label(
+            ui.painter(),
+            at(MIX_SWITCH_CAPTION_Y) + vec2(MIX_LED_DX, 0.0),
+            "Cabs",
+            LAMP_CAPTION_SIZE,
+        );
+        param_switch(
+            ui,
+            setter,
+            &params.cab_on,
+            at(MIX_SWITCH_Y) + vec2(MIX_SWITCH_DX, 0.0),
+            at(MIX_LED_Y) + vec2(MIX_LED_DX, 0.0),
+        );
 
-        let out = at(MIX_JACK_Y);
+        // The output: the plate's own jack, under the frames
+        let out = at(MIX_JACK_Y) + vec2(MIX_JACK_DX, 0.0);
         jack_socket(ui, out);
-        silk_label(ui.painter(), at(MIX_JACK_CAPTION_Y), "Out", LAMP_CAPTION_SIZE);
-        silk_label(ui.painter(), at(MIX_SWITCH_CAPTION_Y), "Cab", LAMP_CAPTION_SIZE);
-        param_switch(ui, setter, &params.cab_on, at(MIX_SWITCH_Y), at(MIX_LED_Y));
+        silk_label(ui.painter(), out + vec2(MIX_JACK_CAPTION_DX, 0.0), "Out", MIX_END_CAPTION_SIZE);
         out
     }
 }
@@ -2185,43 +2230,64 @@ mod tests {
     #[test]
     fn test_the_plate_holds_the_fader_and_what_the_cabinets_share_in_order() {
         let knob = MIX_KNOB_RADIUS + TICKS;
-        // Across: both knobs, the stepper and the fader on the plate, clear of its screws
-        let stepper = reach(MIC_STEPPER_WIDTH) + BUTTON;
-        let half = MIX_WIDTH / 2.0;
+        let half = MIX_WIDTH / 2.0 - PLATE_FRAME_INSET;
         let (cap, ticks) = (ui::widgets::FADER_CAP_HALF_WIDTH, ui::widgets::FADER_REACH);
+        let stepper = reach(MIC_STEPPER_WIDTH) + BUTTON;
+        // Across, inside the frames: the Blend zone's fader with its tape beside it, the
+        // Cabinets zone's knobs, stepper, LED and switch
+        let tape = 19.0;
         for (name, from, to) in [
+            ("the fader's cap", FADER_DX - cap, FADER_DX + cap),
+            ("the fader's ticks", FADER_DX - ticks, FADER_DX + ticks),
+            ("the Blend tape", MIX_BLEND_TAPE_DX - tape, MIX_BLEND_TAPE_DX + tape),
             ("the Mic knob", -MIX_KNOB_DX - knob, -MIX_KNOB_DX + knob),
             ("the Res knob", MIX_KNOB_DX - knob, MIX_KNOB_DX + knob),
             ("the microphone's stepper", -stepper, stepper),
-            ("the fader's cap", -cap, cap),
-            ("the fader's ticks", -ticks, ticks),
-            ("the Cab switch", -SWITCH, SWITCH),
+            ("the Cabs LED", MIX_LED_DX - LAMP, MIX_LED_DX + LAMP),
+            ("the Cabs switch", MIX_SWITCH_DX - SWITCH, MIX_SWITCH_DX + SWITCH),
         ] {
-            assert!(-half + 8.0 < from && to < half - 8.0, "{name} is off the plate");
+            assert!(-half + 4.0 < from && to < half - 4.0, "{name} is outside its frame");
+        }
+        // The tape is clear of the fader's ticks, the LED of the switch, the knobs of each other
+        assert!(FADER_DX + ticks + 4.0 < MIX_BLEND_TAPE_DX - tape);
+        const {
+            assert!(MIX_LED_DX + LAMP + 4.0 < MIX_SWITCH_DX - SWITCH);
         }
         assert!(-MIX_KNOB_DX + knob + 4.0 < MIX_KNOB_DX - knob);
-        // Down: from the top, each clear of the next
+        // Down, from the top, each clear of the next; a frame's title is on its top line
         let cap_half = ui::widgets::FADER_CAP_HEIGHT / 2.0;
+        let end = MIX_END_CAPTION_SIZE / 2.0;
         let knob_tape = MIX_KNOB_Y + MIX_KNOB_RADIUS + 18.0 + 15.0 + 2.0 + 16.0;
         in_a_row(&[
             ("the plate's top", 0.0, 0.0),
-            ("the Blend caption", MIX_BLEND_CAPTION_Y - 7.0, MIX_BLEND_CAPTION_Y + 7.0),
-            ("the Amp 1 caption", MIX_AMP1_CAPTION_Y - 7.0, MIX_AMP1_CAPTION_Y + 7.0),
+            ("the Blend frame's title", BLEND_FRAME_TOP - 8.0, BLEND_FRAME_TOP + 8.0),
+            ("the Amp 1 caption", MIX_AMP1_CAPTION_Y - end, MIX_AMP1_CAPTION_Y + end),
             ("the fader", FADER_TOP - cap_half, FADER_TOP + FADER_LENGTH + cap_half),
-            ("the Amp 2 caption", MIX_AMP2_CAPTION_Y - 7.0, MIX_AMP2_CAPTION_Y + 7.0),
-            ("the Blend tape", MIX_BLEND_TAPE_Y, MIX_BLEND_TAPE_Y + 17.0),
+            ("the Amp 2 caption", MIX_AMP2_CAPTION_Y - end, MIX_AMP2_CAPTION_Y + end),
+            ("the Blend frame", BLEND_FRAME_BOTTOM, BLEND_FRAME_BOTTOM),
+            ("the Cabinets frame's title", CABS_FRAME_TOP - 8.0, CABS_FRAME_TOP + 8.0),
             ("the Mic and Res knobs", MIX_KNOB_Y - MIX_KNOB_RADIUS - TICKS, knob_tape),
             ("the microphone's caption", MIC_CAPTION_Y - 7.0, MIC_CAPTION_Y + 7.0),
             ("the microphone's stepper", MIC_STEPPER_Y - 11.0, MIC_STEPPER_Y + 11.0),
+            ("the Cabs caption", MIX_SWITCH_CAPTION_Y - 7.0, MIX_SWITCH_CAPTION_Y + 7.0),
+            ("the Cabs LED", MIX_LED_Y - LAMP, MIX_LED_Y + LAMP),
+            ("the Cabinets frame", CABS_FRAME_BOTTOM, CABS_FRAME_BOTTOM),
             ("the output jack", MIX_JACK_Y - JACK, MIX_JACK_Y + JACK),
-            ("its caption", MIX_JACK_CAPTION_Y - 7.0, MIX_JACK_CAPTION_Y + 7.0),
-            ("the Cab caption", MIX_SWITCH_CAPTION_Y - 7.0, MIX_SWITCH_CAPTION_Y + 7.0),
-            ("the Cab LED", MIX_LED_Y - LAMP, MIX_LED_Y + LAMP),
-            ("the Cab switch", MIX_SWITCH_Y - SWITCH, MIX_SWITCH_Y + SWITCH),
             ("the plate's bottom", 2.0 * LANE_HEIGHT + LANE_GAP, 2.0 * LANE_HEIGHT + LANE_GAP),
         ]);
-        // The output jack is at the height of the pedals' plugs, so the cable runs level
-        assert!((HEAD_HEIGHT + ui::PLUG_Y - MIX_JACK_Y).abs() < 20.0);
+        // The switch beside its LED is under the stepper and inside its frame
+        const {
+            assert!(MIC_STEPPER_Y + 11.0 + 4.0 < MIX_SWITCH_Y - SWITCH);
+        }
+        const {
+            assert!(MIX_SWITCH_Y + SWITCH + 4.0 < CABS_FRAME_BOTTOM);
+        }
+        // The jack stays inside the plate's screws, and its caption is beside it
+        const {
+            assert!(MIX_JACK_CAPTION_DX < -JACK - 12.0);
+        }
+        assert!(MIX_JACK_DX + JACK < half - 4.0);
+        assert!(MIX_JACK_DX + MIX_JACK_CAPTION_DX - 14.0 > -half);
     }
 
     #[test]

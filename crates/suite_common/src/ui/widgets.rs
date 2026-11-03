@@ -252,7 +252,7 @@ fn turn_param<P: Param>(
 
 // A crossfader: the slot, its tick scale at both sides and the cap that slides in it
 const FADER_SLOT_WIDTH: f32 = 8.0;
-const FADER_CAP_SIZE: Vec2 = vec2(34.0, 22.0);
+const FADER_CAP_SIZE: Vec2 = vec2(40.0, 26.0);
 const FADER_TICK_GAP: f32 = 12.0;
 const FADER_TICKS: usize = 10;
 /// How far the ticks of a `crossfader` reach from its middle
@@ -261,6 +261,12 @@ pub const FADER_REACH: f32 = FADER_TICK_GAP + 12.0;
 pub const FADER_CAP_HALF_WIDTH: f32 = FADER_CAP_SIZE.x / 2.0;
 /// The height of a `crossfader`'s cap
 pub const FADER_CAP_HEIGHT: f32 = FADER_CAP_SIZE.y;
+
+/// Where along the slot, 0.0 at its top and 1.0 at its bottom, a pointer at height `y` puts the
+/// cap when it holds the cap `held` below its middle
+fn fader_position(y: f32, held: f32, top: f32, length: f32) -> f32 {
+    ((y - held - top) / length).clamp(0.0, 1.0)
+}
 
 /// A vertical fader for a 0 to 1 parameter that is a balance between two things: 0 at the top
 /// of the slot, 1 at the bottom. The slot is `length` high from `top` (the middle of the
@@ -301,7 +307,7 @@ pub fn crossfader<P: Param>(
         let position = if fine {
             position + response.drag_delta().y / length * FINE_DRAG_FACTOR
         } else if let Some(pointer) = response.interact_pointer_pos() {
-            (pointer.y - held - top.y) / length
+            fader_position(pointer.y, held, top.y, length)
         } else {
             position
         };
@@ -1267,6 +1273,24 @@ pub fn badge(painter: &Painter, right_bottom: Pos2, size: f32) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn test_the_crossfader_is_the_first_at_the_top_and_the_second_at_the_bottom() {
+        // Top of the slot is 0.0 (amp 1), bottom 1.0 (amp 2), the middle between; past either
+        // end it stops
+        assert_eq!(super::fader_position(100.0, 0.0, 100.0, 80.0), 0.0);
+        assert_eq!(super::fader_position(180.0, 0.0, 100.0, 80.0), 1.0);
+        assert_eq!(super::fader_position(140.0, 0.0, 100.0, 80.0), 0.5);
+        assert_eq!(super::fader_position(20.0, 0.0, 100.0, 80.0), 0.0);
+        assert_eq!(super::fader_position(400.0, 0.0, 100.0, 80.0), 1.0);
+        // Holding the cap 10 below its middle puts the middle 10 above the pointer
+        assert_eq!(super::fader_position(150.0, 10.0, 100.0, 80.0), 0.5);
+        // Moving down raises the value
+        assert!(
+            super::fader_position(130.0, 0.0, 100.0, 80.0)
+                < super::fader_position(131.0, 0.0, 100.0, 80.0)
+        );
+    }
+
     use super::*;
     use nih_plug_egui::egui::{CentralPanel, Context, Modifiers, RawInput};
 
