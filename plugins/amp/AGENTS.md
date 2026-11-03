@@ -26,6 +26,7 @@ lead) and Drøn (a big, loose, dark amp with the low end let through). They shar
   `CabLoader` (reads the chosen file on a background task)
 - `src/delay.rs`, `src/reverb.rs` - Stereo delay; stereo reverb (8-line feedback delay network)
 - `src/comp.rs` - Compressor pedal
+- `src/eq.rs` - EQ pedal: Low and High shelves, Mid bell with a sweepable centre (`Eq`, `EqSettings`)
 - `src/pitch.rs` - Pitch shifter pedal: `suite_common::dsp::pitch::PitchShifter` (the Pitch Shifter
   plugin's algorithm) as a stage in front of the amp, with its switch fade
 - `src/mods/` - `chorus.rs`, `flanger.rs`, `phaser.rs`, `tremolo.rs`, with `lfo.rs` and `line.rs`
@@ -58,11 +59,11 @@ lead) and Drøn (a big, loose, dark amp with the low end let through). They shar
   panel itself is `suite_common::ui::settings`. nih-plug's host opens its streams once from its
   command line, so Apply saves and starts the program again; no host is installed in a DAW and
   the editor then shows no Audio button
-- `src/editor.rs` - egui GUI (2997 x 650 window): the oxblood strip across the top with the
+- `src/editor.rs` - egui GUI (3204 x 650 window): the oxblood strip across the top with the
   Bank and Preset displays, the list they drop open, or the tuner display in its left wing and
   Output, meters, Clip, On and Tuner in its right; the stack (two lanes, one per amp: its head
   with nameplate and dials, and the cabinet it plays through beside it; the plate where they meet
-  with the Blend fader); each of the eleven pedals in its own paint with its own art
+  with the Blend fader); each of the twelve pedals in its own paint with its own art
 - `src/looks.rs` - What each amp's head looks like: a `Look` (its `HeadStyle` and knob cap) per
   amp, in the order of `Amp::ALL`. The sound stays in `amp/model.rs`
 - `src/board.rs` - The line under the strip in the chain's order: the pedals and the stack,
@@ -250,8 +251,8 @@ How it behaves:
   caption opens — the folder of the bank showing
 - The pedal order (`order.rs`): Gate always first, amp and cabinet one block in the middle.
   Drive and Pitch only in front of the amp; Delay and Reverb only behind the cabinet; Fuzz, Comp,
-  Chorus, Phaser, Flanger and Tremolo on either side. Default: Pitch, Fuzz, Comp, Drive, Phaser, amp,
-  Chorus, Flanger, Tremolo, Delay, Reverb, which with the new pedals off is the chain as it
+  Chorus, Phaser, Flanger, Tremolo and EQ on either side. Default: Pitch, Fuzz, Comp, Drive, Phaser, amp,
+  Chorus, Flanger, Tremolo, EQ, Delay, Reverb, which with the new pedals off is the chain as it
   was, to the bit. A project saved before a pedal existed gets it where the default has it
 - In front of the amp a pedal runs on one channel at the oversampled rate, behind the cabinet
   on two at the host's rate (chorus, flanger and phaser a quarter turn apart left and right).
@@ -273,6 +274,15 @@ How it behaves:
   of oversampled rate the buffer is shorter than 50 ms (42 ms at a host's 192 kHz). Cost: about
   0.4 to 4 % of a core over the amp at 48 kHz (shift 0: under 0.5 %), with a splice every
   period costing up to a tenth of a block; the report is `pitch_report`
+- The EQ (`eq.rs`) is three biquads of `dsp/filters.rs` in f64, each gliding to a new setting
+  over 20 ms so a dial turned while playing does not click: Low a shelf at 100 Hz, Mid a bell of
+  Q 0.9 centred 200 Hz to 5 kHz on a log scale (Freq 5 is 1 kHz), High a shelf at 4 kHz, each
+  -12 to +12 dB with the dial's 5 flat (a dial within 0.01 dB of flat is flat). A flat band is
+  skipped, so with all three flat the signal passes untouched, to the bit; a band that has
+  just become flat runs on a few samples until its state is empty. On either side of the amp
+  (one channel at the oversampled rate, or two at the host's), without latency; switching
+  crossfades in 10 ms and an off, faded-out pedal is idle. Nothing in it allocates (`no_alloc`
+  holds it). Cost: see `eq_report`
 - The order is saved with the project (`chain-order`, a list of pedal ids with `amp` between
   the sides), not a parameter and not automatable. The chain reads it with the dials: the
   output fades to silence in 4.5 ms, the pedals change places, it fades back. A pedal that
@@ -318,6 +328,9 @@ How it behaves:
 | Amp 2 Model (`amp2`) | the same six, same variant ids as `amp` | Klar | The second amp's own choice |
 | Amp 2 Gain, Bass, Mid, Treble, Presence, Master (`amp2_gain`, `amp2_bass`, `amp2_mid`, `amp2_treble`, `amp2_presence`, `amp2_master`) | 0.0-10.0 | 5.0 | The second amp's dials |
 | Amp Blend (`amp_blend`) | 0.0-10.0 | 5.0 | 0 is the first amp alone, 10 the second alone. Not heard while Amp 2 is off |
+| EQ (`eq_on`) | on / off | off | EQ pedal, either side of the amp |
+| EQ Low, Mid, High (`eq_low`, `eq_mid`, `eq_high`) | 0.0-10.0 | 5.0 | -12 to +12 dB, 5 is flat: Low and High shelves at 100 Hz and 4 kHz, Mid a bell |
+| EQ Freq (`eq_freq`) | 0.0-10.0 | 5.0 | The centre of Mid, 200 Hz to 5 kHz on a log scale (5 is 1 kHz) |
 | Chorus, Phaser, Flanger, Tremolo (`chorus_on`, `phaser_on`, `flanger_on`, `trem_on`) | on / off | off | Modulation pedals |
 | Chorus Rate (`chorus_rate`) | 0.1-6 Hz | 0.8 Hz | Speed of the sweep, 7 to 12 ms |
 | Phaser Rate (`phaser_rate`) | 0.1-8 Hz | 0.5 Hz | Speed of the sweep, 200 Hz to 1.6 kHz |
@@ -381,6 +394,10 @@ cargo test -p amp --release comp_report -- --ignored --nocapture
 # Pitch shifter pedal: level of the shifted note, latency per Tracking, and cost, with the pedal
 # off and at -12, 0 and +12 semitones.
 cargo test -p amp --release pitch_report -- --ignored --nocapture
+
+# EQ pedal: gain per band at the dials' ends and middle, Mid across Freq, the largest step of a
+# sweep of the dials against the signal's own, and cost on either side of the amp.
+cargo test -p amp --release eq_report -- --ignored --nocapture
 cargo test -p amp --release fuzz_report -- --ignored --nocapture
 cargo test -p amp --release mods_report -- --ignored --nocapture
 
@@ -470,7 +487,7 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   cabinet, as tall as it. Each mini pedal has a paint of its own. On a strip, a head and mini
   pedals the switches are `small_footswitch` and the LEDs `rig_led` (an unlit `led` disappears
   on dark paint), beside or above the switch. A mini pedal holds two knobs of radius 24 side by
-  side or three of radius 17 in a triangle. Everything else in this guide applies
+  side, three of radius 17 in a triangle, or (the EQ) four in two rows. Everything else in this guide applies
 - **The strip's wings:** the left one holds what comes in and what is picked (input meter,
   Bank, Preset, Save; the tuner display while tuning), the right one what goes out (Output, the
   output meter, Clip, On, Tuner). Its jack captions read `In` at the left and `Stereo Out` at
@@ -549,7 +566,7 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   letters, numbers or cream triangles in it, and nothing that moves. A new paint goes in
   `PEDAL_PAINTS`, where tests hold it to cream print reading on it and to being clearly apart
   from the others; a new motif is drawn in `art.rs` for the layout of its pedal
-- **Equal pedals:** every pedal of the row is `PEDAL_WIDTH` (180 px) wide (eleven of them and the stack: the window is 2997 px wide); only the stack has its
+- **Equal pedals:** every pedal of the row is `PEDAL_WIDTH` (180 px) wide (twelve of them and the stack: the window is 3204 px wide); only the stack has its
   own width. The gap between neighbours is what is left of the window after the margin at each
   end (`GAP` in `board.rs`, a test holds it even and every pedal as wide as the next). A pedal
   with two knobs is either a pair side by side (radius 24) or on a diagonal (`SLIM_LED`,

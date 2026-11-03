@@ -131,6 +131,26 @@ The reasons behind choices that the code alone does not explain. What it does is
   ember for a darker orange at the distance the paint test asks for. Its art is the midnight sun on the sea
 - Not in the factory presets: they switch it off, as they do every pedal they do not use
 
+## EQ
+
+- #215: a free-standing tone control, because the amps' and cabinets' dials cannot fix a thin
+  single-coil or a boomy bridge pickup or a room. Three simple bands and not a parametric:
+  Low and High shelves, Mid a bell with a sweepable centre (Freq); the dials are 0 to 10 around
+  a flat 5, like the amp's. Behind the cabinet by default (where a room or a speaker is put
+  right), draggable in front of the amp (to cut mud before high gain). Shelves with Butterworth
+  slope (Q 0.707), the bell Q 0.9: wide enough for a tone control, not a notch. Dials glide
+  over 20 ms rather than snapping, and a band that is flat is not run at all, so the pedal at
+  rest changes no bit
+- Look: four knobs make a pedal of the equal width with its knobs in two rows (radius 17); Low
+  over High on the left (the shelves), Mid over Freq on the right (the bell and its centre), the
+  LED between the upper two where a trio has it. Its paint is the spare brown (`PAINT_BARK`)
+  and its art basalt columns of different heights, the bars of an equaliser. The window grew
+  by one pedal (3204 px, `editor-state-rig8`) and the strip's gaps with it; the print of the
+  amp's art was regenerated for the new width. Not in the factory presets: they switch it off
+  Rejected: Freq and Q per band (a real parametric: too much for the pedal's job); a pedal
+  of its own paint (the spare brown was there); dials shown in dB and kHz (the amp's dials are
+  0 to 10 and the host sees the same)
+
 ## Tuner
 
 - Muting is the behaviour: the amp's input and its output fade in 10 ms so tails are silent

@@ -56,10 +56,10 @@ pub(crate) const STYLE: PedalStyle = PedalStyle {
 // is picked is on the left: the input meter, then the bank and preset displays and the Save
 // button. What goes out is on the right: the output knob, the output meter, the clip lamp, and
 // the On and Tuner switches. Each one's place is the end of the one before it and the gap
-const STRIP_GAP: f32 = 85.375;
+const STRIP_GAP: f32 = 84.125;
 // The gap that holds the standalone program's Audio button, between the output meter and the clip
 // lamp: a little wider than the others
-const AUDIO_GAP: f32 = 70.0;
+const AUDIO_GAP: f32 = 80.0;
 
 // The bank display and the preset display, each an LED display with a button at each end and
 // its caption over it: what set of presets the preset display picks from, and the preset.

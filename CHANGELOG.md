@@ -51,6 +51,16 @@ GitHub release.
 
 ### Guitar Amp
 
+- A new pedal on the Guitar Amp's board, EQ, to shape the tone before or after the amp: Low and
+  High (shelves at 100 Hz and 4 kHz) and Mid, a bell whose centre Freq sweeps from 200 Hz to
+  5 kHz, each up or down by 12 dB (5 is flat). It starts off and flat, stands behind the
+  cabinet in front of the Delay, and can be dragged in front of the amp like the Fuzz, Comp and
+  modulation pedals. A player cuts mud before a high-gain amp or lifts presence after the
+  cabinet. Off, or with every dial at 5, the sound is bit for bit what it was; the factory
+  presets leave it off. New parameters `eq_on`, `eq_low`, `eq_mid`, `eq_freq` and `eq_high`, last in
+  the list; a project saved before the pedal opens with it behind the cabinet, off. The window is
+  one pedal wider (3204 px, size stored under `editor-state-rig8`), so a project saved with
+  the old size opens at the new one
 - The strip's displays look like modern LEDs: the bank, preset, tuner and tempo readouts are made
   of flat amber bars with sharp ends instead of a dot matrix with a glow, in black glass with a
   thin frame. The lightning of the print is calmer and thinner, one bolt at each end in the
