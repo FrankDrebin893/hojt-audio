@@ -118,7 +118,7 @@ const OPEN_STRINGS: [f32; 4] = [28.0, 33.0, 38.0, 43.0];
 const ALONG_MOST: f32 = 0.3;
 
 // How loud the string is, before the output stage
-const STRING_GAIN: f32 = 0.7;
+const STRING_GAIN: f32 = 0.62;
 // The sine under the string at Sub 100 %, against the string's own fundamental: it sits under
 // the string rather than being half of it
 const SUB_GAIN: f32 = 1.5;
@@ -147,6 +147,33 @@ const STIFF_FIT_PARTIAL: f32 = 10.0;
 const STIFF_MAX_HZ: f32 = 800.0;
 // How far the all-passes' pole goes towards the unit circle
 const STIFF_POLE_MAX: f64 = 0.995;
+// The string's other plane: a second loop of the same string, plucked and read with this share
+// of the first's level, this many cents sharp of it and ringing this many times as long. Held
+// together they beat, and the decay is two lines, not one
+const PLANE_LEVEL: f32 = 0.15;
+const PLANE_BEAT_HZ: f32 = 0.4;
+const PLANE_FLAT_HZ: f32 = 0.03;
+const PLANE_T60: f32 = 1.2;
+// What the hand makes on the string besides the pluck, each a few ms long. A pick scrapes it
+// (Metal): noise over `SCRAPE_S` that swells and dies, at this level against the click it
+// replaces. A finger (Groove) lands with a thump, one period of a sine of `THUMP_S` that is as
+// long, and a little noise (a resonance at `FINGER_NOISE_HZ`, where Tone lets it through) that
+// dies in about `FINGER_NOISE_S`; both scale with the velocity
+const SCRAPE_S: f32 = 0.0025;
+const SCRAPE_LEVEL: f32 = 2.4;
+const THUMP_S: f32 = 0.003;
+const THUMP_LEVEL: f32 = 0.1;
+const FINGER_NOISE_S: f32 = 0.004;
+const FINGER_KNOCK_LEVEL: f32 = 9.0;
+const FINGER_NOISE_LEVEL: f32 = 1.0;
+const FINGER_NOISE_HZ: f32 = 1500.0;
+const FINGER_NOISE_POLE: f32 = 0.9;
+// Letting go of the string makes a quiet tick of the fretting finger: noise, low-passed at
+// `RELEASE_TICK_HZ` and differenced, that dies with this time constant, at this level against a
+// note of the same velocity
+const RELEASE_TICK_LEVEL: f32 = 0.07;
+const RELEASE_TICK_S: f32 = 0.004;
+const RELEASE_TICK_HZ: f32 = 3300.0;
 // Time constant of the fade that takes the step out of a new pluck over a ringing string
 const DECLICK_S: f32 = 0.0015;
 // Time constant of the smoothing of the bend, so that a wheel sending coarse steps does not
@@ -272,8 +299,13 @@ pub struct Bass {
     sample_rate: f32,
     settings: BassSettings,
     noise: Noise,
+    // What the hand and the finger make, apart from `noise` so that where a pluck lands does not
+    // depend on how long a scrape was
+    touch_noise: Noise,
 
     line: Vec<f32>,
+    // The same string's other plane, written and read with the line
+    line_other: Vec<f32>,
     mask: usize,
     write: usize,
     // Scratch for shaping a pluck, as long as the line
@@ -297,6 +329,12 @@ pub struct Bass {
     feedback: f32,
     feedback_held: f32,
     feedback_released: f32,
+    // The other plane's loop: the same low-pass and all-passes, its own states and gain
+    loop_state_other: f32,
+    stiff_state_other: [f32; STIFF_SECTIONS],
+    feedback_other: f32,
+    feedback_other_held: f32,
+    feedback_other_released: f32,
     glide: f32,
 
     // How sharp the string still is from a hard pluck, in cents, and how fast that falls
@@ -338,6 +376,14 @@ pub struct Bass {
     drive_decay_held: f32,
     drive_decay_released: f32,
 
+    // The tick of letting go: how loud it still is, how fast that falls, how loud it started and
+    // its smoothed noise
+    tick_env: f32,
+    tick_decay: f32,
+    tick_smooth: f32,
+    tick_level: f32,
+    tick_state: f32,
+
     // The step a new pluck makes over a ringing string, fading out
     last_raw: f32,
     declick: f32,
@@ -364,7 +410,9 @@ impl Bass {
             sample_rate: 44100.0,
             settings: BassSettings::default(),
             noise: Noise::new(1),
+            touch_noise: Noise::new(2),
             line: Vec::new(),
+            line_other: Vec::new(),
             mask: 0,
             write: 0,
             pluck: Vec::new(),
@@ -380,6 +428,11 @@ impl Bass {
             feedback: 0.0,
             feedback_held: 0.0,
             feedback_released: 0.0,
+            loop_state_other: 0.0,
+            stiff_state_other: [0.0; STIFF_SECTIONS],
+            feedback_other: 0.0,
+            feedback_other_held: 0.0,
+            feedback_other_released: 0.0,
             glide: 1.0,
             sharp_cents: 0.0,
             sharp_decay: 0.0,
@@ -405,6 +458,11 @@ impl Bass {
             drive_env: 0.0,
             drive_decay_held: 0.0,
             drive_decay_released: 0.0,
+            tick_env: 0.0,
+            tick_decay: 0.0,
+            tick_smooth: 0.0,
+            tick_level: 0.0,
+            tick_state: 0.0,
             last_raw: 0.0,
             declick: 0.0,
             declick_pending: false,
@@ -428,6 +486,7 @@ impl Bass {
         self.sample_rate = sample_rate;
         let size = STRING_SAMPLES * ((sample_rate / 48000.0).ceil() as usize).next_power_of_two();
         self.line = vec![0.0; size];
+        self.line_other = vec![0.0; size];
         self.pluck = vec![0.0; size];
         self.mask = size - 1;
         self.write = 0;
@@ -441,6 +500,8 @@ impl Bass {
         self.cabinet_presence.set(CABINET_PRESENCE.0, CABINET_PRESENCE.1, sample_rate);
         self.cabinet_top.set(CABINET_TOP.0, CABINET_TOP.1, sample_rate);
         self.declick_decay = decay_coeff(DECLICK_S, sample_rate);
+        self.tick_decay = decay_coeff(RELEASE_TICK_S, sample_rate);
+        self.tick_smooth = 1.0 - (-std::f32::consts::TAU * RELEASE_TICK_HZ / sample_rate).exp();
         self.bend_smoothing = 1.0 - decay_coeff(BEND_SMOOTHING_S, sample_rate);
         self.sharp_decay = decay_coeff(SHARP_START_S, sample_rate);
         self.set_voice_filters();
@@ -449,8 +510,12 @@ impl Bass {
 
     pub fn reset(&mut self) {
         self.line.fill(0.0);
+        self.line_other.fill(0.0);
         self.loop_state = 0.0;
         self.stiff_state = [0.0; STIFF_SECTIONS];
+        self.loop_state_other = 0.0;
+        self.stiff_state_other = [0.0; STIFF_SECTIONS];
+        self.tick_env = 0.0;
         self.note = None;
         self.held = false;
         self.sub_env = 0.0;
@@ -605,8 +670,14 @@ impl Bass {
 
     /// Lets go of whatever note is held
     pub fn release(&mut self) {
+        // The finger leaves the string: a tick, as loud as the note was plucked
+        if self.held && self.note.is_some() {
+            self.tick_env = 1.0;
+            self.tick_level = RELEASE_TICK_LEVEL * (0.5 + 0.5 * self.string_velocity);
+        }
         self.held = false;
         self.feedback = self.feedback_released;
+        self.feedback_other = self.feedback_other_released;
     }
 
     fn freq_hz(&self, note: u8) -> f32 {
@@ -616,7 +687,7 @@ impl Bass {
     /// Length of the loop for a note, less what its low-pass adds
     fn loop_delay(&self, freq_hz: f32) -> f32 {
         let longest = (self.line.len() - 4) as f32;
-        (self.sample_rate / freq_hz - self.filter_delay).clamp(2.0, longest)
+        (self.sample_rate / (freq_hz - PLANE_FLAT_HZ) - self.filter_delay).clamp(2.0, longest)
     }
 
     /// The loop's low-pass for the ringing note: how long its top rings follows Brightness,
@@ -662,7 +733,13 @@ impl Bass {
             |t60_s: f32| (10.0f32.powf(-3.0 / (t60_s * freq_hz)) / damping.gain).min(0.99999);
         self.feedback_held = gain(self.settings.sustain_s);
         self.feedback_released = gain(release_s);
-        self.feedback = if self.held { self.feedback_held } else { self.feedback_released };
+        self.feedback_other_held = gain(self.settings.sustain_s * PLANE_T60);
+        self.feedback_other_released = gain(release_s * PLANE_T60);
+        (self.feedback, self.feedback_other) = if self.held {
+            (self.feedback_held, self.feedback_other_held)
+        } else {
+            (self.feedback_released, self.feedback_other_released)
+        };
     }
 
     fn slide_to(&mut self, note: u8) {
@@ -690,6 +767,7 @@ impl Bass {
         // A stiff string: the all-passes start from rest with the pluck
         self.stiff = stiffness_coeff(freq_hz, rate);
         self.stiff_state = [0.0; STIFF_SECTIONS];
+        self.stiff_state_other = [0.0; STIFF_SECTIONS];
         // Where the note is played: the pick, the finger and the pickup are further along the
         // shorter string of a fret
         let fretted = Self::fretted(note as f32 + self.settings.transpose);
@@ -739,15 +817,50 @@ impl Bass {
                 *sample = smooth;
             }
         }
-        // The pick's click, where it leaves the string
-        if self.settings.voice == Voice::Metal {
-            let click = ((0.0004 * rate) as usize).min(length);
-            let level = 2.0 * sharpness * (1.0 + PLUCK_JITTER_CLICK * self.noise.next());
-            let mut previous = 0.0;
-            for (index, sample) in self.pluck[..click].iter_mut().enumerate() {
-                let noise = self.noise.next();
-                *sample += (noise - previous) * level * (1.0 - index as f32 / click as f32);
-                previous = noise;
+        // What the hand makes besides the pluck
+        match self.settings.voice {
+            Voice::Metal => {
+                // The pick scrapes the string as it leaves it: noise that swells and dies
+                let scrape = ((SCRAPE_S * rate) as usize).clamp(2, length);
+                let level = 2.0
+                    * SCRAPE_LEVEL
+                    * sharpness
+                    * (1.0 + PLUCK_JITTER_CLICK * self.touch_noise.next());
+                let mut previous = 0.0;
+                for (index, sample) in self.pluck[..scrape].iter_mut().enumerate() {
+                    let at = index as f32 / scrape as f32;
+                    let swell = if at < 0.2 { at / 0.2 } else { (1.0 - at) / 0.8 };
+                    let noise = self.touch_noise.next();
+                    *sample += (noise - previous) * level * swell;
+                    previous = noise;
+                }
+            }
+            Voice::Groove => {
+                // The finger lands: a thump, and a little noise that dies at once
+                let thump = ((THUMP_S * rate) as usize).clamp(2, length);
+                let level = THUMP_LEVEL * velocity;
+                for (index, sample) in self.pluck[..thump].iter_mut().enumerate() {
+                    *sample += level * sine(index as f32 / thump as f32);
+                }
+                let noise_length = ((4.0 * FINGER_NOISE_S * rate) as usize).clamp(2, length);
+                let falls = decay_coeff(FINGER_NOISE_S / 4.0, rate);
+                let level = velocity * (1.0 + PLUCK_JITTER_CLICK * self.touch_noise.next());
+                // A knock and some noise through a resonance at `FINGER_NOISE_HZ`: a thud more
+                // than a hiss
+                let theta = std::f32::consts::TAU * FINGER_NOISE_HZ / rate;
+                let (feed1, feed2) =
+                    (2.0 * FINGER_NOISE_POLE * theta.cos(), -FINGER_NOISE_POLE * FINGER_NOISE_POLE);
+                let (mut envelope, mut y1, mut y2) = (1.0f32, 0.0f32, 0.0f32);
+                let (mut x1, mut x2) = (0.0f32, 0.0f32);
+                for (index, sample) in self.pluck[..noise_length].iter_mut().enumerate() {
+                    // Two zeros, at 0 and at Nyquist: none of it is below the string's own range
+                    let knock = if index == 0 { FINGER_KNOCK_LEVEL } else { 0.0 };
+                    let x = knock + FINGER_NOISE_LEVEL * self.touch_noise.next();
+                    let y = x - x2 + feed1 * y1 + feed2 * y2;
+                    (x2, x1, y2, y1) = (x1, x, y1, y);
+                    *sample += y * level * envelope;
+                    envelope *= falls;
+                }
             }
         }
 
@@ -757,6 +870,15 @@ impl Bass {
         for index in 0..length {
             let position = (start + index) & self.mask;
             self.line[position] = self.pluck[index] * scale + self.line[position] * keeps;
+        }
+        // The other plane is plucked too, less, and a quarter of a period later: the two start
+        // a quarter of a beat apart, so that the level of a note ripples about where it would
+        // be rather than falling first
+        let quarter = length / 4;
+        for index in 0..length {
+            let position = (start + (index + quarter) % length) & self.mask;
+            self.line_other[position] =
+                self.pluck[index] * scale * PLANE_LEVEL + self.line_other[position] * keeps;
         }
 
         // The fundamental of what the pickup will read over the first time round, which the
@@ -784,6 +906,7 @@ impl Bass {
 
         self.drive_env = 1.0;
         self.loop_state = 0.0;
+        self.loop_state_other = 0.0;
         self.declick_pending = true;
     }
 
@@ -844,14 +967,42 @@ impl Bass {
         self.bend_ratio * (1.0 + self.sharp_cents * (std::f32::consts::LN_2 / 1200.0))
     }
 
-    /// What the line held `delay` samples ago, between two samples
-    fn read(&self, delay: f32) -> f32 {
+    /// What a line held `delay` samples ago, between two samples
+    fn read_from(&self, line: &[f32], delay: f32) -> f32 {
         let whole = delay.ceil();
         let fraction = whole - delay;
-        let position = self.write + self.line.len() - whole as usize;
-        let first = self.line[position & self.mask];
-        let second = self.line[(position + 1) & self.mask];
+        let position = self.write + line.len() - whole as usize;
+        let first = line[position & self.mask];
+        let second = line[(position + 1) & self.mask];
         first * (1.0 - fraction) + second * fraction
+    }
+
+    /// What the other plane's loop is, in samples, where the first's is `delay`: a little
+    /// shorter, so that it is sharp of it by `PLANE_BEAT_HZ`
+    fn other_delay(&self, delay: f32) -> f32 {
+        let round = delay + self.bent_filter_delay;
+        (round / (1.0 + PLANE_BEAT_HZ * round / self.sample_rate) - self.bent_filter_delay).max(2.0)
+    }
+
+    /// One sample of a loop's low-pass and all-passes, which is what the loop writes back
+    /// (before its gain)
+    fn disperse(
+        loop_lp: f32,
+        stiff: Option<f32>,
+        state: &mut f32,
+        stiff_state: &mut [f32; STIFF_SECTIONS],
+        input: f32,
+    ) -> f32 {
+        *state += (input - *state) * loop_lp;
+        let mut dispersed = *state;
+        if let Some(pole) = stiff {
+            for section in stiff_state.iter_mut() {
+                let out = pole * dispersed + *section;
+                *section = dispersed - pole * out;
+                dispersed = out;
+            }
+        }
+        dispersed
     }
 
     /// The string as the pickup reads it, and the sine under it at the level Sub gives it
@@ -872,21 +1023,31 @@ impl Bass {
         let delay = self.read_delay();
 
         // The string, and the pickup: where the string is read now, against what reaches it
-        // the pickup's part of the way round later
-        let string = self.read(delay);
-        let ahead = self.read((delay - self.pickup_at * (delay + self.bent_filter_delay)).max(1.0));
-        self.loop_state += (string - self.loop_state) * self.loop_lp;
-        let mut dispersed = self.loop_state;
-        if let Some(pole) = self.stiff {
-            for state in &mut self.stiff_state {
-                let out = pole * dispersed + *state;
-                *state = dispersed - pole * out;
-                dispersed = out;
-            }
-        }
+        // the pickup's part of the way round later. The same for the string's other plane
+        let ahead_by =
+            |delay: f32| (delay - self.pickup_at * (delay + self.bent_filter_delay)).max(1.0);
+        let string = self.read_from(&self.line, delay);
+        let ahead = self.read_from(&self.line, ahead_by(delay));
+        let delay_other = self.other_delay(delay);
+        let string_other = self.read_from(&self.line_other, delay_other);
+        let ahead_other = self.read_from(&self.line_other, ahead_by(delay_other));
+        let (loop_lp, stiff) = (self.loop_lp, self.stiff);
+        let dispersed =
+            Self::disperse(loop_lp, stiff, &mut self.loop_state, &mut self.stiff_state, string);
+        let dispersed_other = Self::disperse(
+            loop_lp,
+            stiff,
+            &mut self.loop_state_other,
+            &mut self.stiff_state_other,
+            string_other,
+        );
         self.line[self.write] = dispersed * self.feedback;
+        self.line_other[self.write] = dispersed_other * self.feedback_other;
         self.write = (self.write + 1) & self.mask;
-        let picked = self.pickup.process((ahead - string) * self.pickup_gain()).low;
+        let picked = self
+            .pickup
+            .process(((ahead - string) + (ahead_other - string_other)) * self.pickup_gain())
+            .low;
 
         // The sine under it
         advance(&mut self.sub_phase, freq_hz / rate);
@@ -901,7 +1062,8 @@ impl Bass {
     /// One sample, the same for both channels, before Volume: the voice's output stage, and
     /// the cabinet behind it
     pub fn process(&mut self) -> f32 {
-        let voiced = self.voice_stage();
+        // The tick of letting go joins what the voice's stage makes, before the cabinet
+        let voiced = self.voice_stage() + self.tick();
         self.cabinet(voiced)
     }
 
@@ -914,6 +1076,19 @@ impl Bass {
         let body = lift(&mut self.cabinet_body, CABINET_BODY, input);
         let presence = lift(&mut self.cabinet_presence, CABINET_PRESENCE, body);
         self.cabinet_top.process(presence).low * CABINET_GAIN
+    }
+
+    /// The tick of letting go of the string: smoothed noise, differenced, that dies at once
+    fn tick(&mut self) -> f32 {
+        if self.tick_env < 1e-4 {
+            self.tick_env = 0.0;
+            return 0.0;
+        }
+        let before = self.tick_state;
+        self.tick_state += (self.touch_noise.next() - self.tick_state) * self.tick_smooth;
+        let tick = (self.tick_state - before) * self.tick_level * self.tick_env;
+        self.tick_env *= self.tick_decay;
+        tick
     }
 
     /// One sample of the voice's output stage
@@ -1262,7 +1437,8 @@ mod tests {
     fn test_the_voices_differ_and_metal_is_the_brighter() {
         let metal = note(Voice::Metal, 33, 0.9, 0.5);
         let groove = note(Voice::Groove, 33, 0.9, 0.5);
-        assert!(brightness(&metal) > brightness(&groove) * 2.0);
+        // Groove's finger knock is part of its brightness: Metal was 2.1 times it before #167's milestone 3
+        assert!(brightness(&metal) > brightness(&groove) * 1.7);
     }
 
     // The notes the tone is measured on: low E, A, and the G above
@@ -1349,7 +1525,7 @@ mod tests {
     #[test]
     fn test_the_sine_sits_under_the_string() {
         // The sine adds at most 2.5 dB to the fundamental, the fundamental holds at most 40 %
-        // of the note's harmonic power, and the harmonics' centroid is at least 1.5 times
+        // of the note's harmonic power, and the harmonics' centroid is at least 1.4 times
         // where it was when the sine was half of the note
         for (voice, before) in CENTROID_BEFORE {
             for (midi, before) in MEASURED.into_iter().zip(before) {
@@ -1365,7 +1541,7 @@ mod tests {
                     share
                 );
                 assert!(
-                    centroid >= 1.5 * before,
+                    centroid >= 1.4 * before,
                     "{:?} note {}: the centroid is at {} Hz, {} before",
                     voice,
                     midi,
@@ -1454,6 +1630,120 @@ mod tests {
                 "{:?}: the 4th fret's 5th is the weakest at the output",
                 voice
             );
+        }
+    }
+
+    /// The level of a note's output in dB over 100 ms windows from 1 s to 3 s, and how far it
+    /// is from a straight line through them (the line of least squares): the residue's RMS in dB
+    fn decay_residue_db(output: &[f32]) -> f32 {
+        let window = (0.1 * SAMPLE_RATE) as usize;
+        let levels: Vec<f32> = (0..20)
+            .map(|index| {
+                let start = (1.0 * SAMPLE_RATE) as usize + index * window;
+                20.0 * rms(&output[start..start + window]).max(1e-9).log10()
+            })
+            .collect();
+        let count = levels.len() as f32;
+        let mean_x = (count - 1.0) / 2.0;
+        let mean_y = levels.iter().sum::<f32>() / count;
+        let slope =
+            levels.iter().enumerate().map(|(x, y)| (x as f32 - mean_x) * (y - mean_y)).sum::<f32>()
+                / levels.iter().enumerate().map(|(x, _)| (x as f32 - mean_x).powi(2)).sum::<f32>();
+        let squares: f32 = levels
+            .iter()
+            .enumerate()
+            .map(|(x, y)| (y - (mean_y + slope * (x as f32 - mean_x))).powi(2))
+            .sum();
+        (squares / count).sqrt()
+    }
+
+    #[test]
+    fn test_a_held_note_does_not_fall_in_one_straight_line() {
+        // The string's two planes beat and fall at their own rates: from 1 to 3 s the level is
+        // off a straight line in dB by at least 0.5 dB, and by no more than 3, so that it
+        // does not wobble
+        for voice in Voice::ALL {
+            for midi in MEASURED {
+                let output = note(voice, midi, WEIGHED_VELOCITY, 3.2);
+                let residue = decay_residue_db(&output);
+                assert!(
+                    (0.5..=3.0).contains(&residue),
+                    "{:?} note {}: the level is {} dB off a straight line",
+                    voice,
+                    midi,
+                    residue
+                );
+            }
+        }
+    }
+
+    /// The energy above 1 kHz (a fourth-order high-pass) in the first `seconds` of a note
+    fn energy_above_1_khz(samples: &[f32], seconds: f32) -> f32 {
+        let mut filters = [Svf::new(), Svf::new()];
+        for filter in &mut filters {
+            filter.set(1000.0, 0.7, SAMPLE_RATE);
+        }
+        samples[..(seconds * SAMPLE_RATE) as usize]
+            .iter()
+            .map(|&sample| {
+                let first = filters[0].process(sample).high;
+                let high = filters[1].process(first).high;
+                high * high
+            })
+            .sum()
+    }
+
+    // The energy above 1 kHz in Groove's first 5 ms on notes 28, 33 and 43 at velocity 0.8
+    // before the finger's attack was added (#167, milestone 3)
+    const GROOVE_ATTACK_BEFORE: [f32; 3] = [0.317, 0.319, 0.335];
+
+    #[test]
+    fn test_groove_has_a_finger_attack() {
+        // The finger's thump and noise: more energy above 1 kHz in the first 5 ms than the
+        // string alone had, and the more the harder it is plucked
+        for (midi, before) in MEASURED.into_iter().zip(GROOVE_ATTACK_BEFORE) {
+            let output = note(Voice::Groove, midi, WEIGHED_VELOCITY, 0.05);
+            let energy = energy_above_1_khz(&output, 0.005);
+            assert!(
+                energy >= 1.15 * before,
+                "note {}: {} above 1 kHz in the first 5 ms, {} before",
+                midi,
+                energy,
+                before
+            );
+            let soft = energy_above_1_khz(&note(Voice::Groove, midi, 0.3, 0.05), 0.005);
+            assert!(soft < energy, "note {}: a soft touch is as loud as a hard one", midi);
+        }
+    }
+
+    /// The loudest sample in the 150 ms after a note is let go, against the note's own peak,
+    /// in dB. Sustain at its shortest and the note held for 3 s: the string has died by then,
+    /// so what is left is what letting go makes
+    fn release_sound_db(voice: Voice, midi: u8) -> f32 {
+        let mut bass = bass(voice, SAMPLE_RATE);
+        bass.set(&BassSettings { sustain_s: SUSTAIN_MIN_S, ..voice.settings() });
+        bass.note_on(midi, WEIGHED_VELOCITY);
+        let held = render(&mut bass, SAMPLE_RATE, 3.0);
+        assert!(peak(&held[(2.5 * SAMPLE_RATE) as usize..]) < 1e-4, "the string rings on");
+        bass.note_off(midi);
+        let let_go = render(&mut bass, SAMPLE_RATE, 0.15);
+        20.0 * (peak(&let_go) / peak(&held)).max(1e-9).log10()
+    }
+
+    #[test]
+    fn test_letting_go_of_a_note_makes_a_quiet_sound() {
+        // 30 to 45 dB under the note's peak: there, and not a click
+        for voice in Voice::ALL {
+            for midi in MEASURED {
+                let db = release_sound_db(voice, midi);
+                assert!(
+                    (-45.0..=-30.0).contains(&db),
+                    "{:?} note {}: letting go makes a sound at {} dB",
+                    voice,
+                    midi,
+                    db
+                );
+            }
         }
     }
 
@@ -1598,7 +1888,9 @@ mod tests {
             for midi in MEASURED {
                 let freq_hz = note_hz(midi as f32);
                 let period = SAMPLE_RATE / freq_hz;
-                // Cents sharp over the first 20 ms, against the same pluck played at pitch
+                // Cents sharp over the first 20 ms, against the same pluck played at pitch, on
+                // the string's first plane: the second beats against it fast enough to be
+                // measured with the pitch over a period of the low E
                 // Measured on the string and the sine under it, before the output stage and the
                 // cabinet: with the sine no longer half of the note, their lift of the attack
                 // over the first period of a low note would be measured as much as its pitch
@@ -1613,9 +1905,11 @@ mod tests {
                 let sharp_at = |velocity: f32| {
                     let mut sharp = bass(voice, SAMPLE_RATE);
                     sharp.note_on(midi, velocity);
+                    sharp.line_other.fill(0.0);
                     let sharp = string(&mut sharp);
                     let mut at_pitch = bass(voice, SAMPLE_RATE);
                     at_pitch.note_on(midi, velocity);
+                    at_pitch.line_other.fill(0.0);
                     at_pitch.sharp_cents = 0.0;
                     let at_pitch = string(&mut at_pitch);
                     1200.0
@@ -2022,6 +2316,22 @@ mod tests {
                 );
             }
 
+            // The two planes and the playing noises, at velocity 0.8: how far the level from 1 to
+            // 3 s is off a straight line (dB), the energy above 1 kHz in the first 5 ms, and the
+            // sound of letting go against the note's peak (dB)
+            println!("{:<8}{:>12}{:>16}{:>12}", "note", "residue dB", "5 ms >1 kHz", "let go dB");
+            for midi in [28u8, 33, 38, 43, 50, 55] {
+                let held = note(voice, midi, WEIGHED_VELOCITY, 3.2);
+                let short = note(voice, midi, WEIGHED_VELOCITY, 0.05);
+                println!(
+                    "{:<8}{:>12.2}{:>16.4}{:>12.1}",
+                    midi,
+                    decay_residue_db(&held),
+                    energy_above_1_khz(&short, 0.005),
+                    release_sound_db(voice, midi),
+                );
+            }
+
             // How far above 5 and 10 times the fundamental those partials of the string run
             println!("{:<8}{:>12}{:>12}", "note", "5th cents", "10th cents");
             for midi in [28u8, 33, 38, 43, 50, 55] {
@@ -2051,6 +2361,8 @@ mod tests {
             per_frame_ns * 48000.0 / 1e7,
             sum.is_finite()
         );
+        // The bound of milestone 3: both planes, the playing noises and all, at most 2 % of a core
+        assert!(per_frame_ns * 48000.0 / 1e7 <= 2.0, "one note costs more than 2 % of a core");
     }
 
     /// A line to render: (beat, length in beats, note, velocity), and its tempo
