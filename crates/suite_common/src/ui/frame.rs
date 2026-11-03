@@ -147,6 +147,43 @@ pub fn strip(ui: &Ui, rect: Rect, style: &PedalStyle) -> Rect {
     top
 }
 
+/// A module plate on the strip: a recessed panel in dark wine, with a thin lit lip along its
+/// lower edge and a shadow under its top, so a group of controls reads as one unit set into the
+/// strip. The print on it is cream on near-black, so it reads at a glance. `rect` is the whole
+/// plate; the controls stand on it.
+pub fn strip_plate(painter: &Painter, rect: Rect) {
+    const RADIUS: f32 = 7.0;
+    // The bevel it is set into: a dark line round it and a lit one under it
+    painter.rect_filled(
+        rect.expand(2.0).translate(vec2(0.0, 1.0)),
+        RADIUS + 2.0,
+        Color32::from_white_alpha(34),
+    );
+    painter.rect_filled(rect.expand(2.0), RADIUS + 2.0, Color32::from_black_alpha(150));
+    painter.rect_filled(rect, RADIUS, Color32::from_rgb(36, 9, 12));
+    // Light from above: a wash that fades from the top edge down, inside the rounded corners
+    let inner = rect.shrink2(vec2(RADIUS * 0.5, 1.0));
+    let mut mesh = egui::Mesh::default();
+    let (lit, dark) = (Color32::from_rgba_unmultiplied(255, 120, 110, 16), Color32::TRANSPARENT);
+    for (pos, color) in [
+        (inner.left_top(), lit),
+        (inner.right_top(), lit),
+        (Pos2::new(inner.right(), inner.top() + inner.height() * 0.6), dark),
+        (Pos2::new(inner.left(), inner.top() + inner.height() * 0.6), dark),
+    ] {
+        mesh.colored_vertex(pos, color);
+    }
+    mesh.add_triangle(0, 1, 2);
+    mesh.add_triangle(0, 2, 3);
+    painter.add(Shape::mesh(mesh));
+    painter.rect_stroke(
+        rect,
+        RADIUS,
+        Stroke::new(1.0_f32, Color32::from_black_alpha(200)),
+        StrokeKind::Inside,
+    );
+}
+
 /// Small pedal of a rig, filling `rect`: an enclosure in its own paint with its art and
 /// its title printed at the top. No band, model number or logo: the head carries those.
 /// Returns the top face.

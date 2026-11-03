@@ -5,7 +5,7 @@
 //!   display drops open, tuner display, logo badge
 //! - `raster`: the surfaces lit pixel by pixel: powder coat, knobs and their caps, screws,
 //!   tolex, grille cloth and mesh, plates
-//! - `led`: the built-in LED display (a dark window, a dot-matrix readout in amber): `led_display`
+//! - `led`: the built-in display (flat dark glass, a crisp readout in cool white): `led_display`
 //!   and the `tuner_display` on it
 //! - `amp`: the half stack of a rig, covered and not painted: `amp_head` and `cabinet`
 //! - `art`: what is painted on each mini pedal of a rig under its controls
@@ -36,9 +36,9 @@ pub use amp::{
 };
 pub use art::Motif;
 pub use frame::{
-    coupler, enclosure, lifted, mini_pedal, patch_cable, pedal, rig, strip, title_grip, MiniStyle,
-    Ornament, PedalStyle, BENCH_MARGIN, PLUG_Y, SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED,
-    SLIM_SWITCH, STRIP_BAND_WIDTH,
+    coupler, enclosure, lifted, mini_pedal, patch_cable, pedal, rig, strip, strip_plate,
+    title_grip, MiniStyle, Ornament, PedalStyle, BENCH_MARGIN, PLUG_Y, SLIM_KNOBS,
+    SLIM_KNOB_RADIUS, SLIM_LED, SLIM_SWITCH, STRIP_BAND_WIDTH,
 };
 pub use led::{led_display, led_width, tuner_display, LED_HEIGHT};
 pub use raster::{Grille, KnobCap, Plate, Tolex};

@@ -609,13 +609,11 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   Lamps are read from atomics the audio thread writes once per block; the editor asks for a
   repaint only when one changes, 20 times a second at most
 - **The sound bank's LED display:** the Bank and Preset displays are built-in LED displays
-  (`suite_common::ui::led`): a dark recessed window with a dot-matrix readout in amber, the
-  unlit dots faintly there, lit pixel by pixel like the rest of `raster` (no image files). It
-  is `LED_HEIGHT` high and `led_width(chars)` wide: Bank holds 10 characters, Preset 16. The
+  (`suite_common::ui::led`): flat dark glass with a crisp white Plex Mono readout, no dot grid. It
+  is `LED_HEIGHT` high and `led_width(chars)` wide: Bank holds 9 characters, Preset 15. The
   text is capitals from the left, so a name being typed grows to the right, with the `_` caret
-  after it; what does not fit is cut. A character without a 5 x 7 glyph of its own is drawn as
-  a box, and a test holds that every letter, digit and sign a name can hold has one. The
-  tuner's display is the same window
+  after it; what does not fit is cut. The font has every letter a name can hold. The
+  tuner's display is the same glass
 - **Pick one of many (presets):** a `led_stepper` (a stepper on an LED display) with a
   `silk_label` caption above it, in the left
   wing of the strip. Step arrows are
