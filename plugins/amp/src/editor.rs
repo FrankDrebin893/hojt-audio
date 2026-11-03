@@ -287,7 +287,9 @@ const TRIO_RADIUS: f32 = 17.0;
 // The EQ's four: Low and High, the shelves, in the left column, and Mid with its Freq under it
 // in the right one, the LED between the upper two as on a trio
 const QUAD_KNOBS: [Vec2; 4] =
-    [vec2(-45.0, 71.0), vec2(45.0, 71.0), vec2(45.0, 169.0), vec2(-45.0, 169.0)];
+    [vec2(-45.0, 68.0), vec2(45.0, 68.0), vec2(45.0, 174.0), vec2(-45.0, 174.0)];
+// Smaller than a trio's, so the two rows' ticks and tapes leave room between them and for the switch
+const QUAD_RADIUS: f32 = 15.0;
 const TRIO_KNOBS: [Vec2; 3] = [vec2(-45.0, 71.0), vec2(45.0, 71.0), vec2(0.0, 169.0)];
 
 // The Gate pedal has a lamp beside its lowest knob that is lit while the gate lets the
@@ -356,7 +358,7 @@ impl Pedals<'_> {
         let face = ui::mini_pedal(ui, rect, &look("EQ", theme::PAINT_BARK, Motif::Columns));
         let top = face.center_top();
         let [low, mid, freq, high] = QUAD_KNOBS;
-        let radius = TRIO_RADIUS;
+        let radius = QUAD_RADIUS;
         param_knob(ui, setter, &params.eq_low, top + low, radius, "Low", None);
         param_knob(ui, setter, &params.eq_mid, top + mid, radius, "Mid", None);
         param_knob(ui, setter, &params.eq_freq, top + freq, radius, "Freq", None);

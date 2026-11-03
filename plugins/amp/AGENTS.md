@@ -282,7 +282,11 @@ How it behaves:
   just become flat runs on a few samples until its state is empty. On either side of the amp
   (one channel at the oversampled rate, or two at the host's), without latency; switching
   crossfades in 10 ms and an off, faded-out pedal is idle. Nothing in it allocates (`no_alloc`
-  holds it). Cost: see `eq_report`
+  holds it). Cost (`eq_report`, the pedal by itself, median of a block of 64 host samples as a
+  share of the time it lasts): with all three bands flat 0.01 to 0.1 % of a core; with every
+  band moved 0.06 to 0.11 % at 48 kHz (behind the cabinet / in front of the amp) and 0.25 to
+  0.26 % at 192 kHz, 99th percentile under 0.4 %. `is_idle` is only for the tests: the chain's
+  own `is_idle` leaves the EQ out, since a filter's ring is a few milliseconds and keeps no tail
 - The order is saved with the project (`chain-order`, a list of pedal ids with `amp` between
   the sides), not a parameter and not automatable. The chain reads it with the dials: the
   output fades to silence in 4.5 ms, the pedals change places, it fades back. A pedal that

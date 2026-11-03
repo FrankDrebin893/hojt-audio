@@ -1851,6 +1851,42 @@ mod tests {
     }
 
     #[test]
+    fn test_eq_changes_the_sound_in_front_of_the_amp_and_behind_the_cabinet() {
+        // Front: one channel at the oversampled rate. Behind: two channels at the host's rate
+        let input = power_chords(SAMPLE_RATE, 0.5);
+        // A clean amp at a low gain, so that what the pedal does is read through it
+        let plain = with_amp(Amp::Klar, 0.1);
+        let cut = EqSettings { on: true, low: 0.0, mid: 0.5, freq: 0.5, high: 1.0 };
+        for zone in [Zone::Front, Zone::Back] {
+            let order = ChainOrder::default().moved(Pedal::Eq, zone, 0);
+            let with = AmpSettings { eq: cut, order, ..plain };
+            let without = AmpSettings { order, ..plain };
+            for stereo in [false, true] {
+                let (a, b) = if stereo {
+                    (
+                        run_stereo(&with, &input, SAMPLE_RATE).0,
+                        run_stereo(&without, &input, SAMPLE_RATE).0,
+                    )
+                } else {
+                    (run(&with, &input, SAMPLE_RATE), run(&without, &input, SAMPLE_RATE))
+                };
+                assert!(a != b, "No EQ is heard {zone:?}, stereo {stereo}");
+                // Low cut and High lifted: less of the lows and more of the highs than without
+                let low = |signal: &[f32]| spectrum_level_db(signal, SAMPLE_RATE, 40.0, 100.0);
+                let high =
+                    |signal: &[f32]| spectrum_level_db(signal, SAMPLE_RATE, 5_000.0, 12_000.0);
+                assert!(low(&a) < low(&b) - 3.0, "{zone:?}: lows {} against {}", low(&a), low(&b));
+                assert!(
+                    high(&a) > high(&b) + 3.0,
+                    "{zone:?}: highs {} against {}",
+                    high(&a),
+                    high(&b)
+                );
+            }
+        }
+    }
+
+    #[test]
     fn test_pitch_shifter_off_leaves_the_amp_alone_to_the_bit() {
         // Switched off it leaves no trace, whatever its dials say, and also after it was on
         let input = power_chords(SAMPLE_RATE, 0.5);
@@ -3116,6 +3152,7 @@ mod tests {
                     drive_level: 1.0,
                     delay: DelaySettings { on: false, ..delay_on(20.0, 0.9, 1.0) },
                     reverb: ReverbSettings { on: false, ..reverb_on(6.0, 1.0) },
+                    eq: EqSettings { on: false, low: 1.0, mid: 0.0, freq: 0.2, high: 1.0 },
                     ..with_amp(amp, gain)
                 };
                 let reference = amp_alone(&settings, &input, SAMPLE_RATE);

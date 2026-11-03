@@ -147,7 +147,11 @@ The reasons behind choices that the code alone does not explain. What it does is
   and its art basalt columns of different heights, the bars of an equaliser. The window grew
   by one pedal (3204 px, `editor-state-rig8`) and the strip's gaps with it; the print of the
   amp's art was regenerated for the new width. Not in the factory presets: they switch it off
-  Rejected: Freq and Q per band (a real parametric: too much for the pedal's job); a pedal
+- Its knobs are radius 15 (a trio's are 17) so the two rows have room between their tapes and
+  ticks and above the switch; the columns are hexagonal prisms (a light top and two faces,
+  the left darker) at staggered heights, kept under the lower captions and no white print
+  in them, so nothing reads as a mark of the interface
+- Rejected: Freq and Q per band (a real parametric: too much for the pedal's job); a pedal
   of its own paint (the spare brown was there); dials shown in dB and kHz (the amp's dials are
   0 to 10 and the host sees the same)
 

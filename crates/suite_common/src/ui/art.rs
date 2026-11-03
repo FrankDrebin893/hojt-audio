@@ -452,42 +452,21 @@ fn horizon(print: &Print) {
 }
 
 fn columns(print: &Print) {
+    // Basalt: seven hexagonal columns across the foot of the face, side by side, each a light
+    // top and two faces, the left one darker, at staggered heights. They stay below the
+    // knobs' captions except in the middle, where nothing is printed above the switch
     let width = print.width();
-    // Seven columns across the foot of the face, each as tall as a band of an equaliser is
-    // lifted, and one tall column at each edge, where the clear paint is beside the knobs
-    let tops = [244.0, 226.0, 248.0, 234.0, 250.0, 222.0, 242.0];
+    let tops = [236.0, 244.0, 238.0, 204.0, 242.0, 232.0, 240.0];
     let step = width / tops.len() as f32;
     for (index, top) in tops.into_iter().enumerate() {
         let (left, right) = (index as f32 * step - 1.0, (index + 1) as f32 * step + 1.0);
-        let depth = if index % 2 == 0 { 1.0 } else { 1.5 };
-        print.rect((left, top + 8.0), (right, print.height()), shade(print.paint, COAT * depth));
+        let middle = (left + right) / 2.0;
+        let bottom = print.height();
+        print.rect((left, top + 6.0), (middle + 1.0, bottom), shade(print.paint, COAT * 2.2));
+        print.rect((middle - 1.0, top + 6.0), (right, bottom), shade(print.paint, COAT * 1.2));
         print.fill(
-            &[
-                (left, top + 8.0),
-                ((left + right) / 2.0, top),
-                (right, top + 8.0),
-                (right, top + 16.0),
-                (left, top + 16.0),
-            ],
-            shade(print.paint, COAT * 0.55),
+            &[(left, top + 6.0), (middle, top), (right, top + 6.0), (middle, top + 13.0)],
+            shade(print.paint, COAT * 0.35),
         );
-    }
-    for (left, top) in [(-1.0, 92.0), (width - 15.0, 118.0)] {
-        print.rect((left, top + 8.0), (left + 16.0, 226.0), shade(print.paint, COAT * 1.5));
-        print.fill(
-            &[
-                (left, top + 8.0),
-                (left + 8.0, top),
-                (left + 16.0, top + 8.0),
-                (left + 16.0, top + 16.0),
-                (left, top + 16.0),
-            ],
-            shade(print.paint, COAT * 0.55),
-        );
-    }
-    // The joints between the columns, in the clear paint either side of the switch
-    for index in [1, 2, 5, 6] {
-        let x = index as f32 * step;
-        print.line((x, 258.0), (x, 296.0));
     }
 }
