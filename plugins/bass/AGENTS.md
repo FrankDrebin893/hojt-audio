@@ -8,9 +8,9 @@ Groove (finger; a tone filter and a little tube drive). Ported from `prototypes/
 #130 no longer like the scripts in the string, the plucks and the pickup.
 
 - `src/lib.rs` - Plugin entry point, parameters. Reads them once per block into `BassSettings`
-- `src/bass.rs` - `Bass`: the string (a delay line that feeds itself through a low-pass and
-  holds how fast the string moves), the two plucks, the pickup, the sine under the string, the
-  two output stages, the cabinet behind them; `Voice` and its settings
+- `src/bass.rs` - `Bass`: the string (a delay line that feeds itself through a low-pass and a
+  chain of all-passes, and holds how fast the string moves), the two plucks, the pickup, the
+  sine under the string, the two output stages, the cabinet behind them; `Voice` and its settings
 - `src/editor.rs` - egui GUI: cobalt pedal, nine knobs, one footswitch per voice
 
 How it behaves:
@@ -36,6 +36,15 @@ How it behaves:
   (Sustain) and the top's at 1.5 kHz (Brightness, 0.15 s at 0 % to 0.8 s at 100 %, shorter
   for a softer note), so a low note loses its top as fast as a high one. The loop's gain
   takes out what the low-pass loses at the note, and its length what the low-pass adds there
+- The string is stiff: four first-order all-passes in the loop (`stiffness_coeff`) make partial
+  `n` sit at about `n f0 sqrt(1 + B n^2)`. B is 1.5e-4 on the open E (41.2 Hz, the 10th partial
+  13 cents sharp, the 5th 3.6) and falls with the square of the pitch (the 10th of the A is 7
+  cents sharp, of the G 3); the chain is fitted at the 10th partial, and above 800 Hz there is no
+  chain. The all-passes have no gain, and the loop's length takes out what they add at the
+  fundamental (at the bent pitch too), so the fundamental is where it was.
+  Tuning is measured on the fundamental's spectral peak, since a stiff string no longer repeats
+  exactly. The pickup is a part of the whole way round (`ring`: the line, the low-pass and the
+  all-passes), so its comb stays where it was
 - The plucks are written into the line as the string's velocity: two levels either side of
   where it is plucked (the pick at 0.18 of the open string from the bridge, the finger at 0.12),
   their edges rounded by how sharp the touch is (velocity and Brightness). Metal adds a little
@@ -73,7 +82,7 @@ How it behaves:
 | Voice (`voice`) | Metal / Groove | | | Pluck and output stage |
 | Volume (`volume`) | -30 to +12 dB | -2 dB | -3 dB | Output level |
 | Drive (`drive`) | 0-100 % | 40 % | 15 % | Distortion of the mids (Metal), tube drive (Groove) |
-| Brightness (`brightness`) | 0-100 % | 55 % | 50 % | How hard the string is plucked and how long its top rings |
+| Brightness (`brightness`) | 0-100 % | 60 % | 54 % | How hard the string is plucked and how long its top rings |
 | Sub (`sub`) | 0-100 % | 15 % | 15 % | Level of the sine under the string |
 | Tone (`tone`) | 300-4000 Hz | 2600 Hz | 1400 Hz | Low-pass |
 | Sustain (`sustain`) | 0.5-8 s | 3 s | 3 s | Time for a held note to fall by 60 dB |
@@ -81,7 +90,7 @@ How it behaves:
 | Transpose (`transpose`) | -24 to +24 st | 0 | 0 | |
 | Bend (`bend`) | 1-12 st | 2 | 2 | How far the pitch-bend wheel goes at its end; no voice sets it |
 
-Tests sit next to the code (`bass.rs`): tuning at several rates, envelopes, the two voices, the pitch-bend wheel (its range, back to centre, a pluck and a slide while bent, no zipper, Sustain on a bent note), bounded output with everything up and the wheel at both ends, and the tone: the top dies before the fundamental, the same note sounds the same while two plucks in a row are not copies, a hard pluck starts sharp and settles, Metal's drive lets the note die, Groove has harmonics, the sine does not take over a held note and sits under the string (what it adds to the fundamental, the fundamental's share of the harmonics' power and their centroid, at 50 ms), the pickup's notch moves with the fret, and a new pluck does not click. Two ignored tests are tools for working on the sound:
+Tests sit next to the code (`bass.rs`): tuning at several rates, envelopes, the two voices, the pitch-bend wheel (its range, back to centre, a pluck and a slide while bent, no zipper, Sustain on a bent note), bounded output with everything up and the wheel at both ends, and the tone: the top dies before the fundamental, the same note sounds the same while two plucks in a row are not copies, a hard pluck starts sharp and settles, Metal's drive lets the note die, Groove has harmonics, the sine does not take over a held note and sits under the string (what it adds to the fundamental, the fundamental's share of the harmonics' power and their centroid, at 50 ms), the pickup's notch moves with the fret, the string is stiff (the low E's 10th partial 8 to 30 cents sharp, the 5th less, and every note within 1 cent of its pitch from 44.1 to 192 kHz), and a new pluck does not click. Two ignored tests are tools for working on the sound:
 
 ```bash
 # Level, tuning and brightness per note; with Sub at 0, from what the pickup reads before the
@@ -89,7 +98,7 @@ Tests sit next to the code (`bass.rs`): tuning at several rates, envelopes, the 
 # levels of harmonics 2 and 3, and the same two T60s at the output ("out"); at velocity 0.8 with
 # the voice's settings, what the sine adds to the fundamental at 50 ms, the fundamental's share
 # of the power of the harmonics up to 6 kHz, their power-weighted centroid and the 5th against
-# the fundamental; and the cost
+# the fundamental; how many cents sharp the 5th and 10th partials of the string run; and the cost
 cargo test -p bass --release bass_report -- --ignored --nocapture
 
 # WAV files in target/renders: bass_metal.wav, bass_groove.wav, and a walking, a reggae and a

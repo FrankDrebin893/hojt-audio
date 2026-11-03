@@ -22,7 +22,7 @@ impl Voice {
                 voice: self,
                 volume_db: -2.0,
                 drive: 0.4,
-                brightness: 0.55,
+                brightness: 0.6,
                 sub: 0.15,
                 tone_hz: 2600.0,
                 sustain_s: 3.0,
@@ -34,7 +34,7 @@ impl Voice {
                 voice: self,
                 volume_db: -3.0,
                 drive: 0.15,
-                brightness: 0.5,
+                brightness: 0.54,
                 sub: 0.15,
                 tone_hz: 1400.0,
                 sustain_s: 3.0,
@@ -134,6 +134,19 @@ const CABINET_BODY: (f32, f32, f32) = (350.0, 0.7, 5.0);
 const CABINET_PRESENCE: (f32, f32, f32) = (1600.0, 0.8, 7.0);
 const CABINET_TOP: (f32, f32) = (4500.0, 0.6);
 const CABINET_GAIN: f32 = 0.7;
+// A stiff string: a chain of first-order all-passes in the loop makes the upper partials run
+// sharp, as they do on a wound string (partial n at n f0 sqrt(1 + B n^2)). B is
+// `STIFFNESS_E` on the open E and falls with the square of the pitch up the neck (a thinner string
+// is less stiff). The chain is fitted so that partial `STIFF_FIT_PARTIAL` is where that puts
+// it; the loop's length takes out what the chain adds at the fundamental
+const STIFF_SECTIONS: usize = 4;
+const STIFFNESS_E: f32 = 1.5e-4;
+const STIFFNESS_E_HZ: f32 = 41.203;
+const STIFF_FIT_PARTIAL: f32 = 10.0;
+// Above this pitch a string is taken as limp: the loop is too short for the chain
+const STIFF_MAX_HZ: f32 = 800.0;
+// How far the all-passes' pole goes towards the unit circle
+const STIFF_POLE_MAX: f64 = 0.995;
 // Time constant of the fade that takes the step out of a new pluck over a ringing string
 const DECLICK_S: f32 = 0.0015;
 // Time constant of the smoothing of the bend, so that a wheel sending coarse steps does not
@@ -204,6 +217,53 @@ impl Damping {
     }
 }
 
+/// Phase delay in samples of the first-order all-pass `(a + z^-1) / (1 + a z^-1)` at `omega`
+/// radians per sample. With `a` below 0 it is longest at low frequencies: partials above run
+/// sharp
+fn allpass_delay(a: f64, omega: f64) -> f64 {
+    let (sin, cos) = omega.sin_cos();
+    let phase = (-sin).atan2(a + cos) - (-a * sin).atan2(1.0 + a * cos);
+    -phase / omega.max(1e-9)
+}
+
+/// The coefficient of the `STIFF_SECTIONS` all-passes that make a string of pitch `freq_hz` as
+/// stiff as `STIFFNESS_E` says, or None where it is limp (too high, or too few partials below
+/// Nyquist)
+fn stiffness_coeff(freq_hz: f32, sample_rate: f32) -> Option<f32> {
+    if freq_hz >= STIFF_MAX_HZ {
+        return None;
+    }
+    let rate = sample_rate as f64;
+    let freq = freq_hz as f64;
+    let omega = std::f64::consts::TAU * freq / rate;
+    let ratio = STIFFNESS_E_HZ / freq_hz;
+    let stiffness = (STIFFNESS_E * ratio * ratio) as f64;
+    // The partial the chain is fitted at, kept well under Nyquist
+    let mut partial = STIFF_FIT_PARTIAL as f64;
+    let at = |partial: f64| partial * omega * (1.0 + stiffness * partial * partial).sqrt();
+    while at(partial) > 0.8 * std::f64::consts::PI && partial >= 2.0 {
+        partial -= 1.0;
+    }
+    if partial < 2.0 {
+        return None;
+    }
+    // Where the partial is, the loop is shorter than at the fundamental by this much
+    let wanted = rate / freq * (1.0 - 1.0 / (1.0 + stiffness * partial * partial).sqrt());
+    let short_by = |pole: f64| {
+        STIFF_SECTIONS as f64 * (allpass_delay(-pole, omega) - allpass_delay(-pole, at(partial)))
+    };
+    let (mut low, mut high) = (0.0f64, STIFF_POLE_MAX);
+    for _ in 0..40 {
+        let middle = 0.5 * (low + high);
+        if short_by(middle) < wanted {
+            low = middle;
+        } else {
+            high = middle;
+        }
+    }
+    Some((-0.5 * (low + high)) as f32)
+}
+
 /// One string, one note at a time: a delay line that feeds itself through a low-pass
 /// (Karplus-Strong) and holds how fast the string moves, read by a pickup near the bridge; a
 /// sine at the pitch of the string under it, in phase with its fundamental; the voice's
@@ -230,6 +290,10 @@ pub struct Bass {
     bent_filter_delay: f32,
     loop_lp: f32,
     loop_state: f32,
+    // The all-passes that stiffen the string: their coefficient (None where it is limp, or
+    // before the first pluck) and their states
+    stiff: Option<f32>,
+    stiff_state: [f32; STIFF_SECTIONS],
     feedback: f32,
     feedback_held: f32,
     feedback_released: f32,
@@ -311,6 +375,8 @@ impl Bass {
             bent_filter_delay: 0.0,
             loop_lp: 0.4,
             loop_state: 0.0,
+            stiff: None,
+            stiff_state: [0.0; STIFF_SECTIONS],
             feedback: 0.0,
             feedback_held: 0.0,
             feedback_released: 0.0,
@@ -384,6 +450,7 @@ impl Bass {
     pub fn reset(&mut self) {
         self.line.fill(0.0);
         self.loop_state = 0.0;
+        self.stiff_state = [0.0; STIFF_SECTIONS];
         self.note = None;
         self.held = false;
         self.sub_env = 0.0;
@@ -568,13 +635,25 @@ impl Bass {
         self.set_feedback();
     }
 
+    /// What the all-passes add to the loop's length at a pitch
+    fn stiff_delay(&self, freq_hz: f32) -> f32 {
+        match self.stiff {
+            Some(pole) => {
+                let omega = std::f64::consts::TAU * (freq_hz / self.sample_rate) as f64;
+                (STIFF_SECTIONS as f64 * allpass_delay(pole as f64, omega)) as f32
+            }
+            None => 0.0,
+        }
+    }
+
     /// The loop's gain, which sets how long the fundamental rings, held and let go, at the
     /// pitch the string is bent to
     fn set_feedback(&mut self) {
-        self.filter_delay = Damping::at(self.loop_lp, self.freq_hz, self.sample_rate).filter_delay;
+        self.filter_delay = Damping::at(self.loop_lp, self.freq_hz, self.sample_rate).filter_delay
+            + self.stiff_delay(self.freq_hz);
         let freq_hz = self.freq_hz * self.followed_ratio;
         let damping = Damping::at(self.loop_lp, freq_hz, self.sample_rate);
-        self.bent_filter_delay = damping.filter_delay;
+        self.bent_filter_delay = damping.filter_delay + self.stiff_delay(freq_hz);
         let release_s = match self.settings.voice {
             Voice::Metal => RELEASE_METAL_S,
             Voice::Groove => RELEASE_GROOVE_S,
@@ -590,6 +669,8 @@ impl Bass {
         self.freq_hz = self.freq_hz(note);
         self.note = Some(note);
         self.held = true;
+        // A slid-to note is as stiff as that note plucked (the ringing state carries on)
+        self.stiff = stiffness_coeff(self.freq_hz, self.sample_rate);
         self.set_feedback();
         self.target_delay = self.loop_delay(self.freq_hz);
     }
@@ -606,6 +687,9 @@ impl Bass {
         self.held = true;
         self.string_voice = self.settings.voice;
         self.string_velocity = velocity;
+        // A stiff string: the all-passes start from rest with the pluck
+        self.stiff = stiffness_coeff(freq_hz, rate);
+        self.stiff_state = [0.0; STIFF_SECTIONS];
         // Where the note is played: the pick, the finger and the pickup are further along the
         // shorter string of a fret
         let fretted = Self::fretted(note as f32 + self.settings.transpose);
@@ -677,7 +761,7 @@ impl Bass {
 
         // The fundamental of what the pickup will read over the first time round, which the
         // sine under the string starts in phase with
-        let tap = (self.pickup_at * period).round() as usize;
+        let tap = (self.pickup_at * self.ring()).round() as usize;
         let step = std::f32::consts::TAU / period;
         let (step_sin, step_cos) = step.sin_cos();
         let (mut sin, mut cos) = (0.0f32, 1.0f32);
@@ -725,6 +809,13 @@ impl Bass {
             .copied()
             .unwrap_or(OPEN_STRINGS[0]);
         ((sounding - open).max(0.0) / 12.0).exp2()
+    }
+
+    /// How long the string takes to go round once at the pitch it has: the line, and the
+    /// low-pass and the all-passes that stand in for part of it. The pickup is a part of this
+    /// away from the bridge, as it is a part of the string
+    fn ring(&self) -> f32 {
+        self.read_delay() + self.bent_filter_delay
     }
 
     /// What makes the fundamental come out of the pickup as loud as it is on the string
@@ -783,9 +874,17 @@ impl Bass {
         // The string, and the pickup: where the string is read now, against what reaches it
         // the pickup's part of the way round later
         let string = self.read(delay);
-        let ahead = self.read((delay * (1.0 - self.pickup_at)).max(1.0));
+        let ahead = self.read((delay - self.pickup_at * (delay + self.bent_filter_delay)).max(1.0));
         self.loop_state += (string - self.loop_state) * self.loop_lp;
-        self.line[self.write] = self.loop_state * self.feedback;
+        let mut dispersed = self.loop_state;
+        if let Some(pole) = self.stiff {
+            for state in &mut self.stiff_state {
+                let out = pole * dispersed + *state;
+                *state = dispersed - pole * out;
+                dispersed = out;
+            }
+        }
+        self.line[self.write] = dispersed * self.feedback;
         self.write = (self.write + 1) & self.mask;
         let picked = self.pickup.process((ahead - string) * self.pickup_gain()).low;
 
@@ -893,8 +992,23 @@ mod tests {
         output
     }
 
+    /// The note's fundamental: where the string repeats best, then the peak of its spectrum
+    /// next to that. A stiff string's partials run sharp, so it never quite repeats, and the
+    /// repeat is a little off the fundamental, which is what is tuned
     fn pitch(samples: &[f32], sample_rate: f32) -> f32 {
-        pitch_hz(samples, sample_rate, 25.0, 500.0)
+        let repeats = pitch_hz(samples, sample_rate, 25.0, 500.0);
+        let window = &samples[..samples.len().min((0.35 * sample_rate) as usize)];
+        let mut best = repeats;
+        // Three passes, each over the width of one step of the one before, 20 steps wide
+        for cents in [4.0f32, 0.4, 0.04] {
+            let centre = best;
+            best = (-10..=10)
+                .map(|step| centre * (step as f32 * cents / 1200.0).exp2())
+                .map(|hz| (hz, tone_level(window, sample_rate, hz)))
+                .fold((centre, 0.0), |best, found| if found.1 > best.1 { found } else { best })
+                .0;
+        }
+        best
     }
 
     /// One note from the string alone: the voice's settings with Sub at 0
@@ -913,15 +1027,33 @@ mod tests {
         (1500.0 / freq_hz).round().max(2.0) * freq_hz
     }
 
-    /// Where the partial near `freq_hz` really is: a string's partials sit a little off the
-    /// harmonics. Looked for within a quarter of the spacing of the note's harmonics.
+    /// Where partial `n` of a note is, as the string's all-passes put it: the loop is shorter
+    /// than at the fundamental by what they add less there
+    fn stiff_partial_hz(freq_hz: f32, n: usize) -> f32 {
+        let Some(pole) = stiffness_coeff(freq_hz, SAMPLE_RATE) else {
+            return n as f32 * freq_hz;
+        };
+        let rate = SAMPLE_RATE as f64;
+        let omega0 = std::f64::consts::TAU * freq_hz as f64 / rate;
+        let chain = |omega: f64| STIFF_SECTIONS as f64 * allpass_delay(pole as f64, omega);
+        let mut omega = n as f64 * omega0;
+        for _ in 0..30 {
+            let length = std::f64::consts::TAU / omega0 - (chain(omega0) - chain(omega));
+            omega = std::f64::consts::TAU * n as f64 / length;
+        }
+        (omega * rate / std::f64::consts::TAU) as f32
+    }
+
+    /// Where the partial near `freq_hz` really is: a string's partials sit off the harmonics
+    /// (`stiff_partial_hz`). Looked for within a quarter of the spacing of the note's harmonics.
     fn find_partial(samples: &[f32], start_s: f32, freq_hz: f32, spacing_hz: f32) -> f32 {
         let start = (start_s * SAMPLE_RATE) as usize;
         let window = &samples[start..start + WINDOW];
+        let centre = stiff_partial_hz(spacing_hz, (freq_hz / spacing_hz).round() as usize);
         (-8..=8)
-            .map(|step| freq_hz + step as f32 * spacing_hz / 32.0)
+            .map(|step| centre + step as f32 * spacing_hz / 32.0)
             .map(|hz| (hz, tone_level(window, SAMPLE_RATE, hz)))
-            .fold((freq_hz, 0.0), |best, found| if found.1 > best.1 { found } else { best })
+            .fold((centre, 0.0), |best, found| if found.1 > best.1 { found } else { best })
             .0
     }
 
@@ -974,15 +1106,17 @@ mod tests {
     fn test_notes_are_in_tune_at_every_rate() {
         for voice in Voice::ALL {
             for sample_rate in [44100.0, 48000.0, 96000.0, 192000.0] {
-                // Low E, A, and the G an octave and a third above it
-                for midi in [28u8, 33, 55] {
+                // Low E, A, the G above them and the G an octave and a third above the E: the
+                // fundamental, which the all-passes of the stiff string leave where it is, once
+                // the hard pluck's sharp start has settled
+                for midi in [28u8, 33, 43, 55] {
                     let mut bass = bass(voice, sample_rate);
                     bass.note_on(midi, 0.9);
-                    let output = render(&mut bass, sample_rate, 0.5);
-                    let found = pitch(&output[(0.2 * sample_rate) as usize..], sample_rate);
+                    let output = render(&mut bass, sample_rate, 0.8);
+                    let found = pitch(&output[(0.4 * sample_rate) as usize..], sample_rate);
                     let cents = 1200.0 * (found / note_hz(midi as f32)).log2();
                     assert!(
-                        cents.abs() < 6.0,
+                        cents.abs() < 1.0,
                         "{:?} note {} at {} Hz: {} cents off",
                         voice,
                         midi,
@@ -1239,6 +1373,53 @@ mod tests {
                     before
                 );
             }
+        }
+    }
+
+    /// How many cents above `n` times the fundamental partial `n` of a note is: the peak of its
+    /// spectrum over the second after the first 100 ms, looked for up to 60 cents sharp
+    fn partial_cents_sharp(samples: &[f32], freq_hz: f32, n: usize) -> f32 {
+        let window = &samples[(0.1 * SAMPLE_RATE) as usize..(1.1 * SAMPLE_RATE) as usize];
+        let ideal = n as f32 * freq_hz;
+        let (best, _) = (-100..=1200)
+            .map(|step| ideal * (step as f32 * 0.05 / 1200.0).exp2())
+            .map(|hz| (hz, tone_level(window, SAMPLE_RATE, hz)))
+            .fold((ideal, 0.0), |best, found| if found.1 > best.1 { found } else { best });
+        1200.0 * (best / ideal).log2()
+    }
+
+    #[test]
+    fn test_the_string_is_stiff() {
+        // The partials of the low E run sharp: the 10th by 8 to 30 cents, the 5th by less, as
+        // on a wound string. Measured where the pickup reads, on both voices, and less so up the
+        // neck
+        for voice in Voice::ALL {
+            let sharp = |midi: u8, n: usize| {
+                let string = pickup_alone(voice, midi, WEIGHED_VELOCITY, 1.2);
+                partial_cents_sharp(&string, note_hz(midi as f32), n)
+            };
+            let (fifth, tenth) = (sharp(28, 5), sharp(28, 10));
+            assert!(
+                (8.0..=30.0).contains(&tenth),
+                "{:?}: the 10th partial of the low E is {} cents sharp",
+                voice,
+                tenth
+            );
+            assert!(
+                fifth > 1.0 && fifth < 0.5 * tenth,
+                "{:?}: the 5th is {} cents sharp, the 10th {}",
+                voice,
+                fifth,
+                tenth
+            );
+            let up_the_neck = sharp(43, 10);
+            assert!(
+                (0.0..tenth).contains(&up_the_neck),
+                "{:?}: the 10th of the G is {} cents sharp, the E's {}",
+                voice,
+                up_the_neck,
+                tenth
+            );
         }
     }
 
@@ -1655,9 +1836,9 @@ mod tests {
                 bass.note_on(33, 0.9);
                 // Without the hard pluck's sharp start, which has its own test
                 bass.sharp_cents = 0.0;
-                // From its start: half of Bend 2 up
-                let output = play(&mut bass, &settings, sample_rate, 0.25);
-                let cents = cents_off(&output, sample_rate, 0.0, note_hz(34.0));
+                // Half of Bend 2 up, once the attack is over: where it is measured from
+                let output = play(&mut bass, &settings, sample_rate, 0.5);
+                let cents = cents_off(&output, sample_rate, 0.15, note_hz(34.0));
                 assert!(
                     cents.abs() < 2.0,
                     "{:?} at {} Hz: {} cents off",
@@ -1757,7 +1938,7 @@ mod tests {
         assert!(cents.abs() < 2.0, "{} cents off", cents);
     }
 
-    /// Level, pitch error and brightness per voice and note. Then, with Sub at 0: from what the
+    /// Level, pitch error (of the fundamental) and brightness per voice and note. Then, with Sub at 0: from what the
     /// pickup reads, before the voice's output stage, how long the fundamental and the top
     /// ring and how loud harmonics 2 and 3 are (the columns `string`); and how long the two ring
     /// at the voice's output, through its drive (the columns `out`):
@@ -1838,6 +2019,19 @@ mod tests {
                     share * 100.0,
                     centroid,
                     10.0 * (powers[4] / powers[0]).log10(),
+                );
+            }
+
+            // How far above 5 and 10 times the fundamental those partials of the string run
+            println!("{:<8}{:>12}{:>12}", "note", "5th cents", "10th cents");
+            for midi in [28u8, 33, 38, 43, 50, 55] {
+                let string = pickup_alone(voice, midi, WEIGHED_VELOCITY, 1.2);
+                let freq_hz = note_hz(midi as f32);
+                println!(
+                    "{:<8}{:>12.1}{:>12.1}",
+                    midi,
+                    partial_cents_sharp(&string, freq_hz, 5),
+                    partial_cents_sharp(&string, freq_hz, 10),
                 );
             }
         }
