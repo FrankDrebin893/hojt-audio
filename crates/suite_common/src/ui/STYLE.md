@@ -44,13 +44,11 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
   built from other sources than this checkout's. Made by `scripts/make-art.py`, a two-ink screen print
   (halftone, misregistration, paper dropout), or replaced by a painted or generated PNG at the same path
 - `hardware.rs` - Lit footswitch, indicator light, label tape, the paper of the name band
-- `led.rs` - The built-in LED display: a black glass window in a thin bezel with a faint reflection
-  on its upper part, and a 5 x 7 readout in flat amber light. A lit cell is a sharp square that joins
-  the lit cell beside it and under it, so a letter is made of bars like a segment display, with a thin
-  even bloom and no round dots; the unlit cells are barely there. Lit pixel by pixel and cached
-  (`led_display`, `led_width`, `LED_HEIGHT`, and the `tuner_display` on it; the amp's tempo display
-  is one too). Readouts are capitals from the left; a glyph is added in `glyph`, and a test holds
-  that every character a name can hold has one
+- `led.rs` - The built-in display: flat near-black glass with a hairline border and a faint lit top
+  edge, and a readout in Plex Mono in cool white, capitals from the left, no dot grid and no glow
+  (`led_display`, `led_width`, `LED_HEIGHT`, and the `tuner_display` on it, with a needle of
+  17 thin lamps, green when in tune; the amp's tempo display
+  is one too). Readouts are capitals from the left
 - `art.rs` - `Motif`: what is painted on a mini pedal under its controls
 - `amp.rs` - The half stack of a rig: `amp_head` (handle, tolex, grille with piping and a stripe if it has
   them, panel with a printed line if it has one, jewel pilot lamp lit or not; `head_faces` says where its faces go)

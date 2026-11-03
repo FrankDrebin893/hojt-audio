@@ -5,7 +5,7 @@
 //!   display drops open, tuner display, logo badge
 //! - `raster`: the surfaces lit pixel by pixel: powder coat, knobs and their caps, screws,
 //!   tolex, grille cloth and mesh, plates
-//! - `led`: the built-in LED display (a dark window, a dot-matrix readout in amber): `led_display`
+//! - `led`: the built-in display (flat dark glass, a crisp readout in cool white): `led_display`
 //!   and the `tuner_display` on it
 //! - `amp`: the half stack of a rig, covered and not painted: `amp_head` and `cabinet`
 //! - `art`: what is painted on each mini pedal of a rig under its controls

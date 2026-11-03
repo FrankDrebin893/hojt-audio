@@ -56,9 +56,9 @@ pub(crate) const STYLE: PedalStyle = PedalStyle {
 // is picked is on the left: the input meter, then the bank and preset displays and the Save
 // button. What goes out is on the right: the output knob, the output meter, the clip lamp, and
 // the On and Tuner switches. Each one's place is the end of the one before it and the gap
-const STRIP_GAP: f32 = 126.5;
+const STRIP_GAP: f32 = 174.5;
 // Between two controls on one module plate the gap is this much, much less than between plates
-const INNER_GAP: f32 = 36.0;
+const INNER_GAP: f32 = 56.0;
 // The gap that holds the standalone program's Audio button, between the output meter and the clip
 // lamp: a little wider than the others
 const AUDIO_GAP: f32 = 76.0;
@@ -69,7 +69,7 @@ const AUDIO_GAP: f32 = 76.0;
 // where the preset display is, under its own caption
 const PRESET_CAPTION_Y: f32 = 38.0;
 const PRESET_Y: f32 = 72.0;
-const PRESET_CHARS: usize = 13;
+const PRESET_CHARS: usize = 15;
 const PRESET_WIDTH: f32 = led_width(PRESET_CHARS);
 // The longest name of a player's preset the display shows, with room for the edited mark
 const USER_NAME_CHARS: usize = PRESET_CHARS - 1;
@@ -79,7 +79,7 @@ const SAVE_NOTE_S: f64 = 1.5;
 // The bank display left of the preset display. Its caption is on the preset caption's line and
 // its window on the preset window's line; its buttons go round the banks and its window drops
 // the whole list open
-const BANK_CHARS: usize = 8;
+const BANK_CHARS: usize = 9;
 const BANK_WIDTH: f32 = led_width(BANK_CHARS);
 const BANK_NAME_CHARS: usize = BANK_CHARS;
 
@@ -127,7 +127,7 @@ const SAVE_X: f32 = PRESET_X + PRESET_WIDTH / 2.0 + STEPPER_REACH + INNER_GAP + 
 // others: the On switch, whose lamp flashes on the beat, the tempo display (drag or scroll it,
 // or tap the Tap button), the sound over the time signature, each on a stepper, the click's
 // volume and the Sync button. Every one is placed from the end of the one before
-const METRONOME_GAP: f32 = 28.0;
+const METRONOME_GAP: f32 = 38.0;
 const METRONOME_START: f32 = SAVE_X + SAVE_REACH + STRIP_GAP;
 const METRONOME_SWITCH_X: f32 = METRONOME_START + SWITCH_GROUP - SWITCH_REACH;
 const TEMPO_CHARS: usize = 3;
@@ -140,7 +140,7 @@ const SOUND_WIDTH: f32 = 100.0;
 const SIGNATURE_WIDTH: f32 = 54.0;
 // and under the sound, side by side, the time signature and where the click is heard
 const OUT_WIDTH: f32 = 70.0;
-const LOWER_GAP: f32 = 20.0;
+const LOWER_GAP: f32 = 26.0;
 const METER_STEP_REACH: f32 = SIGNATURE_WIDTH / 2.0 + STEPPER_REACH;
 const OUT_REACH: f32 = OUT_WIDTH / 2.0 + STEPPER_REACH;
 // The column is as wide as its lower row, or as the sound's stepper if that is wider
@@ -1375,16 +1375,16 @@ struct Shared<'a> {
 // preset, the metronome, what goes out, and the On switch. The Tuner switch stands on the paint at the end, under
 // the output's caption. A plate reaches this far past its
 // controls, and from the top of the strip to its lower edge
-const PLATE_PAD: f32 = 26.0;
+const PLATE_PAD: f32 = 36.0;
 const PLATE_TOP: f32 = BENCH_MARGIN + 7.0;
-const PLATE_BOTTOM: f32 = BENCH_MARGIN + STRIP_HEIGHT - 12.0;
+const PLATE_BOTTOM: f32 = BENCH_MARGIN + STRIP_HEIGHT - 8.0;
 
 /// Where each plate of the strip stands across the window: its left and right edges
 fn strip_plates() -> [[f32; 2]; 5] {
     let bank_left = BANK_X - BANK_WIDTH / 2.0 - STEPPER_REACH;
     let on_left = BYPASS_X + CAPTION_OFFSET - 28.0;
     [
-        [INPUT_METER.x - METER_REACH - PLATE_PAD, INPUT_METER.x + METER_REACH + PLATE_PAD],
+        [INPUT_METER.x - METER_REACH - 24.0, INPUT_METER.x + METER_REACH + 24.0],
         [bank_left - PLATE_PAD, SAVE_X + SAVE_REACH + PLATE_PAD],
         [METRONOME_START - PLATE_PAD, METRONOME_END + PLATE_PAD],
         [OUTPUT_KNOB.x - KNOB_REACH - PLATE_PAD, CLIP_LAMP.x + LAMP_REACH + PLATE_PAD],
@@ -1472,7 +1472,7 @@ fn draw(
             None,
         );
         for (place, level, caption) in
-            [(INPUT_METER, input_db, "Input"), (OUTPUT_METER, output_db, "Output")]
+            [(INPUT_METER, input_db, "Input"), (OUTPUT_METER, output_db, "Level")]
         {
             level_meter(ui.painter(), origin + place, METER_HEIGHT, level);
             silk_label(ui.painter(), origin + place + METER_CAPTION, caption, LAMP_CAPTION_SIZE);
