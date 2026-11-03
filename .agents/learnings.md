@@ -30,6 +30,14 @@ is changed to carry a learning, its entry stays here with `In the skill:` and th
 
 ## Builds (`/next`)
 
+- **2026-11-03, stall check, #182, #175, #190.** #182 and #175 were done (picks recorded, every
+  sub-issue closed) but stayed open with `state:building` through two Builder runs, because the
+  sweep only handled closed issues and parents. #190 (explore) got the engineer's pick on
+  2026-11-02, but nobody recorded it or closed the issue, so #191 (`Waits for #190`) stayed blocked.
+  **Rule:** the start-of-run sweep also records a pick and closes a finished explore issue, and
+  closes an open `state:building` issue whose dependents are all closed. In the skill: `/next`,
+  orchestrator step 1, "Sweep, finished explore".
+
 ## Page and releases (`/page`, `/release`, `/piano-release`, `/piano-readme`)
 
 ## Release cycle (`/release-prep`, `/release-review`)
