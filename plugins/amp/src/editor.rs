@@ -56,7 +56,7 @@ pub(crate) const STYLE: PedalStyle = PedalStyle {
 // is picked is on the left: the input meter, then the bank and preset displays and the Save
 // button. What goes out is on the right: the output knob, the output meter, the clip lamp, and
 // the On and Tuner switches. Each one's place is the end of the one before it and the gap
-const STRIP_GAP: f32 = 174.5;
+const STRIP_GAP: f32 = 171.5;
 // Between two controls on one module plate the gap is this much, much less than between plates
 const INNER_GAP: f32 = 56.0;
 // The gap that holds the standalone program's Audio button, between the output meter and the clip
@@ -113,9 +113,9 @@ const STEPPER_REACH: f32 = 33.0;
 // The level meters, one in each wing: the input's under the jack it comes in at, the
 // output's between the output knob and the clip lamp. A column of lamps on label tape,
 // with its caption under it
-const INPUT_METER: Vec2 = vec2(135.0, 66.0);
-const METER_HEIGHT: f32 = 80.0;
-const METER_CAPTION: Vec2 = vec2(0.0, 52.0);
+const INPUT_METER: Vec2 = vec2(135.0, 58.0);
+const METER_HEIGHT: f32 = 64.0;
+const METER_CAPTION: Vec2 = vec2(0.0, 46.0);
 
 const BANK_X: f32 = INPUT_METER.x + METER_REACH + STRIP_GAP + BANK_WIDTH / 2.0 + STEPPER_REACH;
 const PRESET_X: f32 =
@@ -140,7 +140,7 @@ const SOUND_WIDTH: f32 = 100.0;
 const SIGNATURE_WIDTH: f32 = 54.0;
 // and under the sound, side by side, the time signature and where the click is heard
 const OUT_WIDTH: f32 = 70.0;
-const LOWER_GAP: f32 = 26.0;
+const LOWER_GAP: f32 = 40.0;
 const METER_STEP_REACH: f32 = SIGNATURE_WIDTH / 2.0 + STEPPER_REACH;
 const OUT_REACH: f32 = OUT_WIDTH / 2.0 + STEPPER_REACH;
 // The column is as wide as its lower row, or as the sound's stepper if that is wider
@@ -156,18 +156,18 @@ const COLUMN_WIDTH: f32 = {
 const STEPPERS_X: f32 = TAP_X + SAVE_REACH + METRONOME_GAP + COLUMN_WIDTH / 2.0;
 const SIGNATURE_X: f32 = STEPPERS_X - COLUMN_WIDTH / 2.0 + METER_STEP_REACH;
 const CLICK_OUT_X: f32 = STEPPERS_X + COLUMN_WIDTH / 2.0 - OUT_REACH;
-const SOUND_CAPTION_Y: f32 = 33.0;
-const SOUND_Y: f32 = 54.0;
-const SIGNATURE_CAPTION_Y: f32 = 80.0;
-const SIGNATURE_Y: f32 = 101.0;
+const SOUND_CAPTION_Y: f32 = 38.0;
+const SOUND_Y: f32 = 57.0;
+const SIGNATURE_CAPTION_Y: f32 = 85.0;
+const SIGNATURE_Y: f32 = 109.0;
 const CLICK_RADIUS: f32 = 20.0;
 const CLICK_REACH: f32 = CLICK_RADIUS + 13.0;
 const CLICK_VOLUME: Vec2 =
-    vec2(STEPPERS_X + COLUMN_WIDTH / 2.0 + METRONOME_GAP + CLICK_REACH, 56.0);
+    vec2(STEPPERS_X + COLUMN_WIDTH / 2.0 + METRONOME_GAP + CLICK_REACH, 57.0);
 const METRONOME_SYNC_X: f32 = CLICK_VOLUME.x + CLICK_REACH + METRONOME_GAP + SAVE_REACH;
 const METRONOME_END: f32 = METRONOME_SYNC_X + SAVE_REACH;
 // The Sync button stands lowest, under its LED and caption
-const SYNC_STACK: [f32; 3] = [PRESET_CAPTION_Y, 60.0, 90.0];
+const SYNC_STACK: [f32; 3] = [PRESET_CAPTION_Y, 64.0, 96.0];
 // How long the lamp stays lit on a beat, and how often the window is drawn anew to see it
 const BEAT_LIT_S: f64 = 0.09;
 const BEAT_POLL_S: f64 = 0.02;
@@ -175,14 +175,16 @@ const BEAT_POLL_S: f64 = 0.02;
 const TEMPO_DRAG_POINTS: f32 = 3.0;
 
 // The output level, the plugin's own and not the amp's
-const OUTPUT_KNOB: Vec2 = vec2(METRONOME_END + STRIP_GAP + KNOB_REACH, 56.0);
+const OUTPUT_KNOB: Vec2 = vec2(METRONOME_END + STRIP_GAP + KNOB_REACH, 57.0);
 const OUTPUT_RADIUS: f32 = 22.0;
-const OUTPUT_METER: Vec2 = vec2(OUTPUT_KNOB.x + KNOB_REACH + INNER_GAP + METER_REACH, 66.0);
+const OUTPUT_METER: Vec2 = vec2(OUTPUT_KNOB.x + KNOB_REACH + INNER_GAP + METER_REACH, 58.0);
 
 // The clip lamp, right of the output meter: lit while the output is rounded off by the
 // safety clip. A signal lamp has its caption this far under it
 const CLIP_LAMP: Vec2 = vec2(OUTPUT_METER.x + METER_REACH + AUDIO_GAP + LAMP_REACH, 58.0);
 const LAMP_CAPTION: Vec2 = vec2(0.0, 18.0);
+// The clip lamp's caption stands on the strip's bottom caption row, with the output's and the level's
+const CLIP_CAPTION: Vec2 = vec2(0.0, 36.0);
 const LAMP_CAPTION_SIZE: f32 = 13.0;
 const LANE_CAPTION_SIZE: f32 = 15.0;
 
@@ -1478,7 +1480,7 @@ fn draw(
             silk_label(ui.painter(), origin + place + METER_CAPTION, caption, LAMP_CAPTION_SIZE);
         }
         signal_lamp(ui.painter(), origin + CLIP_LAMP, clipping);
-        silk_label(ui.painter(), origin + CLIP_LAMP + LAMP_CAPTION, "Clip", LAMP_CAPTION_SIZE);
+        silk_label(ui.painter(), origin + CLIP_LAMP + CLIP_CAPTION, "Clip", LAMP_CAPTION_SIZE);
 
         metronome(ui, setter, params, origin, view, shared, now);
 
@@ -2018,7 +2020,7 @@ mod tests {
             ),
             ("the output knob", around(OUTPUT_KNOB.x, OUTPUT_KNOB.y, knob, knob, knob + 20.0)),
             ("OUTPUT", meter(OUTPUT_METER, 24.0)),
-            ("the clip lamp", around(CLIP_LAMP.x, CLIP_LAMP.y, 18.0, LAMP, LAMP_CAPTION.y + 8.0)),
+            ("the clip lamp", around(CLIP_LAMP.x, CLIP_LAMP.y, 18.0, LAMP, CLIP_CAPTION.y + 8.0)),
             ("ON", switch_label(BYPASS_X)),
             ("the On switch", around(BYPASS_X, SWITCH_Y, SWITCH, SWITCH, SWITCH)),
             ("TUNER", switch_label(TUNER_X)),

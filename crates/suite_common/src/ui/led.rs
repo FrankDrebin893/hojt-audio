@@ -150,7 +150,7 @@ mod tests {
         assert_eq!(led_width(2) - led_width(1), CHAR_WIDTH);
         assert_eq!(LED_HEIGHT, 34.0);
         // A character fits its place: Plex Mono is 0.6 of its size wide
-        assert!(TEXT_SIZE * 0.6 <= CHAR_WIDTH);
+        const { assert!(TEXT_SIZE * 0.6 <= CHAR_WIDTH) };
     }
 
     #[test]
