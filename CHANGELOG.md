@@ -37,6 +37,13 @@ GitHub release.
 
 ### Drum Synth
 
+- A Human knob (0 to 100 %, 0 % by default) so a part drawn on a grid sounds played. Turned up,
+  every hit is a little louder or softer (up to 15 % at full) and a little late (up to 8 ms at
+  full, most of them within a few ms), by a different amount each time, so a repeated hit is
+  never a copy of the one before. A kick and a crash that arrive together stay together, and a
+  hit is never early, so the plugin still adds no latency. The same part renders the same way
+  every time. At 0 % the sound is exactly what it was, and the pedal's top row is now five
+  knobs, Human at the right
 - The Jazz kit's cymbals are dry and defined: every ride stroke is a clear ping over a quieter,
   even wash, and the hats and crashes keep their sizzle without the swirl of beating tones. They
   are a little darker, and the ride bell is rounder. A project on the Jazz kit sounds different;
@@ -96,17 +103,23 @@ GitHub release.
   of a core. New parameters Pitch, Pitch Semitones, Pitch Blend and Pitch Tracking; projects
   and presets from before open with it off, and a preset switches it off. The window is
   wider by one pedal, so a saved window size is forgotten once
-- A second amp can play beside the first. Switch it on (Amp 2 in the host's parameter list; the
-  window gets its own head in a later release) and the guitar goes through the pedals in front
-  of the amp, then splits: each amp plays through its own head and its own built-in cabinet,
-  and Blend mixes the two, 0 the first amp alone and 10 the second alone. The pedals behind the
-  cabinet work on the mix. Amp 2 has its own amp choice (any of the six, Klar to start with)
-  and its own six dials, Gain, Bass, Mid, Treble, Presence and Master, and remembers each amp's
-  dials as the first one does. Mic, Resonance, Mic Type and Cabinet act on both; the player's
-  own cabinet file and the built-in speaker stay on the first amp. Blend keeps the level even
-  between a heavy amp and a clean one. With Amp 2 off nothing changes: the sound, the cost and
-  every preset are as they were, and projects and presets from before open with it off.
-  Both amps on cost about 5 % of a core at 48 kHz
+- A second amp can play beside the first, each through a cabinet of its own. The guitar goes
+  through the pedals in front of the amp, then splits: each amp plays through its own head and
+  its own cabinet, and Blend mixes the two, 0 the first amp alone and 10 the second alone.
+  The pedals behind the cabinet work on the mix. The stack in the window is now two lanes,
+  one per amp: a head with its cabinet beside it, the first above the second, meeting at a black
+  plate with Blend as a crossfader between Amp 1 and Amp 2, then Mic, Res, Mic Type, the
+  output and the Cab switch, which act on both. Amp 2 has its own nameplate, its own six dials
+  and an On switch; each lane has its own Cabinet stepper: the first amp's goes through its own
+  cabinet, the ten built-in ones and the player's files, the second's through its own and the
+  built-in ones (a new `cabinet2` in the project, and in a preset file; a file of the player's
+  stays the first amp's). Blend keeps the level even between a heavy amp and a clean one.
+  With Amp 2 off nothing changes in the sound, the cost or any preset, and projects and
+  presets from before open with it off. Both amps on cost 4 to 5 % of a core at 48 kHz. The
+  window is 250 px wider, so a saved window size is forgotten once
+  In the host's parameter list: Amp 2 (on or off), Amp 2 Model, Amp 2 Gain, Bass, Mid, Treble,
+  Presence and Master (0 to 10, 5 to start) and Amp Blend (0 to 10, 5 to start). The page gets
+  a line about the second amp and a new screenshot at the release
 - A new factory preset, Tung og Klar: Torden under a clean Klar at Blend 4.0, the tight rhythm
   of Stram with a glassy body under it
 - Louder, so the guitar sits with the drums and the bass: every amp and factory preset is now

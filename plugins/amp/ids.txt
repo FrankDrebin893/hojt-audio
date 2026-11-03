@@ -74,8 +74,9 @@ param tuner
 persist amp-dials
 persist amp2-dials
 persist cabinet
+persist cabinet2
 persist chain-order
-persist editor-state-rig6
+persist editor-state-rig7
 persist preset
 persist preset-bank
 persist user-preset

@@ -22,6 +22,7 @@
 //! gate_on = on
 //! order = pitch fuzz comp drive phaser amp chorus flanger tremolo delay reverb
 //! cabinet = speaker:4x12-mid
+//! cabinet2 = speaker:1x12-open
 //! ```
 //!
 //! Knobs are written as their parameters store them, switches `on` or `off`, and choices by
@@ -50,6 +51,7 @@ pub const EXTENSION: &str = "preset";
 // The keys of the lines that are not parameters
 const ORDER_KEY: &str = "order";
 const CABINET_KEY: &str = "cabinet";
+const SECOND_CABINET_KEY: &str = "cabinet2";
 const HEADER: &str = "# Hojt Guitar Amp preset";
 
 /// Where the presets are: `FOLDER_ENV` if set, else `Hojt Audio/Presets` in Documents.
@@ -353,6 +355,8 @@ pub struct UserPreset {
     order: ChainOrder,
     /// What `GuitarAmpParams::cabinet` holds: empty for the amp's own
     cabinet: String,
+    /// What `GuitarAmpParams::cabinet_second` holds: empty for the second amp's own
+    cabinet_second: String,
 }
 
 impl UserPreset {
@@ -366,6 +370,7 @@ impl UserPreset {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .clone(),
+            cabinet_second: params.cabinet_second.choice(),
         }
     }
 
@@ -375,6 +380,7 @@ impl UserPreset {
             values: controls(params).iter().map(|&(_, control)| control.default_plain()).collect(),
             order: ChainOrder::default(),
             cabinet: String::new(),
+            cabinet_second: String::new(),
         };
         let controls = controls(params);
         for line in text.lines() {
@@ -396,6 +402,18 @@ impl UserPreset {
                 {
                     value.clone_into(&mut preset.cabinet);
                 }
+            } else if key == SECOND_CABINET_KEY {
+                // Only a built-in cabinet: the second amp never plays a file
+                // that this build has: an id it does not know is the amp's own, as it is
+                // when loaded, so the preset does not look edited once it is
+                let known = value
+                    .strip_prefix("speaker:")
+                    .is_some_and(|id| crate::amp::model::speaker_index(id).is_some());
+                if value.is_empty() || known {
+                    value.clone_into(&mut preset.cabinet_second);
+                } else if user_cab::is_speaker_choice(value) {
+                    preset.cabinet_second.clear();
+                }
             } else if let Some(index) = controls.iter().position(|&(id, _)| id == key) {
                 if let Some(plain) = controls[index].1.read(value) {
                     preset.values[index] = plain;
@@ -413,6 +431,7 @@ impl UserPreset {
         }
         text.push_str(&format!("{ORDER_KEY} = {}\n", self.order.ids().join(" ")));
         text.push_str(&format!("{CABINET_KEY} = {}\n", self.cabinet));
+        text.push_str(&format!("{SECOND_CABINET_KEY} = {}\n", self.cabinet_second));
         text
     }
 
@@ -438,6 +457,7 @@ impl UserPreset {
             .map(|(&(_, control), &plain)| control.edit(plain))
             .collect();
         presets::set_together(setter, &edits);
+        params.cabinet_second.set_choice(&self.cabinet_second);
         let mut cabinet = params.cabinet.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if *cabinet == self.cabinet {
             return false;
@@ -449,6 +469,7 @@ impl UserPreset {
     /// Whether everything the preset holds still stands where it puts it
     pub fn matches(&self, params: &GuitarAmpParams) -> bool {
         params.order.get() == self.order
+            && params.cabinet_second.choice() == self.cabinet_second
             && *params.cabinet.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
                 == self.cabinet
             && controls(params).iter().zip(&self.values).all(|(&(_, control), &plain)| {
@@ -743,8 +764,9 @@ pub(crate) mod tests {
         for line in ["amp = torden", "gain = 0.73", "delay_on = on", "cab_mic_type = ribbon"] {
             assert!(text.lines().any(|each| each == line), "{line} is not in\n{text}");
         }
-        // Every parameter is written out, also those at their defaults
-        assert_eq!(text.lines().filter(|line| line.contains(" = ")).count(), 60);
+        // Every parameter is written out, also those at their defaults, and the pedal order and
+        // the two cabinets after them
+        assert_eq!(text.lines().filter(|line| line.contains(" = ")).count(), 61);
         assert_eq!(UserPreset::parse(&params, &text), saved);
     }
 
@@ -771,12 +793,18 @@ pub(crate) mod tests {
         let saved = UserPreset::parse(
             &params,
             "amp = torden\namp2_on = on\namp2 = sang\namp2_gain = 0.31\namp2_master = 0.62\n\
-             amp_blend = 0.4\n",
+             amp_blend = 0.4\ncabinet2 = speaker:4x12-heavy\n",
         );
         assert_eq!(saved.value(&params, "amp2_on"), 1.0);
         assert_eq!(saved.value(&params, "amp2"), Amp::Sang.to_index() as f32);
         let text = saved.to_text(&params);
-        for line in ["amp2_on = on", "amp2 = sang", "amp2_gain = 0.31", "amp_blend = 0.4"] {
+        for line in [
+            "amp2_on = on",
+            "amp2 = sang",
+            "amp2_gain = 0.31",
+            "amp_blend = 0.4",
+            "cabinet2 = speaker:4x12-heavy",
+        ] {
             assert!(text.lines().any(|each| each == line), "{line} is not in\n{text}");
         }
         assert_eq!(UserPreset::parse(&params, &text), saved);
@@ -789,6 +817,17 @@ pub(crate) mod tests {
         assert_eq!(params.dial_memory_second.enter(Amp::Sang)[0], 0.31);
         assert_eq!(params.dial_memory_second.enter(Amp::Sang)[5], 0.62);
         assert_eq!(params.dial_memory.enter(Amp::Sang)[0], 0.5);
+        // and its cabinet: a built-in one, and never a file
+        assert_eq!(params.cabinet_second.choice(), "speaker:4x12-heavy");
+        let file = UserPreset::parse(&params, "cabinet2 = Alpha.wav\n");
+        assert_eq!(file.cabinet_second, "");
+        file.load(&params, &ParamSetter::new(&host));
+        assert_eq!(params.cabinet_second.get(), None);
+        // an id this build does not have is the amp's own, so it matches once loaded
+        let unknown = UserPreset::parse(&params, "cabinet2 = speaker:9x99-nothing\n");
+        assert_eq!(unknown.cabinet_second, "");
+        unknown.load(&params, &ParamSetter::new(&host));
+        assert!(unknown.matches(&params));
     }
 
     #[test]

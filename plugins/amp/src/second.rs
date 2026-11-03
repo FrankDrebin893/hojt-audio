@@ -4,13 +4,15 @@
 //! with the same `AmpModel` constants. With the second amp off none of this runs and the
 //! chain is the single amp it was.
 
-use crate::amp::model::Amp;
+use crate::amp::model::{speaker_index, Amp, CabModel, SPEAKERS};
 use crate::amp::poweramp::PowerAmp;
 use crate::amp::preamp::Preamp;
 use crate::amp::tonestack::{ToneCurve, ToneStack};
 use crate::cab::{CabIr, CabVoicing, Cabinet, MicType};
 use crate::dsp::oversample::Oversampler;
 use crate::dsp::{curve, Ramp};
+use nih_plug::params::persist::PersistentField;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 /// The Blend law: the first amp's share is `(1 - blend)` and the second's `blend`, each raised
 /// to this power. 1.0 would be a linear blend, which dips 2.8 LU in the middle for a heavy amp
@@ -26,6 +28,9 @@ pub const BLEND_LAW: f32 = 0.6;
 pub struct SecondSettings {
     pub on: bool,
     pub amp: Amp,
+    /// The built-in cabinet it plays through, by its place in `SPEAKERS`: None for its own
+    /// amp's
+    pub speaker: Option<usize>,
     pub gain: f32,
     pub bass: f32,
     pub mid: f32,
@@ -49,6 +54,7 @@ impl Default for SecondSettings {
         Self {
             on: false,
             amp: Amp::Klar,
+            speaker: None,
             gain: 0.5,
             bass: 0.5,
             mid: 0.5,
@@ -74,6 +80,10 @@ pub struct Timing {
 pub struct Second {
     pub amp: Amp,
     pub wanted_amp: Amp,
+    // The built-in cabinet that plays (None: the amp's own) and the one that is wanted. A
+    // change of either is an amp switch: faded out, made at silence, faded back in
+    pub speaker: Option<usize>,
+    pub wanted_speaker: Option<usize>,
     pub wanted_on: bool,
     pub preamp: Preamp,
     pub tone: ToneStack,
@@ -113,6 +123,8 @@ impl Second {
         Self {
             amp: defaults.amp,
             wanted_amp: defaults.amp,
+            speaker: None,
+            wanted_speaker: None,
             wanted_on: false,
             preamp: Preamp::new(),
             tone: ToneStack::new(),
@@ -133,6 +145,28 @@ impl Second {
             presence_applied: f32::NAN,
             cab_applied: [f32::NAN; 2],
             mic_type_applied: None,
+        }
+    }
+
+    /// Whether another amp or another cabinet is waited for
+    pub fn switching(&self) -> bool {
+        self.wanted_amp != self.amp || self.wanted_speaker != self.speaker
+    }
+
+    /// Where the cabinet that plays is in the chain's designed cabinets: its own amp's, then
+    /// the built-in ones
+    pub fn ir_index(&self) -> usize {
+        match self.speaker {
+            Some(speaker) => Amp::ALL.len() + speaker,
+            None => self.amp.index(),
+        }
+    }
+
+    /// The cabinet whose frequencies the Mic and Resonance dials work on
+    pub fn voiced_cab(&self) -> &'static CabModel {
+        match self.speaker {
+            Some(speaker) => &SPEAKERS[speaker].cab,
+            None => &self.amp.model().cab,
         }
     }
 
@@ -230,14 +264,14 @@ impl Second {
             self.mic_type_applied = Some(mic_type);
         }
         if cab_dials != self.cab_applied {
-            self.voicing.set(&model.cab, cab_dials[0], cab_dials[1], sample_rate, steps);
+            self.voicing.set(self.voiced_cab(), cab_dials[0], cab_dials[1], sample_rate, steps);
             self.cab_applied = cab_dials;
         }
     }
 
     /// Fades the amp's output down while another amp is waiting, and back up after
     pub fn fade_amp(&mut self, block: &mut [f32], fade_len: u32) {
-        let down = self.wanted_amp != self.amp;
+        let down = self.switching();
         if !down && self.amp_fade == fade_len {
             return;
         }
@@ -271,6 +305,66 @@ impl Second {
             self.on_fade = self.on_fade.saturating_sub(1);
         }
         self.blend.next() * eased(self.on_fade, fade_len)
+    }
+}
+
+/// The built-in cabinet the second amp plays through, kept by the editor and saved with the
+/// project (`cabinet2`) as the first amp's choice is (`cabinet`), by its frozen id:
+/// `speaker:<id>`, or empty for the amp's own. Not a parameter. It is an atomic because a host
+/// may restore a saved state on the audio thread, and the chain reads it with the dials: 0 for
+/// the amp's own, the place in `SPEAKERS` plus 1 for a built-in one
+pub struct SecondCabinet(AtomicU32);
+
+impl SecondCabinet {
+    pub const fn new() -> Self {
+        Self(AtomicU32::new(0))
+    }
+
+    /// The built-in cabinet, None for the amp's own
+    pub fn get(&self) -> Option<usize> {
+        let stored = self.0.load(Ordering::Relaxed) as usize;
+        stored.checked_sub(1).filter(|&speaker| speaker < SPEAKERS.len())
+    }
+
+    pub fn put(&self, speaker: Option<usize>) {
+        self.0.store(speaker.map_or(0, |speaker| speaker as u32 + 1), Ordering::Relaxed);
+    }
+
+    /// One on in the round of the amp's own and the ten built-in ones, or one back
+    pub fn step(&self, forward: bool) {
+        let round = SPEAKERS.len() + 1;
+        let here = self.get().map_or(0, |speaker| speaker + 1);
+        let next = (here + if forward { 1 } else { round - 1 }) % round;
+        self.put(next.checked_sub(1));
+    }
+
+    /// What the preset file and the saved state hold
+    pub fn choice(&self) -> String {
+        self.get().map_or_else(String::new, crate::user_cab::speaker_choice)
+    }
+
+    /// Takes a choice as `choice` writes it. One this build does not have is the amp's own
+    pub fn set_choice(&self, choice: &str) {
+        self.put(choice.strip_prefix("speaker:").and_then(speaker_index));
+    }
+}
+
+impl Default for SecondCabinet {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl PersistentField<'_, String> for SecondCabinet {
+    fn set(&self, new_value: String) {
+        self.set_choice(&new_value);
+    }
+
+    fn map<F, R>(&self, f: F) -> R
+    where
+        F: Fn(&String) -> R,
+    {
+        f(&self.choice())
     }
 }
 

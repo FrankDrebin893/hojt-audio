@@ -11,11 +11,10 @@ The reasons behind choices that the code alone does not explain. What it does is
 - Presets: good defaults first, a browser later. Cabinets: our own at first, a loader later
 - The window is one rig: a strip over one line in signal order, the half stack (head on cabinet)
   among the pedals, each pedal with its own paint and art (#96)
-- The cabinet looks as the cabinet that plays (#100), but its box keeps one size and its
-  control plate one place for all twelve looks: the pedals stand beside it as tall as it, the
-  head stands on it, and the cables, the plate's controls and every click stay where they are
-  whatever is picked. A real 1x10 and 4x12 differ in size; here only the speakers behind the
-  grille do. What a missing or unusable choice shows is the amp's own cabinet, because that is
+- The cabinet looks as the cabinet that plays (#100), but its box keeps one size for all
+  twelve looks (a lane's, since #177): the pedals stand beside the stack as tall as it, and
+  the cables, the controls and every click stay where they are whatever is picked. A real 1x10 and 4x12 differ in size; here only the speakers behind
+  the grille do. What a missing or unusable choice shows is the amp's own cabinet, because that is
   what plays. The cabinet is not dimmed while switched off: nothing else in the rig changes
   look when off, and the LED on its plate says it
 
@@ -54,9 +53,12 @@ The reasons behind choices that the code alone does not explain. What it does is
 - Brøl below Gain 5 is made up in front of its power stage so Gain 0 is clean on pick attacks
   and the safety clip is not what holds the peaks
 - Switching amp fades out over 4.5 ms in front of the cabinet, switches at the silent sample,
-  fades in; the cabinet crossfades over 10 ms. Two amps never run side by side (double the
-  oversampled cost). The six dials are shared parameters; each amp's own positions are kept by
-  the editor (`amp-dials`, atomics because nih-plug restores state on the audio thread)
+  fades in; the cabinet crossfades over 10 ms. Two amps never run side by side
+  while switching within a slot (double the oversampled cost); the one exception is the second
+  amp (#177), a slot of its own that runs beside the first only while it is switched on, so a
+  heavy and a clean amp can be mixed, and costs nothing while off. The six dials are shared
+  parameters; each amp's own positions are kept by the editor (`amp-dials` and `amp2-dials`,
+  atomics because nih-plug restores state on the audio thread)
 - Cost figures are from a fast core; cores 2 to 9 of the development machine take 1.33 times
   as long, so the reports pin their thread
 
@@ -69,8 +71,8 @@ The reasons behind choices that the code alone does not explain. What it does is
 - Mic is a shelf pair and Resonance a bell after the IR, skipped at 5.0 so the default is
   bit-identical
 - More cabinets than amps: ten built in (`SPEAKERS`), picked
-  on the same Speaker display as files, between `OWN` and the files. Not a parameter, like
-  the file: one display, one stored choice. Each is a `CabModel` like the amps' own, so it
+  on the same Cabinet stepper as files (each lane's, since #177), between `OWN` and the files.
+  Not a parameter, like the file: one stepper, one stored choice. Each is a `CabModel` like the amps' own, so it
   is designed, levelled and resampled alike and the dials work on its own frequencies.
   They are not the amps' own: those were tuned with their amps and lie within 1 to 2 dB of
   each other per octave band, too close to be heard as a choice. Every two built-in ones
@@ -177,6 +179,29 @@ The reasons behind choices that the code alone does not explain. What it does is
   without growing the strip; the strip's gaps gave up 10.5 points each instead
 
 ## Look
+
+- Two lanes, not a tower (#177, picked by the owner out of three: two heads on one cabinet, one
+  head with a flip, two lanes): each amp is a lane of its own, a head with the cabinet it plays
+  through beside it, because the player mixes any amp with any cabinet in each branch, and the
+  lanes meet where the signal does, on a black plate with the Blend as a crossfader, the one
+  control that is a balance between two paths. The window grew 250 px for it
+  (`editor-state-rig7`) and the strip's gaps with it, the print of its art regenerated for the new
+  width. The dials went to radius 15 and the cabinet to 120 px to fit one lane beside the plate. The
+  cabinet's Speaker and Mic Type, which stood on its plate, moved: the cabinet's choice to its
+  lane's line under the dials, the microphone to the shared plate. The second amp's cabinet is
+  its own or a built-in one: a file is the first amp's only
+- The plate has three zones, ruled apart. Blend leads: a silk frame of its own, the longest
+  slot and the biggest cap in the rig, large Amp 1 and Amp 2 at its ends and its value on a tape
+  beside the slot, so it cannot be read as Amp 2's. Under it a frame, Cabinets, for what both
+  cabinets share: Mic, Res, Mic Type and the Cab switch, whose LED says whether both cabinets
+  are in the signal. Last, under a rule, the plate's one output jack, its own zone, so the
+  cable that leaves is the plate's. Mic and Res are radius 15, the lane dials' size, not the 19 of a
+  secondary row in a frame: the plate is 148 px wide and two 19s with their ticks do not fit
+  inside a frame. All four screws are on, as `mounted_plate` puts them
+- Amp 1 has no switch and Amp 2 has On and a lamp: the first amp is always in the signal (its
+  lamp is always lit, the rig's one exception to a footswitch per path), and Amp 2 with its
+  switch is what Blend balances it against
+- A lane's captions (Cabinet, In) are 15 px, as large as the head's panel lets them be
 
 - The strip has 50 px small footswitches with the LED beside the switch; its band tilts -1.5
   degrees, pedals -4. The amp is picked with a stepper, not a switch per amp: three switches
