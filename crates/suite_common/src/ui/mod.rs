@@ -36,9 +36,9 @@ pub use amp::{
 };
 pub use art::Motif;
 pub use frame::{
-    coupler, enclosure, lifted, mini_pedal, patch_cable, pedal, rig, strip, title_grip, MiniStyle,
-    Ornament, PedalStyle, BENCH_MARGIN, PLUG_Y, SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED,
-    SLIM_SWITCH, STRIP_BAND_WIDTH,
+    coupler, enclosure, lifted, mini_pedal, patch_cable, pedal, rig, strip, strip_plate,
+    title_grip, MiniStyle, Ornament, PedalStyle, BENCH_MARGIN, PLUG_Y, SLIM_KNOBS,
+    SLIM_KNOB_RADIUS, SLIM_LED, SLIM_SWITCH, STRIP_BAND_WIDTH,
 };
 pub use led::{led_display, led_width, tuner_display, LED_HEIGHT};
 pub use raster::{Grille, KnobCap, Plate, Tolex};

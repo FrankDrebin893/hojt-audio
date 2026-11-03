@@ -1369,6 +1369,27 @@ struct Shared<'a> {
     audio_host: Option<&'a dyn standalone::Host>,
 }
 
+// The strip's controls stand on module plates, one per group: what comes in, the bank and
+// preset, the metronome, what goes out, and the On switch. The Tuner switch stands on the paint at the end, under
+// the output's caption. A plate reaches this far past its
+// controls, and from the top of the strip to its lower edge
+const PLATE_PAD: f32 = 26.0;
+const PLATE_TOP: f32 = BENCH_MARGIN + 7.0;
+const PLATE_BOTTOM: f32 = BENCH_MARGIN + STRIP_HEIGHT - 12.0;
+
+/// Where each plate of the strip stands across the window: its left and right edges
+fn strip_plates() -> [[f32; 2]; 5] {
+    let bank_left = BANK_X - BANK_WIDTH / 2.0 - STEPPER_REACH;
+    let on_left = BYPASS_X + CAPTION_OFFSET - 28.0;
+    [
+        [INPUT_METER.x - METER_REACH - PLATE_PAD, INPUT_METER.x + METER_REACH + PLATE_PAD],
+        [bank_left - PLATE_PAD, SAVE_X + SAVE_REACH + PLATE_PAD],
+        [METRONOME_START - PLATE_PAD, METRONOME_END + PLATE_PAD],
+        [OUTPUT_KNOB.x - KNOB_REACH - PLATE_PAD, CLIP_LAMP.x + LAMP_REACH + PLATE_PAD],
+        [on_left - PLATE_PAD, BYPASS_X + 25.0 + PLATE_PAD],
+    ]
+}
+
 /// The whole window, once the fonts are in: what the plugin shows and its snapshot tests draw
 fn draw(
     ctx: &Context,
@@ -1400,6 +1421,15 @@ fn draw(
             vec2(WINDOW_WIDTH as f32 - 2.0 * BENCH_MARGIN, STRIP_HEIGHT),
         );
         ui::strip(ui, strip, &STYLE);
+        for [left, right] in strip_plates() {
+            ui::strip_plate(
+                ui.painter(),
+                Rect::from_min_max(
+                    window + vec2(left, PLATE_TOP),
+                    window + vec2(right, PLATE_BOTTOM),
+                ),
+            );
+        }
         // What is on the strip is placed from here
         let origin = window;
 
@@ -1996,10 +2026,10 @@ mod tests {
         ]
     }
 
-    // The storm of the print stays out from under every label: nothing of the picture shows
-    // behind them but the paint (this holds the clear zones of scripts/make-art.py)
+    // The print of the strip is a quiet brushed grain: behind every label it stays too faint to
+    // compete with the print (this holds scripts/make-art.py), whatever else is on the strip
     #[test]
-    fn test_the_art_is_clear_behind_every_label_of_the_strip() {
+    fn test_the_art_is_quiet_behind_every_label_of_the_strip() {
         let face = vec2(WINDOW_WIDTH as f32 - 2.0 * BENCH_MARGIN, STRIP_HEIGHT - 5.0);
         let art = ui::artwork::fit_image(ui::artwork::AMP, face.x as usize, face.y as usize, 24.0);
         for (name, [left, top, right, bottom]) in strip_labels() {
@@ -2012,10 +2042,45 @@ mod tests {
                 .map(|(x, y)| art.pixels[y * art.size[0] + x].a())
                 .max()
                 .unwrap();
-            assert!(heaviest <= 6, "the art shows behind {name}: alpha {heaviest} of 255");
+            assert!(heaviest <= 48, "the art is loud behind {name}: alpha {heaviest} of 255");
         }
-        // And it is still there: a storm in the gaps and the corners
-        assert!(art.pixels.iter().filter(|pixel| pixel.a() > 60).count() > 400);
+        // And it is there: grain over the face, no lightning
+        assert!(art.pixels.iter().filter(|pixel| pixel.a() > 8).count() > 4000);
+        assert!(art.pixels.iter().filter(|pixel| pixel.a() > 90).count() < 4000);
+    }
+
+    // The module plates of the strip: each holds its controls with room to spare, they keep clear
+    // of each other, of the strip's edges, and of what is printed on the strip's paint
+    #[test]
+    fn test_the_plates_hold_their_controls_and_stand_clear_of_the_print() {
+        let plates = strip_plates();
+        let width = WINDOW_WIDTH as f32;
+        let mut row = vec![("the strip's edge", 0.0, BENCH_MARGIN + 30.0)];
+        for (i, [left, right]) in plates.iter().enumerate() {
+            let name = ["input", "bank and preset", "metronome", "output", "On"][i];
+            row.push((name, *left, *right));
+        }
+        row.push(("the strip's right end", width - BENCH_MARGIN - 94.0, width));
+        // The Tuner switch and its caption stand between the last plate and the print
+        let tuner = ("the Tuner", TUNER_X - 58.0 - 28.0, TUNER_X + 25.0);
+        row.insert(row.len() - 1, tuner);
+        in_a_row(&row);
+        // Every control is inside the plate it belongs to
+        let inside = |plate: usize, controls: &[usize]| {
+            let all = strip_controls();
+            for &c in controls {
+                let (name, left, right) = all[c];
+                assert!(
+                    plates[plate][0] < left && right < plates[plate][1],
+                    "{name} is not on plate {plate}"
+                );
+            }
+        };
+        inside(0, &[0]);
+        inside(1, &[1, 2, 3]);
+        inside(2, &[4]);
+        inside(3, &[5, 6, 7]);
+        inside(4, &[8]);
     }
 
     #[test]
