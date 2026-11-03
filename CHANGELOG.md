@@ -49,6 +49,20 @@ GitHub release.
   are a little darker, and the ride bell is rounder. A project on the Jazz kit sounds different;
   Rock, Metal and Groove are as they were
 
+### Bass Synth
+
+- A clearer, less synthetic bass (#167): the sine under the string sits under it instead of being
+  half of the note (Sub 15 % by default, and the same Sub knob value is quieter than before), the
+  pick and pickup sit at fixed distances from the bridge so the tone changes up the neck, a
+  cabinet is built into both voices, and the string is stiff so its upper partials run sharp
+  like a wound string's
+- A note played by a hand: the string has a second plane, a little quieter and slightly sharp of
+  the first, so a held note breathes slowly and its decay is not one smooth line. On Groove the
+  finger lands with a knock and a touch of noise; on Metal the pick's click is now a scrape
+  that swells and dies in a few milliseconds; and letting go of a note makes a faint tick of
+  the fretting finger, about 40 dB under the note. A saved project sounds a little more alive,
+  with the same level and no knob or parameter changed
+
 ### Guitar Amp
 
 - The strip's displays look like modern LEDs: the bank, preset, tuner and tempo readouts are made
