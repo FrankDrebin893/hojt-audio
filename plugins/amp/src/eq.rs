@@ -423,6 +423,28 @@ mod tests {
         largest_step(&output[24_000..])
     }
 
+    /// The most the signal steps with the dials standing anywhere on a straight line between
+    /// any two of `ends`: a bell passing a tone is louder than at either end
+    fn own_step(ends: &[EqSettings], tones: &[f32]) -> f32 {
+        (0..=10)
+            .flat_map(|share| {
+                let share = share as f32 / 10.0;
+                ends.iter().flat_map(move |from| {
+                    ends.iter().map(move |to| {
+                        let at = |a: f32, b: f32| lerp(a, b, share);
+                        on(
+                            at(from.low, to.low),
+                            at(from.mid, to.mid),
+                            at(from.freq, to.freq),
+                            at(from.high, to.high),
+                        )
+                    })
+                })
+            })
+            .map(|settings| steady_step(&settings, tones))
+            .fold(0.0, f32::max)
+    }
+
     #[test]
     fn test_dials_turned_while_playing_do_not_click() {
         // Two tones and a sweep of every dial from one end to the other, a step in each block
@@ -435,23 +457,7 @@ mod tests {
         let ends = [on(0.0, 0.0, 0.0, 0.0), on(1.0, 1.0, 1.0, 1.0), on(1.0, 0.0, 0.5, 1.0)];
         // The most the signal steps with the dials standing at any of these
         // along the way too: a bell passing a tone is louder there than at either end
-        let own = (0..=10)
-            .flat_map(|share| {
-                let share = share as f32 / 10.0;
-                ends.into_iter().flat_map(move |from| {
-                    ends.into_iter().map(move |to| {
-                        let at = |a: f32, b: f32| lerp(a, b, share);
-                        on(
-                            at(from.low, to.low),
-                            at(from.mid, to.mid),
-                            at(from.freq, to.freq),
-                            at(from.high, to.high),
-                        )
-                    })
-                })
-            })
-            .map(|settings| steady_step(&settings, &tones))
-            .fold(0.0, f32::max);
+        let own = own_step(&ends, &tones);
         assert!(own > 0.0);
         for (from, to) in [(0, 1), (1, 0), (0, 2), (2, 1)] {
             let mut eq = at(FS);
@@ -626,9 +632,7 @@ mod tests {
 
         println!();
         println!("Dials turned while playing: largest step between samples against the signal's");
-        println!(
-            "own with the dials where they end (a sweep of all four over 0.5 s, 220 Hz + 1.7 kHz)."
-        );
+        println!("own over the dials' paths (a sweep of all four over 0.5 s, 220 Hz + 1.7 kHz).");
         let tones: Vec<f32> = sine(220.0, 0.2, FS, 96_000)
             .iter()
             .zip(sine(1_700.0, 0.1, FS, 96_000))
@@ -638,7 +642,7 @@ mod tests {
             ("all down to all up", on(0.0, 0.0, 0.0, 0.0), on(1.0, 1.0, 1.0, 1.0)),
             ("all up to all down", on(1.0, 1.0, 1.0, 1.0), on(0.0, 0.0, 0.0, 0.0)),
         ] {
-            let own = steady_step(&to, &tones).max(steady_step(&from, &tones));
+            let own = own_step(&[from, to], &tones);
             let mut eq = at(FS);
             let mut output = tones.clone();
             let blocks = output.len() / 64;
@@ -712,6 +716,68 @@ mod tests {
                 }
                 println!("{rate:>10.0}{side:>12}{:>18}{:>18}", cells[0], cells[1]);
             }
+        }
+    }
+
+    /// Renders for listening: a clean riff through Klar and a high-gain riff through Torden,
+    /// with the EQ off, Low cut, Mid pushed and High lifted, behind the cabinet and, for the
+    /// high-gain riff, Low cut in front of the amp too, as 48 kHz stereo WAV files in
+    /// target/renders (amp_eq_*.wav)
+    ///   cargo test -p amp --release render_eq -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn render_eq() {
+        use crate::chain::{AmpChain, AmpSettings};
+        use crate::order::{ChainOrder, Pedal, Zone};
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/renders");
+        std::fs::create_dir_all(&dir).unwrap();
+        let clean = at_rms_db(&clean_di(FS), REFERENCE_DI_DB);
+        let riff = at_rms_db(&guitar_di(FS), REFERENCE_DI_DB);
+        let variants = [
+            ("off", EqSettings::default()),
+            ("low_cut", on(0.1, 0.5, 0.5, 0.5)),
+            ("mid_pushed", on(0.5, 0.75, 0.62, 0.5)),
+            ("high_lifted", on(0.5, 0.5, 0.5, 0.9)),
+        ];
+        let in_front = ChainOrder::default().moved(Pedal::Eq, Zone::Front, 0);
+        let mut jobs = Vec::new();
+        for (name, eq) in variants {
+            jobs.push((
+                format!("clean_{name}"),
+                &clean,
+                crate::Amp::Klar,
+                0.35,
+                eq,
+                ChainOrder::default(),
+            ));
+            jobs.push((
+                format!("highgain_{name}"),
+                &riff,
+                crate::Amp::Torden,
+                0.7,
+                eq,
+                ChainOrder::default(),
+            ));
+        }
+        jobs.push((
+            "highgain_low_cut_in_front".to_string(),
+            &riff,
+            crate::Amp::Torden,
+            0.7,
+            variants[1].1,
+            in_front,
+        ));
+        for (name, input, amp, gain, eq, order) in jobs {
+            let settings =
+                AmpSettings { amp, gain, eq, order, gate_on: false, ..AmpSettings::default() };
+            let mut chain = AmpChain::new();
+            chain.set_sample_rate(FS);
+            let (mut left, mut right) = (input.clone(), input.clone());
+            for (l, r) in left.chunks_mut(64).zip(right.chunks_mut(64)) {
+                chain.process(&settings, l, Some(r));
+            }
+            println!("{name}: peak {:.2}, rms {:.1} dB", peak(&left), to_db(rms(&left)));
+            write_wav(&dir.join(format!("amp_eq_{name}.wav")), &[&left, &right], FS as u32);
         }
     }
 }
