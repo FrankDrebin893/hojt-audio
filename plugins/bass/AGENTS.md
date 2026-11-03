@@ -62,7 +62,18 @@ How it behaves:
   takes back what the second pulls the note up by, so notes stay within 1 cent. The sine follows
   the first plane. The second plane's pluck is never random: only `noise` draws where a pluck
   lands, and `touch_noise` draws what the hand and the finger make, so that a longer scrape
-  does not move the jitter of the plucks after it
+  does not move the jitter of the plucks after it. `STRING_GAIN` went from 0.7 to 0.62: a level trim
+  for the second plane, which adds about 1.3 dB to the first, so the voices stay about as loud
+- Tuning: the second plane pulls the spectral peak of the sum up by a fixed 0.03 to 0.04 Hz, so
+  `PLANE_FLAT_HZ` (0.03) takes it back; the amplitude-weighted 0.052 Hz is too much (low E 1.4
+  cents flat). Milestone 3 moved three tests: the sine test's centroid factor is 1.4, not 1.5
+  (Groove's G, note 43, is at 224 to 226 Hz against 233 before the planes, 1.45 times; the quarter
+  period puts the planes' 2nd harmonics against each other, which lifts the fundamental's share);
+  Metal against Groove's brightness is 1.7 times, not 2 (it was 2.14: Groove's finger knock is
+  brightness); and the hard-pluck test measures the first plane alone (`line_other` silenced),
+  since the 0.4 Hz beat biases a 20 ms period read on the low E
+- The cost of one note is held by `test_one_note_costs_at_most_2_percent_of_a_core`, which runs
+  only optimised (`scripts/check.sh` and `ci.yml` run `cargo test -p amp -p bass --release`)
 - The hand: Metal's pick scrapes (noise of 2.5 ms that swells over a fifth of it and dies, in
   the pluck), Groove's finger lands with a knock (an impulse through a resonance at 1.5 kHz, with
   a little noise, a few ms) and a small thump (one period of a sine of 3 ms), all scaled by the

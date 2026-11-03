@@ -70,8 +70,9 @@ full() {
     check_linux_packages
     quick
     step cargo test --workspace --locked
-    # The clippers' two-at-a-time path is only compiled in optimised x86-64 builds
-    step cargo test -p amp --release --locked
+    # The clippers' two-at-a-time path is only compiled in optimised x86-64 builds, and the bass's
+    # cost bound only means something optimised
+    step cargo test -p amp -p bass --release --locked
     echo "== All of CI's steps pass"
 }
 

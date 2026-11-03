@@ -61,7 +61,7 @@ GitHub release.
   finger lands with a knock and a touch of noise; on Metal the pick's click is now a scrape
   that swells and dies in a few milliseconds; and letting go of a note makes a faint tick of
   the fretting finger, about 40 dB under the note. A saved project sounds a little more alive,
-  with the same level and no knob or parameter changed
+  about 1 dB quieter than the milestone before it, and no knob or parameter changed
 
 ### Guitar Amp
 
