@@ -136,7 +136,7 @@ const CABINET_TOP: (f32, f32) = (4500.0, 0.6);
 const CABINET_GAIN: f32 = 0.7;
 // A stiff string: a chain of first-order all-passes in the loop makes the upper partials run
 // sharp, as they do on a wound string (partial n at n f0 sqrt(1 + B n^2)). B is
-// `STIFFNESS_E` on the open E and falls in proportion to the pitch up the neck (a thinner string
+// `STIFFNESS_E` on the open E and falls with the square of the pitch up the neck (a thinner string
 // is less stiff). The chain is fitted so that partial `STIFF_FIT_PARTIAL` is where that puts
 // it; the loop's length takes out what the chain adds at the fundamental
 const STIFF_SECTIONS: usize = 4;
@@ -669,6 +669,8 @@ impl Bass {
         self.freq_hz = self.freq_hz(note);
         self.note = Some(note);
         self.held = true;
+        // A slid-to note is as stiff as that note plucked (the ringing state carries on)
+        self.stiff = stiffness_coeff(self.freq_hz, self.sample_rate);
         self.set_feedback();
         self.target_delay = self.loop_delay(self.freq_hz);
     }
