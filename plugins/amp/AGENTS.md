@@ -41,8 +41,11 @@ lead) and Drøn (a big, loose, dark amp with the low end let through). They shar
   `Documents/Hojt Audio/Presets` (or `HOJT_PRESETS_DIR`), and the banks they are kept in,
   which are the factory presets, that folder itself and the folders the player made in it:
   read, written, listed and stepped through
+- `src/second.rs` - The second amp (#177): `Second` (its preamp, tone stack, power amp and
+  cabinet, its dial smoothing, its switch and amp-switch fades), `SecondSettings`, `Timing` and
+  `BLEND_LAW`. `chain.rs` runs it and mixes it in
 - `src/dial_memory.rs` - Each amp's six dial positions, kept by the editor and saved with the
-  project (`amp-dials`)
+  project (`amp-dials` for the first amp, `amp2-dials` for the second)
 - `src/lamps.rs` - Gate-open and clip lamps and the input and output level meters: what the
   chain tells the editor, and how long the editor shows it
 - `src/tuner.rs` - Tuner: pitch detector on the mono input, `TunerReading` (one atomic shared
@@ -137,7 +140,8 @@ How it behaves:
 - Besides its own cabinet an amp can play through any of the ten built-in cabinets
   (`SPEAKERS` in `amp/model.rs`: `1X10 SMALL`, `1X12 OPEN`, `2X12 OPEN`, `4X10 CRISP`,
   `4X12 MID`, `4X12 TIGHT`, `1X15 DEEP`, `1X8 TINY`, `2X12 PUNCH`, `4X12 HEAVY`; designs of their own, not the amps'), picked on the
-  cabinet's control plate after `OWN`. A built-in cabinet is stored as `speaker:<id>` in the cabinet choice;
+  lane's `Cabinet` stepper after `OWN` (the second amp's has no file, only its own amp's
+  cabinet and these). A built-in cabinet is stored as `speaker:<id>` in the cabinet choice;
   the ids are frozen (a test holds them), the order may change. One this build does not have
   plays the amp's own and is shown with `?`. Picking the cabinet that already plays changes
   nothing, to the bit. The chain designs them all when the sample rate is set
@@ -310,6 +314,10 @@ How it behaves:
 | Fuzz Tone (`fuzz_tone`) | 0.0-10.0 | 5.0 | Dark (a low-pass at 650 Hz) to bright (a high-pass at 1.1 kHz), the mids scooped in between |
 | Amp (`amp`) | Klar / Brøl / Torden / Glød / Sang / Drøn | Brøl | Amp and its cabinet. Variant ids `klar`, `brol`, `torden`, `glod`, `sang`, `dron`. New amps go at the end: a project remembers its amp by its number |
 | Gain, Bass, Mid, Treble, Presence, Master (`gain`, `bass`, `mid`, `treble`, `presence`, `master`) | 0.0-10.0 | 5.0 | The amp's dials |
+| Amp 2 (`amp2_on`) | on / off | off | The second amp, beside the first behind the same front pedals. Off, it is not run at all |
+| Amp 2 Model (`amp2`) | the same six, same variant ids as `amp` | Klar | The second amp's own choice |
+| Amp 2 Gain, Bass, Mid, Treble, Presence, Master (`amp2_gain`, `amp2_bass`, `amp2_mid`, `amp2_treble`, `amp2_presence`, `amp2_master`) | 0.0-10.0 | 5.0 | The second amp's dials |
+| Amp Blend (`amp_blend`) | 0.0-10.0 | 5.0 | 0 is the first amp alone, 10 the second alone. Not heard while Amp 2 is off |
 | Chorus, Phaser, Flanger, Tremolo (`chorus_on`, `phaser_on`, `flanger_on`, `trem_on`) | on / off | off | Modulation pedals |
 | Chorus Rate (`chorus_rate`) | 0.1-6 Hz | 0.8 Hz | Speed of the sweep, 7 to 12 ms |
 | Phaser Rate (`phaser_rate`) | 0.1-8 Hz | 0.5 Hz | Speed of the sweep, 200 Hz to 1.6 kHz |
@@ -409,6 +417,46 @@ cargo test -p amp --release render_presets -- --ignored
 cargo test -p amp --release render_comp -- --ignored
 cargo test -p amp --release render_mods -- --ignored
 ```
+
+## Two amps
+
+- **Where it splits** (#177): after the front pedals, so both amps hear the same gate, drive and
+  the rest, and the pedals behind the cabinet work on the mix. Each amp is a lane of its own: a
+  preamp, tone stack, power amp and cabinet, run in the same oversampled region on a copy of the
+  signal. The mix is behind the two cabinets and in front of the DC blocker, so both reach the
+  back pedals in phase (one oversampler, one cabinet latency). `ChainOrder` does not know about
+  it: the stack is still one place in the order
+- **Amp 1 is always in the signal** (it has no switch). Amp 2 has `amp2_on`. With it off its
+  stages are not run, the output is bit-identical to the single amp it was, it costs nothing,
+  and every factory preset (except "Tung og Klar") and every project from before opens with it off
+- **The second slot uses the same stages and the same `AmpModel` constants** as the first (no
+  `match amp` in the DSP, `tests/rules.rs`). It has its own dial smoothing and its own
+  amp-switch fade (4.5 ms, switching at silence), and its model and dials are read into
+  `AmpSettings::second`. `finer_when_driven` and `driven_sag` apply to both
+- **Cabinets:** each amp plays through its own. Amp 1's is the amp's own, a built-in one or the
+  player's file (`cabinet`); amp 2's is its own amp's or a built-in one (`cabinet2`, persisted,
+  and in a user preset file; never a file, which keeps the cabinet loader single). Mic,
+  Resonance, Mic Type and the Cab switch act on both
+- **Blend law:** the first amp's share is `(1 - blend)^0.6` and the second's `blend^0.6`
+  (`second::BLEND_LAW`), exactly 1 and 0 at the ends, so Blend 0 equals amp 1 alone and Blend 1
+  amp 2 alone, to the bit (the other path still runs). Linear dipped 2.8 LU in the middle for
+  Torden + Klar (a heavy and a clean amp are largely not the same signal, so their powers add);
+  equal power (0.5) is flat for them but bulges 3 dB for two similar amps and put Brøl + Glød
+  over the safety clip's knee. Two identical amps therefore add up to +2.4 dB at the middle.
+  `blend_report` (`cargo test -p amp --release blend_report -- --ignored --nocapture`) prints
+  the loudness of five pairs at five Blends and holds the law to it: every pair at 0.5 within 2
+  LU of -13 LUFS, Torden + Klar within 1 LU across 0.2 to 0.8, every pair under the knee
+- **Switching amp 2** (on or off, or its model) clicks no more than switching amp 1; tuner and
+  bypass act on the whole rig. Dial memory: `amp2-dials` keeps amp 2's dials per amp, as
+  `amp-dials` does for amp 1
+- **Cost** (`stage_report`, Torden Gain 10 and everything on, plus Klar at Gain 10 at Blend 0.5
+  as amp 2, measured in #203; `whole, 2` is both amps on): `whole` 3.0 to 3.5 % of a core at
+  48 kHz, both amps on 4.0 to 5.1 % at 48 kHz, 6.2 to 6.5 % at 96 kHz and 14.2 % at 192 kHz,
+  within the 8 % limit at 48 kHz. The spec's estimate for amp 2 alone was 2.8 % at 48 kHz; the
+  run-to-run spread is as large as the difference
+- **Not done, on purpose:** phase invert on amp 2, stereo (amp 1 left, amp 2 right), separate
+  effect routing per amp (a split in front of the pedals). The first two only if a report or
+  a listen shows a need; the third is a future issue
 
 ## Look: the rig
 
@@ -586,9 +634,9 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   `ui::host_keys::want_all_keys`, which puts that answer in front of the window (#132). The
   standalone does not show the difference, only a host does; try it in REAPER with "Send all
   keyboard input to plug-in" off (its default)
-- **Steppers on the cabinet** (the speaker and the microphone): the `silk_label` caption
-  above the tape, and the buttons clear of the next knob, caption or LED. The amp's is the
-  nameplate on its head, which needs no caption: it says the amp's name
+- **Steppers on the lanes and the plate** (each lane's `Cabinet` and the plate's `Mic Type`): the
+  `silk_label` caption above the tape, and the buttons clear of the next knob, caption or LED.
+  The amp's is the nameplate on its head, which needs no caption: it says the amp's name
 - **Save (a preset):** a `chrome_button` (a stepper's push button with a dot in its cap) right
   of the preset stepper, its `silk_label` caption on the stepper's caption line. It writes the
   sound into the bank showing and the stepper's tape says `SAVED` (or `NOT SAVED`) for 1.5 s.
