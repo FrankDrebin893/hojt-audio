@@ -251,9 +251,14 @@ GitHub release.
 - A bass cabinet behind both voices gives the note body in the low mids, definition from a
   presence rise, and stops where a bass speaker stops. The voices are about a decibel quieter
   than before, with more attack
-- The voices' own settings changed to suit the new sound: Metal is Drive 40 %, Tone 2600 Hz,
-  Sub 15 % and Sustain 3 s, Groove is Brightness 50 %, Sub 15 % and Tone 1400 Hz. The knobs and
+- The voices' own settings changed to suit the new sound: Metal is Drive 40 %, Brightness 60 %,
+  Tone 2600 Hz, Sub 15 % and Sustain 3 s, Groove is Brightness 54 %, Sub 15 % and Tone 1400 Hz. The knobs and
   their ranges are the same, and a saved project keeps its knobs but plays the new sound
+- The string is stiff, as a wound bass string is: its upper partials run a little sharp, the
+  10th of the low E by about 13 cents and less and less up the neck, so a note has the ring of a
+  real string instead of the even buzz of a plucked synth. The note itself stays in tune, from
+  44.1 to 192 kHz. The stiff string rings a little darker, so the voices' Brightness is a little
+  higher (Metal 60 %, Groove 54 %) to keep the same bite
 - The bass follows the pitch-bend wheel, and pitch bend drawn in the DAW: the ringing note bends
   smoothly up or down and comes back to pitch with the wheel, and a note played with the wheel
   off centre starts bent. The sine under the string bends with it, and a slide and a bend add
