@@ -449,9 +449,11 @@ cargo test -p amp --release render_mods -- --ignored
 - **Switching amp 2** (on or off, or its model) clicks no more than switching amp 1; tuner and
   bypass act on the whole rig. Dial memory: `amp2-dials` keeps amp 2's dials per amp, as
   `amp-dials` does for amp 1
-- **Cost:** both amps on add about 2.8 % of a core at 48 kHz (5.6 % at 192 kHz; about 5 % in
-  all with the rest of the chain at 48 kHz, under the 8 % limit); `stage_report` and
-  `amp_report` have the lines
+- **Cost** (`stage_report`, Torden Gain 10 and everything on, plus Klar at Gain 10 at Blend 0.5
+  as amp 2, measured in #203; `whole, 2` is both amps on): `whole` 3.0 to 3.5 % of a core at
+  48 kHz, both amps on 4.0 to 5.1 % at 48 kHz, 6.2 to 6.5 % at 96 kHz and 14.2 % at 192 kHz,
+  within the 8 % limit at 48 kHz. The spec's estimate for amp 2 alone was 2.8 % at 48 kHz; the
+  run-to-run spread is as large as the difference
 - **Not done, on purpose:** phase invert on amp 2, stereo (amp 1 left, amp 2 right), separate
   effect routing per amp (a split in front of the pedals). The first two only if a report or
   a listen shows a need; the third is a future issue

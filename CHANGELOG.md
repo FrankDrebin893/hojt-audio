@@ -108,7 +108,7 @@ GitHub release.
   built-in ones (a new `cabinet2` in the project, and in a preset file; a file of the player's
   stays the first amp's). Blend keeps the level even between a heavy amp and a clean one.
   With Amp 2 off nothing changes in the sound, the cost or any preset, and projects and
-  presets from before open with it off. Both amps on cost about 5 % of a core at 48 kHz. The
+  presets from before open with it off. Both amps on cost 4 to 5 % of a core at 48 kHz. The
   window is 250 px wider, so a saved window size is forgotten once
   In the host's parameter list: Amp 2 (on or off), Amp 2 Model, Amp 2 Gain, Bass, Mid, Treble,
   Presence and Master (0 to 10, 5 to start) and Amp Blend (0 to 10, 5 to start). The page gets

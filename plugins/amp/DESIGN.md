@@ -56,8 +56,9 @@ The reasons behind choices that the code alone does not explain. What it does is
   fades in; the cabinet crossfades over 10 ms. Two amps never run side by side
   while switching within a slot (double the oversampled cost); the one exception is the second
   amp (#177), a slot of its own that runs beside the first only while it is switched on, so a
-  heavy and a clean amp can be mixed, and costs nothing while off. The six dials are shared parameters; each amp's own positions are kept by
-  the editor (`amp-dials`, atomics because nih-plug restores state on the audio thread)
+  heavy and a clean amp can be mixed, and costs nothing while off. The six dials are shared
+  parameters; each amp's own positions are kept by the editor (`amp-dials` and `amp2-dials`,
+  atomics because nih-plug restores state on the audio thread)
 - Cost figures are from a fast core; cores 2 to 9 of the development machine take 1.33 times
   as long, so the reports pin their thread
 
@@ -70,8 +71,8 @@ The reasons behind choices that the code alone does not explain. What it does is
 - Mic is a shelf pair and Resonance a bell after the IR, skipped at 5.0 so the default is
   bit-identical
 - More cabinets than amps: ten built in (`SPEAKERS`), picked
-  on the same Speaker display as files, between `OWN` and the files. Not a parameter, like
-  the file: one display, one stored choice. Each is a `CabModel` like the amps' own, so it
+  on the same Cabinet stepper as files (each lane's, since #177), between `OWN` and the files.
+  Not a parameter, like the file: one stepper, one stored choice. Each is a `CabModel` like the amps' own, so it
   is designed, levelled and resampled alike and the dials work on its own frequencies.
   They are not the amps' own: those were tuned with their amps and lie within 1 to 2 dB of
   each other per octave band, too close to be heard as a choice. Every two built-in ones
