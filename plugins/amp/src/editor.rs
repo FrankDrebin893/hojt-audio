@@ -184,7 +184,7 @@ const OUTPUT_METER: Vec2 = vec2(OUTPUT_KNOB.x + KNOB_REACH + INNER_GAP + METER_R
 const CLIP_LAMP: Vec2 = vec2(OUTPUT_METER.x + METER_REACH + AUDIO_GAP + LAMP_REACH, 58.0);
 const LAMP_CAPTION: Vec2 = vec2(0.0, 18.0);
 // The clip lamp's caption stands on the strip's bottom caption row, with the output's and the level's
-const CLIP_CAPTION: Vec2 = vec2(0.0, 36.0);
+const CLIP_CAPTION: Vec2 = vec2(0.0, 46.0);
 const LAMP_CAPTION_SIZE: f32 = 13.0;
 const LANE_CAPTION_SIZE: f32 = 15.0;
 
