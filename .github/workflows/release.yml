@@ -43,8 +43,8 @@ jobs:
       - name: Test
         run: cargo test --workspace --locked
 
-      - name: Test the amp, optimised
-        run: cargo test -p amp --release --locked
+      - name: Test the amp and the bass, optimised
+        run: cargo test -p amp -p bass --release --locked
 
       - name: Bundle
         if: runner.os != 'macOS'

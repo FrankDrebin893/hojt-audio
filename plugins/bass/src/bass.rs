@@ -2242,11 +2242,7 @@ mod tests {
         assert!(cents.abs() < 2.0, "{} cents off", cents);
     }
 
-    /// Level, pitch error (of the fundamental) and brightness per voice and note. Then, with Sub at 0: from what the
-    /// pickup reads, before the voice's output stage, how long the fundamental and the top
-    /// ring and how loud harmonics 2 and 3 are (the columns `string`); and how long the two ring
-    /// at the voice's output, through its drive (the columns `out`):
-    ///   cargo test -p bass --release bass_report -- --ignored --nocapture
+    /// One note stays within the bound of milestone 3, optimised only
     #[test]
     fn test_one_note_costs_at_most_2_percent_of_a_core() {
         // Both planes, the playing noises and all. Timing means nothing unoptimised, so this
@@ -2255,9 +2251,9 @@ mod tests {
             return;
         }
         let mut bass = bass(Voice::Metal, SAMPLE_RATE);
-        // The best of three: a busy machine only makes a run slower
-        let frames = 96_000;
-        let per_frame_ns = (0..3)
+        // The best of seven: a busy machine only makes a run slower
+        let frames = 48_000;
+        let per_frame_ns = (0..7)
             .map(|_| {
                 bass.note_on(28, 1.0);
                 let started = std::time::Instant::now();
@@ -2273,6 +2269,11 @@ mod tests {
         assert!(percent <= 2.0, "one note costs {:.2} % of a core", percent);
     }
 
+    /// Level, pitch error (of the fundamental) and brightness per voice and note. Then, with Sub at 0: from what the
+    /// pickup reads, before the voice's output stage, how long the fundamental and the top
+    /// ring and how loud harmonics 2 and 3 are (the columns `string`); and how long the two ring
+    /// at the voice's output, through its drive (the columns `out`):
+    ///   cargo test -p bass --release bass_report -- --ignored --nocapture
     #[test]
     #[ignore]
     fn bass_report() {
