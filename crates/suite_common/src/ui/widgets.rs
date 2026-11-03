@@ -312,7 +312,7 @@ pub fn crossfader<P: Param>(
             position
         };
         let position = position.clamp(0.0, 1.0);
-        ui.data_mut(|data| data.insert_temp(id, (0.0, position)));
+        ui.data_mut(|data| data.insert_temp(id, (held, position)));
         setter.set_parameter_normalized(param, position);
     }
     if response.drag_stopped() {
