@@ -37,9 +37,10 @@ jobs:
       - name: Test
         run: cargo test --workspace --locked
 
-      # The clippers' two-at-a-time path is only compiled in optimised x86-64 builds
-      - name: Test the amp, optimised
-        run: cargo test -p amp --release --locked
+      # The clippers' two-at-a-time path is only compiled in optimised x86-64 builds, and the
+      # bass's cost bound only means something optimised
+      - name: Test the amp and the bass, optimised
+        run: cargo test -p amp -p bass --release --locked
 
   lint:
     name: Format and clippy

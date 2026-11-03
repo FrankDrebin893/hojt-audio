@@ -52,6 +52,33 @@ How it behaves:
   ±0.015 of the string), how round its edges are (±15 %) and the click's level (±25 %), the
   first two each to the other side of the last pluck, from the voice's own `Noise` (a fixed
   seed, so renders and tests repeat). Velocity is untouched
+- The string has two planes: a second loop (its own line, low-pass state, all-pass states and gain)
+  written and read with the first. It is plucked a quarter of a period later at 0.15 of the
+  first's level, rings 1.2 times as long and runs `PLANE_BEAT_HZ` (0.4 Hz, in Hz not in cents, so
+  that the fundamental beats at every pitch) sharp of it, so a held note breathes and its level
+  from 1 to 3 s is not a straight line in dB. The quarter period makes the two start a quarter of
+  a beat apart, so the level ripples about where it would be instead of falling first (Sustain
+  still reads right). The pickup reads both. The first plane is tuned `PLANE_FLAT_HZ` flat, which
+  takes back what the second pulls the note up by, so notes stay within 1 cent. The sine follows
+  the first plane. The second plane's pluck is never random: only `noise` draws where a pluck
+  lands, and `touch_noise` draws what the hand and the finger make, so that a longer scrape
+  does not move the jitter of the plucks after it. `STRING_GAIN` went from 0.7 to 0.62: a level trim
+  for the second plane, which adds about 1.3 dB to the first, so the voices stay about as loud
+- Tuning: the second plane pulls the spectral peak of the sum up by a fixed 0.03 to 0.04 Hz, so
+  `PLANE_FLAT_HZ` (0.03) takes it back; the amplitude-weighted 0.052 Hz is too much (low E 1.4
+  cents flat). Milestone 3 moved three tests: the sine test's centroid factor is 1.4, not 1.5
+  (Groove's G, note 43, is at 224 to 226 Hz against 233 before the planes, 1.45 times; the quarter
+  period puts the planes' 2nd harmonics against each other, which lifts the fundamental's share);
+  Metal against Groove's brightness is 1.7 times, not 2 (it was 2.14: Groove's finger knock is
+  brightness); and the hard-pluck test measures the first plane alone (`line_other` silenced),
+  since the 0.4 Hz beat biases a 20 ms period read on the low E
+- The cost of one note is held by `test_one_note_costs_at_most_2_percent_of_a_core`, which runs
+  only optimised (`scripts/check.sh` and `ci.yml` run `cargo test -p amp -p bass --release`)
+- The hand: Metal's pick scrapes (noise of 2.5 ms that swells over a fifth of it and dies, in
+  the pluck), Groove's finger lands with a knock (an impulse through a resonance at 1.5 kHz, with
+  a little noise, a few ms) and a small thump (one period of a sine of 3 ms), all scaled by the
+  velocity. Letting go of a held note makes a tick (smoothed, differenced noise that dies in
+  4 ms) before the cabinet, 30 to 45 dB under the note's peak; none from a note that is not held
 - A pluck starts sharp by the square of its velocity (6 cents at full velocity) and falls to
   pitch with a 60 ms time constant; the tuning is measured after it has settled
 - A new pluck on the same note keeps a quarter of what was ringing under it (a pick lands on a
@@ -90,7 +117,7 @@ How it behaves:
 | Transpose (`transpose`) | -24 to +24 st | 0 | 0 | |
 | Bend (`bend`) | 1-12 st | 2 | 2 | How far the pitch-bend wheel goes at its end; no voice sets it |
 
-Tests sit next to the code (`bass.rs`): tuning at several rates, envelopes, the two voices, the pitch-bend wheel (its range, back to centre, a pluck and a slide while bent, no zipper, Sustain on a bent note), bounded output with everything up and the wheel at both ends, and the tone: the top dies before the fundamental, the same note sounds the same while two plucks in a row are not copies, a hard pluck starts sharp and settles, Metal's drive lets the note die, Groove has harmonics, the sine does not take over a held note and sits under the string (what it adds to the fundamental, the fundamental's share of the harmonics' power and their centroid, at 50 ms), the pickup's notch moves with the fret, the string is stiff (the low E's 10th partial 8 to 30 cents sharp, the 5th less, and every note within 1 cent of its pitch from 44.1 to 192 kHz), and a new pluck does not click. Two ignored tests are tools for working on the sound:
+Tests sit next to the code (`bass.rs`): tuning at several rates, envelopes, the two voices, the pitch-bend wheel (its range, back to centre, a pluck and a slide while bent, no zipper, Sustain on a bent note), bounded output with everything up and the wheel at both ends, and the tone: the top dies before the fundamental, the same note sounds the same while two plucks in a row are not copies, a hard pluck starts sharp and settles, Metal's drive lets the note die, Groove has harmonics, the sine does not take over a held note and sits under the string (what it adds to the fundamental, the fundamental's share of the harmonics' power and their centroid, at 50 ms), the pickup's notch moves with the fret, the string is stiff (the low E's 10th partial 8 to 30 cents sharp, the 5th less, and every note within 1 cent of its pitch from 44.1 to 192 kHz), a held note's level from 1 to 3 s is 0.5 to 3 dB off a straight line, Groove has more energy above 1 kHz in its first 5 ms than before its finger attack, letting go of a note makes a sound 30 to 45 dB under its peak, and a new pluck does not click. Two ignored tests are tools for working on the sound:
 
 ```bash
 # Level, tuning and brightness per note; with Sub at 0, from what the pickup reads before the
@@ -98,7 +125,9 @@ Tests sit next to the code (`bass.rs`): tuning at several rates, envelopes, the 
 # levels of harmonics 2 and 3, and the same two T60s at the output ("out"); at velocity 0.8 with
 # the voice's settings, what the sine adds to the fundamental at 50 ms, the fundamental's share
 # of the power of the harmonics up to 6 kHz, their power-weighted centroid and the 5th against
-# the fundamental; how many cents sharp the 5th and 10th partials of the string run; and the cost
+# the fundamental; how far the level from 1 to 3 s is off a straight line, the energy above 1 kHz in
+# the first 5 ms and the sound of letting go; how many cents sharp the 5th and 10th partials of
+# the string run; and the cost (at most 2 % of a core)
 cargo test -p bass --release bass_report -- --ignored --nocapture
 
 # WAV files in target/renders: bass_metal.wav, bass_groove.wav, and a walking, a reggae and a
