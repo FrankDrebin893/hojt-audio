@@ -21,7 +21,7 @@ const BORDER: Color32 = Color32::from_rgb(54, 61, 68);
 /// The readout, and the lit lamp of the tuner's needle
 const INK: Color32 = Color32::from_rgb(226, 240, 246);
 /// The needle's lamps that are not lit, and the middle one when in tune
-const UNLIT: Color32 = Color32::from_rgb(74, 84, 92);
+const UNLIT: Color32 = Color32::from_rgb(112, 124, 134);
 const IN_TUNE: Color32 = Color32::from_rgb(112, 236, 162);
 
 /// How wide a display is that holds `chars` characters
@@ -124,7 +124,7 @@ pub fn tuner_display(
     for lamp in -LAMPS..=LAMPS {
         let level = needle_brightness(lamp, cents);
         let x = middle + lamp as f32 * LAMP_STEP;
-        let half = if lamp == 0 { 9.0 } else { 5.0 };
+        let half = if lamp == 0 { 10.0 } else { 6.0 };
         let bar = Rect::from_center_size(Pos2::new(x, window.center().y), vec2(3.0, 2.0 * half));
         let lit = if lamp == 0 { IN_TUNE } else { INK };
         let color = blend_color(UNLIT, lit, level);
