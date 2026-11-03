@@ -206,3 +206,52 @@ fn test_process_with_the_click_on_its_own_output_allocates_nothing() {
         &[],
     );
 }
+
+/// The EQ pedal: off, on with every band moved, a dial turned while it plays and switched on
+/// and off in the middle of a block, in front of the amp (at the rates that oversample 4 and
+/// 2 times) and behind the cabinet
+#[test]
+fn test_the_eq_allocates_nothing() {
+    use crate::chain::AmpSettings;
+    use crate::eq::EqSettings;
+    use crate::order::{ChainOrder, Pedal, Zone};
+    for sample_rate in [44_100.0, 192_000.0] {
+        for zone in [Zone::Front, Zone::Back] {
+            let mut chain = AmpChain::new();
+            chain.set_sample_rate(sample_rate);
+            let order = ChainOrder::default().moved(Pedal::Eq, zone, 0);
+            let mut left = vec![0.0f32; host::BLOCKS[0]];
+            let mut right = vec![0.0f32; host::BLOCKS[0]];
+            host::assert_allocates_nothing("The EQ", || {
+                for block in 0..300 {
+                    let len = host::BLOCKS[block % host::BLOCKS.len()];
+                    for i in 0..len {
+                        left[i] = (i as f32 * 0.0144).sin() * 0.5;
+                        right[i] = left[i];
+                    }
+                    let dial = (block % 40) as f32 / 40.0;
+                    let eq = match block / 50 % 3 {
+                        0 => EqSettings::default(),
+                        1 => EqSettings {
+                            on: true,
+                            low: dial,
+                            mid: 1.0 - dial,
+                            freq: dial,
+                            high: dial,
+                        },
+                        _ => EqSettings {
+                            on: block % 2 == 0,
+                            low: 0.9,
+                            mid: 0.1,
+                            freq: dial,
+                            high: 0.0,
+                        },
+                    };
+                    let settings = AmpSettings { eq, order, ..AmpSettings::default() };
+                    chain.process(&settings, &mut left[..len], Some(&mut right[..len]));
+                    chain.process(&settings, &mut left[..len], None);
+                }
+            });
+        }
+    }
+}

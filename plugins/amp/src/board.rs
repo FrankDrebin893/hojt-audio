@@ -12,18 +12,18 @@ use nih_plug_egui::egui::{vec2, Id, Painter, Pos2, Rect, Ui};
 use suite_common::ui::{self, BENCH_MARGIN, PLUG_Y};
 
 use crate::editor::{
-    Jacks, Pedals, DELAY_SLOT, GATE_SLOT, PEDAL_HEIGHT, PEDAL_TOP, PEDAL_WIDTH, PITCH_SLOT,
-    STACK_TOP,
+    Jacks, Pedals, DELAY_SLOT, EQ_SLOT, GATE_SLOT, PEDAL_HEIGHT, PEDAL_TOP, PEDAL_WIDTH,
+    PITCH_SLOT, STACK_TOP,
 };
 use crate::order::{self, ChainOrder};
 
-// Eleven pedals and the stack
-const PEDALS: usize = 12;
+// Twelve pedals and the stack
+const PEDALS: usize = 13;
 /// The two lanes (a head and its cabinet each) and the plate where they meet
 pub const STACK_WIDTH: f32 = 700.0;
-pub const WINDOW_WIDTH: u32 = 2997;
+pub const WINDOW_WIDTH: u32 = 3204;
 /// The space between two neighbours of the row: what is left of the window, after a margin at
-/// each end, eleven pedals of one width and the stack, shared by the eleven gaps
+/// each end, twelve pedals of one width and the stack, shared by the twelve gaps
 const GAP: f32 =
     (WINDOW_WIDTH as f32 - 2.0 * BENCH_MARGIN - ((PEDALS - 1) as f32 * PEDAL_WIDTH + STACK_WIDTH))
         / (PEDALS - 1) as f32;
@@ -45,6 +45,7 @@ enum Pedal {
     Delay,
     Reverb,
     Pitch,
+    Eq,
 }
 
 /// Where in the chain a pedal may be
@@ -71,7 +72,8 @@ impl Pedal {
             | Pedal::Phaser
             | Pedal::Chorus
             | Pedal::Flanger
-            | Pedal::Tremolo => Zone::Either,
+            | Pedal::Tremolo
+            | Pedal::Eq => Zone::Either,
         }
     }
 
@@ -91,6 +93,7 @@ impl Pedal {
             Pedal::Tremolo => 8,
             Pedal::Fuzz => 9,
             Pedal::Pitch => PITCH_SLOT,
+            Pedal::Eq => EQ_SLOT,
         })
     }
 
@@ -115,6 +118,7 @@ impl Pedal {
             Pedal::Delay => Some(order::Pedal::Delay),
             Pedal::Reverb => Some(order::Pedal::Reverb),
             Pedal::Pitch => Some(order::Pedal::Pitch),
+            Pedal::Eq => Some(order::Pedal::Eq),
         }
     }
 
@@ -130,6 +134,7 @@ impl Pedal {
             order::Pedal::Delay => Pedal::Delay,
             order::Pedal::Reverb => Pedal::Reverb,
             order::Pedal::Pitch => Pedal::Pitch,
+            order::Pedal::Eq => Pedal::Eq,
         }
     }
 }
@@ -147,7 +152,7 @@ impl Default for Order {
         use Pedal::*;
         Self {
             pedals: [
-                Gate, Pitch, Fuzz, Comp, Drive, Phaser, Stack, Chorus, Flanger, Tremolo, Delay,
+                Gate, Pitch, Fuzz, Comp, Drive, Phaser, Stack, Chorus, Flanger, Tremolo, Eq, Delay,
                 Reverb,
             ],
             front: 6,
@@ -388,8 +393,9 @@ fn signal(
 mod tests {
     use super::*;
 
-    const MOVABLE: [Pedal; 10] = [
+    const MOVABLE: [Pedal; 11] = [
         Pedal::Pitch,
+        Pedal::Eq,
         Pedal::Fuzz,
         Pedal::Comp,
         Pedal::Drive,
@@ -486,6 +492,9 @@ mod tests {
         // The pitch shifter has three knobs: a wide pedal, in front of the amp only
         assert!(!Pedals::is_slim(PITCH_SLOT));
         assert!(Pedal::Pitch.zone() == Zone::Front);
+        // The EQ has four, as wide, and stands on either side
+        assert!(!Pedals::is_slim(EQ_SLOT));
+        assert!(Pedal::Eq.zone() == Zone::Either);
     }
 
     #[test]
@@ -508,7 +517,7 @@ mod tests {
         assert_eq!(
             moved.pedals,
             [
-                Gate, Chorus, Pitch, Fuzz, Comp, Drive, Phaser, Stack, Flanger, Tremolo, Delay,
+                Gate, Chorus, Pitch, Fuzz, Comp, Drive, Phaser, Stack, Flanger, Tremolo, Eq, Delay,
                 Reverb
             ]
         );
@@ -518,7 +527,7 @@ mod tests {
         assert_eq!(
             moved.pedals,
             [
-                Gate, Pitch, Fuzz, Comp, Phaser, Drive, Stack, Chorus, Flanger, Tremolo, Delay,
+                Gate, Pitch, Fuzz, Comp, Phaser, Drive, Stack, Chorus, Flanger, Tremolo, Eq, Delay,
                 Reverb
             ]
         );
@@ -529,7 +538,7 @@ mod tests {
             moved.pedals,
             [
                 Gate, Pitch, Fuzz, Comp, Drive, Phaser, Stack, Reverb, Chorus, Flanger, Tremolo,
-                Delay
+                Eq, Delay
             ]
         );
         assert_eq!(moved.front, 6);
@@ -538,7 +547,7 @@ mod tests {
         assert_eq!(
             moved.pedals,
             [
-                Gate, Pitch, Fuzz, Comp, Drive, Stack, Chorus, Flanger, Tremolo, Delay, Reverb,
+                Gate, Pitch, Fuzz, Comp, Drive, Stack, Chorus, Flanger, Tremolo, Eq, Delay, Reverb,
                 Phaser
             ]
         );
@@ -548,8 +557,8 @@ mod tests {
         assert_eq!(
             moved.pedals,
             [
-                Gate, Pitch, Comp, Drive, Phaser, Stack, Chorus, Flanger, Tremolo, Delay, Reverb,
-                Fuzz
+                Gate, Pitch, Comp, Drive, Phaser, Stack, Chorus, Flanger, Tremolo, Eq, Delay,
+                Reverb, Fuzz
             ]
         );
         assert_eq!(moved.front, 5);
@@ -558,10 +567,33 @@ mod tests {
         assert_eq!(
             moved.pedals,
             [
-                Gate, Fuzz, Comp, Drive, Phaser, Pitch, Stack, Chorus, Flanger, Tremolo, Delay,
+                Gate, Fuzz, Comp, Drive, Phaser, Pitch, Stack, Chorus, Flanger, Tremolo, Eq, Delay,
                 Reverb
             ]
         );
         assert_eq!(moved.front, 6);
+        // The EQ across the amp to right behind the gate: in front of the amp
+        let moved = order.nearest(Eq, 0.0);
+        assert_eq!(
+            moved.pedals,
+            [
+                Gate, Eq, Pitch, Fuzz, Comp, Drive, Phaser, Stack, Chorus, Flanger, Tremolo, Delay,
+                Reverb
+            ]
+        );
+        assert_eq!(moved.front, 7);
+        // And to the far end: last of all, behind the cabinet
+        let moved = order.nearest(Eq, WINDOW_WIDTH as f32);
+        assert_eq!(
+            moved.pedals,
+            [
+                Gate, Pitch, Fuzz, Comp, Drive, Phaser, Stack, Chorus, Flanger, Tremolo, Delay,
+                Reverb, Eq
+            ]
+        );
+        assert_eq!(moved.front, 6);
+        // Right in front of the amp: the last place before it
+        let moved = order.nearest(Eq, order.places()[Stack as usize]);
+        assert_eq!(moved.pedals[moved.front - 1], Eq);
     }
 }

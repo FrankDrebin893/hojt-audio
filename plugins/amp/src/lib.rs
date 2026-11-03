@@ -13,6 +13,7 @@ mod dial_memory;
 mod drive;
 mod dsp;
 mod editor;
+mod eq;
 mod fuzz;
 mod gate;
 mod lamps;
@@ -39,6 +40,7 @@ use chain::{AmpChain, AmpSettings, GATE_RELEASE_MS, GATE_THRESHOLD_DB, IN_GAIN_D
 use comp::CompSettings;
 use delay::{DelaySettings, FEEDBACK_MAX, TIME_MAX_MS, TIME_MIN_MS};
 use dial_memory::DialMemory;
+use eq::EqSettings;
 use fuzz::FuzzSettings;
 use metronome::{ClickOut, Metronome, MetronomeSettings, Sound, TimeSignature};
 use mods::chorus::{self, ChorusSettings};
@@ -93,7 +95,7 @@ pub enum Task {
 // The full table of ids is in `ids.txt`, held by the `ids` test
 #[derive(Params)]
 pub struct GuitarAmpParams {
-    #[persist = "editor-state-rig7"]
+    #[persist = "editor-state-rig8"]
     pub editor_state: Arc<EguiState>,
 
     /// Index into `presets::PRESETS` of the preset loaded last. Not a parameter: the editor
@@ -369,6 +371,25 @@ pub struct GuitarAmpParams {
     // leave it alone like the metronome's other six
     #[id = "metronome_out"]
     pub metronome_out: EnumParam<ClickOut>,
+
+    // EQ pedal, on either side of the amp. Last in the list so every parameter before it
+    // keeps its place for a host that shows them in order. The dials are 0 to 10 around a
+    // flat 5, like the amp's
+    #[id = "eq_on"]
+    pub eq_on: BoolParam,
+
+    #[id = "eq_low"]
+    pub eq_low: FloatParam,
+
+    #[id = "eq_mid"]
+    pub eq_mid: FloatParam,
+
+    /// Where Mid is centred, 200 Hz to 5 kHz in octaves
+    #[id = "eq_freq"]
+    pub eq_freq: FloatParam,
+
+    #[id = "eq_high"]
+    pub eq_high: FloatParam,
 }
 
 impl Default for GuitarAmpPlugin {
@@ -596,6 +617,12 @@ impl Default for GuitarAmpParams {
             .with_value_to_string(formatters::v2s_f32_rounded(0)),
 
             metronome_out: EnumParam::new("Metronome Output", ClickOut::Mixed),
+
+            eq_on: BoolParam::new("EQ", defaults.eq.on),
+            eq_low: dial_param("EQ Low", defaults.eq.low),
+            eq_mid: dial_param("EQ Mid", defaults.eq.mid),
+            eq_freq: dial_param("EQ Freq", defaults.eq.freq),
+            eq_high: dial_param("EQ High", defaults.eq.high),
         }
     }
 }
@@ -658,6 +685,13 @@ impl GuitarAmpParams {
                 on: self.comp_on.value(),
                 sustain: self.comp_sustain.value(),
                 level: self.comp_level.value(),
+            },
+            eq: EqSettings {
+                on: self.eq_on.value(),
+                low: self.eq_low.value(),
+                mid: self.eq_mid.value(),
+                freq: self.eq_freq.value(),
+                high: self.eq_high.value(),
             },
             pitch: PitchSettings {
                 on: self.pitch_on.value(),
@@ -1030,6 +1064,10 @@ mod tests {
         );
         assert_eq!((settings.fuzz.on, settings.fuzz.fuzz, settings.fuzz.tone), (false, 0.5, 0.5));
         assert_eq!(
+            (settings.eq.on, settings.eq.low, settings.eq.mid, settings.eq.freq, settings.eq.high),
+            (false, 0.5, 0.5, 0.5, 0.5)
+        );
+        assert_eq!(
             (
                 settings.pitch.on,
                 settings.pitch.semitones,
@@ -1381,7 +1419,7 @@ mod tests {
     }
 
     #[test]
-    fn test_the_amp_has_a_stereo_metronome_output_and_the_click_switch_is_last() {
+    fn test_the_amp_has_a_stereo_metronome_output_and_the_click_switch_comes_before_the_eq() {
         for layout in GuitarAmpPlugin::AUDIO_IO_LAYOUTS {
             assert_eq!(layout.aux_output_ports.len(), 1);
             assert_eq!(layout.aux_output_ports[0].get(), 2);
@@ -1389,7 +1427,9 @@ mod tests {
         }
         let ids: Vec<String> =
             GuitarAmpParams::default().param_map().into_iter().map(|(id, _, _)| id).collect();
-        assert_eq!(ids.last().map(String::as_str), Some("metronome_out"));
+        // Only the EQ's five come after it
+        assert_eq!(ids.iter().position(|id| id == "metronome_out"), Some(ids.len() - 6));
+        assert_eq!(&ids[ids.len() - 5..], ["eq_on", "eq_low", "eq_mid", "eq_freq", "eq_high"]);
         assert_eq!(GuitarAmpParams::default().metronome_out.value(), ClickOut::Mixed);
     }
 
@@ -1506,6 +1546,10 @@ mod tests {
             &params.comp_level,
             &params.fuzz_fuzz,
             &params.fuzz_tone,
+            &params.eq_low,
+            &params.eq_mid,
+            &params.eq_freq,
+            &params.eq_high,
         ] {
             assert_eq!(range(dial), (0.0, 1.0));
         }

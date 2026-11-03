@@ -52,6 +52,8 @@ pub enum Motif {
     Geyser,
     /// The midnight sun skimming the sea (wide, three knobs)
     Horizon,
+    /// Basalt columns of different heights, like the bars of an equaliser (wide, four knobs)
+    Columns,
 }
 
 /// Paints `motif` on the top face `face` of a pedal painted `paint`. Call it over the paint
@@ -77,6 +79,7 @@ pub(super) fn motif(painter: &Painter, face: Rect, paint: Color32, motif: Motif)
         Motif::Fjord => fjord(&print),
         Motif::Geyser => geyser(&print),
         Motif::Horizon => horizon(&print),
+        Motif::Columns => columns(&print),
     }
 }
 
@@ -445,5 +448,25 @@ fn horizon(print: &Print) {
     for (y, from, to) in [(280.0, 16.0, 48.0), (292.0, 26.0, 54.0)] {
         print.line((from, y), (to, y));
         print.line((print.width() - to, y), (print.width() - from, y));
+    }
+}
+
+fn columns(print: &Print) {
+    // Basalt: seven hexagonal columns across the foot of the face, side by side, each a light
+    // top and two faces, the left one darker, at staggered heights. They stay below the
+    // knobs' captions except in the middle, where nothing is printed above the switch
+    let width = print.width();
+    let tops = [236.0, 244.0, 238.0, 204.0, 242.0, 232.0, 240.0];
+    let step = width / tops.len() as f32;
+    for (index, top) in tops.into_iter().enumerate() {
+        let (left, right) = (index as f32 * step - 1.0, (index + 1) as f32 * step + 1.0);
+        let middle = (left + right) / 2.0;
+        let bottom = print.height();
+        print.rect((left, top + 6.0), (middle + 1.0, bottom), shade(print.paint, COAT * 2.2));
+        print.rect((middle - 1.0, top + 6.0), (right, bottom), shade(print.paint, COAT * 1.2));
+        print.fill(
+            &[(left, top + 6.0), (middle, top), (right, top + 6.0), (middle, top + 13.0)],
+            shade(print.paint, COAT * 0.35),
+        );
     }
 }

@@ -76,8 +76,8 @@ const MODS_OFF: [(bool, f32, f32); 4] =
     [(OFF, 0.8, 50.0), (OFF, 0.5, 50.0), (OFF, 0.3, 50.0), (OFF, 5.0, 50.0)];
 // The order the chain starts in: `ChainOrder::default`
 const USUAL_ORDER: &[&str] = &[
-    "pitch", "fuzz", "comp", "drive", "phaser", "amp", "chorus", "flanger", "tremolo", "delay",
-    "reverb",
+    "pitch", "fuzz", "comp", "drive", "phaser", "amp", "chorus", "flanger", "tremolo", "eq",
+    "delay", "reverb",
 ];
 
 // Chosen from the amp models' constants and measured with `preset_report` below: nobody
@@ -384,7 +384,7 @@ pub static PRESETS: [Preset; 27] = [
         mods: [(ON, 0.6, 50.0), (OFF, 0.5, 50.0), (OFF, 0.3, 50.0), (OFF, 5.0, 50.0)],
         order: &[
             "pitch", "fuzz", "comp", "chorus", "drive", "phaser", "amp", "flanger", "tremolo",
-            "reverb", "delay",
+            "eq", "reverb", "delay",
         ],
     },
     // Glød. Edge of breakup by the fire: the amp's own warmth at the middle of the Gain dial,
@@ -584,7 +584,7 @@ pub fn index_or_first(stored: u32) -> usize {
 
 impl Preset {
     /// Every continuous parameter the preset holds, with the value it gets
-    fn knobs<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a FloatParam, f32); 39] {
+    fn knobs<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a FloatParam, f32); 43] {
         let [gain, bass, mid, treble, presence, master] = self.dials;
         let (_, gate_thresh_db, gate_release_ms) = self.gate;
         let (_, [drive_gain, drive_tone, drive_level]) = self.drive;
@@ -596,6 +596,7 @@ impl Preset {
         let [chorus, phaser, flanger, tremolo] = self.mods;
         let [gain2, bass2, mid2, treble2, presence2, master2] = self.second.dials;
         let pitch = PitchSettings::default();
+        let eq = crate::eq::EqSettings::default();
         [
             (&params.fuzz_fuzz, dial(fuzz_fuzz)),
             (&params.fuzz_tone, dial(fuzz_tone)),
@@ -637,11 +638,16 @@ impl Preset {
             // No factory preset uses the pitch shifter: it is switched off, where it starts
             (&params.pitch_blend, pitch.blend),
             (&params.pitch_latency, pitch.latency_ms),
+            // Nor the EQ: off, with every dial flat
+            (&params.eq_low, eq.low),
+            (&params.eq_mid, eq.mid),
+            (&params.eq_freq, eq.freq),
+            (&params.eq_high, eq.high),
         ]
     }
 
     /// Every switch the preset holds, with the position it gets
-    fn switches<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a BoolParam, bool); 14] {
+    fn switches<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a BoolParam, bool); 15] {
         [
             (&params.amp2_on, self.second.on),
             (&params.gate_on, self.gate.0),
@@ -659,6 +665,7 @@ impl Preset {
             (&params.delay_sync, false),
             (&params.reverb_on, self.reverb.0),
             (&params.pitch_on, false),
+            (&params.eq_on, false),
         ]
     }
 
