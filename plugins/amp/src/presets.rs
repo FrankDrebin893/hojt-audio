@@ -807,6 +807,7 @@ mod tests {
                 second: SecondSettings {
                     on: self.second.on,
                     amp: self.second.amp,
+                    speaker: None,
                     gain: gain2,
                     bass: bass2,
                     mid: mid2,

@@ -93,7 +93,7 @@ pub enum Task {
 // The full table of ids is in `ids.txt`, held by the `ids` test
 #[derive(Params)]
 pub struct GuitarAmpParams {
-    #[persist = "editor-state-rig6"]
+    #[persist = "editor-state-rig7"]
     pub editor_state: Arc<EguiState>,
 
     /// Index into `presets::PRESETS` of the preset loaded last. Not a parameter: the editor
@@ -128,6 +128,12 @@ pub struct GuitarAmpParams {
     /// switched the second amp away from it. Not parameters either
     #[persist = "amp2-dials"]
     pub dial_memory_second: DialMemory,
+
+    /// The built-in cabinet the second amp plays through, as `cabinet` is the first amp's
+    /// (but never a file): empty for the second amp's own, else `speaker:<id>`. Not a
+    /// parameter. The chain reads it with the dials
+    #[persist = "cabinet2"]
+    pub cabinet_second: second::SecondCabinet,
 
     /// The order the pedals stand in. Not a parameter: an arrangement cannot be automated.
     /// The editor changes it, and the audio thread reads it with the dials
@@ -400,6 +406,7 @@ impl Default for GuitarAmpParams {
                 defaults.master,
             ]),
             dial_memory_second: DialMemory::new(defaults.second.dials()),
+            cabinet_second: second::SecondCabinet::new(),
 
             bypass: BoolParam::new("Bypass", defaults.bypass).make_bypass(),
 
@@ -672,6 +679,7 @@ impl GuitarAmpParams {
             second: SecondSettings {
                 on: self.amp2_on.value(),
                 amp: self.amp2.value(),
+                speaker: self.cabinet_second.get(),
                 gain: self.amp2_gain.value(),
                 bass: self.amp2_bass.value(),
                 mid: self.amp2_mid.value(),

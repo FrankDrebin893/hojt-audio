@@ -484,7 +484,7 @@ impl AmpChain {
         self.second.set_sample_rate(
             sample_rate,
             self.factor,
-            &self.cab_irs[self.second.amp.index()],
+            &self.cab_irs[self.second.ir_index()],
         );
 
         self.configure_amp();
@@ -589,14 +589,15 @@ impl AmpChain {
     }
 
     /// The second amp's counterpart of `follow_amp`, and puts its stages to rest once it is
-    /// switched off and has faded out. Does not allocate. Its cabinet is always its own amp's
+    /// switched off and has faded out. Does not allocate. Its cabinet is its own amp's or a
+    /// built-in one, never a file
     fn follow_second(&mut self) {
         if !self.second.runs() && !self.second.at_rest {
             self.second.reset_stages();
             self.second.amp_fade = self.amp_fade_len;
             self.second.cabinet_busy = 0;
         }
-        if self.second.wanted_amp == self.second.amp {
+        if !self.second.switching() {
             return;
         }
         // Nothing of the second amp is heard before the first block, while bypassed and
@@ -608,7 +609,8 @@ impl AmpChain {
         }
 
         self.second.amp = self.second.wanted_amp;
-        let ir = &self.cab_irs[self.second.amp.index()];
+        self.second.speaker = self.second.wanted_speaker;
+        let ir = &self.cab_irs[self.second.ir_index()];
         if unheard {
             self.second.cabinet.set_ir(ir);
             self.second.amp_fade = self.amp_fade_len;
@@ -801,6 +803,8 @@ impl AmpChain {
     ) {
         self.wanted_amp = settings.amp;
         self.second.wanted_amp = settings.second.amp;
+        self.second.wanted_speaker =
+            settings.second.speaker.filter(|&speaker| speaker < SPEAKERS.len());
         self.mic_type = settings.mic_type;
         let wet_target = if settings.bypass { 0.0 } else { 1.0 };
         if !self.primed {
@@ -828,7 +832,7 @@ impl AmpChain {
                     len = len.min(wait);
                 }
             }
-            if self.second.wanted_amp != self.second.amp && self.second.on_fade > 0 {
+            if self.second.switching() && self.second.on_fade > 0 {
                 // And likewise for the second amp, while it is heard
                 let wait = if self.second.amp_fade > 0 {
                     self.second.amp_fade as usize
@@ -6921,6 +6925,75 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_the_second_amp_plays_through_a_cabinet_of_its_own_choice() {
+        // A built-in cabinet for the second amp changes its sound and nothing of the first
+        // amp's: at Blend 0 the output is the first amp alone, to the bit, and at Blend 1 the
+        // same amp through the same cabinet as the first one would play it through
+        let input = power_chords(SAMPLE_RATE, 0.6);
+        let heavy = speaker_index("4x12-heavy").unwrap();
+        let small = speaker_index("1x8-tiny").unwrap();
+        let with = |speaker: Option<usize>, blend: f32| AmpSettings {
+            second: SecondSettings {
+                speaker,
+                ..dual(busy(Amp::Torden, 0.7), Amp::Klar, blend).second
+            },
+            blend,
+            ..busy(Amp::Torden, 0.7)
+        };
+        for rate in RATES {
+            let own = run_stereo(&with(None, 1.0), &input, rate);
+            let heavier = run_stereo(&with(Some(heavy), 1.0), &input, rate);
+            let tiny = run_stereo(&with(Some(small), 1.0), &input, rate);
+            assert!(own != heavier && heavier != tiny && own != tiny, "{rate} Hz");
+            assert!(
+                run_stereo(&with(Some(heavy), 0.0), &input, rate)
+                    == run_stereo(&with(None, 0.0), &input, rate),
+                "blend 0, {rate} Hz"
+            );
+            // The first amp's cabinet picked on the stage plays the second amp the same way
+            let second_only = AmpSettings { blend: 1.0, ..with(Some(heavy), 1.0) };
+            let mut chain = new_chain(rate);
+            chain.cab_stage().offer_speaker(heavy, rate);
+            let reference =
+                run_stereo_blocks(&mut chain, &second_alone(&second_only), &input, BLOCK);
+            let output = run_stereo(&second_only, &input, rate);
+            let top = peak(&reference.0);
+            let off = largest_difference(&output.0, &reference.0);
+            assert!(off < 1e-4 * top, "{} is off by {off} of {top}", SPEAKERS[heavy].id);
+        }
+    }
+
+    #[test]
+    fn test_the_second_amps_cabinet_is_saved_by_its_id() {
+        use crate::second::SecondCabinet;
+        let choice = SecondCabinet::new();
+        assert_eq!((choice.get(), choice.choice()), (None, String::new()));
+        for speaker in 0..SPEAKERS.len() {
+            choice.put(Some(speaker));
+            let saved = choice.choice();
+            assert_eq!(saved, format!("speaker:{}", SPEAKERS[speaker].id));
+            let read = SecondCabinet::new();
+            read.set_choice(&saved);
+            assert_eq!(read.get(), Some(speaker));
+        }
+        // One this build does not have, and a file, are the amp's own
+        choice.set_choice("speaker:8x10-huge");
+        assert_eq!(choice.get(), None);
+        choice.set_choice("Alpha.wav");
+        assert_eq!(choice.get(), None);
+        // Stepping goes round the own cabinet and the built-in ones, both ways
+        let mut seen = Vec::new();
+        for _ in 0..=SPEAKERS.len() {
+            seen.push(choice.get());
+            choice.step(true);
+        }
+        assert_eq!(choice.get(), None);
+        assert_eq!(seen.len(), SPEAKERS.len() + 1);
+        choice.step(false);
+        assert_eq!(choice.get(), Some(SPEAKERS.len() - 1));
     }
 
     #[test]
