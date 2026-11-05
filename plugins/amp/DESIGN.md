@@ -239,10 +239,10 @@ The reasons behind choices that the code alone does not explain. What it does is
   panel's one line of knobs left no room for full scales at radius 19 with the jack and the
   pilot lamp beside them, so the dials are radius 18, and a scale is measured by where its
   ticks end, not by a circle round it (#99)
-- The window's size is persisted under a key of its own (`editor-state-rig9`); it is renamed
+- The window's size is persisted under a key of its own (`editor-state-rig10`); it is renamed
   whenever the default size changes, so a project saved before opens at the new size. The board is
   drawn in 3204 x 650 points on `ui::rig_layer()` and scaled by a layer transform (`0.4` to `1.0`,
-  opening at `0.55`, `1762 x 358` px) inside `ResizableWindow` with the `3204 : 650` proportions
+  opening sized to the screen up to the full `3204 x 650` or `1762 x 358` px on a `1920 x 1080` screen) inside `ResizableWindow` with the `3204 : 650` proportions
   locked (#227)
 - The gate's `OPEN` lamp is its own small lamp: a half-lit pedal LED was built and rejected
   because at 30 % the lens is about the colour of the paint

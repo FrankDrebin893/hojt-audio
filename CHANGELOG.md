@@ -65,11 +65,11 @@ GitHub release.
 
 ### Guitar Amp
 
-- The Guitar Amp window now opens at a smaller size (1762 x 358 px, 55 % of the full board) so the
-  whole rig fits on a 1920 x 1080 screen, and a handle in the bottom-right corner resizes it
-  between 40 % and 100 % (1282 x 260 to 3204 x 650 px) with the proportions locked. The size is
-  saved with the project (`editor-state-rig9`), so the window reopens where it was left; projects
-  saved before open at the new default size with all their settings intact.
+- The Guitar Amp window now scales with the screen when it opens (up to the full 3204 x 650 px on
+  a wide screen, 1762 x 358 px on a 1920 x 1080 screen, down to 1282 x 260 px on smaller laptops),
+  and a handle in the bottom-right corner resizes it between 40 % and 100 % with the proportions
+  locked. The size is saved with the project (`editor-state-rig10`), so the window reopens where
+  it was left while staying inside the current screen.
 - The red strip across the top of the Guitar Amp is redone. Its controls now stand on dark wine module plates, one for the input meter, the bank and preset, the metronome, the output, and the On switch, so every caption is cream on near-black and easy to read. The bank, preset and tempo displays and the tuner are now flat dark glass with a crisp white readout instead of amber dots, and they are smaller; the metronome's controls and the plates have room between them. The lightning and the dotted clouds are gone; the lacquer has a fine brushed grain and a thin pinstripe instead.
 - A new pedal on the Guitar Amp's board, EQ, to shape the tone before or after the amp: Low and
   High (shelves at 100 Hz and 4 kHz) and Mid, a bell whose centre Freq sweeps from 200 Hz to
