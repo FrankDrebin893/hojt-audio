@@ -59,7 +59,7 @@ lead) and Drøn (a big, loose, dark amp with the low end let through). They shar
   panel itself is `suite_common::ui::settings`. nih-plug's host opens its streams once from its
   command line, so Apply saves and starts the program again; no host is installed in a DAW and
   the editor then shows no Audio button
-- `src/editor.rs` - egui GUI (3204 x 650 window): the oxblood strip across the top with the
+- `src/editor.rs` - egui GUI (3204 x 650 board, opened at 0.55 zoom as a 1762 x 358 window and resizable from 0.4 to 1.0 by its corner handle): the oxblood strip across the top with the
   Bank and Preset displays, the list they drop open, or the tuner display in its left wing and
   Output, meters, Clip, On and Tuner in its right; the stack (two lanes, one per amp: its head
   with nameplate and dials, and the cabinet it plays through beside it; the plate where they meet

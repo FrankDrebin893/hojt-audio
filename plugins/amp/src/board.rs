@@ -332,8 +332,11 @@ pub fn board(ui: &mut Ui, window: Pos2, pedals: &Pedals, chain: &order::StoredOr
         let grip = ui::title_grip(ui, face, &format!("{pedal:?}"));
         if grip.drag_started() {
             // Where the button went down, not where the drag was noticed
-            let taken =
-                ui.input(|input| input.pointer.press_origin()).map_or(face.center().x, |pos| pos.x);
+            let from_global =
+                ui.ctx().layer_transform_from_global(ui.layer_id()).unwrap_or_default();
+            let taken = ui
+                .input(|input| input.pointer.press_origin())
+                .map_or(face.center().x, |pos| (from_global * pos).x);
             board.held = Some(Held { pedal, grip: taken - rect.left(), left });
         }
         if let (Some(held), Some(pointer)) = (&mut board.held, grip.interact_pointer_pos()) {
