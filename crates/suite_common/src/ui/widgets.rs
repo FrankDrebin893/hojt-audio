@@ -710,12 +710,18 @@ pub fn drop_panel(ui: &Ui, top_center: Pos2, columns: &[Column], id_source: &str
     let rect = Rect::from_min_size(Pos2::new(top_center.x - size.x / 2.0, top_center.y), size);
 
     let mut picked = Picked::default();
+    let parent_layer = ui.layer_id();
+    let clip = ui.clip_rect();
     // Its own layer above the window: it is drawn over what is under it, and the controls
     // under it are in a lower layer, so they answer no clicks while it is open
     Area::new(Id::new(("drop-panel", id_source)))
         .order(Order::Foreground)
         .fixed_pos(rect.min)
+        .constrain_to(clip)
         .show(ui.ctx(), |ui| {
+            if let Some(to_global) = ui.ctx().layer_transform_to_global(parent_layer) {
+                ui.ctx().set_transform_layer(ui.layer_id(), to_global);
+            }
             // The plate takes the whole area up, so that the layer is known to cover it:
             // every click in it is the plate's, whether it lands on a row or not, and the
             // wheel over a column is the column's

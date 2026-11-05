@@ -72,10 +72,16 @@ pub fn settings_panel(
 ) -> Option<SettingsEvent> {
     let rect = Rect::from_center_size(center, settings_size(rows.len()));
     let mut event = None;
+    let parent_layer = ui.layer_id();
+    let clip = ui.clip_rect();
     Area::new(Id::new(("settings-panel", id_source)))
         .order(Order::Foreground)
         .fixed_pos(rect.min)
+        .constrain_to(clip)
         .show(ui.ctx(), |ui| {
+            if let Some(to_global) = ui.ctx().layer_transform_to_global(parent_layer) {
+                ui.ctx().set_transform_layer(ui.layer_id(), to_global);
+            }
             ui.allocate_rect(rect, Sense::click_and_drag());
             let painter = ui.painter().clone();
             painter.rect_filled(rect.translate(vec2(0.0, 6.0)).expand(2.0), 8.0, SHADOW);

@@ -116,13 +116,27 @@ pub fn pedal(ctx: &Context, style: &PedalStyle, add_controls: impl FnOnce(&mut U
     });
 }
 
+/// The layer a [`rig`] draws on. Setting a transform on this layer scales the rig while
+/// leaving [`egui::LayerId::background`] (where `nih_plug_egui`'s `ResizableWindow` places
+/// its corner handle) in window coordinates.
+pub fn rig_layer() -> egui::LayerId {
+    egui::LayerId::new(egui::Order::Background, egui::Id::new("rig"))
+}
+
 /// The bare bench, for a window that holds several enclosures: a `strip` and `mini_pedal`s.
 ///
 /// The closure gets the window's top left corner. Enclosures and controls are placed relative to it.
 pub fn rig(ctx: &Context, add_contents: impl FnOnce(&mut Ui, Pos2)) {
-    egui::CentralPanel::default().frame(egui::Frame::default().fill(BENCH)).show(ctx, |ui| {
-        let origin = ui.max_rect().min;
-        add_contents(ui, origin);
+    let layer = rig_layer();
+    ctx.memory_mut(|mem| mem.areas_mut().set_sublayer(egui::LayerId::background(), layer));
+    egui::CentralPanel::default().frame(egui::Frame::NONE).show(ctx, |ui| {
+        let rect = ctx
+            .layer_transform_from_global(layer)
+            .map_or_else(|| ctx.screen_rect(), |from_global| from_global * ctx.screen_rect());
+        let mut ui = ui.new_child(egui::UiBuilder::new().layer_id(layer).max_rect(rect));
+        ui.set_clip_rect(rect);
+        ui.painter().rect_filled(rect, 0.0, BENCH);
+        add_contents(&mut ui, rect.min);
     });
 }
 

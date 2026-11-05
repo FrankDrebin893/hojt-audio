@@ -1,5 +1,9 @@
 use nih_plug::prelude::*;
-use nih_plug_egui::egui::{vec2, Color32, Context, Id, Pos2, Rect, Sense, Ui, Vec2};
+use nih_plug_egui::egui::{
+    emath::TSTransform, vec2, Color32, Context, Id, LayerId, Order, Pos2, Rect, Sense, Ui,
+    UiBuilder, Vec2,
+};
+use nih_plug_egui::resizable_window::ResizableWindow;
 use nih_plug_egui::{create_egui_editor, EguiState};
 use std::path::Path;
 use std::sync::atomic::Ordering;
@@ -21,7 +25,7 @@ use crate::lamps::{LampReading, LampView};
 use crate::looks;
 use crate::metronome::{BeatReading, ClickOut, Sound, TapTempo, TimeSignature, BPM_MAX, BPM_MIN};
 use crate::presets::{self, PRESETS};
-#[cfg(test)]
+#[cfg(all(test, target_os = "linux"))]
 use crate::standalone::Prefs;
 use crate::standalone::{self, AudioChoice};
 use crate::tuner::{Note, TunerReading};
@@ -31,6 +35,17 @@ use crate::{Amp, GuitarAmpParams, GuitarAmpPlugin, Task};
 
 const WINDOW_WIDTH: u32 = crate::board::WINDOW_WIDTH;
 const WINDOW_HEIGHT: u32 = 650;
+
+// The board is drawn in 3204 x 650 points and scaled onto the window. It opens at 0.55 so it
+// fits inside a 1920 x 1080 screen, and the corner handle drags between 0.4 and 1.0
+const DEFAULT_ZOOM: f32 = 0.55;
+const MIN_ZOOM: f32 = 0.4;
+const MAX_ZOOM: f32 = 1.0;
+const DEFAULT_WIDTH: u32 = (WINDOW_WIDTH as f32 * DEFAULT_ZOOM).round() as u32;
+const DEFAULT_HEIGHT: u32 = (WINDOW_HEIGHT as f32 * DEFAULT_ZOOM).round() as u32;
+const MIN_WIDTH: u32 = (WINDOW_WIDTH as f32 * MIN_ZOOM).round() as u32;
+const MIN_HEIGHT: u32 = (WINDOW_HEIGHT as f32 * MIN_ZOOM).round() as u32;
+const RESIZE_ID: &str = "amp-resize";
 
 // The strip across the top, and under it the line: the pedals, and among them the stack, the
 // head standing on the cabinet. The cabinet is as tall as the pedals and on the floor with them
@@ -1281,7 +1296,53 @@ fn preset_rows(files: Option<&[String]>, loaded: Loaded) -> Vec<Row> {
 }
 
 pub fn default_state() -> Arc<EguiState> {
-    EguiState::from_size(WINDOW_WIDTH, WINDOW_HEIGHT)
+    EguiState::from_size(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+}
+
+/// The zoom (`0.4` to `1.0`) for a window of `width` logical points
+fn zoom_for_width(width: f32) -> f32 {
+    if (width - DEFAULT_WIDTH as f32).abs() < 0.5 {
+        DEFAULT_ZOOM
+    } else {
+        (width / WINDOW_WIDTH as f32).clamp(MIN_ZOOM, MAX_ZOOM)
+    }
+}
+
+/// The window size `(width, height)` for a dragged `desired` size, keeping the board's
+/// `3204 : 650` proportions and clamping the zoom to `0.4..=1.0`
+fn window_size(desired: Vec2) -> (u32, u32) {
+    let zoom = zoom_for_width(desired.x);
+    let width = (WINDOW_WIDTH as f32 * zoom).round().max(MIN_WIDTH as f32) as u32;
+    let height = (WINDOW_HEIGHT as f32 * zoom).round().max(MIN_HEIGHT as f32) as u32;
+    (width, height)
+}
+
+/// Keeps `ResizableWindow`'s corner handle on the `3204 : 650` diagonal within `0.4..=1.0`
+/// and paints its three lines on top of the board
+fn lock_resize_corner(ui: &mut Ui) {
+    let ctx = ui.ctx().clone();
+    let corner_id = Id::new(RESIZE_ID).with("corner");
+    if ctx.is_being_dragged(corner_id) {
+        if let (Some(pointer), Some(origin)) =
+            (ctx.input(|i| i.pointer.interact_pos()), ctx.input(|i| i.pointer.press_origin()))
+        {
+            let start = ctx
+                .data(|d| d.get_temp::<Vec2>(Id::new(RESIZE_ID)))
+                .unwrap_or_else(|| ctx.screen_rect().size());
+            let raw_desired = start + (pointer - origin);
+            let (w, h) = window_size(raw_desired);
+            let locked = vec2(w as f32, h as f32);
+            ctx.set_transform_layer(
+                LayerId::background(),
+                TSTransform::from_translation(raw_desired - locked),
+            );
+        }
+    }
+    *ui = ui.new_child(
+        UiBuilder::new()
+            .max_rect(ui.max_rect())
+            .layer_id(LayerId::new(Order::Foreground, Id::new("amp-resize-corner"))),
+    );
 }
 
 /// The amp a step of the selector arrives at, round the list
@@ -1317,6 +1378,7 @@ pub fn create(
     let opened_reading = lamp_reading.clone();
     let opened_beats = beats.clone();
     let opened_params = params.clone();
+    let window_state = editor_state.clone();
     create_egui_editor(
         editor_state,
         View {
@@ -1355,7 +1417,12 @@ pub fn create(
                 load_cabinet: &load_cabinet,
                 audio_host: standalone::host(),
             };
-            draw(egui_ctx, setter, &params, view, &shared);
+            ResizableWindow::new(RESIZE_ID)
+                .min_size(vec2(MIN_WIDTH as f32, MIN_HEIGHT as f32))
+                .show(egui_ctx, window_state.as_ref(), |ui| {
+                    draw(egui_ctx, setter, &params, view, &shared);
+                    lock_resize_corner(ui);
+                });
         },
     )
 }
@@ -1402,6 +1469,8 @@ fn draw(
     view: &mut View,
     shared: &Shared,
 ) {
+    let zoom = zoom_for_width(ctx.screen_rect().width());
+    ctx.set_transform_layer(ui::rig_layer(), TSTransform::from_scaling(zoom));
     ui::rig(ctx, |ui, window| {
         // The update runs with every frame of the window whether it is painted
         // or not, so this costs two atomic reads per frame, and a repaint only
@@ -1790,7 +1859,33 @@ mod tests {
             beat: BeatView::default(),
         };
         open(&mut view);
-        pedal_harness(WINDOW_WIDTH, WINDOW_HEIGHT, move |ctx| {
+        harness_at_size(
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            params,
+            setter,
+            tuner,
+            lamp_reading,
+            cab_loader,
+            audio_host,
+            view,
+        )
+    }
+
+    #[cfg(target_os = "linux")]
+    #[allow(clippy::too_many_arguments)]
+    fn harness_at_size<'a>(
+        width: u32,
+        height: u32,
+        params: &'a GuitarAmpParams,
+        setter: &'a ParamSetter<'a>,
+        tuner: TunerReading,
+        lamp_reading: LampReading,
+        cab_loader: CabLoader,
+        audio_host: Option<&'a dyn standalone::Host>,
+        mut view: View,
+    ) -> Harness<'a> {
+        pedal_harness(width, height, move |ctx| {
             let shared = Shared {
                 tuner: &tuner,
                 lamp_reading: &lamp_reading,
@@ -1813,6 +1908,42 @@ mod tests {
         let host = NoHost;
         let setter = ParamSetter::new(&host);
         harness_of(&params, &setter, None, |_| {}).snapshot("editor");
+    }
+
+    // The window at the size it opens at (0.55 zoom, 1762 x 358): every pedal, label and the
+    // strip scaled down together, nothing clipped
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_editor_at_default_zoom_looks_as_it_did() {
+        let params = GuitarAmpParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let tuner = TunerReading::new();
+        let lamp_reading = LampReading::new();
+        let cab_loader = CabLoader::new(Arc::new(crate::cab_stage::CabStage::new()), 48_000.0);
+        let view = View {
+            lamps: LampView::new(&lamp_reading),
+            bank: Bank::read(&params, None),
+            menu: None,
+            saving: None,
+            note: None,
+            cab_status: CabStatus::Fine,
+            audio: None,
+            beat: BeatView::default(),
+        };
+        let (width, height) = default_state().size();
+        harness_at_size(
+            width,
+            height,
+            &params,
+            &setter,
+            tuner,
+            lamp_reading,
+            cab_loader,
+            None,
+            view,
+        )
+        .snapshot("editor_default_zoom");
     }
 
     // The second amp on beside the first: Torden and Klar, each through a cabinet of its own
@@ -2482,5 +2613,44 @@ mod tests {
         for one in Amp::ALL {
             assert_eq!(neighbour_amp(neighbour_amp(one, Step::Next), Step::Previous), one);
         }
+    }
+
+    #[test]
+    fn test_default_window_fits_inside_a_1080p_screen() {
+        let (width, height) = default_state().size();
+        assert_eq!((width, height), (1762, 358));
+        assert!(width <= 1800, "width {width} leaves no room on a 1920 px screen");
+        assert!(height <= 1000, "height {height} leaves no room on a 1080 px screen");
+    }
+
+    #[test]
+    fn test_window_size_keeps_proportions_and_clamps_zoom() {
+        let board_aspect = WINDOW_WIDTH as f32 / WINDOW_HEIGHT as f32;
+        for dragged_w in [200.0, 1000.0, 1281.6, 1500.0, 1762.0, 2400.0, 3204.0, 4500.0] {
+            for dragged_h in [100.0, 358.0, 650.0, 1200.0] {
+                let zoom = zoom_for_width(dragged_w);
+                assert!(
+                    (MIN_ZOOM..=MAX_ZOOM).contains(&zoom),
+                    "zoom {zoom} for width {dragged_w} is outside {MIN_ZOOM}..={MAX_ZOOM}"
+                );
+                let (w, h) = window_size(vec2(dragged_w, dragged_h));
+                assert!(
+                    (MIN_WIDTH..=WINDOW_WIDTH).contains(&w),
+                    "width {w} is outside {MIN_WIDTH}..={WINDOW_WIDTH}"
+                );
+                assert!(
+                    (MIN_HEIGHT..=WINDOW_HEIGHT).contains(&h),
+                    "height {h} is outside {MIN_HEIGHT}..={WINDOW_HEIGHT}"
+                );
+                let aspect = w as f32 / h as f32;
+                assert!(
+                    (aspect - board_aspect).abs() < 0.01,
+                    "size {w}x{h} (aspect {aspect}) drifted from {WINDOW_WIDTH}:{WINDOW_HEIGHT} ({board_aspect})"
+                );
+            }
+        }
+        assert_eq!(window_size(vec2(500.0, 900.0)), (MIN_WIDTH, MIN_HEIGHT));
+        assert_eq!(window_size(vec2(DEFAULT_WIDTH as f32, 100.0)), (DEFAULT_WIDTH, DEFAULT_HEIGHT));
+        assert_eq!(window_size(vec2(5000.0, 200.0)), (WINDOW_WIDTH, WINDOW_HEIGHT));
     }
 }

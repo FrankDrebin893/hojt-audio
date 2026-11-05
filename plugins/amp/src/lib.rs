@@ -95,7 +95,7 @@ pub enum Task {
 // The full table of ids is in `ids.txt`, held by the `ids` test
 #[derive(Params)]
 pub struct GuitarAmpParams {
-    #[persist = "editor-state-rig8"]
+    #[persist = "editor-state-rig9"]
     pub editor_state: Arc<EguiState>,
 
     /// Index into `presets::PRESETS` of the preset loaded last. Not a parameter: the editor
