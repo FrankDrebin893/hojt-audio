@@ -152,7 +152,9 @@ Two rules keep an issue from stalling once it leaves the spec stage:
   "Specs to approve" under "Awaiting engineer decision", the Builder skips it, and his comment on the issue
   (not one signed with the agent's footer, which every agent comment on an issue carries) takes it off through `needs-owner.yml`, after which
   `/next` picks the issue up with his answer Labels `kind:*`, `plugin:*` (`app:piano` for the piano viz) and `area:*` say what it is
-and where; `from:user` marks issues from outside the project.
+and where; `from:user` marks issues from outside the project. An outside issue that lacks what a spec
+would have to guess gets questions and `needs:reporter`, and no spec until the reporter answers (or 21 days pass);
+`/specwriter` re-checks it each run.
 
 - Only Rasmus (`FrankDrebin893`) approves. Others cannot set labels; `approval-guard.yml`
   takes `state:approved` off anyone else, and `/next` builds only an issue whose last

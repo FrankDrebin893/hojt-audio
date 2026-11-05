@@ -14,6 +14,7 @@ from:user|f9d0c4|Came from someone outside the project
 from:scout|c2e0c6|Filed by the Scout (/scout), from the market or our own plugins
 from:review|c2e0c6|Filed by the Release Analyst (/release-review), from how a release did
 needs:engineer|d93f0b|Waits for the owner: an answer, a pick or a listen (needs-owner.yml)
+needs:reporter|fef2c0|Waits for the person who filed it to answer our questions (/specwriter)
 approval-list|0e8a16|The list of specs to approve (approve-specs.yml)
 health|333333|The weekly health digest (health.yml)
 kind:feature|a2eeef|Something new

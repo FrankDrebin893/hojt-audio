@@ -16,6 +16,9 @@ For each, decide one of: ready for a spec, duplicate of #n, needs an answer from
 who filed it, split into smaller issues, or out of scope for the suite. Add missing
 `plugin:*` and `kind:*` labels, and `from:user` when the author is not FrankDrebin893.
 
+A `from:user` issue that lacks something the spec would have to guess (version, system, host, steps,
+size, a picture) is "needs an answer"; `/specwriter` asks it and labels it `needs:reporter`.
+
 Do not write specs, close issues or comment on them unless Rasmus says so in chat. Report a
 table: issue, what you suggest, why in a few words. End with the three you would spec first.
 Never touch `state:approved`.
