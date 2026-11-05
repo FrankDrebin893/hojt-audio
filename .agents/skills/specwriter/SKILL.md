@@ -53,8 +53,8 @@ screenshot or the code already settles is not asked again.
   spec like that is a best guess: its Questions section starts with the open items for the reporter.
 - An answer that arrives after the spec is written goes to the owner as a comment on the issue
   ("The reporter answered: ... This changes / does not change the spec because ..."), and the spec
-  is updated if it changes. If the issue is already `state:approved`, say so in that comment; the
-  approval is not undone by the agent.
+  is updated if it changes. If the issue is already approved, say so in that comment; the
+  approval is never undone by the agent.
 - `needs:reporter` is not a state and does not stall the issue: the stall check leaves it alone
   while the reporter is the one being waited on. Comments name only the reporter (an `@` to them,
   so they are told); never the owner.
