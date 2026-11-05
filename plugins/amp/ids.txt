@@ -81,7 +81,7 @@ persist amp2-dials
 persist cabinet
 persist cabinet2
 persist chain-order
-persist editor-state-rig9
+persist editor-state-rig10
 persist preset
 persist preset-bank
 persist user-preset

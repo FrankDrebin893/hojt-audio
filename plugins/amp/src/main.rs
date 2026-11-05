@@ -77,7 +77,22 @@ fn start(args: Vec<String>) -> bool {
     nih_export_standalone_with_args::<amp::GuitarAmpPlugin, _>(args)
 }
 
+#[cfg(target_os = "windows")]
+fn enable_dpi_awareness() {
+    const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2: isize = -4;
+    #[link(name = "user32")]
+    extern "system" {
+        fn SetProcessDpiAwarenessContext(value: isize) -> i32;
+    }
+    // SAFETY: tells Windows this standalone process handles monitor DPI without bitmap scaling.
+    unsafe {
+        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    }
+}
+
 fn main() {
+    #[cfg(target_os = "windows")]
+    enable_dpi_awareness();
     standalone::install(Box::new(Machine));
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 {

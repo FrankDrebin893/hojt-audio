@@ -6,7 +6,7 @@ use nih_plug_egui::egui::{
 use nih_plug_egui::resizable_window::ResizableWindow;
 use nih_plug_egui::{create_egui_editor, EguiState};
 use std::path::Path;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, PoisonError};
 use suite_common::ui::{
     self, beat_lamp, chrome_button, drop_panel, led_stepper, led_width, level_meter,
@@ -36,15 +36,19 @@ use crate::{Amp, GuitarAmpParams, GuitarAmpPlugin, Task};
 const WINDOW_WIDTH: u32 = crate::board::WINDOW_WIDTH;
 const WINDOW_HEIGHT: u32 = 650;
 
-// The board is drawn in 3204 x 650 points and scaled onto the window. It opens at 0.55 so it
-// fits inside a 1920 x 1080 screen, and the corner handle drags between 0.4 and 1.0
+// The board is drawn in 3204 x 650 points and scaled onto the window. It opens sized to the
+// screen (up to the full 3204 x 650, or 1762 x 358 on a 1920 x 1080 screen), and the corner
+// handle drags between 0.4 and 1.0
 const DEFAULT_ZOOM: f32 = 0.55;
 const MIN_ZOOM: f32 = 0.4;
 const MAX_ZOOM: f32 = 1.0;
 const DEFAULT_WIDTH: u32 = (WINDOW_WIDTH as f32 * DEFAULT_ZOOM).round() as u32;
+#[cfg(test)]
 const DEFAULT_HEIGHT: u32 = (WINDOW_HEIGHT as f32 * DEFAULT_ZOOM).round() as u32;
 const MIN_WIDTH: u32 = (WINDOW_WIDTH as f32 * MIN_ZOOM).round() as u32;
 const MIN_HEIGHT: u32 = (WINDOW_HEIGHT as f32 * MIN_ZOOM).round() as u32;
+const FALLBACK_SCREEN_WIDTH: u32 = 1920;
+const SCREEN_MARGIN: u32 = FALLBACK_SCREEN_WIDTH - DEFAULT_WIDTH;
 const RESIZE_ID: &str = "amp-resize";
 
 // The strip across the top, and under it the line: the pedals, and among them the stack, the
@@ -1296,7 +1300,155 @@ fn preset_rows(files: Option<&[String]>, loaded: Loaded) -> Vec<Row> {
 }
 
 pub fn default_state() -> Arc<EguiState> {
-    EguiState::from_size(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+    let screen = physical_screen_width().unwrap_or(FALLBACK_SCREEN_WIDTH);
+    let (width, height) = size_for_screen(screen);
+    EguiState::from_size(width, height)
+}
+
+/// The window size `(width, height)` that fits inside a screen `screen_width` logical points wide,
+/// keeping the `3204 : 650` proportions and clamping the zoom to `0.4..=1.0`
+fn size_for_screen(screen_width: u32) -> (u32, u32) {
+    let available = screen_width.saturating_sub(SCREEN_MARGIN) as f32;
+    window_size(vec2(available, WINDOW_HEIGHT as f32))
+}
+
+/// The primary display's width in pixels (or logical points on macOS), or `None` when no display
+/// is open (as in headless tests)
+fn physical_screen_width() -> Option<u32> {
+    #[cfg(target_os = "windows")]
+    {
+        const DESKTOPHORZRES: i32 = 118;
+        const SM_CXMAXTRACK: i32 = 59;
+        #[link(name = "user32")]
+        extern "system" {
+            fn GetDC(hwnd: *mut std::ffi::c_void) -> *mut std::ffi::c_void;
+            fn ReleaseDC(hwnd: *mut std::ffi::c_void, hdc: *mut std::ffi::c_void) -> i32;
+            fn GetSystemMetrics(index: i32) -> i32;
+        }
+        #[link(name = "gdi32")]
+        extern "system" {
+            fn GetDeviceCaps(hdc: *mut std::ffi::c_void, index: i32) -> i32;
+        }
+        // SAFETY: `GetDC(null)` borrows the screen DC for the call and `ReleaseDC` returns it;
+        // `GetSystemMetrics(SM_CXMAXTRACK)` queries the current thread's maximum window tracking
+        // width (which is smaller than `DESKTOPHORZRES` when the host thread is DPI-virtualized).
+        let width = unsafe {
+            let hdc = GetDC(std::ptr::null_mut());
+            let phys = if hdc.is_null() {
+                0
+            } else {
+                let w = GetDeviceCaps(hdc, DESKTOPHORZRES);
+                ReleaseDC(std::ptr::null_mut(), hdc);
+                w
+            };
+            let max_track = GetSystemMetrics(SM_CXMAXTRACK);
+            if phys > 0 && max_track > 0 {
+                phys.min(max_track)
+            } else {
+                phys.max(max_track)
+            }
+        };
+        (width > 0).then_some(width as u32)
+    }
+    #[cfg(target_os = "macos")]
+    {
+        #[link(name = "CoreGraphics", kind = "framework")]
+        extern "C" {
+            fn CGMainDisplayID() -> u32;
+            fn CGDisplayPixelsWide(display: u32) -> usize;
+        }
+        // SAFETY: queries the main display's logical width from CoreGraphics without side effects.
+        let width = unsafe { CGDisplayPixelsWide(CGMainDisplayID()) };
+        (width > 0).then_some(width as u32)
+    }
+    #[cfg(target_os = "linux")]
+    {
+        #[link(name = "X11")]
+        extern "C" {
+            fn XOpenDisplay(display_name: *const std::ffi::c_char) -> *mut std::ffi::c_void;
+            fn XDefaultScreen(display: *mut std::ffi::c_void) -> i32;
+            fn XDisplayWidth(display: *mut std::ffi::c_void, screen_number: i32) -> i32;
+            fn XCloseDisplay(display: *mut std::ffi::c_void) -> i32;
+        }
+        // SAFETY: opens the default X11 display if present, reads the default screen's width, and
+        // closes the connection before returning.
+        let width = unsafe {
+            let display = XOpenDisplay(std::ptr::null());
+            if display.is_null() {
+                0
+            } else {
+                let screen = XDefaultScreen(display);
+                let w = XDisplayWidth(display, screen);
+                XCloseDisplay(display);
+                w
+            }
+        };
+        (width > 0).then_some(width as u32)
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    {
+        None
+    }
+}
+
+/// Keeps `editor_state` no wider than the current screen at `scale_factor` before the window opens
+fn clamp_state_to_screen(editor_state: &Arc<EguiState>, scale_factor: f32) {
+    if editor_state.is_open() {
+        return;
+    }
+    if let Some(screen_px) = physical_screen_width() {
+        let factor = if scale_factor > 0.0 { scale_factor } else { 1.0 };
+        let logical_screen = (screen_px as f32 / factor).round() as u32;
+        let (max_w, max_h) = size_for_screen(logical_screen);
+        if editor_state.size().0 > max_w {
+            if let Ok(fitting) = Arc::try_unwrap(EguiState::from_size(max_w, max_h)) {
+                nih_plug::params::persist::PersistentField::set(editor_state, fitting);
+            }
+        }
+    }
+}
+
+struct ScreenEditor {
+    inner: Box<dyn Editor>,
+    editor_state: Arc<EguiState>,
+    scale_factor: AtomicU32,
+}
+
+impl Editor for ScreenEditor {
+    fn spawn(
+        &self,
+        parent: ParentWindowHandle,
+        context: Arc<dyn GuiContext>,
+    ) -> Box<dyn std::any::Any + Send> {
+        let factor = f32::from_bits(self.scale_factor.load(Ordering::Relaxed));
+        clamp_state_to_screen(&self.editor_state, factor);
+        self.inner.spawn(parent, context)
+    }
+
+    fn size(&self) -> (u32, u32) {
+        self.inner.size()
+    }
+
+    fn set_scale_factor(&self, factor: f32) -> bool {
+        let ok = self.inner.set_scale_factor(factor);
+        if ok && factor > 0.0 {
+            self.scale_factor.store(factor.to_bits(), Ordering::Relaxed);
+            clamp_state_to_screen(&self.editor_state, factor);
+        }
+        ok
+    }
+
+    fn param_value_changed(&self, id: &str, normalized_value: f32) {
+        self.inner.param_value_changed(id, normalized_value);
+    }
+
+    fn param_modulation_changed(&self, id: &str, modulation_offset: f32) {
+        self.inner.param_modulation_changed(id, modulation_offset);
+    }
+
+    fn param_values_changed(&self) {
+        self.inner.param_values_changed();
+    }
 }
 
 /// The zoom (`0.4` to `1.0`) for a window of `width` logical points
@@ -1379,6 +1531,7 @@ pub fn create(
     let opened_beats = beats.clone();
     let opened_params = params.clone();
     let window_state = editor_state.clone();
+    let screen_state = editor_state.clone();
     create_egui_editor(
         editor_state,
         View {
@@ -1425,6 +1578,13 @@ pub fn create(
                 });
         },
     )
+    .map(|inner| -> Box<dyn Editor> {
+        Box::new(ScreenEditor {
+            inner,
+            editor_state: screen_state,
+            scale_factor: AtomicU32::new(1.0_f32.to_bits()),
+        })
+    })
 }
 
 /// What the editor reads besides the parameters, shared with the audio and the plugin's
@@ -1931,7 +2091,7 @@ mod tests {
             audio: None,
             beat: BeatView::default(),
         };
-        let (width, height) = default_state().size();
+        let (width, height) = size_for_screen(FALLBACK_SCREEN_WIDTH);
         harness_at_size(
             width,
             height,
@@ -2616,11 +2776,33 @@ mod tests {
     }
 
     #[test]
-    fn test_default_window_fits_inside_a_1080p_screen() {
+    fn test_default_window_scales_with_screen_and_fits_inside_each_screen() {
+        assert_eq!(size_for_screen(1366), (MIN_WIDTH, MIN_HEIGHT));
+        assert_eq!(size_for_screen(1920), (1762, 358));
+        assert_eq!(size_for_screen(2560), (2402, 487));
+        assert_eq!(size_for_screen(2752), (2594, 526));
+        assert_eq!(size_for_screen(3440), (WINDOW_WIDTH, WINDOW_HEIGHT));
+        assert_eq!(size_for_screen(3840), (WINDOW_WIDTH, WINDOW_HEIGHT));
+        for screen_w in [1366, 1536, 1920, 2560, 2752, 3440, 3840] {
+            let (width, height) = size_for_screen(screen_w);
+            assert!(
+                (MIN_WIDTH..=WINDOW_WIDTH).contains(&width),
+                "width {width} for screen {screen_w} is outside {MIN_WIDTH}..={WINDOW_WIDTH}"
+            );
+            assert!(
+                (MIN_HEIGHT..=WINDOW_HEIGHT).contains(&height),
+                "height {height} for screen {screen_w} is outside {MIN_HEIGHT}..={WINDOW_HEIGHT}"
+            );
+            if screen_w >= MIN_WIDTH + SCREEN_MARGIN {
+                assert!(
+                    width + SCREEN_MARGIN <= screen_w,
+                    "width {width} leaves less than {SCREEN_MARGIN} px on a {screen_w} px screen"
+                );
+            }
+        }
         let (width, height) = default_state().size();
-        assert_eq!((width, height), (1762, 358));
-        assert!(width <= 1800, "width {width} leaves no room on a 1920 px screen");
-        assert!(height <= 1000, "height {height} leaves no room on a 1080 px screen");
+        assert!((MIN_WIDTH..=WINDOW_WIDTH).contains(&width));
+        assert!((MIN_HEIGHT..=WINDOW_HEIGHT).contains(&height));
     }
 
     #[test]
