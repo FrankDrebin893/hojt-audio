@@ -13,8 +13,44 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # A change that only touches docs, the page, screenshots or markdown cannot change what the
+  # checks below test, so they skip their steps. The jobs themselves still run (and pass in
+  # seconds): `main`'s protection requires "Format and clippy" and "Test (<os>)" by name, and
+  # a job skipped as a whole would leave a required name missing or pending.
+  # Anything in doubt (no base to compare with, a failed diff) counts as code.
+  changes:
+    name: Changed files
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Is it only docs?
+        if: needs.changes.outputs.code == 'true'
+        id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          code=true
+          if files=$(git diff --name-only "$BASE...$HEAD" 2>/dev/null || git diff --name-only "$BASE" "$HEAD" 2>/dev/null) && [ -n "$files" ]; then
+            # Light: the page and its sources, markdown outside the skills (the tests read
+            # those), the licence and the issue forms. Everything else is code.
+            rest=$(printf '%s\n' "$files" | grep -vE '^(site/|site-sources/|site-design/|\.github/ISSUE_TEMPLATE/|LICENSE$|piano/LICENSE$)' | grep -vE '^(\.agents/|\.claude/)' | grep -vE '\.md$' || true)
+            skills=$(printf '%s\n' "$files" | grep -E '^(\.agents/|\.claude/)' || true)
+            if [ -z "$rest" ] && [ -z "$skills" ]; then code=false; fi
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "Changed files:"; printf '%s\n' "$files"
+          echo "Heavy checks needed: $code"
+
   test:
     name: Test (${{ matrix.os }})
+    needs: changes
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -26,29 +62,35 @@ jobs:
       # mesa-vulkan-drivers: lavapipe, the software Vulkan driver the editors' snapshot
       # tests draw with (suite_common::ui::snapshot), on a runner without a graphics card
       - name: Install Linux packages
-        if: runner.os == 'Linux'
+        if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libasound2-dev libgl-dev libjack-dev libx11-xcb-dev libxcb1-dev libxcb-dri2-0-dev libxcb-icccm4-dev libxcursor-dev libxkbcommon-dev libxcb-shape0-dev libxcb-xfixes0-dev mesa-vulkan-drivers
 
       - uses: dtolnay/rust-toolchain@stable
+        if: needs.changes.outputs.code == 'true'
       - uses: Swatinem/rust-cache@v2
+        if: needs.changes.outputs.code == 'true'
 
       - name: Test
+        if: needs.changes.outputs.code == 'true'
         run: cargo test --workspace --locked
 
       # The clippers' two-at-a-time path is only compiled in optimised x86-64 builds, and the
       # bass's cost bound only means something optimised
       - name: Test the amp and the bass, optimised
+        if: needs.changes.outputs.code == 'true'
         run: cargo test -p amp -p bass --release --locked
 
   lint:
     name: Format and clippy
+    needs: changes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Linux packages
+        if: needs.changes.outputs.code == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y libasound2-dev libgl-dev libjack-dev libx11-xcb-dev libxcb1-dev libxcb-dri2-0-dev libxcb-icccm4-dev libxcursor-dev libxkbcommon-dev libxcb-shape0-dev libxcb-xfixes0-dev mesa-vulkan-drivers
@@ -56,12 +98,16 @@ jobs:
       # Pinned, so a new Rust release with new lints does not fail every pull request.
       # Moving it on is a change of its own, with the lints it brings fixed
       - uses: dtolnay/rust-toolchain@1.99.1
+        if: needs.changes.outputs.code == 'true'
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+        if: needs.changes.outputs.code == 'true'
 
       - name: Format
+        if: needs.changes.outputs.code == 'true'
         run: cargo fmt --all --check
 
       - name: Clippy
+        if: needs.changes.outputs.code == 'true'
         run: cargo clippy --workspace --all-targets --locked -- -D warnings

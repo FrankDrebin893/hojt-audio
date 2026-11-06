@@ -183,6 +183,9 @@ would have to guess gets questions and `needs:reporter`, and no spec until the r
   `Format and clippy` pass, for admins too, and nothing is pushed to it directly. A check
   that is renamed in `ci.yml` must be renamed in the protection as well, or nothing merges.
   `Sound` is not required: it only runs when a plugin changed
+  A change that only touches the page (`site/`, `site-sources/`, `site-design/`), markdown outside
+  `.agents/` and `.claude/`, the licences or the issue forms skips the steps of `Test` and
+  `Format and clippy` (the `changes` job in `ci.yml`); the jobs still run and pass, so the required names are met
 - A large piece of work is a parent issue with one sub-issue per milestone
 - A decision the spec did not cover is asked on the issue, not guessed
 - What Rasmus says about a result (a mock-up, a spec, an idea, a build) is recorded with `/feedback`
