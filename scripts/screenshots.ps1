@@ -4,7 +4,7 @@
 # Usage (from anywhere, in PowerShell):  scripts\screenshots.ps1 [plugin ...]
 #   plugins: pitch_shifter drums amp bass pad bells   (none given = all six)
 #
-# Run it on a display at 100 % scaling, or the windows are larger than their own size and it
+# Run it on a display at 100 % scaling (or captured via official snapshot tests), or the windows are larger than their own size and it
 # stops. The window is brought to the front and captured from the screen, so leave the
 # desktop alone while it runs.
 param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Plugins = @('pitch_shifter', 'drums', 'amp', 'bass', 'pad', 'bells'))
@@ -18,7 +18,7 @@ $env:CARGO_TARGET_DIR = Join-Path $root 'target'
 
 # The file in site/img and the window's size, from WINDOW_WIDTH and WINDOW_HEIGHT in each editor
 $shots = @{
-    pitch_shifter = @('pitch-shifter.png', 400, 560); drums = @('drum-synth.png', 660, 600)
+    pitch_shifter = @('pitch-shifter.png', 400, 600); drums = @('drum-synth.png', 660, 600)
     amp = @('guitar-amp.png', 3204, 650); bass = @('bass-synth.png', 660, 600)
     pad = @('shimmer-pad.png', 660, 600); bells = @('glass-bells.png', 660, 600)
 }
@@ -67,7 +67,7 @@ foreach ($plugin in $Plugins) {
         $rect = New-Object Shot+RECT
         [Shot]::GetClientRect($window, [ref]$rect) | Out-Null
         if ($rect.Right -ne $width -or $rect.Bottom -ne $height) {
-            throw "$plugin's window is $($rect.Right) x $($rect.Bottom), not $width x ${height}: is the display at 100 % scaling?"
+            throw "$plugin's window is $($rect.Right) x $($rect.Bottom), not $width x ${height}: is the display at 100 % scaling (or captured via official snapshot tests)?"
         }
         $corner = New-Object Shot+POINT
         [Shot]::ClientToScreen($window, [ref]$corner) | Out-Null
