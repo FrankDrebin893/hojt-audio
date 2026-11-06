@@ -29,7 +29,6 @@ jobs:
           fetch-depth: 0
 
       - name: Is it only docs?
-        if: needs.changes.outputs.code == 'true'
         id: diff
         env:
           EVENT: ${{ github.event_name }}
