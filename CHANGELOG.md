@@ -5,6 +5,12 @@ GitHub release.
 
 ## Unreleased
 
+## 0.3.0
+
+### Guitar Amp
+
+- The tuner display shows its unlit lamps brighter and stands a little taller
+
 ### Site
 
 - A "Donate" key in the top bar and a donate band above the footer link to Ko-fi on every page.

@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HØJT DSP: free guitar, drum, bass and keys plugins</title>
-<meta name="description" content="Six free audio plugins: a guitar amp with ten pedals, a drum kit with no samples, a low-latency pitch shifter, a bass, an ambient pad and glass bells. VST3 and CLAP for Windows, macOS and Linux.">
+<meta name="description" content="Six free audio plugins: a guitar amp with twelve pedals, a drum kit with no samples, a low-latency pitch shifter, a bass, an ambient pad and glass bells. VST3 and CLAP for Windows, macOS and Linux.">
 <meta property="og:title" content="HØJT DSP: free guitar, drum, bass and keys plugins">
-<meta property="og:description" content="A guitar amp with ten pedals, a drum kit with no samples, a pitch shifter, a bass, a pad and bells. Free, VST3 and CLAP.">
+<meta property="og:description" content="A guitar amp with twelve pedals, a drum kit with no samples, a pitch shifter, a bass, a pad and bells. Free, VST3 and CLAP.">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://hojte.net/hojt-audio/img/guitar-amp.png">
 <meta name="theme-color" content="#121110">
@@ -42,8 +42,8 @@
       pad and glass bells. No sign-up, no ads, no samples to install.</p>
     </div>
     <div class="rig">
-      <a class="amp oxblood" href="#guitar-amp"><img src="../img/guitar-amp.png" width="1590" height="694" alt="The Guitar Amp: an oxblood red amp head above a row of ten pedals"></a>
-      <p class="amp-tag">Guitar Amp <small>GA-3 / effect / four amps, ten pedals</small></p>
+      <a class="amp oxblood" href="#guitar-amp"><img src="../img/guitar-amp.png" width="1590" height="694" alt="The Guitar Amp: an oxblood red amp head above a row of pedals"></a>
+      <p class="amp-tag">Guitar Amp <small>GA-3 / effect / six amps, twelve pedals</small></p>
       <nav aria-label="Plugins">
         <ul class="pedalboard">
           <li class="teal"><a href="#drum-synth"><img src="../img/drum-synth.png" width="660" height="600" alt=""><span>Drum Synth</span><small>DS-2 / instrument</small></a></li>
@@ -71,24 +71,30 @@
   <div class="wrap">
     <p class="caption"><b>GA-3</b> / Effect / mono or stereo in, stereo out</p>
     <figure class="shot wide">
-      <img src="../img/guitar-amp.png" width="1590" height="694" alt="The Guitar Amp window: an oxblood red amp head with six dials above a row of ten small pedals, each in its own colour">
+      <img src="../img/guitar-amp.png" width="1590" height="694" alt="The Guitar Amp window: an oxblood red amp head with six dials above a row of small pedals, each in its own colour">
     </figure>
 
     <div class="cols">
       <div>
         <h3>What it is</h3>
-        <p>A whole guitar rig in one window: four amps, each with its own cabinet, and ten
+        <p>A whole guitar rig in one window: six amps, each with its own cabinet, and twelve
           pedals around them. Plug a guitar straight into the audio interface and play.</p>
         <ul class="points">
           <li><b>Klar</b> is clean and glassy, <b>Brøl</b> a mid-forward crunch, <b>Torden</b> a
-            tight modern high gain, <b>Glød</b> warm and chiming at the edge of breakup. Each
-            remembers its own six dials</li>
-          <li>Gate, compressor, overdrive, phaser, chorus, flanger, tremolo, cabinet, delay and
-            reverb. Drag a pedal by its name to move it in the chain</li>
-          <li>Hear the cabinet through a dynamic, ribbon or condenser microphone, or play through
-            your own cabinet impulse responses: drop WAV files in
+            tight modern high gain, <b>Glød</b> warm and chiming at the edge of breakup, <b>Sang</b>
+            a smooth singing lead and <b>Drøn</b> big, loose and dark. Each remembers its own six
+            dials. Switch on a second amp, with its own cabinet, and Blend between the two</li>
+          <li>Gate, fuzz, pitch, compressor, overdrive, phaser, chorus, flanger, tremolo, EQ,
+            delay and reverb. Drag a pedal by its name to move it in the chain. The delay can
+            follow the song's tempo</li>
+          <li>Ten built-in cabinets to play any amp through. Hear the cabinet through one of five
+            microphones, or play through your own cabinet impulse responses: drop WAV files in
             <code>Documents/Hojt Audio/Cabinets</code></li>
-          <li>Twenty presets, a tuner, and meters for the level going in and coming out</li>
+          <li>Twenty-seven factory presets in banks, and your own: Save names a preset and keeps
+            it in <code>Documents/Hojt Audio/Presets</code></li>
+          <li>A tuner, a metronome for practice, and meters for the level going in and coming out</li>
+          <li>As a program of its own, an Audio button picks the interface, the buffer and the
+            sample rate</li>
           <li>0.1 to 0.3 ms of latency, so it can be played live</li>
         </ul>
         <p>Everything is our own design. It does not copy any real amp or pedal.</p>
@@ -119,18 +125,25 @@
       <table>
         <tr><th>Control</th><th>Range</th><th>What it does</th></tr>
         <tr><td>On</td><td class="v">on / off</td><td>Bypasses the whole rig, without a click</td></tr>
+        <tr><td>Metronome: Metro, Tempo, Meter, Sound, Volume</td><td class="v">on / off, 40 to 300 bpm, 2/4 to 6/8, -60 to 0 dB</td><td>A click on top of the finished sound. Sync follows the DAW. Click out can send it to its own output</td></tr>
         <tr><td>Tuner</td><td class="v">on / off</td><td>Silent tuning, 48 Hz to 1420 Hz against A = 440 Hz</td></tr>
         <tr><td>Input</td><td class="v">-24 to +24 dB</td><td>Brings the guitar to the level the amps expect</td></tr>
-        <tr><td>Amp</td><td class="v">Klar / Brøl / Torden / Glød</td><td>The amp and its cabinet</td></tr>
+        <tr><td>Amp</td><td class="v">Klar / Brøl / Torden / Glød / Sang / Drøn</td><td>The amp and its cabinet</td></tr>
+        <tr><td>Amp 2, Amp 2 Model, its six dials</td><td class="v">on / off, 0.0 to 10.0</td><td>A second amp through its own cabinet. Off, the sound is the first amp alone</td></tr>
+        <tr><td>Amp Blend</td><td class="v">0.0 to 10.0</td><td>0 is the first amp alone, 10 the second alone</td></tr>
         <tr><td>Gain, Bass, Mid, Treble, Presence, Master</td><td class="v">0.0 to 10.0</td><td>The amp's six dials</td></tr>
         <tr><td>Output</td><td class="v">-30 to +6 dB</td><td>Output level. A lamp shows when it clips; meters show the level going in and coming out</td></tr>
         <tr><td>Gate: Threshold, Release</td><td class="v">-80 to -20 dB, 20 to 500 ms</td><td>Noise gate on the input. A lamp shows when it is open</td></tr>
         <tr><td>Comp: Sustain, Level</td><td class="v">0.0 to 10.0</td><td>Compressor. Level 5 is as loud as the pedal off</td></tr>
+        <tr><td>Fuzz: Fuzz, Tone</td><td class="v">0.0 to 10.0</td><td>Thick fuzz in front of the amp, about as loud as switched off</td></tr>
+        <tr><td>Pitch: Semitones, Blend, Tracking</td><td class="v">-12 to +12 st, 0 to 100 %, 2 to 50 ms</td><td>Shifts the guitar for drop tunings or a harmony. Adds a few milliseconds of latency while it is on</td></tr>
         <tr><td>Drive: Gain, Tone, Level</td><td class="v">0.0 to 10.0</td><td>Overdrive in front of the amp</td></tr>
         <tr><td>Phaser, Chorus, Flanger, Tremolo: Rate, Depth</td><td class="v">0.05 to 12 Hz, 0 to 100 %</td><td>Modulation, in front of the amp or behind the cabinet</td></tr>
         <tr><td>Cab: Mic, Resonance</td><td class="v">0.0 to 10.0</td><td>Darker to brighter microphone position; less or more low thump. Steps through your own cabinet files</td></tr>
-        <tr><td>Mic type</td><td class="v">Dynamic / Ribbon / Condenser</td><td>Which microphone hears the cabinet: as designed, warm and dark, or open on top</td></tr>
+        <tr><td>Mic type</td><td class="v">Dynamic / Ribbon / Condenser / Close / Air</td><td>Which microphone hears the cabinet: as designed, warm and dark, open on top, dark and close, or bright and thin</td></tr>
+        <tr><td>EQ: Low, Mid, High, Freq</td><td class="v">±12 dB (5 is flat), 200 Hz to 5 kHz</td><td>Low and high shelves at 100 Hz and 4 kHz and a sweepable mid. Off and flat it changes nothing</td></tr>
         <tr><td>Delay: Time, Feedback, Mix</td><td class="v">20 to 1000 ms, 0 to 90 %, 0 to 100 %</td><td>Stereo delay</td></tr>
+        <tr><td>Delay: Sync</td><td class="v">on / off</td><td>Time picks a note instead: 1/4, 1/8 dotted, 1/8, 1/8 triplet or 1/16, in step with the song</td></tr>
         <tr><td>Reverb: Decay, Mix</td><td class="v">0.3 to 6.0 s, 0 to 100 %</td><td>Stereo reverb</td></tr>
       </table>
       </div>
@@ -187,6 +200,7 @@
         <tr><td>Tune</td><td class="v">-6 to +6 st</td><td>Pitch of kick, snare and toms</td></tr>
         <tr><td>Damping</td><td class="v">0 to 100 %</td><td>Shortens the ring of drums and cymbals</td></tr>
         <tr><td>Kick, Snare, Toms, Hi-Hat, Cymbals</td><td class="v">-30 to +6 dB</td><td>Level of each group</td></tr>
+        <tr><td>Human</td><td class="v">0 to 100 %</td><td>Makes every hit a little louder or softer and a little late, so a beat drawn on a grid sounds played. 0 is exactly as drawn</td></tr>
         <tr><td>Choke</td><td class="v">on / off</td><td>A note-off on a cymbal damps it at once, as a hand does</td></tr>
       </table>
       </div>
@@ -298,6 +312,7 @@
         <tr><td>String: Tone</td><td class="v">300 to 4000 Hz</td><td>How dark or bright</td></tr>
         <tr><td>String: Sustain</td><td class="v">0.5 to 8 s</td><td>How long a held note rings</td></tr>
         <tr><td>String: Slide</td><td class="v">0 to 300 ms</td><td>Glide between notes that overlap; 0 plucks every note</td></tr>
+        <tr><td>String: Bend</td><td class="v">1 to 12 st</td><td>How far the pitch-bend wheel goes at its end, up and down</td></tr>
         <tr><td>String: Transpose</td><td class="v">-24 to +24 st</td><td>Moves every note up or down</td></tr>
       </table>
       </div>
