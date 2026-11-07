@@ -707,7 +707,7 @@
     </LinearGradientBrush>
 
     <!-- Hardware Light Guide LED diffuser window at the top of every key (visible unlit as a dark lens
-         on out-of-key keys, warm ivory on in-key degrees, golden amber on the tonic, and glowing vivid
+         on out-of-key keys, warm ivory on in-key degrees, crimson on the tonic, and glowing vivid
          blue when held or pedal-sustained). -->
     <SolidColorBrush x:Key="Brush.Key.Led.Housing" Color="#1A1A1D"/>
     <LinearGradientBrush x:Key="Brush.Key.Led.Off" StartPoint="0,0" EndPoint="0,1">
@@ -721,9 +721,9 @@
         <GradientStop Color="#B8B5AE" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.Led.Tonic" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#FFF6DC" Offset="0"/>
-        <GradientStop Color="#F0C06A" Offset="0.42"/>
-        <GradientStop Color="#D88E24" Offset="1"/>
+        <GradientStop Color="#FFC2C7" Offset="0"/>
+        <GradientStop Color="#F2323F" Offset="0.42"/>
+        <GradientStop Color="#B8141E" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="Brush.Key.Led.Held" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#FFFFFF" Offset="0"/>
@@ -901,10 +901,10 @@
 
     <!-- Edge marks, so a key's role never rests on colour alone: the front crest of an in-key
          black key, and the front lip of every in-key white key. On ebony or a held key the mark
-         is warm ivory (or bright gold on the tonic); on an unheld white key it is a quiet
+         is warm ivory (or the brighter crimson of the white tonic's lip on the tonic); on an unheld white key it is a quiet
          architectural slate lip for scale degrees and a bold scarlet-crimson inlay on the tonic. -->
     <SolidColorBrush x:Key="Brush.Key.InKey.Mark"       Color="#F4F0E8"/>
-    <SolidColorBrush x:Key="Brush.Key.Tonic.Mark"       Color="#F5C469"/>
+    <SolidColorBrush x:Key="Brush.Key.Tonic.Mark"       Color="#F2323F"/>
     <SolidColorBrush x:Key="Brush.Key.InKey.Mark.Ivory" Color="#8A867E"/>
     <SolidColorBrush x:Key="Brush.Key.Tonic.Mark.Ivory" Color="#B8141E"/>
 
@@ -919,7 +919,7 @@
     <SolidColorBrush x:Key="Brush.Key.Label.OutOfKey"     Color="#4A4640"/>
     <SolidColorBrush x:Key="Brush.Key.Label.Held"         Color="#182232"/>
     <SolidColorBrush x:Key="Brush.Key.Black.Label"        Color="#DCD6CC"/>
-    <SolidColorBrush x:Key="Brush.Key.Black.Label.OutOfKey" Color="#8E8A82"/>
+    <SolidColorBrush x:Key="Brush.Key.Black.Label.OutOfKey" Color="#6A665F"/>
     <SolidColorBrush x:Key="Brush.Key.Black.Label.Held"   Color="#EBF4FF"/>
 
     <!-- ================= Song practice (falling notes) =================
@@ -2001,7 +2001,8 @@
                             <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Brush.Text.Muted}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter Property="Foreground" Value="{StaticResource Brush.Text.Disabled}"/>
+                            <Setter Property="Foreground" Value="{StaticResource Brush.Text.Muted}"/>
+                            <Setter TargetName="Box" Property="Background" Value="{StaticResource Brush.Disabled}"/>
                             <Setter TargetName="Tick" Property="Stroke" Value="{StaticResource Brush.Text.Disabled}"/>
                             <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Brush.Text.Disabled}"/>
                         </Trigger>
