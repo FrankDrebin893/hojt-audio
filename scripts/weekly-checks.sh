@@ -160,7 +160,8 @@ Move the pin (and the clippy fixes it brings) in one change."
     fi
 }
 
-# 4. A backticked name in AGENTS.md that looks like a file or a folder and is not there.
+# 4. A backticked name in AGENTS.md that looks like a file or a folder and is not there, nor
+# written anywhere else in the tree (a URL path or a file made at run time is not a drift).
 check_drift() {
     local doc dir name missing="" files
     files="$(git ls-files)"
@@ -172,6 +173,8 @@ check_drift() {
             # a path from the root, from the file's folder, or the tail of a tracked path (`ci.yml`)
             [[ -e "$name" || -e "$dir/$name" ]] && continue
             grep -Fq -- "/${name%/}" <<< "/$files" && continue
+            # or written verbatim in some other tracked file: a URL path, a file made at run time
+            git grep -Fq -e "$name" -- . ':(exclude)AGENTS.md' ':(exclude)**/AGENTS.md' ':(exclude)CLAUDE.md' && continue
             missing+="- \`$name\` in \`$doc\`"$'\n'
         done < <(grep -o '`[^` ]*`' "$doc" | tr -d '`' |
             grep -E '^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)+/?$|^[A-Za-z0-9_-]+\.(md|sh|rs|toml|yml|yaml|py|ps1|json|html|css)$' |
