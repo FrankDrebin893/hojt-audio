@@ -62,6 +62,18 @@ fn test_the_script_has_a_dry_run_and_files_ideas() {
 fn test_the_drift_check_accepts_names_written_elsewhere() {
     use std::process::Command;
 
+    // On Windows Git's own bash: `bash` on the PATH can be the WSL launcher, which cannot run a
+    // script there. Where there is none (or git), the test has nothing to run
+    let bash = if cfg!(windows) {
+        let git = std::path::Path::new(r"C:\Program Files\Git\bin\bash.exe");
+        if !git.exists() {
+            return;
+        }
+        git.to_path_buf()
+    } else {
+        "bash".into()
+    };
+
     let script = read("scripts/weekly-checks.sh");
     let start = script.find("check_drift() {").expect("no check_drift");
     let body = &script[start..];
@@ -92,7 +104,7 @@ fn test_the_drift_check_accepts_names_written_elsewhere() {
     run(&["init", "-q"]);
     run(&["add", "-A"]);
 
-    let out = Command::new("bash").arg("check.sh").current_dir(&dir).output().unwrap();
+    let out = Command::new(&bash).arg("check.sh").current_dir(&dir).output().unwrap();
     let _ = std::fs::remove_dir_all(&dir);
     let text = String::from_utf8_lossy(&out.stdout).to_string();
     assert!(out.status.success(), "check_drift failed: {}", String::from_utf8_lossy(&out.stderr));
