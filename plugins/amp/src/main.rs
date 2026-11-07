@@ -19,8 +19,15 @@ const SYSTEM: (cpal::HostId, &str) = (cpal::HostId::Alsa, "alsa");
 struct Machine;
 
 impl Machine {
-    fn host() -> Option<cpal::Host> {
-        cpal::host_from_id(SYSTEM.0).ok()
+    /// The cpal host of a driver, as `--backend` names it. JACK connects by port, not by
+    /// device, so it has none; `auto` is the system's
+    fn host(driver: &str) -> Option<cpal::Host> {
+        match driver {
+            "jack" => None,
+            #[cfg(all(target_os = "windows", feature = "asio"))]
+            "asio" => cpal::host_from_id(cpal::HostId::Asio).ok(),
+            _ => cpal::host_from_id(SYSTEM.0).ok(),
+        }
     }
 }
 
@@ -30,21 +37,51 @@ fn names<D: DeviceTrait>(devices: impl Iterator<Item = D>) -> Vec<String> {
 
 impl standalone::Host for Machine {
     fn drivers(&self) -> Vec<String> {
-        ["auto", SYSTEM.1, "jack"].map(String::from).to_vec()
+        let mut drivers = vec!["auto", SYSTEM.1, "jack"];
+        // ASIO is what an audio interface's own driver offers at the lowest latency
+        if cfg!(all(target_os = "windows", feature = "asio")) {
+            drivers.insert(2, "asio");
+        }
+        drivers.into_iter().map(String::from).collect()
     }
 
     fn devices(&self, driver: &str) -> DriverDevices {
-        // JACK connects by port, not by device; `auto` tries JACK, then the system's driver
-        if driver == "jack" {
-            return DriverDevices::default();
-        }
-        let Some(host) = Self::host() else {
+        // `auto` tries JACK, then the system's driver
+        let Some(host) = Self::host(driver) else {
             return DriverDevices::default();
         };
         DriverDevices {
             inputs: host.input_devices().map(names).unwrap_or_default(),
             outputs: host.output_devices().map(names).unwrap_or_default(),
         }
+    }
+
+    fn channels(&self, driver: &str, input: bool, device: Option<&str>) -> u32 {
+        let Some(host) = Self::host(driver) else {
+            return 2;
+        };
+        let find = |mut devices: Vec<cpal::Device>, default: Option<cpal::Device>| {
+            let named = device
+                .and_then(|name| devices.iter().position(|d| d.name().is_ok_and(|n| n == name)));
+            named.map(|at| devices.swap_remove(at)).or(default)
+        };
+        let most = |configs: Vec<cpal::SupportedStreamConfigRange>| {
+            configs.iter().map(|config| u32::from(config.channels())).max()
+        };
+        if input {
+            let devices = host.input_devices().map(|d| d.collect()).unwrap_or_default();
+            find(devices, host.default_input_device())
+                .and_then(|d| d.supported_input_configs().ok().and_then(|c| most(c.collect())))
+        } else {
+            let devices = host.output_devices().map(|d| d.collect()).unwrap_or_default();
+            find(devices, host.default_output_device())
+                .and_then(|d| d.supported_output_configs().ok().and_then(|c| most(c.collect())))
+        }
+        .unwrap_or(2)
+    }
+
+    fn set_test_tone(&self, on: bool) {
+        nih_standalone_set_test_tone(on);
     }
 
     fn restart(&self, prefs: &Prefs) -> std::io::Result<()> {
@@ -61,7 +98,7 @@ impl standalone::Host for Machine {
 /// The saved choices with this machine's devices put in (see `standalone::resolve`)
 fn resolved(prefs: Prefs) -> Prefs {
     let drivers = standalone::Host::drivers(&Machine);
-    let Some(host) = Machine::host() else {
+    let Some(host) = Machine::host(&prefs.backend) else {
         return standalone::resolve(prefs, &drivers, &[], &[], None);
     };
     standalone::resolve(

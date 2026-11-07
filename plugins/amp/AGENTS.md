@@ -58,7 +58,17 @@ lead) and Drøn (a big, loose, dark amp with the low end let through). They shar
   `main.rs` implements with cpal to list devices and restart, and the Audio panel's choices. The
   panel itself is `suite_common::ui::settings`. nih-plug's host opens its streams once from its
   command line, so Apply saves and starts the program again; no host is installed in a DAW and
-  the editor then shows no Audio button
+  the editor then shows no Audio button. Eight rows: Driver, Input, Input channels, Output,
+  Output channels, Buffer, Sample rate, Test tone. Channels are the amp's stereo pair (the first
+  layout) out of the device's, counted from 1 (`--input-channel`/`--output-channel` of the fork's
+  host; a device that changes puts them back to 1; `Host::channels` says how many the device
+  has). The test tone is live, not part of Apply: `Host::set_test_tone` ->
+  `nih_standalone_set_test_tone` (the fork's host puts a 440 Hz sine, 0.1 of full scale, over the
+  main output) and `AudioChoice::close` turns it off. ASIO is the cargo feature `asio`
+  (`amp/asio` -> `nih_plug/asio` -> cpal's): Windows only, and the Steinberg ASIO SDK has to be
+  at `CPAL_ASIO_DIR` at build time. No CI job builds it (`check_mirrors_ci` wants every cargo
+  step of CI in `check.sh`, which cannot reach the SDK): build it by hand on Windows,
+  `cargo run -p amp --features asio`
 - `src/editor.rs` - egui GUI (3204 x 650 board, opened scaled to the screen up to 3204 x 650 or 1762 x 358 on a 1920 x 1080 screen, and resizable from 0.4 to 1.0 by its corner handle): the oxblood strip across the top with the
   Bank and Preset displays, the list they drop open, or the tuner display in its left wing and
   Output, meters, Clip, On and Tuner in its right; the stack (two lanes, one per amp: its head

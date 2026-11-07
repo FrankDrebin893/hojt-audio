@@ -1939,8 +1939,11 @@ fn audio_button(ui: &mut Ui, origin: Pos2, view: &mut View, host: &dyn standalon
     let at = origin + AUDIO_BUTTON;
     silk_label(ui.painter(), at + vec2(0.0, AUDIO_CAPTION_Y), "Audio", CAPTION_SIZE);
     if chrome_button(ui, at, "audio").clicked() {
-        view.audio = match view.audio {
-            Some(_) => None,
+        view.audio = match view.audio.take() {
+            Some(mut choice) => {
+                choice.close(host);
+                None
+            }
             None => Some(AudioChoice::open(host, standalone::launch())),
         };
     }
@@ -1953,7 +1956,11 @@ fn audio_panel(ui: &mut Ui, origin: Pos2, view: &mut View, host: &dyn standalone
     let rows = choice.rows();
     let shown: Vec<SettingRow> =
         rows.iter().map(|(caption, shown)| SettingRow { caption, shown }).collect();
-    let note = choice.error.as_deref().unwrap_or("Apply starts the amp again on the new settings");
+    let note = match (choice.error.as_deref(), choice.test_tone) {
+        (Some(error), _) => error,
+        (None, true) => "The tone is on the chosen outputs; mind the volume",
+        (None, false) => "Apply starts the amp again on the new settings",
+    };
     let text = SettingsText { title: "Audio Settings", note, apply: "Apply", cancel: "Cancel" };
     let event = settings_panel(ui, origin + AUDIO_PANEL, &text, &shown, "audio");
     match event {
@@ -1965,7 +1972,10 @@ fn audio_panel(ui: &mut Ui, origin: Pos2, view: &mut View, host: &dyn standalone
             Ok(()) => ui.ctx().send_viewport_cmd(nih_plug_egui::egui::ViewportCommand::Close),
             Err(error) => choice.error = Some(format!("Could not restart: {error}")),
         },
-        Some(SettingsEvent::Cancel) => view.audio = None,
+        Some(SettingsEvent::Cancel) => {
+            choice.close(host);
+            view.audio = None;
+        }
         None => {}
     }
 }
@@ -2139,6 +2149,14 @@ mod tests {
         fn restart(&self, _: &Prefs) -> std::io::Result<()> {
             Ok(())
         }
+        fn channels(&self, _: &str, _: bool, device: Option<&str>) -> u32 {
+            // The interface has four of each, the machine's own devices a pair
+            if device == Some("Scarlett 2i2 USB") {
+                4
+            } else {
+                2
+            }
+        }
     }
 
     // The standalone program's window: the Audio button in the strip's corner, and the panel
@@ -2153,6 +2171,7 @@ mod tests {
         let prefs = Prefs {
             backend: "alsa".into(),
             input_device: Some("Scarlett 2i2 USB".into()),
+            input_channel: 3,
             ..Prefs::default()
         };
         harness_with(&params, &setter, None, Some(&machine), |view| {

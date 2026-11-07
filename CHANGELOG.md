@@ -5,6 +5,18 @@ GitHub release.
 
 ## Unreleased
 
+### Guitar Amp
+
+- The standalone program's Audio panel has two more rows: Input channels and Output channels,
+  which pick the pair of the interface's channels (1-2, 3-4...) the amp listens to and plays on
+  (the other outputs stay silent), kept with the other choices and put back to 1-2 when the
+  device changes. A Test tone row sounds a quiet 440 Hz tone on the chosen outputs at once, to
+  find which of them you hear; it goes off when the panel closes.
+- On Windows a build with ASIO offers it as a driver beside WASAPI and JACK, for the low latency
+  of an audio interface's own driver. The downloads are not built with it yet.
+- The standalone program reads a stereo input channel by channel; before, the two channels'
+  samples could land in the wrong halves of the buffer.
+
 ## 0.3.0
 
 ### Guitar Amp

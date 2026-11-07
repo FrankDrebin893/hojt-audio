@@ -12,6 +12,9 @@ crate-type = ["cdylib", "lib"]
 # cargo run -p amp --features standalone
 [features]
 standalone = ["nih_plug/standalone", "dep:cpal"]
+# ASIO as a driver of the standalone program (Windows). Needs the Steinberg ASIO SDK at build
+# time: set CPAL_ASIO_DIR to its folder. Not part of the workspace's own checks
+asio = ["standalone", "nih_plug/asio"]
 
 [[bin]]
 name = "amp_standalone"
