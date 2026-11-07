@@ -29,6 +29,10 @@ pub struct Prefs {
     pub period_size: Option<u32>,
     /// Sample rate in Hz; `None` leaves it to the host's own
     pub sample_rate: Option<u32>,
+    /// The first channel (counted from 1) of the input device the amp's pair is read from
+    pub input_channel: u32,
+    /// The first channel (counted from 1) of the output device the amp's pair is written to
+    pub output_channel: u32,
 }
 
 impl Default for Prefs {
@@ -39,6 +43,8 @@ impl Default for Prefs {
             output_device: None,
             period_size: None,
             sample_rate: None,
+            input_channel: 1,
+            output_channel: 1,
         }
     }
 }
@@ -67,12 +73,14 @@ impl Prefs {
     fn to_json(&self) -> String {
         let text = |value: &Option<String>| value.as_deref().map_or("null".into(), quoted);
         format!(
-            "{{\n  \"backend\": {},\n  \"input_device\": {},\n  \"output_device\": {},\n  \"period_size\": {},\n  \"sample_rate\": {}\n}}\n",
+            "{{\n  \"backend\": {},\n  \"input_device\": {},\n  \"output_device\": {},\n  \"period_size\": {},\n  \"sample_rate\": {},\n  \"input_channel\": {},\n  \"output_channel\": {}\n}}\n",
             quoted(&self.backend),
             text(&self.input_device),
             text(&self.output_device),
             number(self.period_size),
-            number(self.sample_rate)
+            number(self.sample_rate),
+            self.input_channel,
+            self.output_channel
         )
     }
 
@@ -107,6 +115,9 @@ impl Prefs {
                 ("output_device", value) => prefs.output_device = value,
                 ("period_size", value) => prefs.period_size = number_of(value)?,
                 ("sample_rate", value) => prefs.sample_rate = number_of(value)?,
+                // A channel counts from 1; anything else is the first
+                ("input_channel", value) => prefs.input_channel = channel_of(value)?,
+                ("output_channel", value) => prefs.output_channel = channel_of(value)?,
                 _ => {}
             }
         }
@@ -133,6 +144,8 @@ impl Prefs {
                     | "-p"
                     | "--sample-rate"
                     | "-r"
+                    | "--input-channel"
+                    | "--output-channel"
             );
             if !known {
                 continue;
@@ -145,6 +158,8 @@ impl Prefs {
                 "--input-device" => prefs.input_device = Some(value),
                 "--output-device" => prefs.output_device = Some(value),
                 "--period-size" | "-p" => prefs.period_size = value.parse().ok(),
+                "--input-channel" => prefs.input_channel = value.parse().unwrap_or(1).max(1),
+                "--output-channel" => prefs.output_channel = value.parse().unwrap_or(1).max(1),
                 _ => prefs.sample_rate = value.parse().ok(),
             }
         }
@@ -160,6 +175,14 @@ impl Prefs {
             if let Some(value) = value {
                 args.push(flag.into());
                 args.push(value.to_string());
+            }
+        }
+        for (flag, channel) in
+            [("--input-channel", self.input_channel), ("--output-channel", self.output_channel)]
+        {
+            if channel != 1 {
+                args.push(flag.into());
+                args.push(channel.to_string());
             }
         }
         for (flag, device) in
@@ -182,6 +205,12 @@ fn number_of(value: Option<String>) -> Option<Option<u32>> {
         None => Some(None),
         Some(text) => text.parse().ok().map(Some),
     }
+}
+
+/// A channel number read back (`Some` of the first channel for 0 or `null`): `None` for
+/// something that is no number
+fn channel_of(value: Option<String>) -> Option<u32> {
+    number_of(value).map(|number| number.unwrap_or(1).max(1))
 }
 
 fn number(value: Option<u32>) -> String {
@@ -259,6 +288,13 @@ pub fn resolve(
         prefs.backend = "auto".into();
     }
     if prefs.backend != "jack" {
+        // Channels belong to a device: a device that is gone takes its channels with it
+        if prefs.input_device.as_ref().is_none_or(|name| !inputs.contains(name)) {
+            prefs.input_channel = 1;
+        }
+        if prefs.output_device.as_ref().is_none_or(|name| !outputs.contains(name)) {
+            prefs.output_channel = 1;
+        }
         prefs.input_device =
             prefs.input_device.filter(|name| inputs.contains(name)).or(default_input);
         prefs.output_device = prefs.output_device.filter(|name| outputs.contains(name));
@@ -319,6 +355,13 @@ pub trait Host: Send + Sync {
     /// closed and let go of the audio device. The settings file then wins over any
     /// arguments the program was started with
     fn restart(&self, prefs: &Prefs) -> std::io::Result<()>;
+    /// How many channels a device has (`None`: the driver's default input or output). The
+    /// panel offers the amp's stereo pairs of them. Two where the driver cannot say
+    fn channels(&self, _driver: &str, _input: bool, _device: Option<&str>) -> u32 {
+        2
+    }
+    /// Turns the test tone on the chosen outputs on or off, at once and without a restart
+    fn set_test_tone(&self, _on: bool) {}
 }
 
 static HOST: OnceLock<Box<dyn Host>> = OnceLock::new();
@@ -339,9 +382,17 @@ pub struct AudioChoice {
     drivers: Vec<String>,
     devices: DriverDevices,
     pub prefs: Prefs,
+    /// The channels of the chosen input and output device
+    input_channels: u32,
+    output_channels: u32,
+    /// Is the test tone sounding. Not kept between launches
+    pub test_tone: bool,
     /// What `restart` said when it failed
     pub error: Option<String>,
 }
+
+/// The amp's audio is a stereo pair, so the device's channels are offered two at a time
+const PAIR: u32 = 2;
 
 /// Shown for "the machine's default device" and when a driver has no device
 pub const DEFAULT_DEVICE: &str = "Default";
@@ -361,15 +412,36 @@ impl AudioChoice {
             prefs.input_device = prefs.input_device.filter(|name| devices.inputs.contains(name));
             prefs.output_device = prefs.output_device.filter(|name| devices.outputs.contains(name));
         }
-        Self { drivers, devices, prefs, error: None }
+        let mut choice = Self {
+            drivers,
+            devices,
+            prefs,
+            input_channels: PAIR,
+            output_channels: PAIR,
+            test_tone: false,
+            error: None,
+        };
+        choice.count_channels(host);
+        // A channel the device does not have (a file from another interface) is the first
+        choice.prefs.input_channel = fit_pair(choice.prefs.input_channel, choice.input_channels);
+        choice.prefs.output_channel = fit_pair(choice.prefs.output_channel, choice.output_channels);
+        choice
     }
 
-    /// The five rows of the panel: caption and what shows
-    pub fn rows(&self) -> [(&'static str, String); 5] {
+    fn count_channels(&mut self, host: &dyn Host) {
+        let (backend, prefs) = (self.prefs.backend.as_str(), &self.prefs);
+        self.input_channels = host.channels(backend, true, prefs.input_device.as_deref());
+        self.output_channels = host.channels(backend, false, prefs.output_device.as_deref());
+    }
+
+    /// The eight rows of the panel: caption and what shows
+    pub fn rows(&self) -> [(&'static str, String); 8] {
         [
             ("Driver", self.prefs.backend.to_uppercase()),
             ("Input", shown(self.prefs.input_device.as_deref(), &self.devices.inputs)),
+            ("Input channels", pair_name(self.prefs.input_channel, self.input_channels)),
             ("Output", shown(self.prefs.output_device.as_deref(), &self.devices.outputs)),
+            ("Output channels", pair_name(self.prefs.output_channel, self.output_channels)),
             (
                 "Buffer",
                 self.prefs.period_size.map_or(DEFAULT_DEVICE.into(), |n| format!("{n} samples")),
@@ -378,10 +450,12 @@ impl AudioChoice {
                 "Sample rate",
                 self.prefs.sample_rate.map_or(DEFAULT_DEVICE.into(), |n| format!("{n} Hz")),
             ),
+            ("Test tone", if self.test_tone { "On, 440 Hz" } else { "Off" }.into()),
         ]
     }
 
-    /// Moves row `row` (see `rows`) to the next entry of its list, or the previous one
+    /// Moves row `row` (see `rows`) to the next entry of its list, or the previous one. The
+    /// test tone row switches the tone at once; the others wait for Apply
     pub fn step(&mut self, host: &dyn Host, row: usize, forward: bool) {
         self.error = None;
         match row {
@@ -392,13 +466,69 @@ impl AudioChoice {
                 // A device of another driver means nothing to this one
                 self.prefs.input_device = None;
                 self.prefs.output_device = None;
+                self.prefs.input_channel = 1;
+                self.prefs.output_channel = 1;
             }
-            1 => step_device(&mut self.prefs.input_device, &self.devices.inputs, forward),
-            2 => step_device(&mut self.prefs.output_device, &self.devices.outputs, forward),
-            3 => self.prefs.period_size = step_list(&PERIODS, self.prefs.period_size, forward),
-            _ => self.prefs.sample_rate = step_list(&RATES, self.prefs.sample_rate, forward),
+            1 => {
+                step_device(&mut self.prefs.input_device, &self.devices.inputs, forward);
+                self.prefs.input_channel = 1;
+            }
+            2 => {
+                self.prefs.input_channel =
+                    step_pair(self.prefs.input_channel, self.input_channels, forward)
+            }
+            3 => {
+                step_device(&mut self.prefs.output_device, &self.devices.outputs, forward);
+                self.prefs.output_channel = 1;
+            }
+            4 => {
+                self.prefs.output_channel =
+                    step_pair(self.prefs.output_channel, self.output_channels, forward)
+            }
+            5 => self.prefs.period_size = step_list(&PERIODS, self.prefs.period_size, forward),
+            6 => self.prefs.sample_rate = step_list(&RATES, self.prefs.sample_rate, forward),
+            _ => {
+                self.test_tone = !self.test_tone;
+                host.set_test_tone(self.test_tone);
+            }
+        }
+        if row <= 4 {
+            self.count_channels(host);
         }
     }
+
+    /// The panel is closing: the tone must not be left sounding
+    pub fn close(&mut self, host: &dyn Host) {
+        if self.test_tone {
+            self.test_tone = false;
+            host.set_test_tone(false);
+        }
+    }
+}
+
+/// The first channels of the pairs a device with `channels` channels offers: 1, 3, 5...
+/// (at least the first, whatever the device says)
+fn pairs(channels: u32) -> Vec<u32> {
+    (1..channels.max(PAIR)).step_by(PAIR as usize).collect()
+}
+
+/// `first` if the device has the pair that starts there, else the first
+fn fit_pair(first: u32, channels: u32) -> u32 {
+    if pairs(channels).contains(&first) {
+        first
+    } else {
+        1
+    }
+}
+
+fn pair_name(first: u32, channels: u32) -> String {
+    format!("{}-{}", fit_pair(first, channels), fit_pair(first, channels) + 1)
+}
+
+fn step_pair(first: u32, channels: u32, forward: bool) -> u32 {
+    let list = pairs(channels);
+    let at = list.iter().position(|&entry| entry == first).unwrap_or(0);
+    list[around(at, list.len(), forward)]
 }
 
 fn shown(chosen: Option<&str>, listed: &[String]) -> String {
@@ -460,7 +590,20 @@ mod tests {
         fn restart(&self, _: &Prefs) -> std::io::Result<()> {
             Ok(())
         }
+        fn channels(&self, _: &str, input: bool, device: Option<&str>) -> u32 {
+            // The Scarlett has four inputs and six outputs, everything else a pair
+            match (input, device) {
+                (true, Some("Scarlett")) => 4,
+                (false, Some("Scarlett")) => 6,
+                _ => 2,
+            }
+        }
+        fn set_test_tone(&self, on: bool) {
+            TONE.store(on, std::sync::atomic::Ordering::SeqCst);
+        }
     }
+
+    static TONE: AtomicBool = AtomicBool::new(false);
 
     fn dir(name: &str) -> PathBuf {
         let dir =
@@ -481,6 +624,10 @@ mod tests {
             ("alsa", Some("Mic"), Some(128))
         );
         assert_eq!(prefs.sample_rate, None);
+        let channels: Vec<String> =
+            ["amp", "--input-channel", "3", "--output-channel=0"].map(String::from).to_vec();
+        let prefs = Prefs::from_args(&channels);
+        assert_eq!((prefs.input_channel, prefs.output_channel), (3, 1));
     }
 
     #[test]
@@ -548,6 +695,8 @@ mod tests {
             output_device: Some("Speakers".into()),
             period_size: Some(128),
             sample_rate: Some(96_000),
+            input_channel: 3,
+            output_channel: 5,
         };
         prefs.save(&path).unwrap();
         assert_eq!(Prefs::load(&path), prefs);
@@ -577,6 +726,8 @@ mod tests {
             output_device: None,
             period_size: Some(64),
             sample_rate: Some(44_100),
+            input_channel: 3,
+            output_channel: 1,
         };
         assert_eq!(
             prefs.args("amp"),
@@ -588,6 +739,8 @@ mod tests {
                 "64",
                 "--sample-rate",
                 "44100",
+                "--input-channel",
+                "3",
                 "--input-device=Scarlett 2i2"
             ]
         );
@@ -613,13 +766,104 @@ mod tests {
         assert_eq!(choice.prefs.input_device, None);
         // Nothing chosen is the host's own; stepping back from it goes round to the last
         assert_eq!(choice.prefs.period_size, None);
-        choice.step(&host, 3, false);
+        choice.step(&host, 5, false);
         assert_eq!(choice.prefs.period_size, Some(512));
-        choice.step(&host, 3, true);
-        choice.step(&host, 3, true);
+        choice.step(&host, 5, true);
+        choice.step(&host, 5, true);
         assert_eq!(choice.prefs.period_size, Some(64));
-        choice.step(&host, 4, true);
-        choice.step(&host, 4, true);
+        choice.step(&host, 6, true);
+        choice.step(&host, 6, true);
         assert_eq!(choice.prefs.sample_rate, Some(48_000));
+    }
+
+    #[test]
+    fn test_channels_come_in_pairs_of_the_device_chosen() {
+        assert_eq!(pairs(0), [1]);
+        assert_eq!(pairs(2), [1]);
+        assert_eq!(pairs(3), [1]);
+        assert_eq!(pairs(4), [1, 3]);
+        assert_eq!(pairs(6), [1, 3, 5]);
+        assert_eq!((fit_pair(5, 4), fit_pair(3, 4), fit_pair(2, 4)), (1, 3, 1));
+        assert_eq!(pair_name(3, 6), "3-4");
+
+        let host = Fake;
+        let prefs = Prefs { backend: "wasapi".into(), ..Prefs::default() };
+        let mut choice = AudioChoice::open(&host, prefs);
+        // The default input is a pair: nothing to step to
+        choice.step(&host, 2, true);
+        assert_eq!(choice.rows()[2].1, "1-2");
+        // The Scarlett has two pairs in and three out, and each list goes round
+        choice.step(&host, 1, true);
+        assert_eq!(choice.prefs.input_device.as_deref(), Some("Scarlett"));
+        choice.step(&host, 2, true);
+        assert_eq!(choice.rows()[2].1, "3-4");
+        choice.step(&host, 2, true);
+        assert_eq!(choice.rows()[2].1, "1-2");
+        choice.step(&host, 2, false);
+        assert_eq!(choice.prefs.input_channel, 3);
+        choice.step(&host, 3, true);
+        assert_eq!(choice.prefs.output_device.as_deref(), Some("Speakers"));
+        choice.prefs.output_device = Some("Scarlett".into());
+        choice.count_channels(&host);
+        for _ in 0..2 {
+            choice.step(&host, 4, true);
+        }
+        assert_eq!(choice.rows()[4].1, "5-6");
+        // A different device is a different set of channels: back to the first pair
+        choice.step(&host, 1, true);
+        assert_eq!((choice.prefs.input_channel, choice.prefs.output_channel), (1, 5));
+        choice.step(&host, 3, true);
+        assert_eq!(choice.prefs.output_channel, 1);
+        // A saved channel the device lacks opens as the first pair
+        let saved = Prefs {
+            backend: "wasapi".into(),
+            input_device: Some("Mic".into()),
+            input_channel: 3,
+            ..Prefs::default()
+        };
+        let choice = AudioChoice::open(&host, saved);
+        assert_eq!(choice.prefs.input_channel, 1);
+    }
+
+    #[test]
+    fn test_the_test_tone_is_on_until_the_panel_closes() {
+        let host = Fake;
+        let mut choice = AudioChoice::open(&host, Prefs::default());
+        assert_eq!(choice.rows()[7], ("Test tone", "Off".to_string()));
+        choice.step(&host, 7, true);
+        assert!(choice.test_tone && TONE.load(std::sync::atomic::Ordering::SeqCst));
+        assert_eq!(choice.rows()[7].1, "On, 440 Hz");
+        choice.close(&host);
+        assert!(!choice.test_tone && !TONE.load(std::sync::atomic::Ordering::SeqCst));
+        // Closing with the tone off asks for nothing
+        choice.close(&host);
+    }
+
+    #[test]
+    fn test_an_old_file_without_channels_opens_on_the_first_pair() {
+        let path = dir("old").join(FILE);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, r#"{"backend": "wasapi", "input_device": "Scarlett"}"#).unwrap();
+        let loaded = Prefs::load(&path);
+        assert_eq!((loaded.input_channel, loaded.output_channel), (1, 1));
+        std::fs::write(&path, r#"{"input_channel": 0, "output_channel": 3}"#).unwrap();
+        let loaded = Prefs::load(&path);
+        assert_eq!((loaded.input_channel, loaded.output_channel), (1, 3));
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    #[test]
+    fn test_a_device_that_is_gone_takes_its_channels_with_it() {
+        let list = |names: &[&str]| names.iter().map(|n| n.to_string()).collect::<Vec<_>>();
+        let drivers = list(&["auto", "wasapi"]);
+        let saved = Prefs {
+            input_device: Some("Gone".into()),
+            input_channel: 3,
+            output_device: Some("Scarlett".into()),
+            output_channel: 5,
+            ..Prefs::default()
+        };
+        let resolved = resolve(saved, &drivers, &list(&["Mic"]), &list(&["Scarlett"]), None);
+        assert_eq!((resolved.input_channel, resolved.output_channel), (1, 5));
     }
 }
