@@ -36,7 +36,7 @@ pub use amp::{
 };
 pub use art::Motif;
 pub use frame::{
-    coupler, enclosure, lifted, mini_pedal, patch_cable, pedal, rig, rig_layer, strip, strip_plate,
+    angled_plug, coupler, enclosure, lifted, mini_pedal, patch_cable, pedal, rig, rig_layer, strip, strip_plate,
     title_grip, MiniStyle, Ornament, PedalStyle, BENCH_MARGIN, PLUG_Y, SLIM_KNOBS,
     SLIM_KNOB_RADIUS, SLIM_LED, SLIM_SWITCH, STRIP_BAND_WIDTH,
 };

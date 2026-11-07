@@ -300,7 +300,7 @@ pub fn coupler(painter: &Painter, left: f32, right: f32, y: f32) {
 
 /// An angled plug in the side of a pedal at `edge`: its barrel, and the housing the cable
 /// leaves upwards
-fn angled_plug(painter: &Painter, edge: f32, housing: Rect) {
+pub fn angled_plug(painter: &Painter, edge: f32, housing: Rect) {
     let ring = Stroke::new(1.0_f32, Color32::from_black_alpha(110));
     let center = housing.center();
     let barrel = Rect::from_min_max(

@@ -1980,6 +1980,9 @@ fn audio_panel(ui: &mut Ui, origin: Pos2, view: &mut View, host: &dyn standalone
     }
 }
 
+#[cfg(all(test, target_os = "linux"))]
+mod mockup;
+
 #[cfg(test)]
 mod tests {
     use super::*;
