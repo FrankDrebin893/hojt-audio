@@ -1354,13 +1354,17 @@ mod tests {
     // aliases at the usual sample rates
     const ALIAS_TONES_HZ: [f32; 2] = [1245.0, 4186.0];
     // Per amp, at each of the tones
-    const ALIAS_LIMITS_DB: [[f64; 2]; 6] = [
+    const ALIAS_LIMITS_DB: [[f64; 2]; 10] = [
         [-90.0, -78.0],
         [-90.0, -78.0],
         [-84.0, -84.0],
         [-90.0, -78.0],
         [-90.0, -78.0],
         [-90.0, -78.0],
+        [-90.0, -78.0],
+        [-90.0, -78.0],
+        [-88.0, -78.0],
+        [-88.0, -88.0],
     ];
 
     fn new_chain(sample_rate: f32) -> AmpChain {
@@ -1821,9 +1825,15 @@ mod tests {
             for sample_rate in [44100.0, 96000.0] {
                 let plain = with_amp(amp, 0.5);
                 let pedal = AmpSettings { comp: squeezed.comp, ..plain };
-                assert_eq!(
+                // Where the added impulse first reaches half its peak: one sample either way
+                // is the threshold falling between two, not a delay
+                let (with, without) = (
                     latency_samples_with(&pedal, sample_rate),
-                    latency_samples_with(&plain, sample_rate)
+                    latency_samples_with(&plain, sample_rate),
+                );
+                assert!(
+                    with.abs_diff(without) <= 1,
+                    "{amp:?} at {sample_rate} Hz: {with} {without}"
                 );
             }
         }
@@ -2931,11 +2941,13 @@ mod tests {
     }
 
     /// How much steeper than once it has settled the sound may be after all six dials
-    /// jumped to this amp. Drøn is dark and smooth: its own steps are small, so the first
-    /// ones, made while its filters fill, are large against them
+    /// jumped to this amp. Drøn and Knald are dark and smooth: their own steps are small, so
+    /// the first ones, made while their filters fill, are large against them
     fn after_a_jump(amp: Amp) -> f32 {
         if amp == Amp::Dron {
             1.35
+        } else if amp == Amp::Knald {
+            1.6
         } else {
             1.2
         }
@@ -3006,8 +3018,10 @@ mod tests {
                 let output = run_change(&pedals(from), &pedals(to), &input, at);
                 let ratio = step_ratio(&output, at);
                 // With the compressor and the drive in front, Klar is pushed as it starts: until
-                // its power stage has given way, 20 ms later, it is louder than it settles at
-                let limit = if to == Amp::Klar { 3.0 } else { from_rest(to) };
+                // its power stage has given way, 20 ms later, it is louder than it settles at.
+                // Skarp, which sags deeply and is loud with the pedals on, leaves it a little
+                // more to give way than Torden does (3.1 against 2.7)
+                let limit = if to == Amp::Klar { 3.3 } else { from_rest(to) };
                 assert!(ratio < limit, "{:?} to {:?}: step {} times its own", from, to, ratio);
             }
         }
@@ -7434,5 +7448,215 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
         let blends = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8];
         let (heard, _) = blend_loudness(Amp::Torden, Amp::Klar, &blends);
         println!("Torden + Klar, Blend 0.2 to 0.8 in steps of 0.1: {heard:.1?}");
+    }
+
+    /// The preamp's total gain in dB with the Gain dial at `gain` (0.0 to 1.0): the gains of
+    /// its stages added up. What "gain" means when the spec says one amp has more than another
+    fn preamp_gain_db(amp: Amp, gain: f32) -> f32 {
+        let model = amp.model();
+        model.stages[..model.stage_count]
+            .iter()
+            .map(|stage| crate::dsp::curve(&stage.gain_db, gain))
+            .sum()
+    }
+
+    /// Level between two frequencies of chords through the amp at the reference level, in dB
+    /// relative to the whole signal
+    fn voice_band_db(amp: Amp, gain: f32, from_hz: f32, to_hz: f32) -> f32 {
+        let chords = at_rms_db(&power_chords(SAMPLE_RATE, 1.5), REFERENCE_DI_DB);
+        spectrum_level_db(
+            &run(&with_amp(amp, gain), &chords, SAMPLE_RATE),
+            SAMPLE_RATE,
+            from_hz,
+            to_hz,
+        )
+    }
+
+    #[test]
+    fn test_the_four_new_amps_sit_apart_in_gain() {
+        let at_five = |amp: Amp| preamp_gain_db(amp, 0.5);
+        for amp in [Amp::Knald, Amp::Gnist] {
+            assert!(
+                at_five(Amp::Glod) < at_five(amp) && at_five(amp) < at_five(Amp::Brol),
+                "{amp:?}: {:.1} dB, between Glød {:.1} and Brøl {:.1}",
+                at_five(amp),
+                at_five(Amp::Glod),
+                at_five(Amp::Brol)
+            );
+        }
+        for amp in [Amp::Skarp, Amp::Hvas] {
+            assert!(at_five(amp) >= at_five(Amp::Torden), "{amp:?}: {:.1} dB", at_five(amp));
+        }
+    }
+
+    #[test]
+    fn test_the_four_new_amps_sit_apart_in_spectrum_from_their_nearest() {
+        let chords = at_rms_db(&power_chords(SAMPLE_RATE, 1.0), REFERENCE_DI_DB);
+        let bands =
+            |amp: Amp| band_levels_db(&run(&with_amp(amp, 0.5), &chords, SAMPLE_RATE), SAMPLE_RATE);
+        for (new, nearest) in [
+            (Amp::Knald, Amp::Brol),
+            (Amp::Gnist, Amp::Glod),
+            (Amp::Skarp, Amp::Torden),
+            (Amp::Hvas, Amp::Sang),
+        ] {
+            let (a, b) = (bands(new), bands(nearest));
+            let apart = a.iter().zip(&b).map(|(x, y)| (x - y).abs()).fold(0.0, f32::max);
+            assert!(apart >= 3.0, "{new:?} and {nearest:?} are {apart:.1} dB apart");
+        }
+    }
+
+    #[test]
+    fn test_skarp_bites_harder_than_torden_without_more_fizz() {
+        let (skarp, torden) = (
+            (
+                voice_band_db(Amp::Skarp, 0.5, 3000.0, 5000.0),
+                voice_band_db(Amp::Skarp, 0.5, 7000.0, 16000.0),
+            ),
+            (
+                voice_band_db(Amp::Torden, 0.5, 3000.0, 5000.0),
+                voice_band_db(Amp::Torden, 0.5, 7000.0, 16000.0),
+            ),
+        );
+        assert!(
+            skarp.0 >= torden.0 + 3.0,
+            "3 to 5 kHz: Skarp {:.1} dB, Torden {:.1} dB",
+            skarp.0,
+            torden.0
+        );
+        assert!(
+            skarp.1 <= torden.1,
+            "Above 7 kHz: Skarp {:.1} dB, Torden {:.1} dB",
+            skarp.1,
+            torden.1
+        );
+    }
+
+    #[test]
+    fn test_the_four_new_amps_are_as_loud_as_the_old_six() {
+        // The -30 dBFS reference of #131: each of the four within 2 LU of the old six's mean
+        let recording = at_rms_db(&guitar_di(SAMPLE_RATE), REFERENCE_DI_DB);
+        let heard = |amp: Amp| {
+            loudness_lufs(&[&run(&with_amp(amp, 0.5), &recording, SAMPLE_RATE)], SAMPLE_RATE)
+        };
+        let old = &Amp::ALL[..6];
+        let mean = old.iter().map(|&amp| heard(amp)).sum::<f32>() / old.len() as f32;
+        for &amp in &Amp::ALL[6..] {
+            assert!(
+                (heard(amp) - mean).abs() < 2.0,
+                "{amp:?}: {:.1} LUFS, old mean {mean:.1}",
+                heard(amp)
+            );
+        }
+    }
+
+    /// The four amps of #263 each next to its nearest old amp, as WAV files in target/renders
+    /// (`voices_<new>_vs_<old>_<riff>_gain<N>.wav`: the old amp, a pause, the new one), the same
+    /// riffs at Gain 3, 5 and 7: clean-ish chords, power chords, palm mutes and a lead line
+    ///   cargo test -p amp --release render_voices -- --ignored
+    #[test]
+    #[ignore]
+    fn render_voices() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/renders");
+        std::fs::create_dir_all(&dir).unwrap();
+        let riffs: [(&str, Vec<f32>); 4] = [
+            ("clean", clean_di(SAMPLE_RATE)),
+            ("power", power_chords(SAMPLE_RATE, 6.0)),
+            ("mutes", palm_mutes(SAMPLE_RATE, 6.0)),
+            ("lead", guitar_di(SAMPLE_RATE)),
+        ];
+        let pause = vec![0.0; SAMPLE_RATE as usize];
+        for (new, old) in [
+            (Amp::Knald, Amp::Brol),
+            (Amp::Gnist, Amp::Glod),
+            (Amp::Skarp, Amp::Torden),
+            (Amp::Hvas, Amp::Sang),
+        ] {
+            for (riff, recording) in &riffs {
+                let input = at_rms_db(recording, REFERENCE_DI_DB);
+                for gain in [3, 5, 7] {
+                    let mut both = run(&with_amp(old, gain as f32 / 10.0), &input, SAMPLE_RATE);
+                    both.extend(&pause);
+                    both.extend(run(&with_amp(new, gain as f32 / 10.0), &input, SAMPLE_RATE));
+                    let name = format!(
+                        "voices_{}_vs_{}_{riff}_gain{gain}.wav",
+                        format!("{new:?}").to_lowercase(),
+                        format!("{old:?}").to_lowercase()
+                    );
+                    write_wav(&dir.join(name), &[&both, &both], SAMPLE_RATE as u32);
+                }
+            }
+        }
+    }
+
+    /// What sets the four amps of #263 apart: total preamp gain, loudness, the octave bands of
+    /// chords, the bite and the fizz, next to every old amp:
+    /// cargo test -p amp --release voices_report -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn voices_report() {
+        let riffs = at_rms_db(&guitar_di(SAMPLE_RATE), REFERENCE_DI_DB);
+        let chords = at_rms_db(&power_chords(SAMPLE_RATE, 1.5), REFERENCE_DI_DB);
+        let palm = at_rms_db(&palm_mutes(SAMPLE_RATE, 2.4), REFERENCE_DI_DB);
+        println!("\nPreamp gain in dB (stages added) and loudness in LUFS (guitar at {REFERENCE_DI_DB} dBFS RMS)");
+        println!("amp      pre@3 pre@5 pre@7   LUFS@3 LUFS@5 LUFS@7   THD@5 (held note)");
+        let held = sine(220.0, HELD_NOTE, SAMPLE_RATE, 19_200);
+        for amp in Amp::ALL {
+            let lufs: Vec<f32> = [0.3, 0.5, 0.7]
+                .iter()
+                .map(|&gain| {
+                    loudness_lufs(&[&run(&with_amp(amp, gain), &riffs, SAMPLE_RATE)], SAMPLE_RATE)
+                })
+                .collect();
+            let thd =
+                thd_db(&run(&with_amp(amp, 0.5), &held, SAMPLE_RATE)[9600..], SAMPLE_RATE, 220.0);
+            println!(
+                "{:<8} {:>5.1} {:>5.1} {:>5.1}   {:>6.1} {:>6.1} {:>6.1}   {:>6.1}",
+                format!("{amp:?}"),
+                preamp_gain_db(amp, 0.3),
+                preamp_gain_db(amp, 0.5),
+                preamp_gain_db(amp, 0.7),
+                lufs[0],
+                lufs[1],
+                lufs[2],
+                thd
+            );
+        }
+        println!("\nChords at Gain 5, octave bands in dB relative to the whole signal");
+        println!(
+            "Hz from  {:>7}{:>7}{:>7}{:>7}{:>7}{:>7}{:>7}   {:>6} {:>6} {:>6}",
+            62, 125, 250, 500, 1000, 2000, 4000, "3k-5k", ">7k", "<100"
+        );
+        for amp in Amp::ALL {
+            let output = run(&with_amp(amp, 0.5), &chords, SAMPLE_RATE);
+            print!("{:<8}", format!("{amp:?}"));
+            for level in band_levels_db(&output, SAMPLE_RATE) {
+                print!("{level:>7.1}");
+            }
+            println!(
+                "   {:>6.1} {:>6.1} {:>6.1}",
+                spectrum_level_db(&output, SAMPLE_RATE, 3000.0, 5000.0),
+                spectrum_level_db(&output, SAMPLE_RATE, 7000.0, 16000.0),
+                spectrum_level_db(&output, SAMPLE_RATE, 20.0, 100.0),
+            );
+        }
+        println!("\nAliasing in dB below the total: Gain 10 at 48 kHz, and the drive flat out at 44.1 kHz");
+        println!("amp       1245 Hz  4186 Hz   drive 1245  4186");
+        for amp in Amp::ALL {
+            let driven = with_drive(amp, 1.0, 1.0, 1.0, 1.0);
+            println!(
+                "{:<8} {:>8.1} {:>8.1}   {:>10.1} {:>5.1}",
+                format!("{amp:?}"),
+                aliasing_db(amp, 1.0, ALIAS_TONES_HZ[0]),
+                aliasing_db(amp, 1.0, ALIAS_TONES_HZ[1]),
+                aliasing_db_at(&driven, ALIAS_TONES_HZ[0], 44100.0),
+                aliasing_db_at(&driven, ALIAS_TONES_HZ[1], 44100.0),
+            );
+        }
+        println!("\nPalm mutes at Gain 7: lows (to 100 Hz) against the mids (400 to 1600 Hz), dB");
+        for amp in Amp::ALL {
+            let output = run(&with_amp(amp, 0.7), &palm, SAMPLE_RATE);
+            println!("{:<8} {:>6.1}", format!("{amp:?}"), lows_against_mids_db(&output));
+        }
     }
 }

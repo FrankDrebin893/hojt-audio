@@ -5,10 +5,13 @@ reasons behind the amp's design are in `DESIGN.md` next to this file; open work 
 `plugin:amp` issues.
 
 A guitar amp with a full signal chain, all our own designs: own names, no real makers' names,
-trademarks or circuit names anywhere (code, comments, docs, commit messages). Six amps, each
+trademarks or circuit names anywhere (code, comments, docs, commit messages). Ten amps, each
 with its own cabinet: Klar (clean, glassy), Brøl (mid-forward crunch), Torden (modern tight high
 gain), Glød (warm edge of breakup, between Klar and Brøl), Sang (a smooth, compressed singing
-lead) and Drøn (a big, loose, dark amp with the low end let through). They share the six dials.
+lead), Drøn (a big, loose, dark amp with the low end let through), and, from #263, Knald (thick,
+warm, slightly woolly mid-gain), Gnist (its bright, chimey cousin), Skarp (crisp, tight modern high
+gain with a bite at 3 kHz and deep sag) and Hvas (dense, hot-rodded high gain, looser low end). They
+share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_ids_are_frozen`).
 
 - `src/lib.rs` - Plugin entry point, parameters. Reads them once per block into `AmpSettings`
 - `src/chain.rs` - `AmpChain`: the whole chain, dial smoothing, bypass crossfade, amp switching
@@ -425,6 +428,12 @@ cargo test -p amp --release amp_report -- --ignored --nocapture
 # How loud each amp is heard (LUFS), its peaks and crest per Gain, for guitars recorded from
 # -36 to -12 dBFS RMS, and the distortion of a held note at those levels.
 cargo test -p amp --release loudness_report -- --ignored --nocapture
+
+# The four amps of #263 against the others: total preamp gain, loudness, octave bands, the bite
+# at 3 to 5 kHz, the fizz above 7 kHz, aliasing, palm mutes. render_voices writes each next to its
+# nearest old amp at Gain 3, 5 and 7 as WAV files in target/renders (voices_*.wav)
+cargo test -p amp --release voices_report -- --ignored --nocapture
+cargo test -p amp --release render_voices -- --ignored
 
 # One number per amp, Gain and pedal that changes with any bit of the output. Save the lines
 # before and after a change that must leave a sound as it is, and compare them.

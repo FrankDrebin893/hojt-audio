@@ -222,12 +222,31 @@ mod tests {
     }
 
     #[test]
+    fn test_a_project_saved_with_six_amps_gives_the_new_ones_their_defaults() {
+        // What a build from before the four of #263 saved: six lists of six values
+        let mut six = vec![DEFAULTS; 6];
+        six[Amp::Klar.index()] = KLAR;
+        six[Amp::Dron.index()] = TORDEN;
+        let memory = DialMemory::new(DEFAULTS);
+        memory.set(six);
+        assert_eq!(memory.enter(Amp::Klar), KLAR);
+        assert_eq!(memory.enter(Amp::Dron), TORDEN);
+        for amp in [Amp::Knald, Amp::Gnist, Amp::Skarp, Amp::Hvas] {
+            assert_eq!(memory.enter(amp), DEFAULTS, "{amp:?}");
+        }
+    }
+
+    #[test]
     fn test_saved_and_restored_it_is_the_same() {
         let memory = DialMemory::new(DEFAULTS);
         memory.leave(Amp::Klar, KLAR);
         memory.leave(Amp::Torden, TORDEN);
         let saved = memory.map(|stored| stored.clone());
-        assert_eq!(saved, vec![KLAR, DEFAULTS, TORDEN, DEFAULTS, DEFAULTS, DEFAULTS]);
+        assert_eq!(saved.len(), Amp::ALL.len());
+        let mut expected = vec![DEFAULTS; Amp::ALL.len()];
+        expected[Amp::Klar.index()] = KLAR;
+        expected[Amp::Torden.index()] = TORDEN;
+        assert_eq!(saved, expected);
 
         let restored = DialMemory::new(DEFAULTS);
         restored.set(saved);
