@@ -11,7 +11,7 @@ feedback is $ARGUMENTS, or his message in the conversation. Every skill reads
 `.agents/learnings.md` before it starts, so a learning written there reaches the routines
 (Scout, Specwriter, Builder) and any session by itself.
 
-1. **Place it.** Which process made the result: design (explore, build, review), Scout, a spec
+1. **Place it.** Which process made the result: design (explore, build, review), a map (`/wayfinder`), Scout, a spec
    (`/groom`, `/spec`, `/specwriter`, `/issue`), a build (`/next`, its builder or reviewer),
    the page or a release. Feedback that holds for all of them goes under **Everywhere**. Find
    the issue or pull request it is about and read the result itself (the images, the spec, the

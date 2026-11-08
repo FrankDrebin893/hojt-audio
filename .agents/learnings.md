@@ -24,6 +24,8 @@ is changed to carry a learning, its entry stays here with `In the skill:` and th
   elements and fix them; a mock-up with a collision is not shown. In the skill: `/design`,
   explore steps 2 and 3.
 
+## Maps (`/wayfinder`)
+
 ## Scout (`/scout`)
 
 ## Specs (`/groom`, `/spec`, `/specwriter`, `/issue`)

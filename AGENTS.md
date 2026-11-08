@@ -49,7 +49,7 @@ detail lives. Each detail is next to what it governs.
   `site-design/DESIGN.md` - the site's look: its tokens, named rules, voice and references; not published
 - `scripts/` - Build, install, check, page and release tools; see `scripts/README.md`
 - `.agents/skills/` - The agent's skills (`/issue`, `/spec`, `/next`, `/groom`, `/release`, `/page`,
-  `/design`, `/scout`, `/specwriter`, `/release-prep`, `/release-review`, `/feedback`, and the piano viz's `/piano-release` and `/piano-readme`).
+  `/design`, `/wayfinder`, `/scout`, `/specwriter`, `/release-prep`, `/release-review`, `/feedback`, and the piano viz's `/piano-release` and `/piano-readme`).
   `.claude/commands/` mirrors them for Claude Code (`xtask/tests/skills_mirror.rs` holds it);
   `.claude/settings.json` has the hooks
 - `.github/workflows/` - `ci.yml` (tests), `release.yml` (the plugins, on `vX.Y.Z`), `piano.yml` (builds
@@ -186,7 +186,11 @@ would have to guess gets questions and `needs:reporter`, and no spec until the r
   A change that only touches the page (`site/`, `site-sources/`, `site-design/`), markdown outside
   `.agents/` and `.claude/`, the licences or the issue forms skips the steps of `Test` and
   `Format and clippy` (the `changes` job in `ci.yml`); the jobs still run and pass, so the required names are met
-- A large piece of work is a parent issue with one sub-issue per milestone
+- A large piece of work is a parent issue with one sub-issue per milestone. One whose route is not
+  yet clear (the overhaul of every editor, a new plugin) is first charted with `/wayfinder`, only when
+  Rasmus asks: a map issue (`wayfinder:map`, no `state:*` label) with decision tickets as children,
+  resolved one per session until nothing is left to decide, then `/spec` turns the map into the parent
+  above. No routine runs it, and a map plans: it builds nothing
 - A decision the spec did not cover is asked on the issue, not guessed
 - What Rasmus says about a result (a mock-up, a spec, an idea, a build) is recorded with `/feedback`
   in `.agents/learnings.md`, a section per process. Every skill reads it before it starts, so
