@@ -24,10 +24,33 @@ pub enum Amp {
     #[id = "dron"]
     #[name = "Drøn"]
     Dron,
+    #[id = "knald"]
+    #[name = "Knald"]
+    Knald,
+    #[id = "gnist"]
+    #[name = "Gnist"]
+    Gnist,
+    #[id = "skarp"]
+    #[name = "Skarp"]
+    Skarp,
+    #[id = "hvas"]
+    #[name = "Hvas"]
+    Hvas,
 }
 
 impl Amp {
-    pub const ALL: [Amp; 6] = [Amp::Klar, Amp::Brol, Amp::Torden, Amp::Glod, Amp::Sang, Amp::Dron];
+    pub const ALL: [Amp; 10] = [
+        Amp::Klar,
+        Amp::Brol,
+        Amp::Torden,
+        Amp::Glod,
+        Amp::Sang,
+        Amp::Dron,
+        Amp::Knald,
+        Amp::Gnist,
+        Amp::Skarp,
+        Amp::Hvas,
+    ];
 
     pub fn model(self) -> &'static AmpModel {
         match self {
@@ -37,6 +60,10 @@ impl Amp {
             Amp::Glod => &GLOD,
             Amp::Sang => &SANG,
             Amp::Dron => &DRON,
+            Amp::Knald => &KNALD,
+            Amp::Gnist => &GNIST,
+            Amp::Skarp => &SKARP,
+            Amp::Hvas => &HVAS,
         }
     }
 
@@ -465,6 +492,74 @@ const DRON_CAB: CabModel = CabModel {
     breakup_db: 2.8,
     breakup_seed: 230,
     ir_ms: 10.0,
+};
+
+/// Knald's own: four 12" speakers in a closed box, old and thick: fat low mids, a soft low
+/// end that does not snap, a modest bite at 2 kHz and a top that rounds off early
+const KNALD_CAB: CabModel = CabModel {
+    resonance_hz: 88.0,
+    resonance_q: 1.2,
+    body: [210.0, 0.8, 3.5],
+    dip: [700.0, 1.0, -1.5],
+    bite: [2200.0, 0.9, 5.5],
+    rolloff_hz: 4800.0,
+    air_ratio: 1.5,
+    breakup_hz: [1000.0, 5500.0],
+    breakup_count: 28,
+    breakup_db: 2.8,
+    breakup_seed: 240,
+    ir_ms: 10.0,
+};
+
+/// Gnist's own: two 12" speakers in a lightly closed box: a quick low end, the honk up at
+/// 1.2 kHz, a ringing bite at 2.8 kHz and a top that reaches
+const GNIST_CAB: CabModel = CabModel {
+    resonance_hz: 102.0,
+    resonance_q: 1.3,
+    body: [240.0, 0.8, 2.0],
+    dip: [550.0, 1.0, -3.0],
+    bite: [2800.0, 0.8, 6.5],
+    rolloff_hz: 5800.0,
+    air_ratio: 1.4,
+    breakup_hz: [1100.0, 6500.0],
+    breakup_count: 26,
+    breakup_db: 2.6,
+    breakup_seed: 250,
+    ir_ms: 8.0,
+};
+
+/// Skarp's own: four 12" speakers in a closed box, tight and firm in the lows, a dip around
+/// 500 to 800 Hz, a focused bite at 3.1 kHz and a steep top
+const SKARP_CAB: CabModel = CabModel {
+    resonance_hz: 112.0,
+    resonance_q: 1.35,
+    body: [200.0, 0.8, 4.0],
+    dip: [650.0, 1.0, -5.0],
+    bite: [3500.0, 0.9, 10.5],
+    rolloff_hz: 4600.0,
+    air_ratio: 1.1,
+    breakup_hz: [1000.0, 5500.0],
+    breakup_count: 26,
+    breakup_db: 3.0,
+    breakup_seed: 260,
+    ir_ms: 8.0,
+};
+
+/// Hvas's own: two 12" speakers in a closed box, a looser low end than Skarp's, the mids
+/// left in and a hard bite at 2.4 kHz with the top let through
+const HVAS_CAB: CabModel = CabModel {
+    resonance_hz: 95.0,
+    resonance_q: 1.2,
+    body: [260.0, 0.8, 3.0],
+    dip: [900.0, 1.0, -1.0],
+    bite: [2400.0, 0.9, 7.0],
+    rolloff_hz: 5400.0,
+    air_ratio: 1.3,
+    breakup_hz: [1100.0, 6500.0],
+    breakup_count: 26,
+    breakup_db: 2.8,
+    breakup_seed: 270,
+    ir_ms: 8.0,
 };
 
 /// Everything that makes one amp differ from another
@@ -989,6 +1084,343 @@ static DRON: AmpModel = AmpModel {
     cab: DRON_CAB,
 };
 
+/// Mid-gain, thick and warm: a slightly woolly classic rock amp. The low end is let into the
+/// clipping and the low mids are fat, the treble is smooth and the bright lift almost
+/// absent, and the power stage compresses and sags a lot. Three stages: the first two bend
+/// early and softly, so it breaks up from Gain 4 and cleans up with the guitar's volume; the
+/// last clips unevenly, so the grind goes fuzzy-warm as the gain passes 6
+static KNALD: AmpModel = AmpModel {
+    name: "Knald",
+    model_number: "KN-45",
+    tight_hz: 75.0,
+    focus: [800.0, 0.7, 2.0],
+    bright_hz: 1500.0,
+    bright_db: 1.0,
+    stage_count: 3,
+    stages: [
+        StageModel {
+            coupling_hz: 22.0,
+            gain_db: [0.0, 8.0, 13.0],
+            headroom: [2.4, 3.0],
+            bias: 0.05,
+            bias_shift: 0.4,
+            lowpass_hz: 10000.0,
+            second_order: false,
+            finer_when_driven: false,
+        },
+        StageModel {
+            coupling_hz: 60.0,
+            gain_db: [-2.0, 9.0, 16.0],
+            headroom: [1.4, 2.0],
+            bias: 0.1,
+            bias_shift: 0.5,
+            lowpass_hz: 8000.0,
+            second_order: true,
+            finer_when_driven: true,
+        },
+        StageModel {
+            coupling_hz: 40.0,
+            gain_db: [-3.0, 5.5, 14.0],
+            headroom: [1.1, 0.8],
+            bias: -0.1,
+            bias_shift: 0.4,
+            lowpass_hz: 7000.0,
+            second_order: false,
+            finer_when_driven: true,
+        },
+        UNUSED_STAGE,
+    ],
+    fizz_hz: Some(8000.0),
+    lowcut_hz: None,
+    level_db: [30.0, 19.0, 8.0, 4.0, 1.0],
+    makeup_db: [1.0, 0.5, 0.0, 0.0, 0.0],
+    tone: ToneModel {
+        bass_hz: 100.0,
+        bass_db: 10.0,
+        mid_hz: 650.0,
+        mid_q: 0.7,
+        mid_db: 8.0,
+        mid_centre_db: 1.5,
+        scoop_db: 3.0,
+        mid_shift_octaves: 0.4,
+        treble_hz: 2800.0,
+        treble_db: 10.0,
+        mid_level_db: 2.0,
+    },
+    power: PowerModel {
+        drive_db: [-24.0, -5.0, 13.0],
+        volume_db: [-7.5, -7.0, -7.5],
+        clean_to: 0.0,
+        sag: 0.22,
+        sag_attack_ms: 20.0,
+        sag_release_ms: 100.0,
+        driven_sag: 0.0,
+        driven_sag_from: 0.0,
+        resonance_hz: 80.0,
+        resonance_db: 4.0,
+        presence_hz: 3500.0,
+        presence_db: 5.0,
+    },
+    cab: KNALD_CAB,
+};
+
+/// Mid-gain, bright and chimey: rock-and-roll rhythm with sparkle. A bright lift that works
+/// at low Gain, honky upper mids and a quick, tight low end; it takes some of Knald's
+/// thickness and sag, so the two are takes on one family. Three stages with a lot of
+/// headroom, so a light touch stays clear and a hard pick leans into a compressed edge
+static GNIST: AmpModel = AmpModel {
+    name: "Gnist",
+    model_number: "GN-45",
+    tight_hz: 90.0,
+    focus: [1200.0, 0.7, 2.0],
+    bright_hz: 2500.0,
+    bright_db: 8.0,
+    stage_count: 3,
+    stages: [
+        StageModel {
+            coupling_hz: 25.0,
+            gain_db: [0.0, 7.5, 13.0],
+            headroom: [2.4, 3.0],
+            bias: 0.05,
+            bias_shift: 0.4,
+            lowpass_hz: 12000.0,
+            second_order: false,
+            finer_when_driven: false,
+        },
+        StageModel {
+            coupling_hz: 80.0,
+            gain_db: [-3.0, 9.0, 16.0],
+            headroom: [1.5, 2.1],
+            bias: 0.1,
+            bias_shift: 0.4,
+            lowpass_hz: 9000.0,
+            second_order: false,
+            finer_when_driven: true,
+        },
+        StageModel {
+            coupling_hz: 60.0,
+            gain_db: [-4.0, 5.5, 13.0],
+            headroom: [1.3, 1.0],
+            bias: -0.05,
+            bias_shift: 0.3,
+            lowpass_hz: 7500.0,
+            second_order: false,
+            finer_when_driven: true,
+        },
+        UNUSED_STAGE,
+    ],
+    fizz_hz: None,
+    lowcut_hz: None,
+    level_db: [30.0, 19.0, 8.0, 4.0, 1.0],
+    makeup_db: [1.0, 0.5, 0.0, 0.0, 0.0],
+    tone: ToneModel {
+        bass_hz: 120.0,
+        bass_db: 10.0,
+        mid_hz: 1100.0,
+        mid_q: 0.7,
+        mid_db: 8.0,
+        mid_centre_db: 2.0,
+        scoop_db: 3.0,
+        mid_shift_octaves: 0.3,
+        treble_hz: 3400.0,
+        treble_db: 10.0,
+        mid_level_db: 2.0,
+    },
+    power: PowerModel {
+        drive_db: [-24.0, -5.0, 12.0],
+        volume_db: [-7.5, -7.0, -7.5],
+        clean_to: 0.0,
+        sag: 0.16,
+        sag_attack_ms: 14.0,
+        sag_release_ms: 100.0,
+        driven_sag: 0.0,
+        driven_sag_from: 0.0,
+        resonance_hz: 100.0,
+        resonance_db: 3.0,
+        presence_hz: 4500.0,
+        presence_db: 8.0,
+    },
+    cab: GNIST_CAB,
+};
+
+/// Crisp modern high gain: tight, thick and compressed. The low end is cut before the
+/// clipping and put back after it, so the thump is firm and chords stay clear; four stages
+/// clip a signal with its upper mids pushed forward, so every pick attack and note reads
+/// under the gain; a steep filter after the last stage takes the fizz off, which is what
+/// makes it crisp and not thin. The power stage works hard and sags (deeper than Torden's),
+/// which is where the thick saturation comes from. Antialiased as Torden is
+static SKARP: AmpModel = AmpModel {
+    name: "Skarp",
+    model_number: "SK-100",
+    tight_hz: 150.0,
+    focus: [2400.0, 0.6, 4.0],
+    bright_hz: 2200.0,
+    bright_db: 2.0,
+    stage_count: 4,
+    stages: [
+        StageModel {
+            coupling_hz: 30.0,
+            gain_db: [10.0, 12.0, 19.0],
+            headroom: [2.5, 3.0],
+            bias: 0.0,
+            bias_shift: 0.2,
+            lowpass_hz: 12000.0,
+            second_order: false,
+            finer_when_driven: false,
+        },
+        StageModel {
+            coupling_hz: 220.0,
+            gain_db: [8.0, 14.0, 20.0],
+            headroom: [1.0, 1.4],
+            bias: 0.1,
+            bias_shift: 0.25,
+            lowpass_hz: 8000.0,
+            second_order: true,
+            finer_when_driven: true,
+        },
+        StageModel {
+            coupling_hz: 150.0,
+            gain_db: [6.0, 9.5, 18.0],
+            headroom: [1.2, 0.9],
+            bias: -0.1,
+            bias_shift: 0.2,
+            lowpass_hz: 7000.0,
+            second_order: true,
+            finer_when_driven: true,
+        },
+        StageModel {
+            coupling_hz: 130.0,
+            gain_db: [6.0, 8.0, 15.0],
+            headroom: [1.0, 1.3],
+            bias: 0.05,
+            bias_shift: 0.15,
+            lowpass_hz: 6500.0,
+            second_order: true,
+            finer_when_driven: false,
+        },
+    ],
+    fizz_hz: Some(5800.0),
+    lowcut_hz: Some(90.0),
+    level_db: [4.0, 2.2, 1.3, 0.0, -0.5],
+    makeup_db: [0.0; 5],
+    tone: ToneModel {
+        bass_hz: 110.0,
+        bass_db: 10.0,
+        mid_hz: 1100.0,
+        mid_q: 0.6,
+        mid_db: 12.0,
+        mid_centre_db: 0.0,
+        scoop_db: 3.0,
+        mid_shift_octaves: 0.3,
+        treble_hz: 3600.0,
+        treble_db: 10.0,
+        mid_level_db: 2.0,
+    },
+    power: PowerModel {
+        drive_db: [-26.0, -8.0, 10.0],
+        volume_db: [-6.5, -5.5, -6.0],
+        clean_to: 0.0,
+        sag: 0.14,
+        sag_attack_ms: 14.0,
+        sag_release_ms: 90.0,
+        driven_sag: 0.0,
+        driven_sag_from: 0.0,
+        resonance_hz: 112.0,
+        resonance_db: 4.0,
+        presence_hz: 4200.0,
+        presence_db: 14.0,
+    },
+    cab: SKARP_CAB,
+};
+
+/// Crisp, hot-rodded high gain: dense, mid-heavy and singing, with the pick attack left in.
+/// Four stages, a looser low end than Skarp's (less is cut before the clipping, so the
+/// bass pushes it a little), the mids up around 1 kHz and a top that is let through further
+/// than Sang's. A power stage that holds its level, so the sustain is the preamp's
+static HVAS: AmpModel = AmpModel {
+    name: "Hvas",
+    model_number: "HV-100",
+    tight_hz: 100.0,
+    focus: [1300.0, 0.7, 3.0],
+    bright_hz: 2500.0,
+    bright_db: 3.0,
+    stage_count: 4,
+    stages: [
+        StageModel {
+            coupling_hz: 28.0,
+            gain_db: [6.0, 12.0, 18.0],
+            headroom: [2.2, 2.8],
+            bias: 0.0,
+            bias_shift: 0.3,
+            lowpass_hz: 10000.0,
+            second_order: false,
+            finer_when_driven: false,
+        },
+        StageModel {
+            coupling_hz: 120.0,
+            gain_db: [4.0, 13.0, 20.0],
+            headroom: [1.2, 1.6],
+            bias: 0.1,
+            bias_shift: 0.3,
+            lowpass_hz: 8000.0,
+            second_order: true,
+            finer_when_driven: true,
+        },
+        StageModel {
+            coupling_hz: 100.0,
+            gain_db: [3.0, 10.0, 18.0],
+            headroom: [1.2, 1.0],
+            bias: -0.05,
+            bias_shift: 0.25,
+            lowpass_hz: 7500.0,
+            second_order: true,
+            finer_when_driven: false,
+        },
+        StageModel {
+            coupling_hz: 90.0,
+            gain_db: [2.5, 8.5, 15.0],
+            headroom: [1.1, 1.2],
+            bias: 0.05,
+            bias_shift: 0.2,
+            lowpass_hz: 7000.0,
+            second_order: false,
+            finer_when_driven: false,
+        },
+    ],
+    fizz_hz: Some(7800.0),
+    lowcut_hz: Some(70.0),
+    level_db: [7.3, 2.3, -0.7, -2.7, -3.7],
+    makeup_db: [0.0; 5],
+    tone: ToneModel {
+        bass_hz: 120.0,
+        bass_db: 10.0,
+        mid_hz: 1000.0,
+        mid_q: 0.7,
+        mid_db: 10.0,
+        mid_centre_db: 3.0,
+        scoop_db: 2.0,
+        mid_shift_octaves: 0.3,
+        treble_hz: 3400.0,
+        treble_db: 10.0,
+        mid_level_db: 2.0,
+    },
+    power: PowerModel {
+        drive_db: [-26.0, -7.0, 11.0],
+        volume_db: [-7.0, -6.5, -7.0],
+        clean_to: 0.0,
+        sag: 0.07,
+        sag_attack_ms: 12.0,
+        sag_release_ms: 80.0,
+        driven_sag: 0.0,
+        driven_sag_from: 0.0,
+        resonance_hz: 95.0,
+        resonance_db: 3.0,
+        presence_hz: 4200.0,
+        presence_db: 9.0,
+    },
+    cab: HVAS_CAB,
+};
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1029,6 +1461,17 @@ mod tests {
                 assert!(other.name != speaker.name && other.cab != speaker.cab);
             }
         }
+    }
+
+    #[test]
+    fn test_amp_ids_are_frozen() {
+        // A project stores these: the first six keep their places, new ones go at the end
+        let ids: Vec<&str> = (0..Amp::variants().len()).map(|i| Amp::ids().unwrap()[i]).collect();
+        assert_eq!(
+            ids,
+            ["klar", "brol", "torden", "glod", "sang", "dron", "knald", "gnist", "skarp", "hvas"]
+        );
+        assert_eq!(Amp::ALL.len(), ids.len());
     }
 
     #[test]

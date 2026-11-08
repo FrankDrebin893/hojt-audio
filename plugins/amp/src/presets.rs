@@ -95,7 +95,7 @@ const USUAL_ORDER: &[&str] = &[
 // the gate starts to close on the tail of every mute. The gate closes 3 dB under its
 // threshold, so that is -60 dB, which was -54 dB with the 6 dB it had before. How fast a
 // gate shuts in a rest is its release, not its threshold: 8 dB of threshold are 9 ms
-pub static PRESETS: [Preset; 27] = [
+pub static PRESETS: [Preset; 35] = [
     Preset {
         name: "Init",
         amp: Amp::Brol,
@@ -554,6 +554,134 @@ pub static PRESETS: [Preset; 27] = [
         cab: (ON, [5.5, 5.0]),
         delay: (OFF, 350.0, 30.0, 20.0),
         reverb: (ON, 1.2, 12.0),
+        comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
+        mods: MODS_OFF,
+        order: USUAL_ORDER,
+    },
+    // Knald. Classic rock rhythm: thick and a little loose, the gain where it breaks up and a pick still cleans it, a short room
+    Preset {
+        name: "Bølle",
+        amp: Amp::Knald,
+        second: NO_SECOND,
+        dials: [5.5, 5.5, 6.0, 5.0, 4.0, 4.6],
+        gate: (ON, -60.0, 120.0),
+        drive: (OFF, [3.0, 5.0, 5.0]),
+        cab: (ON, [4.5, 5.0]),
+        delay: (OFF, 350.0, 30.0, 20.0),
+        reverb: (ON, 1.4, 10.0),
+        comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
+        mods: MODS_OFF,
+        order: USUAL_ORDER,
+    },
+    // Knald. A woolly lead: more gain so the grind goes fuzzy-warm, the mids up, a delay and a hall
+    Preset {
+        name: "Ulden",
+        amp: Amp::Knald,
+        second: NO_SECOND,
+        dials: [7.0, 5.0, 6.5, 4.5, 4.0, 4.5],
+        gate: (ON, -60.0, 200.0),
+        drive: (OFF, [3.0, 5.0, 5.0]),
+        cab: (ON, [4.5, 5.0]),
+        delay: (ON, 380.0, 28.0, 18.0),
+        reverb: (ON, 1.8, 14.0),
+        comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
+        mods: MODS_OFF,
+        order: USUAL_ORDER,
+    },
+    // Gnist. Bright rhythm: the sparkle of the bright lift, a little gain and the upper mids forward, a short room
+    Preset {
+        name: "Klang",
+        amp: Amp::Gnist,
+        second: NO_SECOND,
+        dials: [5.5, 4.5, 6.0, 5.5, 5.0, 4.0],
+        gate: (ON, -60.0, 100.0),
+        drive: (OFF, [3.0, 5.0, 5.0]),
+        cab: (ON, [5.5, 5.0]),
+        delay: (OFF, 350.0, 30.0, 20.0),
+        reverb: (ON, 1.2, 10.0),
+        comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
+        mods: MODS_OFF,
+        order: USUAL_ORDER,
+    },
+    // Gnist. Rock and roll: more gain and a short slapback, so chords snap and the notes ring
+    Preset {
+        name: "Fest",
+        amp: Amp::Gnist,
+        second: NO_SECOND,
+        dials: [7.0, 5.0, 6.0, 5.0, 4.5, 4.0],
+        gate: (ON, -60.0, 120.0),
+        drive: (OFF, [3.0, 5.0, 5.0]),
+        cab: (ON, [5.0, 5.0]),
+        delay: (ON, 120.0, 15.0, 15.0),
+        reverb: (OFF, 1.5, 20.0),
+        comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
+        mods: MODS_OFF,
+        order: USUAL_ORDER,
+    },
+    // Skarp. A tight rhythm: the gain where every pick attack stays clear, the lows kept firm, a gate for the rests
+    Preset {
+        name: "Kniv",
+        amp: Amp::Skarp,
+        second: NO_SECOND,
+        dials: [6.5, 5.5, 5.0, 5.5, 5.5, 4.7],
+        gate: (ON, -56.0, 60.0),
+        drive: (OFF, [3.0, 5.0, 5.0]),
+        cab: (ON, [5.5, 5.0]),
+        delay: (OFF, 350.0, 30.0, 20.0),
+        reverb: (OFF, 1.5, 20.0),
+        comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
+        mods: MODS_OFF,
+        order: USUAL_ORDER,
+    },
+    // Skarp. A crisp lead: all the gain, the mids up, a delay and a hall behind it
+    Preset {
+        name: "Pil",
+        amp: Amp::Skarp,
+        second: NO_SECOND,
+        dials: [8.0, 4.5, 6.0, 5.5, 5.0, 4.2],
+        gate: (ON, -60.0, 200.0),
+        drive: (OFF, [3.0, 5.0, 5.0]),
+        cab: (ON, [5.0, 5.0]),
+        delay: (ON, 420.0, 28.0, 18.0),
+        reverb: (ON, 1.8, 14.0),
+        comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
+        mods: MODS_OFF,
+        order: USUAL_ORDER,
+    },
+    // Hvas. A hot-rodded rhythm: dense and mid-heavy with the pick attack left in
+    Preset {
+        name: "Bid",
+        amp: Amp::Hvas,
+        second: NO_SECOND,
+        dials: [6.0, 5.0, 5.5, 5.5, 5.5, 4.9],
+        gate: (ON, -58.0, 80.0),
+        drive: (OFF, [3.0, 5.0, 5.0]),
+        cab: (ON, [5.0, 5.0]),
+        delay: (OFF, 350.0, 30.0, 20.0),
+        reverb: (OFF, 1.5, 20.0),
+        comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
+        mods: MODS_OFF,
+        order: USUAL_ORDER,
+    },
+    // Hvas. A singing lead: the gain where the sustain blooms, the mids up, a delay and a hall
+    Preset {
+        name: "Strid",
+        amp: Amp::Hvas,
+        second: NO_SECOND,
+        dials: [7.5, 4.5, 6.5, 5.5, 5.0, 4.6],
+        gate: (ON, -60.0, 200.0),
+        drive: (OFF, [3.0, 5.0, 5.0]),
+        cab: (ON, [5.0, 5.0]),
+        delay: (ON, 400.0, 28.0, 20.0),
+        reverb: (ON, 1.8, 16.0),
         comp: COMP_OFF,
         fuzz: FUZZ_OFF,
         mods: MODS_OFF,
@@ -1060,8 +1188,9 @@ mod tests {
     fn test_every_amp_has_presets() {
         for amp in Amp::ALL {
             let count = PRESETS[1..].iter().filter(|preset| preset.amp == amp).count();
-            // The four first amps have three or more; Sang and Drøn came with two each
-            let least = if matches!(amp, Amp::Sang | Amp::Dron) { 2 } else { 3 };
+            // The four first amps have three or more; the rest came with two each
+            let least =
+                if matches!(amp, Amp::Klar | Amp::Brol | Amp::Torden | Amp::Glod) { 3 } else { 2 };
             assert!(count >= least, "{amp:?} has {count}");
         }
     }

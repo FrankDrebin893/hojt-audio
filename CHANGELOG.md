@@ -7,6 +7,15 @@ GitHub release.
 
 ### Guitar Amp
 
+- Four new amps on the Amp stepper (and the second amp's), after Drøn, each with its own cabinet,
+  head and two factory presets: Knald (KN-45), a thick, warm, slightly woolly mid-gain rock amp that
+  breaks up from Gain 4, sags and goes fuzzy-warm past Gain 6; Gnist (GN-45), the bright, chimey
+  mid-gain take with a bright lift that works at low Gain; Skarp (SK-100), a crisp, tight modern
+  high gain with a firm low end, thick compressed saturation, a clear bite around 3 kHz and a
+  steep top; and Hvas (HV-100), a dense, mid-heavy hot-rodded high gain with a looser low end and
+  the pick attack left in. A project from before keeps its amp, and the new amps start at their
+  default dials. The six old amps sound exactly as they did.
+
 - The standalone program on ASIO (tried on a Focusrite): input now reaches the amp, the Audio
   panel opens without freezing the window, Apply starts the program again instead of hanging, a
   buffer size the driver does not offer is brought into its range, and the window and exe wear
