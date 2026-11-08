@@ -13,7 +13,7 @@
 # The checks: (1) closed issues still labelled state:review or state:building, (2) issues that sat
 # in building or review with no activity for STALE_DAYS, (3) newer compatible dependencies, the
 # nih-plug pin against upstream, the Rust that ci.yml pins against stable, (4) AGENTS.md naming
-# files that no longer exist, (5) one summary of the new ideas, for /groom. A check whose tool is
+# files that no longer exist, A check whose tool is
 # missing is skipped with a note. A finding is filed once: an issue (open or closed) with its title
 # stops it, so titles carry what changed (a version, a month, an issue number).
 set -euo pipefail
@@ -189,34 +189,10 @@ Fix the instruction or restore the file."
     fi
 }
 
-# 5. One issue that lists the ideas of the last week, for /groom to go through.
-summarize_ideas() {
-    local week since list
-    week="$(date -u +%G-W%V)"
-    since="$(date -u -d "7 days ago" +%Y-%m-%d 2> /dev/null || date -u -v-7d +%Y-%m-%d)"
-    list="$(gh issue list --repo "$repo" --state open --label state:idea --limit 200 \
-        --search "created:>=$since" --json number,title --jq '.[] | select(.title | startswith("Weekly 2") | not) | "- #\(.number) \(.title)"')"
-    local planned=""
-    local t
-    for t in "${filed[@]:-}"; do
-        [[ -n "$t" ]] && planned+="- (new) $t"$'\n'
-    done
-    list="$planned$list"
-    [[ -n "${list//[$'\n ']/}" ]] || {
-        note "no new ideas this week"
-        return 0
-    }
-    file "Weekly $week: new ideas to groom" \
-        "New \`state:idea\` issues since $since. Go through them with \`/groom\`:
-
-$list"
-}
-
 check_closed_with_state
 check_stale
 check_dependencies
 check_nih_plug
 check_toolchain
 check_drift
-summarize_ideas
 echo "== Weekly run done: ${#filed[@]} to file$( ((dry)) && echo " (dry run, nothing changed)")"
