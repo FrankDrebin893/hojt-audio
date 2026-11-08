@@ -202,6 +202,30 @@ The reasons behind choices that the code alone does not explain. What it does is
   stands under the sound beside the meter, because the column had no room for a third row
   without growing the strip; the strip's gaps gave up 10.5 points each instead
 
+## Wah
+
+- #240, #243: a wah on the board, in front of the amp only (`wah_pedal` is the rocker, 0 heel to
+  10 toe). Look picked on #242 out of three: a treadle drawn in perspective, a slider with a
+  chrome cap, and one very large knob; the owner chose the slider. It is a variant of the
+  crossfader (`ui::rocker`): the treadle is wider than a fader's cap and ribbed, the toe is at
+  the top and the heel at the bottom, as the foot would have it, and the ticks are the same
+  every tenth. Not a perspective treadle (the closest to a real wah, the most to draw, the only
+  one that could move by itself in Auto and so cost repaints) and not a big knob
+- The pedal's own paint is brass (`PAINT_BRASS`), the nearest hue to the pick's mock-up that is
+  at least 45 apart from every paint of the board and holds cream print; the art is a waterfall
+  (`Motif::Foss`) at the foot, left of the switch, so the middle (Heel) and the corner (Auto)
+  stay bare. Bite over Sens in a column on the left at radius 14, smaller than a trio's, as the
+  slot takes the middle; on the right the lamp, the rocker's value on tape and the Auto push
+  button (the Delay's Sync idiom) with its lamp above it and its caption under it
+- Auto is a push button, not a stepper or a second switch: it is one of two modes of one
+  pedal, the footswitch stays the pedal's On. The rocker's caption says Rest while Auto is on,
+  since the cap is then where the pedal comes back to and not where it is; the cap does not move
+  by itself (a moving cap would need a repaint every frame, against the style guide's rule)
+- The window grew by one pedal (3411 px: the gap between pedals is the same 27 px, so the
+  window grew by a pedal and a gap, `editor-state-rig11`); the strip's wide gaps with it, the
+  print of the amp's art regenerated for the new width. The default zoom is still 0.55, so the
+  opening size on a 1920 px screen is 1876 x 358. Not in the factory presets: they switch it off
+
 ## Look
 
 - Two lanes, not a tower (#177, picked by the owner out of three: two heads on one cabinet, one
@@ -239,10 +263,10 @@ The reasons behind choices that the code alone does not explain. What it does is
   panel's one line of knobs left no room for full scales at radius 19 with the jack and the
   pilot lamp beside them, so the dials are radius 18, and a scale is measured by where its
   ticks end, not by a circle round it (#99)
-- The window's size is persisted under a key of its own (`editor-state-rig10`); it is renamed
+- The window's size is persisted under a key of its own (`editor-state-rig11`); it is renamed
   whenever the default size changes, so a project saved before opens at the new size. The board is
-  drawn in 3204 x 650 points on `ui::rig_layer()` and scaled by a layer transform (`0.4` to `1.0`,
-  opening sized to the screen up to the full `3204 x 650` or `1762 x 358` px on a `1920 x 1080` screen) inside `ResizableWindow` with the `3204 : 650` proportions
+  drawn in 3411 x 650 points on `ui::rig_layer()` and scaled by a layer transform (`0.4` to `1.0`,
+  opening sized to the screen up to the full `3411 x 650` or `1876 x 358` px on a `1920 x 1080` screen) inside `ResizableWindow` with the `3411 : 650` proportions
   locked (#227)
 - The gate's `OPEN` lamp is its own small lamp: a half-lit pedal LED was built and rejected
   because at 30 % the lens is about the colour of the paint

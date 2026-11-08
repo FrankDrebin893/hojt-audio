@@ -31,13 +31,14 @@ use crate::standalone::{self, AudioChoice};
 use crate::tuner::{Note, TunerReading};
 use crate::user_cab;
 use crate::user_presets::{self, Bank};
+use crate::wah::WahMode;
 use crate::{Amp, GuitarAmpParams, GuitarAmpPlugin, Task};
 
 const WINDOW_WIDTH: u32 = crate::board::WINDOW_WIDTH;
 const WINDOW_HEIGHT: u32 = 650;
 
-// The board is drawn in 3204 x 650 points and scaled onto the window. It opens sized to the
-// screen (up to the full 3204 x 650, or 1762 x 358 on a 1920 x 1080 screen), and the corner
+// The board is drawn in 3411 x 650 points and scaled onto the window. It opens sized to the
+// screen (up to the full 3411 x 650, or 1876 x 358 on a 1920 x 1080 screen), and the corner
 // handle drags between 0.4 and 1.0
 const DEFAULT_ZOOM: f32 = 0.55;
 const MIN_ZOOM: f32 = 0.4;
@@ -75,7 +76,7 @@ pub(crate) const STYLE: PedalStyle = PedalStyle {
 // is picked is on the left: the input meter, then the bank and preset displays and the Save
 // button. What goes out is on the right: the output knob, the output meter, the clip lamp, and
 // the On and Tuner switches. Each one's place is the end of the one before it and the gap
-const STRIP_GAP: f32 = 171.5;
+const STRIP_GAP: f32 = 212.9;
 // Between two controls on one module plate the gap is this much, much less than between plates
 const INNER_GAP: f32 = 56.0;
 // The gap that holds the standalone program's Audio button, between the output meter and the clip
@@ -205,6 +206,9 @@ const LAMP_CAPTION: Vec2 = vec2(0.0, 18.0);
 // The clip lamp's caption stands on the strip's bottom caption row, with the output's and the level's
 const CLIP_CAPTION: Vec2 = vec2(0.0, 46.0);
 const LAMP_CAPTION_SIZE: f32 = 13.0;
+// The wah's Toe, Heel and Rocker captions, and the rocker's value on its tape
+const ROCKER_END_SIZE: f32 = 12.0;
+const ROCKER_TAPE_SIZE: f32 = 11.0;
 const LANE_CAPTION_SIZE: f32 = 15.0;
 
 // Small switches, left of each its LED above its caption: the bypass, and the tuner beside
@@ -298,6 +302,7 @@ const WIDE_PEDALS: usize = 4;
 const PEDAL_SLOTS: usize = 10;
 pub(crate) const PITCH_SLOT: usize = PEDAL_SLOTS;
 pub(crate) const EQ_SLOT: usize = PEDAL_SLOTS + 1;
+pub(crate) const WAH_SLOT: usize = PEDAL_SLOTS + 2;
 
 // On every pedal, from its top centre: the LED under the title, the knobs, the switch at the bottom.
 // Two knobs sit side by side. Three do not fit in a row, so they are smaller and in a triangle,
@@ -313,6 +318,22 @@ const QUAD_KNOBS: [Vec2; 4] =
     [vec2(-45.0, 68.0), vec2(45.0, 68.0), vec2(45.0, 174.0), vec2(-45.0, 174.0)];
 // Smaller than a trio's, so the two rows' ticks and tapes leave room between them and for the switch
 const QUAD_RADIUS: f32 = 15.0;
+// The wah, a pedal of its own kind: the rocker's tall slot in the middle (`top` is the middle of
+// its upper end, toe at the top), Bite over Sens in a column on the left, and on the right the
+// LED under the title, the rocker's value on tape under its name and the Auto push button with
+// its lamp above and its caption under it. Toe and Heel are printed at the slot's ends
+const ROCKER_TOP: Vec2 = vec2(0.0, 80.0);
+const ROCKER_LENGTH: f32 = 116.0;
+const ROCKER_TOE: Vec2 = vec2(0.0, 50.0);
+const ROCKER_HEEL: Vec2 = vec2(0.0, 224.0);
+const WAH_KNOBS: [Vec2; 2] = [vec2(-62.0, 80.0), vec2(-62.0, 176.0)];
+const WAH_KNOB_RADIUS: f32 = 14.0;
+const WAH_LED: Vec2 = vec2(62.0, 76.0);
+const ROCKER_CAPTION: Vec2 = vec2(62.0, 98.0);
+const ROCKER_TAPE: Vec2 = vec2(62.0, 110.0);
+const AUTO_LED: Vec2 = vec2(56.0, 232.0);
+const AUTO_BUTTON: Vec2 = vec2(56.0, 262.0);
+const AUTO_CAPTION: Vec2 = vec2(56.0, 287.0);
 const TRIO_KNOBS: [Vec2; 3] = [vec2(-45.0, 71.0), vec2(45.0, 71.0), vec2(0.0, 169.0)];
 
 // The Gate pedal has a lamp beside its lowest knob that is lit while the gate lets the
@@ -390,6 +411,45 @@ impl Pedals<'_> {
         face
     }
 
+    /// The wah: the rocker, Bite and Sens, the Auto button and the switch. Returns its top face
+    fn wah_pedal(&self, ui: &mut Ui, rect: Rect) -> Rect {
+        let (params, setter) = (self.params, self.setter);
+        let face = ui::mini_pedal(ui, rect, &look("Wah", theme::PAINT_BRASS, Motif::Foss));
+        let top = face.center_top();
+        let auto = params.wah_mode.value() == WahMode::Auto;
+
+        ui::rocker(ui, setter, &params.wah_pedal, top + ROCKER_TOP, ROCKER_LENGTH, theme::SILK);
+        silk_label(ui.painter(), top + ROCKER_TOE, "Toe", ROCKER_END_SIZE);
+        silk_label(ui.painter(), top + ROCKER_HEEL, "Heel", ROCKER_END_SIZE);
+        // In Auto the dial is where the pedal rests, and says so
+        silk_label(
+            ui.painter(),
+            top + ROCKER_CAPTION,
+            if auto { "Rest" } else { "Rocker" },
+            ROCKER_END_SIZE,
+        );
+        let value = params
+            .wah_pedal
+            .normalized_value_to_string(params.wah_pedal.unmodulated_normalized_value(), true);
+        ui::widgets::label_tape(ui.painter(), top + ROCKER_TAPE, &value, ROCKER_TAPE_SIZE);
+
+        let [bite, sens] = WAH_KNOBS;
+        param_knob(ui, setter, &params.wah_q, top + bite, WAH_KNOB_RADIUS, "Bite", None);
+        param_knob(ui, setter, &params.wah_sens, top + sens, WAH_KNOB_RADIUS, "Sens", None);
+
+        // The Auto push button, the Delay's Sync idiom: a lamp above it, the caption under it
+        silk_label(ui.painter(), top + AUTO_CAPTION, "Auto", LAMP_CAPTION_SIZE);
+        rig_led(ui.painter(), top + AUTO_LED, auto);
+        if chrome_button(ui, top + AUTO_BUTTON, "wah-auto").clicked() {
+            let mode = if auto { WahMode::Pedal } else { WahMode::Auto };
+            setter.begin_set_parameter(&params.wah_mode);
+            setter.set_parameter(&params.wah_mode, mode);
+            setter.end_set_parameter(&params.wah_mode);
+        }
+        param_switch(ui, setter, &params.wah_on, top + PEDAL_SWITCH, top + WAH_LED);
+        face
+    }
+
     /// Draws the pedal of `slot` in `rect`: the wide ones first, as the chain had them
     /// before there were more, then the slim ones. Returns its top face
     pub(crate) fn pedal(&self, ui: &mut Ui, slot: usize, rect: Rect) -> Rect {
@@ -398,6 +458,9 @@ impl Pedals<'_> {
         }
         if slot == EQ_SLOT {
             return self.eq_pedal(ui, rect);
+        }
+        if slot == WAH_SLOT {
+            return self.wah_pedal(ui, rect);
         }
         let (params, setter) = (self.params, self.setter);
         let pedals: [Pedal; PEDAL_SLOTS] = [
@@ -1306,7 +1369,7 @@ pub fn default_state() -> Arc<EguiState> {
 }
 
 /// The window size `(width, height)` that fits inside a screen `screen_width` logical points wide,
-/// keeping the `3204 : 650` proportions and clamping the zoom to `0.4..=1.0`
+/// keeping the `3411 : 650` proportions and clamping the zoom to `0.4..=1.0`
 fn size_for_screen(screen_width: u32) -> (u32, u32) {
     let available = screen_width.saturating_sub(SCREEN_MARGIN) as f32;
     window_size(vec2(available, WINDOW_HEIGHT as f32))
@@ -1461,7 +1524,7 @@ fn zoom_for_width(width: f32) -> f32 {
 }
 
 /// The window size `(width, height)` for a dragged `desired` size, keeping the board's
-/// `3204 : 650` proportions and clamping the zoom to `0.4..=1.0`
+/// `3411 : 650` proportions and clamping the zoom to `0.4..=1.0`
 fn window_size(desired: Vec2) -> (u32, u32) {
     let zoom = zoom_for_width(desired.x);
     let width = (WINDOW_WIDTH as f32 * zoom).round().max(MIN_WIDTH as f32) as u32;
@@ -1469,7 +1532,7 @@ fn window_size(desired: Vec2) -> (u32, u32) {
     (width, height)
 }
 
-/// Keeps `ResizableWindow`'s corner handle on the `3204 : 650` diagonal within `0.4..=1.0`
+/// Keeps `ResizableWindow`'s corner handle on the `3411 : 650` diagonal within `0.4..=1.0`
 /// and paints its three lines on top of the board
 fn lock_resize_corner(ui: &mut Ui) {
     let ctx = ui.ctx().clone();
@@ -2080,7 +2143,7 @@ mod tests {
         harness_of(&params, &setter, None, |_| {}).snapshot("editor");
     }
 
-    // The window at the size it opens at (0.55 zoom, 1762 x 358): every pedal, label and the
+    // The window at the size it opens at (0.55 zoom, 1876 x 358): every pedal, label and the
     // strip scaled down together, nothing clipped
     #[test]
     #[cfg(target_os = "linux")]
@@ -2130,6 +2193,65 @@ mod tests {
         let host = NoHost;
         let setter = ParamSetter::new(&host);
         harness_of(&params, &setter, None, |_| {}).snapshot("dual");
+    }
+
+    // The wah on, in Auto, with the rocker at the toe: the lamp, the Auto lamp and the cap at the
+    // top of its slot (the default picture has them at rest)
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_wah_looks_as_it_did() {
+        let params = GuitarAmpParams {
+            wah_on: BoolParam::new("Wah", true),
+            wah_mode: EnumParam::new("Wah Mode", WahMode::Auto),
+            wah_pedal: crate::dial_param("Wah Pedal", 1.0),
+            ..GuitarAmpParams::default()
+        };
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        harness_of(&params, &setter, None, |_| {}).snapshot("wah");
+    }
+
+    #[test]
+    fn test_the_wahs_controls_stand_clear_of_each_other_and_on_the_face() {
+        let knob = WAH_KNOB_RADIUS + TICKS;
+        let [bite, sens] = WAH_KNOBS;
+        // Across the rocker's row: Bite's scale, the rocker with its ticks, the tape of its value
+        // and the face's edge
+        in_a_row(&[
+            ("Bite's scale", bite.x - knob, bite.x + knob),
+            ("the rocker's ticks", -ui::widgets::ROCKER_REACH, ui::widgets::ROCKER_REACH),
+            ("the rocker's tape", ROCKER_TAPE.x - 22.0, ROCKER_TAPE.x + 22.0),
+            ("the face's edge", PEDAL_WIDTH / 2.0, PEDAL_WIDTH),
+        ]);
+        // The cap at either end of its slot stays inside the face between the captions
+        let cap = ui::widgets::ROCKER_CAP_HEIGHT / 2.0;
+        in_a_row(&[
+            ("Toe", ROCKER_TOE.y - 6.0, ROCKER_TOE.y + 6.0),
+            ("the rocker", ROCKER_TOP.y - cap, ROCKER_TOP.y + ROCKER_LENGTH + cap),
+            ("Heel", ROCKER_HEEL.y - 6.0, ROCKER_HEEL.y + 6.0),
+            ("the On switch", PEDAL_SWITCH.y - SWITCH, PEDAL_SWITCH.y + SWITCH),
+        ]);
+        // Down the right: the lamp, the rocker's name, its tape, then the Auto button with its
+        // lamp above and its caption under it
+        in_a_row(&[
+            ("the lamp", WAH_LED.y - LAMP, WAH_LED.y + LAMP),
+            ("the rocker's caption", ROCKER_CAPTION.y - 6.0, ROCKER_CAPTION.y + 6.0),
+            ("the rocker's tape", ROCKER_TAPE.y, ROCKER_TAPE.y + 17.0),
+            ("the Auto lamp", AUTO_LED.y - LAMP, AUTO_LED.y + LAMP),
+            ("the Auto button", AUTO_BUTTON.y - BUTTON, AUTO_BUTTON.y + BUTTON + 2.5),
+            ("the Auto caption", AUTO_CAPTION.y - 7.0, AUTO_CAPTION.y + 7.0),
+        ]);
+        assert_eq!(AUTO_LED.x, AUTO_BUTTON.x);
+        assert_eq!(AUTO_CAPTION.x, AUTO_BUTTON.x);
+        // The Auto button stands beside the On switch, not over it, and inside the face
+        in_a_row(&[
+            ("the On switch", -SWITCH, SWITCH),
+            ("the Auto button", AUTO_BUTTON.x - BUTTON, AUTO_BUTTON.x + BUTTON),
+            ("the face's edge", PEDAL_WIDTH / 2.0 - 10.0, PEDAL_WIDTH / 2.0),
+        ]);
+        // Down the left: Bite's tape is over Sens's scale
+        assert!(bite.y + 68.0 <= sens.y - knob, "Bite's tape runs into Sens");
+        assert_eq!(bite.x, sens.x);
     }
 
     /// A machine with two interfaces, for the standalone window's tests
@@ -2797,10 +2919,10 @@ mod tests {
     #[test]
     fn test_default_window_scales_with_screen_and_fits_inside_each_screen() {
         assert_eq!(size_for_screen(1366), (MIN_WIDTH, MIN_HEIGHT));
-        assert_eq!(size_for_screen(1920), (1762, 358));
-        assert_eq!(size_for_screen(2560), (2402, 487));
-        assert_eq!(size_for_screen(2752), (2594, 526));
-        assert_eq!(size_for_screen(3440), (WINDOW_WIDTH, WINDOW_HEIGHT));
+        assert_eq!(size_for_screen(1920), (1876, 358));
+        assert_eq!(size_for_screen(2560), (2516, 479));
+        assert_eq!(size_for_screen(2752), (2708, 516));
+        assert_eq!(size_for_screen(3440), (3396, 647));
         assert_eq!(size_for_screen(3840), (WINDOW_WIDTH, WINDOW_HEIGHT));
         for screen_w in [1366, 1536, 1920, 2560, 2752, 3440, 3840] {
             let (width, height) = size_for_screen(screen_w);
@@ -2827,7 +2949,7 @@ mod tests {
     #[test]
     fn test_window_size_keeps_proportions_and_clamps_zoom() {
         let board_aspect = WINDOW_WIDTH as f32 / WINDOW_HEIGHT as f32;
-        for dragged_w in [200.0, 1000.0, 1281.6, 1500.0, 1762.0, 2400.0, 3204.0, 4500.0] {
+        for dragged_w in [200.0, 1000.0, 1281.6, 1500.0, 1876.0, 2400.0, 3411.0, 4500.0] {
             for dragged_h in [100.0, 358.0, 650.0, 1200.0] {
                 let zoom = zoom_for_width(dragged_w);
                 assert!(

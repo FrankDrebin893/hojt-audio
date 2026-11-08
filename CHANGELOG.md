@@ -28,17 +28,23 @@ GitHub release.
   find which of them you hear; it goes off when the panel closes.
 - On Windows a build with ASIO offers it as a driver beside WASAPI and JACK, for the low latency
   of an audio interface's own driver. The downloads are not built with it yet.
-- A wah pedal, the amp's thirteenth, in the plugin's parameter list for now (it has no pedal on
-  the board yet, so it is played from the host's generic parameter view or its automation): a
-  resonant band-pass that sweeps from 350 Hz (heel, woofy) to 2.2 kHz (toe, thin and vocal).
-  Wah (`wah_on`) switches it, Wah Pedal (`wah_pedal`, 0 to 10, 5) is the rocker, which a
-  controller or an expression pedal mapped to it in the host moves, Wah Bite (`wah_q`, 0 to 10,
-  5) narrows the peak, Wah Mode (`wah_mode`, Pedal or Auto) lets the playing sweep it instead:
-  a harder pick opens it further and it falls back in a fraction of a second, and Wah Sens
-  (`wah_sens`, 0 to 10, 5) sets how far. It stands in front of the amp, after the Pitch pedal
-  and ahead of the Fuzz, and can be put anywhere in front of the amp; a project from before
-  opens with it off, and switched off it changes nothing in the sound. For the page at the
-  release: the pedal with its model number, paint and art come with the editor part of #240.
+- A wah pedal, the amp's thirteenth, on the board in brass paint with a waterfall printed on it: a
+  resonant band-pass that sweeps from 350 Hz (heel, woofy) to 2.2 kHz (toe, thin and vocal). Its
+  rocker is a tall slot with a ribbed chrome treadle, toe at the top and heel at the bottom: drag
+  the treadle or the slot, Shift for fine, double-click for the middle; a controller or an
+  expression pedal mapped to Wah Pedal in the host moves it too. Beside it Bite (`wah_q`, 0 to
+  10, 5) narrows the peak and Sens (`wah_sens`, 0 to 10, 5) sets how far a loud note opens the
+  pedal in Auto, the Auto button (`wah_mode`, Pedal or Auto) lets the playing sweep it instead
+  of the hand (the rocker's label then says Rest, since the treadle is where it comes back to),
+  and the footswitch (`wah_on`) switches it. Auto: a harder pick opens it further and it falls
+  back in a fraction of a second. It stands in front of the amp, after the Pitch pedal and ahead
+  of the Fuzz, and can be dragged anywhere in front of the amp (not behind the cabinet); a
+  project from before opens with it off and in its place, and switched off it changes nothing
+  in the sound. The window is one pedal wider (3411 px, size stored under `editor-state-rig11`),
+  so a project saved with the older size opens at the new one. For the page at the release: the
+  Wah pedal (no model number: mini pedals have none), brass paint, waterfall art, its five
+  controls (Wah, Wah Pedal, Wah Bite, Wah Mode, Wah Sens) and a short note on mapping an
+  expression pedal to the rocker in REAPER; the page's picture of the amp is one pedal short.
 - The standalone program reads a stereo input channel by channel; before, the two channels'
   samples could land in the wrong halves of the buffer.
 

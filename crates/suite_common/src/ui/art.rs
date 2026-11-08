@@ -54,6 +54,8 @@ pub enum Motif {
     Horizon,
     /// Basalt columns of different heights, like the bars of an equaliser (wide, four knobs)
     Columns,
+    /// A waterfall falling in tiers over a ledge, with spray (wide, a rocker and two knobs)
+    Foss,
 }
 
 /// Paints `motif` on the top face `face` of a pedal painted `paint`. Call it over the paint
@@ -80,6 +82,7 @@ pub(super) fn motif(painter: &Painter, face: Rect, paint: Color32, motif: Motif)
         Motif::Geyser => geyser(&print),
         Motif::Horizon => horizon(&print),
         Motif::Columns => columns(&print),
+        Motif::Foss => foss(&print),
     }
 }
 
@@ -468,5 +471,23 @@ fn columns(print: &Print) {
             &[(left, top + 6.0), (middle, top), (right, top + 6.0), (middle, top + 13.0)],
             shade(print.paint, COAT * 0.35),
         );
+    }
+}
+
+fn foss(print: &Print) {
+    // A waterfall at the foot of the face, left of the switch, which keeps the middle (the Heel
+    // caption) and the right-hand corner (the Auto button and its caption) bare: a cliff and
+    // a ledge in the second coat, the fall in a lighter tone of the paint, and the spray in
+    // cream beside the pool
+    let coat = print.coat();
+    print.ground(268.0, coat);
+    print.rect((-print.bleed(), 254.0), (50.0, 270.0), coat);
+    let water = shade(print.paint, COAT * 0.15);
+    print.rect((26.0, 254.0), (36.0, 270.0), water);
+    print.rect((22.0, 268.0), (40.0, 275.0), water);
+    print.line((24.0, 283.0), (48.0, 283.0));
+    print.line((28.0, 292.0), (44.0, 292.0));
+    for (x, y) in [(18.0, 277.0), (44.0, 276.0)] {
+        print.disc((x, y), 1.8, SILK);
     }
 }

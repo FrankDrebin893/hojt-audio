@@ -80,11 +80,11 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   from a new process and exits at once, since closing the window with ASIO streams open hangs
 - The exe carries the HØJT badge (`assets/amp.ico`, `assets/amp.rc`, `build.rs`) and
   `give_window_the_icon` in `main.rs` sets it on the window, which the framework makes without one
-- `src/editor.rs` - egui GUI (3204 x 650 board, opened scaled to the screen up to 3204 x 650 or 1762 x 358 on a 1920 x 1080 screen, and resizable from 0.4 to 1.0 by its corner handle): the oxblood strip across the top with the
+- `src/editor.rs` - egui GUI (3411 x 650 board, opened scaled to the screen up to 3411 x 650 or 1876 x 358 on a 1920 x 1080 screen, and resizable from 0.4 to 1.0 by its corner handle): the oxblood strip across the top with the
   Bank and Preset displays, the list they drop open, or the tuner display in its left wing and
   Output, meters, Clip, On and Tuner in its right; the stack (two lanes, one per amp: its head
   with nameplate and dials, and the cabinet it plays through beside it; the plate where they meet
-  with the Blend fader); each of the twelve pedals in its own paint with its own art
+  with the Blend fader); each of the thirteen pedals in its own paint with its own art
 - `src/looks.rs` - What each amp's head looks like: a `Look` (its `HeadStyle` and knob cap) per
   amp, in the order of `Amp::ALL`. The sound stays in `amp/model.rs`
 - `src/board.rs` - The line under the strip in the chain's order: the pedals and the stack,
@@ -552,7 +552,7 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   cabinet, as tall as it. Each mini pedal has a paint of its own. On a strip, a head and mini
   pedals the switches are `small_footswitch` and the LEDs `rig_led` (an unlit `led` disappears
   on dark paint), beside or above the switch. A mini pedal holds two knobs of radius 24 side by
-  side, three of radius 17 in a triangle, or (the EQ) four in two rows. Everything else in this guide applies
+  side, three of radius 17 in a triangle, (the EQ) four in two rows, or (the Wah) the rocker with two knobs of radius 14 beside it. Everything else in this guide applies
 - **The strip's wings:** the left one holds what comes in and what is picked (input meter,
   Bank, Preset, Save; the tuner display while tuning), the right one what goes out (Output, the
   output meter, Clip, On, Tuner). Its jack captions read `In` at the left and `Stereo Out` at
@@ -631,7 +631,7 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   letters, numbers or cream triangles in it, and nothing that moves. A new paint goes in
   `PEDAL_PAINTS`, where tests hold it to cream print reading on it and to being clearly apart
   from the others; a new motif is drawn in `art.rs` for the layout of its pedal
-- **Equal pedals:** every pedal of the row is `PEDAL_WIDTH` (180 px) wide (twelve of them and the stack: the window is 3204 px wide); only the stack has its
+- **Equal pedals:** every pedal of the row is `PEDAL_WIDTH` (180 px) wide (thirteen of them and the stack: the window is 3411 px wide); only the stack has its
   own width. The gap between neighbours is what is left of the window after the margin at each
   end (`GAP` in `board.rs`, a test holds it even and every pedal as wide as the next). A pedal
   with two knobs is either a pair side by side (radius 24) or on a diagonal (`SLIM_LED`,
@@ -639,6 +639,15 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   knobs upper right and lower left, as far from the middle as a pair's. The narrow motifs
   (`art.rs`, `NARROW_ART`) stand in the middle of the wider face and their paint runs out to
   both edges. In a row the LEDs and switches line up
+- **The Wah's rocker:** the one control that is neither a knob nor a switch, `ui::rocker` (a
+  variant of the crossfader: a tall slot with a ribbed chrome treadle, ticks both sides, the
+  heel at the bottom and the toe at the top, drag the cap or the slot, Shift for fine,
+  double-click for the default). It is the pedal's middle, with Bite over Sens in a column on
+  the left, the LED, the rocker's value on tape and the Auto push button (a `chrome_button`
+  with a `rig_led` above and a caption under, like the Delay's Sync) on the right. Toe, Heel
+  and the rocker's caption (Rocker, and Rest while Auto is on) are `silk_label`s; the tape says
+  the value as the parameter does. The look was picked out of three on #242 (a treadle in
+  perspective, this slider, a face dial)
 - **A board that can be rearranged:** a pedal is moved by dragging it by its title
   (`title_grip`); while it is held it is drawn `lifted` and last, the others glide to make
   room, and it lands in the nearest place it may have. No arrows, menus or lists. A pedal
