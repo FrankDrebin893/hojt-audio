@@ -76,6 +76,11 @@ param trem_depth
 param trem_on
 param trem_rate
 param tuner
+param wah_mode
+param wah_on
+param wah_pedal
+param wah_q
+param wah_sens
 persist amp-dials
 persist amp2-dials
 persist cabinet

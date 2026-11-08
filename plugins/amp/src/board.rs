@@ -122,8 +122,9 @@ impl Pedal {
         }
     }
 
-    fn of_chain(pedal: order::Pedal) -> Pedal {
-        match pedal {
+    /// None for the wah: it has no place on the board yet, and stays where the order has it
+    fn of_chain(pedal: order::Pedal) -> Option<Pedal> {
+        Some(match pedal {
             order::Pedal::Fuzz => Pedal::Fuzz,
             order::Pedal::Comp => Pedal::Comp,
             order::Pedal::Drive => Pedal::Drive,
@@ -135,7 +136,8 @@ impl Pedal {
             order::Pedal::Reverb => Pedal::Reverb,
             order::Pedal::Pitch => Pedal::Pitch,
             order::Pedal::Eq => Pedal::Eq,
-        }
+            order::Pedal::Wah => return None,
+        })
     }
 }
 
@@ -164,8 +166,9 @@ impl Order {
     /// The row the chain's order makes: the gate, the pedals in front of the amp, the
     /// stack, the pedals behind it
     fn of_chain(chain: &ChainOrder) -> Order {
-        let front = chain.front().iter().map(|&pedal| Pedal::of_chain(pedal));
-        let back = chain.back().iter().map(|&pedal| Pedal::of_chain(pedal));
+        let front: Vec<Pedal> = chain.front().iter().filter_map(|&p| Pedal::of_chain(p)).collect();
+        let back = chain.back().iter().filter_map(|&pedal| Pedal::of_chain(pedal));
+        let drawn_in_front = front.len();
         let row = std::iter::once(Pedal::Gate)
             .chain(front)
             .chain(std::iter::once(Pedal::Stack))
@@ -174,7 +177,7 @@ impl Order {
         for (place, pedal) in pedals.iter_mut().zip(row) {
             *place = pedal;
         }
-        Order { pedals, front: chain.front().len() + 1 }
+        Order { pedals, front: drawn_in_front + 1 }
     }
 
     /// The chain's order for this row
@@ -481,7 +484,7 @@ mod tests {
             assert_eq!(Order::of_chain(&order.chain()), order, "{order:?}");
         }
         for pedal in MOVABLE {
-            assert_eq!(pedal.in_chain().map(Pedal::of_chain), Some(pedal));
+            assert_eq!(pedal.in_chain().and_then(Pedal::of_chain), Some(pedal));
         }
     }
 

@@ -39,6 +39,7 @@ use crate::dial_memory;
 use crate::order::ChainOrder;
 use crate::presets::{self, Edit, MATCH_TOLERANCE, PRESETS};
 use crate::user_cab;
+use crate::wah::WahMode;
 use crate::{Amp, GuitarAmpParams};
 use suite_common::dsp::NoteValue;
 
@@ -182,6 +183,7 @@ enum Control<'a> {
     Amp(&'a EnumParam<Amp>),
     Mic(&'a EnumParam<MicType>),
     Note(&'a EnumParam<NoteValue>),
+    Wah(&'a EnumParam<WahMode>),
 }
 
 impl Control<'_> {
@@ -194,6 +196,7 @@ impl Control<'_> {
             Control::Amp(param) => param.unmodulated_plain_value().to_index() as f32,
             Control::Mic(param) => param.unmodulated_plain_value().to_index() as f32,
             Control::Note(param) => param.unmodulated_plain_value().to_index() as f32,
+            Control::Wah(param) => param.unmodulated_plain_value().to_index() as f32,
         }
     }
 
@@ -205,6 +208,7 @@ impl Control<'_> {
             Control::Amp(param) => param.default_plain_value().to_index() as f32,
             Control::Mic(param) => param.default_plain_value().to_index() as f32,
             Control::Note(param) => param.default_plain_value().to_index() as f32,
+            Control::Wah(param) => param.default_plain_value().to_index() as f32,
         }
     }
 
@@ -216,6 +220,7 @@ impl Control<'_> {
             Control::Amp(param) => param.preview_normalized(Amp::from_index(plain as usize)),
             Control::Mic(param) => param.preview_normalized(MicType::from_index(plain as usize)),
             Control::Note(param) => param.preview_normalized(NoteValue::from_index(plain as usize)),
+            Control::Wah(param) => param.preview_normalized(WahMode::from_index(plain as usize)),
         }
     }
 
@@ -227,6 +232,7 @@ impl Control<'_> {
             Control::Amp(param) => param.unmodulated_normalized_value(),
             Control::Mic(param) => param.unmodulated_normalized_value(),
             Control::Note(param) => param.unmodulated_normalized_value(),
+            Control::Wah(param) => param.unmodulated_normalized_value(),
         }
     }
 
@@ -238,6 +244,7 @@ impl Control<'_> {
             Control::Amp(param) => Edit::of(param, Amp::from_index(plain as usize)),
             Control::Mic(param) => Edit::of(param, MicType::from_index(plain as usize)),
             Control::Note(param) => Edit::of(param, NoteValue::from_index(plain as usize)),
+            Control::Wah(param) => Edit::of(param, WahMode::from_index(plain as usize)),
         }
     }
 
@@ -250,6 +257,7 @@ impl Control<'_> {
             Control::Amp(_) => enum_id::<Amp>(plain as usize).to_owned(),
             Control::Mic(_) => enum_id::<MicType>(plain as usize).to_owned(),
             Control::Note(_) => enum_id::<NoteValue>(plain as usize).to_owned(),
+            Control::Wah(_) => enum_id::<WahMode>(plain as usize).to_owned(),
         }
     }
 
@@ -266,6 +274,7 @@ impl Control<'_> {
             Control::Amp(_) => enum_index::<Amp>(text).map(|index| index as f32),
             Control::Mic(_) => enum_index::<MicType>(text).map(|index| index as f32),
             Control::Note(_) => enum_index::<NoteValue>(text).map(|index| index as f32),
+            Control::Wah(_) => enum_index::<WahMode>(text).map(|index| index as f32),
         }
     }
 }
@@ -280,8 +289,8 @@ fn enum_index<T: Enum>(id: &str) -> Option<usize> {
 
 /// Every parameter a preset holds, by its id: all of them but `LEFT_ALONE`. The amp comes
 /// first, so the host hears it change before its dials do
-fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 63] {
-    use Control::{Knob, Mic, Note, Switch, Whole};
+fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 68] {
+    use Control::{Knob, Mic, Note, Switch, Wah, Whole};
     [
         ("amp", Control::Amp(&params.amp)),
         ("gain", Knob(&params.gain)),
@@ -350,6 +359,12 @@ fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 63] {
         ("eq_mid", Knob(&params.eq_mid)),
         ("eq_freq", Knob(&params.eq_freq)),
         ("eq_high", Knob(&params.eq_high)),
+        // The wah: likewise
+        ("wah_on", Switch(&params.wah_on)),
+        ("wah_pedal", Knob(&params.wah_pedal)),
+        ("wah_q", Knob(&params.wah_q)),
+        ("wah_mode", Wah(&params.wah_mode)),
+        ("wah_sens", Knob(&params.wah_sens)),
     ]
 }
 
@@ -726,6 +741,7 @@ pub(crate) mod tests {
             Control::Amp(param) => param.as_ptr(),
             Control::Mic(param) => param.as_ptr(),
             Control::Note(param) => param.as_ptr(),
+            Control::Wah(param) => param.as_ptr(),
         }
     }
 
@@ -762,8 +778,8 @@ pub(crate) mod tests {
         assert_eq!(saved.value(&params, "gain"), 0.73);
         assert_eq!(saved.value(&params, "delay_on"), 1.0);
         assert_eq!(saved.value(&params, "cab_mic_type"), MicType::Ribbon.to_index() as f32);
-        // Saved before there was a fuzz: it stands where the default has it, first
-        assert_eq!(saved.order.ids()[..3], ["pitch", "fuzz", "chorus"]);
+        // Saved before there was a fuzz and a wah: they stand where the default has them
+        assert_eq!(saved.order.ids()[..3], ["pitch", "wah", "fuzz"]);
         assert_eq!(saved.cabinet, "speaker:test");
 
         let text = saved.to_text(&params);
@@ -772,7 +788,7 @@ pub(crate) mod tests {
         }
         // Every parameter is written out, also those at their defaults, and the pedal order and
         // the two cabinets after them
-        assert_eq!(text.lines().filter(|line| line.contains(" = ")).count(), 66);
+        assert_eq!(text.lines().filter(|line| line.contains(" = ")).count(), 71);
         assert_eq!(UserPreset::parse(&params, &text), saved);
     }
 

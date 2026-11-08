@@ -33,6 +33,7 @@ mod test_util;
 mod tuner;
 mod user_cab;
 mod user_presets;
+mod wah;
 pub use amp::model::Amp;
 use cab::MicType;
 use cab_stage::CabLoader;
@@ -52,6 +53,7 @@ use pitch::{PitchSettings, LATENCY_MS, SEMITONES};
 use reverb::{ReverbSettings, DECAY_MAX_S, DECAY_MIN_S};
 use second::SecondSettings;
 use suite_common::dsp::NoteValue;
+use wah::{WahMode, WahSettings};
 
 // The id of the tuner switch, as in `GuitarAmpParams`
 const TUNER_ID: &str = "tuner";
@@ -390,6 +392,27 @@ pub struct GuitarAmpParams {
 
     #[id = "eq_high"]
     pub eq_high: FloatParam,
+
+    // Wah pedal, in front of the amp. Last in the list so every parameter before it keeps its
+    // place for a host that shows them in order. A controller or an expression pedal is mapped
+    // to `wah_pedal` in the host. The dials are 0 to 10, like the amp's
+    #[id = "wah_on"]
+    pub wah_on: BoolParam,
+
+    /// The rocker: 0 is the heel, 10 the toe. In Auto mode, where it rests
+    #[id = "wah_pedal"]
+    pub wah_pedal: FloatParam,
+
+    /// The resonance, shown as Bite
+    #[id = "wah_q"]
+    pub wah_q: FloatParam,
+
+    #[id = "wah_mode"]
+    pub wah_mode: EnumParam<WahMode>,
+
+    /// Auto mode only: how far the playing opens the pedal
+    #[id = "wah_sens"]
+    pub wah_sens: FloatParam,
 }
 
 impl Default for GuitarAmpPlugin {
@@ -623,6 +646,12 @@ impl Default for GuitarAmpParams {
             eq_mid: dial_param("EQ Mid", defaults.eq.mid),
             eq_freq: dial_param("EQ Freq", defaults.eq.freq),
             eq_high: dial_param("EQ High", defaults.eq.high),
+
+            wah_on: BoolParam::new("Wah", defaults.wah.on),
+            wah_pedal: dial_param("Wah Pedal", defaults.wah.pedal),
+            wah_q: dial_param("Wah Bite", defaults.wah.bite),
+            wah_mode: EnumParam::new("Wah Mode", defaults.wah.mode),
+            wah_sens: dial_param("Wah Sens", defaults.wah.sens),
         }
     }
 }
@@ -692,6 +721,13 @@ impl GuitarAmpParams {
                 mid: self.eq_mid.value(),
                 freq: self.eq_freq.value(),
                 high: self.eq_high.value(),
+            },
+            wah: WahSettings {
+                on: self.wah_on.value(),
+                mode: self.wah_mode.value(),
+                pedal: self.wah_pedal.value(),
+                bite: self.wah_q.value(),
+                sens: self.wah_sens.value(),
             },
             pitch: PitchSettings {
                 on: self.pitch_on.value(),
@@ -1427,9 +1463,23 @@ mod tests {
         }
         let ids: Vec<String> =
             GuitarAmpParams::default().param_map().into_iter().map(|(id, _, _)| id).collect();
-        // Only the EQ's five come after it
-        assert_eq!(ids.iter().position(|id| id == "metronome_out"), Some(ids.len() - 6));
-        assert_eq!(&ids[ids.len() - 5..], ["eq_on", "eq_low", "eq_mid", "eq_freq", "eq_high"]);
+        // Only the EQ's five and the wah's five come after it
+        assert_eq!(ids.iter().position(|id| id == "metronome_out"), Some(ids.len() - 11));
+        assert_eq!(
+            &ids[ids.len() - 10..],
+            [
+                "eq_on",
+                "eq_low",
+                "eq_mid",
+                "eq_freq",
+                "eq_high",
+                "wah_on",
+                "wah_pedal",
+                "wah_q",
+                "wah_mode",
+                "wah_sens"
+            ]
+        );
         assert_eq!(GuitarAmpParams::default().metronome_out.value(), ClickOut::Mixed);
     }
 
@@ -1550,6 +1600,9 @@ mod tests {
             &params.eq_mid,
             &params.eq_freq,
             &params.eq_high,
+            &params.wah_pedal,
+            &params.wah_q,
+            &params.wah_sens,
         ] {
             assert_eq!(range(dial), (0.0, 1.0));
         }

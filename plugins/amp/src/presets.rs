@@ -76,7 +76,7 @@ const MODS_OFF: [(bool, f32, f32); 4] =
     [(OFF, 0.8, 50.0), (OFF, 0.5, 50.0), (OFF, 0.3, 50.0), (OFF, 5.0, 50.0)];
 // The order the chain starts in: `ChainOrder::default`
 const USUAL_ORDER: &[&str] = &[
-    "pitch", "fuzz", "comp", "drive", "phaser", "amp", "chorus", "flanger", "tremolo", "eq",
+    "pitch", "wah", "fuzz", "comp", "drive", "phaser", "amp", "chorus", "flanger", "tremolo", "eq",
     "delay", "reverb",
 ];
 
@@ -383,8 +383,8 @@ pub static PRESETS: [Preset; 27] = [
         fuzz: FUZZ_OFF,
         mods: [(ON, 0.6, 50.0), (OFF, 0.5, 50.0), (OFF, 0.3, 50.0), (OFF, 5.0, 50.0)],
         order: &[
-            "pitch", "fuzz", "comp", "chorus", "drive", "phaser", "amp", "flanger", "tremolo",
-            "eq", "reverb", "delay",
+            "pitch", "wah", "fuzz", "comp", "chorus", "drive", "phaser", "amp", "flanger",
+            "tremolo", "eq", "reverb", "delay",
         ],
     },
     // Glød. Edge of breakup by the fire: the amp's own warmth at the middle of the Gain dial,
@@ -584,7 +584,7 @@ pub fn index_or_first(stored: u32) -> usize {
 
 impl Preset {
     /// Every continuous parameter the preset holds, with the value it gets
-    fn knobs<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a FloatParam, f32); 43] {
+    fn knobs<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a FloatParam, f32); 46] {
         let [gain, bass, mid, treble, presence, master] = self.dials;
         let (_, gate_thresh_db, gate_release_ms) = self.gate;
         let (_, [drive_gain, drive_tone, drive_level]) = self.drive;
@@ -597,6 +597,7 @@ impl Preset {
         let [gain2, bass2, mid2, treble2, presence2, master2] = self.second.dials;
         let pitch = PitchSettings::default();
         let eq = crate::eq::EqSettings::default();
+        let wah = crate::wah::WahSettings::default();
         [
             (&params.fuzz_fuzz, dial(fuzz_fuzz)),
             (&params.fuzz_tone, dial(fuzz_tone)),
@@ -643,11 +644,15 @@ impl Preset {
             (&params.eq_mid, eq.mid),
             (&params.eq_freq, eq.freq),
             (&params.eq_high, eq.high),
+            // Nor the wah: off, with the rocker in the middle
+            (&params.wah_pedal, wah.pedal),
+            (&params.wah_q, wah.bite),
+            (&params.wah_sens, wah.sens),
         ]
     }
 
     /// Every switch the preset holds, with the position it gets
-    fn switches<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a BoolParam, bool); 15] {
+    fn switches<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a BoolParam, bool); 16] {
         [
             (&params.amp2_on, self.second.on),
             (&params.gate_on, self.gate.0),
@@ -666,6 +671,7 @@ impl Preset {
             (&params.reverb_on, self.reverb.0),
             (&params.pitch_on, false),
             (&params.eq_on, false),
+            (&params.wah_on, false),
         ]
     }
 
@@ -689,6 +695,7 @@ impl Preset {
             Edit::of(&params.amp, self.amp),
             Edit::of(&params.amp2, self.second.amp),
             Edit::of(&params.pitch_semitones, pitch.semitones),
+            Edit::of(&params.wah_mode, crate::wah::WahSettings::default().mode),
         ]
         .into_iter()
         .chain(self.switches(params).into_iter().map(|(param, on)| Edit::of(param, on)))
@@ -709,6 +716,7 @@ impl Preset {
             && params.amp2.value() == self.second.amp
             && params.order.get() == self.chain_order()
             && params.pitch_semitones.value() == PitchSettings::default().semitones
+            && params.wah_mode.value() == crate::wah::WahSettings::default().mode
             && self.switches(params).into_iter().all(|(param, on)| param.value() == on)
             && self.knobs(params).into_iter().all(|(param, value)| {
                 (param.unmodulated_normalized_value() - param.preview_normalized(value)).abs()
@@ -770,8 +778,9 @@ mod tests {
             preset.load(&params, &ParamSetter::new(&host));
             let told = host.told.lock().unwrap();
             assert!(as_one_edit(&told), "{}", preset.name);
-            // The two amps, the pitch shifter's semitones, the switches and every knob: each begun, set and ended once
-            let held = 3 + preset.switches(&params).len() + preset.knobs(&params).len();
+            // The two amps, the pitch shifter's semitones, the wah's mode, the switches and every
+            // knob: each begun, set and ended once
+            let held = 4 + preset.switches(&params).len() + preset.knobs(&params).len();
             assert_eq!(told.len(), 3 * held, "{}", preset.name);
             assert!(told[0].1 == params.amp.as_ptr(), "{} begins with the amp", preset.name);
         }
