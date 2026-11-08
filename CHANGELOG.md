@@ -41,10 +41,9 @@ GitHub release.
   of the Fuzz, and can be dragged anywhere in front of the amp (not behind the cabinet); a
   project from before opens with it off and in its place, and switched off it changes nothing
   in the sound. The window is one pedal wider (3411 px, size stored under `editor-state-rig11`),
-  so a project saved with the older size opens at the new one. For the page at the release: the
-  Wah pedal (no model number: mini pedals have none), brass paint, waterfall art, its five
-  controls (Wah, Wah Pedal, Wah Bite, Wah Mode, Wah Sens) and a short note on mapping an
-  expression pedal to the rocker in REAPER; the page's picture of the amp is one pedal short.
+  so a project saved with the older size opens at the new one.
+  The page lists the wah and says how to map an expression pedal to the rocker in Reaper;
+  its picture of the amp comes with the release.
 - The standalone program reads a stereo input channel by channel; before, the two channels'
   samples could land in the wrong halves of the buffer.
 

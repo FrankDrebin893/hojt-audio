@@ -1635,7 +1635,9 @@ mod ids {
         use nih_plug::prelude::Params;
         let fields = <super::GuitarAmpParams as Default>::default().serialize_fields();
         assert!(fields.contains_key("editor-state-rig11"));
-        for old in ["editor-state-rig10", "editor-state-rig8", "editor-state-rig7"] {
+        for old in
+            ["editor-state-rig10", "editor-state-rig9", "editor-state-rig8", "editor-state-rig7"]
+        {
             assert!(!fields.contains_key(old), "{old} is an old size's key");
         }
     }

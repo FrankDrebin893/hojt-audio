@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HØJT DSP: free guitar, drum, bass and keys plugins</title>
-<meta name="description" content="Six free audio plugins: a guitar amp with twelve pedals, a drum kit with no samples, a low-latency pitch shifter, a bass, an ambient pad and glass bells. VST3 and CLAP for Windows, macOS and Linux.">
+<meta name="description" content="Six free audio plugins: a guitar amp with thirteen pedals, a drum kit with no samples, a low-latency pitch shifter, a bass, an ambient pad and glass bells. VST3 and CLAP for Windows, macOS and Linux.">
 <meta property="og:title" content="HØJT DSP: free guitar, drum, bass and keys plugins">
-<meta property="og:description" content="A guitar amp with twelve pedals, a drum kit with no samples, a pitch shifter, a bass, a pad and bells. Free, VST3 and CLAP.">
+<meta property="og:description" content="A guitar amp with thirteen pedals, a drum kit with no samples, a pitch shifter, a bass, a pad and bells. Free, VST3 and CLAP.">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://hojte.net/hojt-audio/img/guitar-amp.png">
 <meta name="theme-color" content="#121110">
@@ -43,7 +43,7 @@
     </div>
     <div class="rig">
       <a class="amp oxblood" href="#guitar-amp"><img src="../img/guitar-amp.png" width="3204" height="650" alt="The Guitar Amp: an oxblood red amp head above a row of pedals"></a>
-      <p class="amp-tag">Guitar Amp <small>GA-3 / effect / ten amps, twelve pedals</small></p>
+      <p class="amp-tag">Guitar Amp <small>GA-3 / effect / ten amps, thirteen pedals</small></p>
       <nav aria-label="Plugins">
         <ul class="pedalboard">
           <li class="teal"><a href="#drum-synth"><img src="../img/drum-synth.png" width="660" height="600" alt=""><span>Drum Synth</span><small>DS-2 / instrument</small></a></li>
@@ -77,7 +77,7 @@
     <div class="cols">
       <div>
         <h3>What it is</h3>
-        <p>A whole guitar rig in one window: ten amps, each with its own cabinet, and twelve
+        <p>A whole guitar rig in one window: ten amps, each with its own cabinet, and thirteen
           pedals around them. Plug a guitar straight into the audio interface and play.</p>
         <ul class="points">
           <li><b>Klar</b> is clean and glassy, <b>Brøl</b> a mid-forward crunch, <b>Torden</b> a
@@ -86,9 +86,11 @@
             mid-gain rock amp and <b>Gnist</b> its bright, chimey cousin; <b>Skarp</b> is a crisp,
             tight modern high gain and <b>Hvas</b> a dense, hot-rodded one. Each remembers its own six
             dials. Switch on a second amp, with its own cabinet, and Blend between the two</li>
-          <li>Gate, fuzz, pitch, compressor, overdrive, phaser, chorus, flanger, tremolo, EQ,
+          <li>Gate, wah, fuzz, pitch, compressor, overdrive, phaser, chorus, flanger, tremolo, EQ,
             delay and reverb. Drag a pedal by its name to move it in the chain. The delay can
             follow the song's tempo</li>
+          <li>A wah with a tall rocker: slide it from heel to toe by hand, or map an expression
+            pedal to it in your DAW. In Auto the playing sweeps it, a harder pick opening it further</li>
           <li>Ten built-in cabinets to play any amp through. Hear the cabinet through one of five
             microphones, or play through your own cabinet impulse responses: drop WAV files in
             <code>Documents/Hojt Audio/Cabinets</code></li>
@@ -139,6 +141,7 @@
         <tr><td>Comp: Sustain, Level</td><td class="v">0.0 to 10.0</td><td>Compressor. Level 5 is as loud as the pedal off</td></tr>
         <tr><td>Fuzz: Fuzz, Tone</td><td class="v">0.0 to 10.0</td><td>Thick fuzz in front of the amp, about as loud as switched off</td></tr>
         <tr><td>Pitch: Semitones, Blend, Tracking</td><td class="v">-12 to +12 st, 0 to 100 %, 2 to 50 ms</td><td>Shifts the guitar for drop tunings or a harmony. Adds a few milliseconds of latency while it is on</td></tr>
+        <tr><td>Wah, Wah Pedal, Wah Bite, Wah Mode, Wah Sens</td><td class="v">on / off, 0.0 to 10.0, 0.0 to 10.0, Pedal / Auto, 0.0 to 10.0</td><td>A resonant filter in front of the amp. The rocker sweeps from 350 Hz (heel, woofy) to 2.2 kHz (toe, thin and vocal); Bite narrows the peak. In Auto the playing opens it from where the rocker rests, as far as Sens says. In Reaper, to use an expression pedal: click Param on the plugin, choose Wah Pedal, pick Link from MIDI or OSC, move the pedal, and it sweeps the rocker</td></tr>
         <tr><td>Drive: Gain, Tone, Level</td><td class="v">0.0 to 10.0</td><td>Overdrive in front of the amp</td></tr>
         <tr><td>Phaser, Chorus, Flanger, Tremolo: Rate, Depth</td><td class="v">0.05 to 12 Hz, 0 to 100 %</td><td>Modulation, in front of the amp or behind the cabinet</td></tr>
         <tr><td>Cab: Mic, Resonance</td><td class="v">0.0 to 10.0</td><td>Darker to brighter microphone position; less or more low thump. Steps through your own cabinet files</td></tr>
