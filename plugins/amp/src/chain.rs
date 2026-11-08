@@ -26,6 +26,7 @@ use crate::reverb::{Reverb, ReverbSettings};
 use crate::second::BLEND_LAW;
 use crate::second::{Second, SecondSettings, Timing};
 use crate::tuner::{Tuner, TunerReading};
+use crate::wah::{Wah, WahSettings};
 use std::sync::Arc;
 
 // The chain works in pieces of at most this many samples, and reads the dials once per piece
@@ -107,6 +108,8 @@ pub struct AmpSettings {
     pub comp: CompSettings,
     /// The pitch shifter pedal, in front of the amp only. It smooths its own settings
     pub pitch: PitchSettings,
+    /// The wah pedal, in front of the amp only. It smooths its own settings
+    pub wah: WahSettings,
     /// The EQ pedal, on either side of the amp. It smooths its own settings
     pub eq: EqSettings,
 
@@ -172,6 +175,7 @@ impl Default for AmpSettings {
             fuzz: FuzzSettings::default(),
             comp: CompSettings::default(),
             pitch: PitchSettings::default(),
+            wah: WahSettings::default(),
             eq: EqSettings::default(),
             drive_on: false,
             drive_gain: 0.3,
@@ -301,6 +305,8 @@ pub struct AmpChain {
     comp_settings: CompSettings,
     pitch: Pitch,
     pitch_settings: PitchSettings,
+    wah: Wah,
+    wah_settings: WahSettings,
     eq: Eq,
     eq_settings: EqSettings,
     chorus: Chorus,
@@ -402,6 +408,8 @@ impl AmpChain {
             comp_settings: CompSettings::default(),
             pitch: Pitch::new(),
             pitch_settings: PitchSettings::default(),
+            wah: Wah::new(),
+            wah_settings: WahSettings::default(),
             eq: Eq::new(),
             eq_settings: EqSettings::default(),
             chorus: Chorus::new(),
@@ -523,6 +531,7 @@ impl AmpChain {
             Pedal::Fuzz => self.fuzz.set_sample_rate(rate, zone == Zone::Back),
             Pedal::Comp => self.comp.set_sample_rate(rate),
             Pedal::Pitch => self.pitch.set_sample_rate(rate),
+            Pedal::Wah => self.wah.set_sample_rate(rate),
             Pedal::Eq => self.eq.set_sample_rate(rate),
             Pedal::Chorus => self.chorus.set_sample_rate(rate),
             Pedal::Phaser => self.phaser.set_sample_rate(rate),
@@ -747,6 +756,7 @@ impl AmpChain {
         self.fuzz.reset();
         self.comp.reset();
         self.pitch.reset();
+        self.wah.reset();
         self.eq.reset();
         // As for the delay and the reverb below: a pedal with nothing in it is left alone
         if !self.chorus.is_idle() {
@@ -917,6 +927,7 @@ impl AmpChain {
         self.fuzz_settings = settings.fuzz;
         self.comp_settings = settings.comp;
         self.pitch_settings = settings.pitch;
+        self.wah_settings = settings.wah;
         self.eq_settings = settings.eq;
         self.chorus_settings = settings.chorus;
         self.phaser_settings = settings.phaser;
@@ -1156,6 +1167,7 @@ impl AmpChain {
                 Pedal::Fuzz => self.fuzz.process_mono(&self.fuzz_settings, high),
                 Pedal::Comp => self.comp.process_mono(&self.comp_settings, high),
                 Pedal::Pitch => self.pitch.process_mono(&self.pitch_settings, high),
+                Pedal::Wah => self.wah.process_mono(&self.wah_settings, high),
                 Pedal::Eq => self.eq.process_mono(&self.eq_settings, high),
                 Pedal::Drive => self.drive.process(high),
                 Pedal::Chorus => self.chorus.process_mono(&self.chorus_settings, high),
@@ -1242,7 +1254,7 @@ impl AmpChain {
                     self.tremolo.process_stereo(&self.tremolo_settings, wide_left, wide_right)
                 }
                 // Never behind the cabinet
-                Pedal::Drive | Pedal::Pitch => {}
+                Pedal::Drive | Pedal::Pitch | Pedal::Wah => {}
             }
         }
 
@@ -1331,6 +1343,7 @@ mod tests {
     use crate::tuner::tests::{note_hz as tuner_note_hz, string as tuner_string};
     use crate::user_cab::tests::{test_dir, whole_response, write_ir_wav};
     use crate::user_cab::{self, Recording};
+    use crate::wah::WahMode;
     use std::sync::Mutex;
     use std::time::Instant;
 
@@ -1886,6 +1899,99 @@ mod tests {
         }
     }
 
+    fn wah_at(pedal: f32) -> WahSettings {
+        WahSettings { on: true, pedal, ..WahSettings::default() }
+    }
+
+    #[test]
+    fn test_wah_off_leaves_the_amp_alone_to_the_bit() {
+        // Switched off it leaves no trace, whatever its dials say, and also after it was on
+        let input = power_chords(SAMPLE_RATE, 0.5);
+        let plain = with_effects(everything_on(Amp::Torden, 0.6));
+        let off = AmpSettings {
+            wah: WahSettings { on: false, mode: WahMode::Auto, pedal: 0.9, bite: 0.2, sens: 1.0 },
+            ..plain
+        };
+        assert!(run_stereo(&off, &input, SAMPLE_RATE) == run_stereo(&plain, &input, SAMPLE_RATE));
+        // On and off again: once it has faded out the amp is the amp alone again, and the
+        // pedal is idle
+        let plain = with_amp(Amp::Klar, 0.5);
+        let mut chain = new_chain(SAMPLE_RATE);
+        let with = AmpSettings { wah: wah_at(0.2), ..plain };
+        run_blocks(&mut chain, &with, &input[..24_000], BLOCK);
+        let gone = run_blocks(&mut chain, &plain, &input, BLOCK);
+        let alone = run_blocks(&mut new_chain(SAMPLE_RATE), &plain, &input, BLOCK);
+        let tail = input.len() - 12_000..input.len();
+        assert!(
+            largest_difference(&gone[tail.clone()], &alone[tail.clone()])
+                < 0.001 * peak(&alone[tail])
+        );
+        assert!(chain.wah.is_idle());
+    }
+
+    #[test]
+    fn test_wah_sweeps_through_every_amp_and_in_front_of_a_drive_and_a_fuzz() {
+        // The rocker at the heel keeps the lows and at the toe the highs, read at the output
+        let input = power_chords(SAMPLE_RATE, 1.0);
+        let bands = |signal: &[f32]| {
+            let low = spectrum_level_db(&signal[12_000..], SAMPLE_RATE, 250.0, 500.0);
+            let high = spectrum_level_db(&signal[12_000..], SAMPLE_RATE, 1_600.0, 3_200.0);
+            low - high
+        };
+        for amp in Amp::ALL {
+            for (name, base) in [
+                ("alone", AmpSettings { gate_on: false, ..with_amp(amp, 0.4) }),
+                ("drive", AmpSettings { gate_on: false, ..with_drive(amp, 0.4, 0.6, 0.5, 0.5) }),
+                (
+                    "fuzz",
+                    AmpSettings { gate_on: false, fuzz: fuzz_on(0.5, 0.5), ..with_amp(amp, 0.4) },
+                ),
+            ] {
+                let heel = run(&AmpSettings { wah: wah_at(0.0), ..base }, &input, SAMPLE_RATE);
+                let toe = run(&AmpSettings { wah: wah_at(1.0), ..base }, &input, SAMPLE_RATE);
+                let off = run(&base, &input, SAMPLE_RATE);
+                assert!(heel != off && toe != off, "{amp:?} {name}: no wah is heard");
+                for signal in [&heel, &toe] {
+                    assert!(signal.iter().all(|sample| sample.is_finite() && sample.abs() <= 1.0));
+                }
+                let (at_heel, at_toe) = (bands(&heel), bands(&toe));
+                assert!(
+                    at_heel > at_toe + 6.0,
+                    "{amp:?} {name}: low against high {at_heel:.1} dB at the heel, {at_toe:.1} at the toe"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_wah_stands_in_front_of_the_amp_only_and_adds_no_latency() {
+        let default = ChainOrder::default();
+        assert_eq!(default.front()[..2], [Pedal::Pitch, Pedal::Wah]);
+        assert_eq!(default.moved(Pedal::Wah, Zone::Back, 0), default);
+        let input = power_chords(SAMPLE_RATE, 0.5);
+        let with = AmpSettings { wah: wah_at(0.3), ..with_amp(Amp::Brol, 0.5) };
+        let reference = run_stereo(&with, &input, SAMPLE_RATE);
+        for place in 0..default.front().len() {
+            let order = default.moved(Pedal::Wah, Zone::Front, place);
+            assert_eq!(order.front().iter().position(|&pedal| pedal == Pedal::Wah), Some(place));
+            // With nothing else on, where it stands is not heard; with everything on, it is
+            // finite and as loud as it should be
+            let alone = AmpSettings { order, ..with };
+            assert!(run_stereo(&alone, &input, SAMPLE_RATE) == reference, "place {place}");
+            let board = AmpSettings { order, ..whole_board(Amp::Brol) };
+            let (left, right) = run_stereo(&board, &input, SAMPLE_RATE);
+            assert!(left.iter().chain(&right).all(|s| s.is_finite() && s.abs() <= 1.0));
+        }
+        // Nothing is reported, and the filter's own delay is a few samples: the note starts
+        // later by less than a tenth of a millisecond
+        let with = AmpSettings { wah: wah_at(0.3), ..with_amp(Amp::Brol, 0.5) };
+        for sample_rate in [44_100.0, 96_000.0, 192_000.0] {
+            let late = latency_samples_with(&with, sample_rate) as f32
+                - latency_samples_with(&with_amp(Amp::Brol, 0.5), sample_rate) as f32;
+            assert!(late.abs() <= 0.0001 * sample_rate, "{late} samples late at {sample_rate} Hz");
+        }
+    }
+
     #[test]
     fn test_pitch_shifter_off_leaves_the_amp_alone_to_the_bit() {
         // Switched off it leaves no trace, whatever its dials say, and also after it was on
@@ -2099,7 +2205,9 @@ mod tests {
             ("compressor behind the cabinet", default.moved(Pedal::Comp, Zone::Back, 0)),
             ("phaser last", default.moved(Pedal::Phaser, Zone::Back, 99)),
             ("fuzz behind the cabinet", default.moved(Pedal::Fuzz, Zone::Back, 0)),
-            ("fuzz behind the drive", default.moved(Pedal::Fuzz, Zone::Front, 2)),
+            ("fuzz behind the drive", default.moved(Pedal::Fuzz, Zone::Front, 4)),
+            ("wah behind the drive", default.moved(Pedal::Wah, Zone::Front, 4)),
+            ("wah behind the fuzz", default.moved(Pedal::Wah, Zone::Front, 2)),
             (
                 "all that can in front",
                 default
@@ -2121,7 +2229,11 @@ mod tests {
     /// Every pedal and effect on
     fn whole_board(amp: Amp) -> AmpSettings {
         let (_, mods) = with_mods(with_effects(everything_on(amp, 0.5))).pop().unwrap();
-        AmpSettings { fuzz: fuzz_on(0.5, 0.5), ..mods }
+        AmpSettings {
+            fuzz: fuzz_on(0.5, 0.5),
+            wah: WahSettings { on: true, mode: WahMode::Auto, ..WahSettings::default() },
+            ..mods
+        }
     }
 
     fn fuzz_on(fuzz: f32, tone: f32) -> FuzzSettings {
@@ -3153,6 +3265,13 @@ mod tests {
                     delay: DelaySettings { on: false, ..delay_on(20.0, 0.9, 1.0) },
                     reverb: ReverbSettings { on: false, ..reverb_on(6.0, 1.0) },
                     eq: EqSettings { on: false, low: 1.0, mid: 0.0, freq: 0.2, high: 1.0 },
+                    wah: WahSettings {
+                        on: false,
+                        mode: WahMode::Auto,
+                        pedal: 1.0,
+                        bite: 1.0,
+                        sens: 1.0,
+                    },
                     ..with_amp(amp, gain)
                 };
                 let reference = amp_alone(&settings, &input, SAMPLE_RATE);
@@ -3914,6 +4033,13 @@ mod tests {
                     in_gain_db: (turn % 5) as f32 * 6.0 - 12.0,
                     gate_on: turn % 2 == 0,
                     gate_thresh_db: -20.0 - (turn % 3) as f32 * 20.0,
+                    wah: WahSettings {
+                        on: turn % 3 != 0,
+                        mode: if turn % 2 == 0 { WahMode::Pedal } else { WahMode::Auto },
+                        pedal: (turn % 5) as f32 / 4.0,
+                        bite: (turn % 3) as f32 / 2.0,
+                        sens: (turn % 4) as f32 / 3.0,
+                    },
                     pitch: PitchSettings {
                         on: turn % 3 != 1,
                         semitones: [-12, -5, 0, 7, 12][turn % 5],

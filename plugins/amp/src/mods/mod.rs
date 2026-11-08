@@ -30,26 +30,26 @@ fn middle<const N: usize>(channels: &[&mut [f32]; N], index: usize) -> f32 {
 }
 
 /// What a switch lets through, 0.0 to 1.0: it moves in a straight line when the switch does
-struct Fade {
+pub(crate) struct Fade {
     value: f32,
     step: f32,
 }
 
 impl Fade {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self { value: 0.0, step: 1.0 }
     }
 
-    fn set_sample_rate(&mut self, sample_rate: f32) {
+    pub(crate) fn set_sample_rate(&mut self, sample_rate: f32) {
         self.step = 1.0 / (FADE_MS * 0.001 * sample_rate);
     }
 
     /// Jumps to where the switch is, for when nothing is heard of it
-    fn snap(&mut self, on: bool) {
+    pub(crate) fn snap(&mut self, on: bool) {
         self.value = if on { 1.0 } else { 0.0 };
     }
 
-    fn next(&mut self, on: bool) -> f32 {
+    pub(crate) fn next(&mut self, on: bool) -> f32 {
         let target = if on { 1.0 } else { 0.0 };
         if self.value != target {
             self.value = (self.value + self.step.copysign(target - self.value)).clamp(0.0, 1.0);
@@ -57,38 +57,38 @@ impl Fade {
         self.value
     }
 
-    fn is_out(&self) -> bool {
+    pub(crate) fn is_out(&self) -> bool {
         self.value == 0.0
     }
 }
 
 /// A value on its way to what a dial says: a one-pole follower that arrives. In f64: at
 /// the highest sample rates its steps are too small for f32
-struct Dial {
+pub(crate) struct Dial {
     value: f64,
     coeff: f64,
 }
 
 impl Dial {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self { value: 0.0, coeff: 1.0 }
     }
 
-    fn set_sample_rate(&mut self, sample_rate: f32) {
+    pub(crate) fn set_sample_rate(&mut self, sample_rate: f32) {
         self.set_time(DIAL_SMOOTH_MS, sample_rate);
     }
 
     /// For a dial that is to be followed more slowly
-    fn set_time(&mut self, time_ms: f32, sample_rate: f32) {
+    pub(crate) fn set_time(&mut self, time_ms: f32, sample_rate: f32) {
         self.coeff = smoothing_coeff(time_ms, sample_rate) as f64;
     }
 
     /// Jumps to the dial, for when nothing is heard of it
-    fn snap(&mut self, target: f32) {
+    pub(crate) fn snap(&mut self, target: f32) {
         self.value = target as f64;
     }
 
-    fn next(&mut self, target: f32) -> f32 {
+    pub(crate) fn next(&mut self, target: f32) -> f32 {
         let target = target as f64;
         if self.value != target {
             let next = self.value + self.coeff * (target - self.value);
@@ -97,7 +97,7 @@ impl Dial {
         self.value as f32
     }
 
-    fn value(&self) -> f32 {
+    pub(crate) fn value(&self) -> f32 {
         self.value as f32
     }
 }

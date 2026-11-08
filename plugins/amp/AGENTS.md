@@ -27,6 +27,8 @@ lead) and Drøn (a big, loose, dark amp with the low end let through). They shar
 - `src/delay.rs`, `src/reverb.rs` - Stereo delay; stereo reverb (8-line feedback delay network)
 - `src/comp.rs` - Compressor pedal
 - `src/eq.rs` - EQ pedal: Low and High shelves, Mid bell with a sweepable centre (`Eq`, `EqSettings`)
+- `src/wah.rs` - Wah pedal: a resonant band-pass (`Wah`, `WahSettings`, `WahMode`), the rocker by
+  hand or by the playing (Auto)
 - `src/pitch.rs` - Pitch shifter pedal: `suite_common::dsp::pitch::PitchShifter` (the Pitch Shifter
   plugin's algorithm) as a stage in front of the amp, with its switch fade
 - `src/mods/` - `chorus.rs`, `flanger.rs`, `phaser.rs`, `tremolo.rs`, with `lfo.rs` and `line.rs`
@@ -260,10 +262,12 @@ How it behaves:
   another, copying and deleting is done in the folder, which a double-click on the Preset
   caption opens — the folder of the bank showing
 - The pedal order (`order.rs`): Gate always first, amp and cabinet one block in the middle.
-  Drive and Pitch only in front of the amp; Delay and Reverb only behind the cabinet; Fuzz, Comp,
-  Chorus, Phaser, Flanger, Tremolo and EQ on either side. Default: Pitch, Fuzz, Comp, Drive, Phaser, amp,
+  Drive, Pitch and Wah only in front of the amp; Delay and Reverb only behind the cabinet; Fuzz, Comp,
+  Chorus, Phaser, Flanger, Tremolo and EQ on either side. Default: Pitch, Wah, Fuzz, Comp, Drive, Phaser, amp,
   Chorus, Flanger, Tremolo, EQ, Delay, Reverb, which with the new pedals off is the chain as it
-  was, to the bit. A project saved before a pedal existed gets it where the default has it
+  was, to the bit. A project saved before a pedal existed gets it where the default has it (the
+  wah behind the pitch shifter, wherever the project put that). `Pedal::ALL` only ever grows at the
+  end: the order is saved as a number of four bits a pedal too
 - In front of the amp a pedal runs on one channel at the oversampled rate, behind the cabinet
   on two at the host's rate (chorus, flanger and phaser a quarter turn apart left and right).
   Either way without latency (but for the pitch shifter, below). The fuzz is the one exception behind the cabinet: it raises the
@@ -297,6 +301,29 @@ How it behaves:
   band moved 0.06 to 0.11 % at 48 kHz (behind the cabinet / in front of the amp) and 0.25 to
   0.26 % at 192 kHz, 99th percentile under 0.4 %. `is_idle` is only for the tests: the chain's
   own `is_idle` leaves the EQ out, since a filter's ring is a few milliseconds and keeps no tail
+- The wah (`wah.rs`, #240) stands in front of the amp only, on one channel at the oversampled
+  rate, and is second there by default, ahead of the fuzz and the drive. A resonant band-pass: one
+  state-variable filter in the topology-preserving form (f64, stable at any sweep speed and from
+  44.1 kHz to the 4x rate of a host at 96 kHz and over), its centre by `wah_pedal` on a log
+  scale from 350 Hz (0, heel) to 2.2 kHz (10, toe), its Q by `wah_q` ("Bite") from 3 to 9 on a log
+  scale. A band-pass has no low end and loses level, so the output adds 12 % of the same
+  filter's low-pass, and a makeup gain (`MAKEUP_ROCKER_DB` across the rocker, `MAKEUP_BITE_DB`
+  across Bite) holds the level through the whole sweep within 3 dB of the pedal off for a guitar
+  at `PEDAL_DI_DB` (a test holds it, for riffs and for clean playing). The rocker and Bite are
+  worked out once per 32 samples of the stream (whatever the blocks) and followed in 3 ms (`mods::Dial`), the switch crossfades in
+  10 ms (`mods::Fade`), and an off, faded-out pedal is idle and costs nothing. Pedal mode: the
+  rocker is `wah_pedal`, which a host automates (a controller or an expression pedal mapped to
+  it; there is no MIDI input of its own, #240). Auto mode: an envelope follower on the input
+  (attack 5 ms, release 150 ms, on the rectified signal) moves the centre up from the rocker's
+  resting position by `wah_sens` of the sweep at the level `ENV_FULL` (-14 dBFS) and in
+  proportion below it: a note at -12 dBFS opens it 75 % of the way in 16 ms and it is back
+  in about 280 ms at Sens 5 (360 ms at Sens 9). The wah has no latency to report (the
+  filter's own delay is a few samples). Nothing in it allocates (`no_alloc` holds it). Cost
+  (`wah_report`, the pedal by itself in front of the amp at 192 kHz, median of a block of 64
+  host samples): 0.15 % of a core in Pedal mode, 0.17 % in Auto, 99th percentile under 0.2 %. Factory presets
+  switch it off with the rocker and Bite at 5 and Pedal mode; it is not part of a sound. It has
+  no pedal on the board yet (#242, #243): `board.rs` leaves it out and keeps it where the
+  order has it, and the editor shows nothing of it
 - The order is saved with the project (`chain-order`, a list of pedal ids with `amp` between
   the sides), not a parameter and not automatable. The chain reads it with the dials: the
   output fades to silence in 4.5 ms, the pedals change places, it fades back. A pedal that
@@ -345,6 +372,11 @@ How it behaves:
 | EQ (`eq_on`) | on / off | off | EQ pedal, either side of the amp |
 | EQ Low, Mid, High (`eq_low`, `eq_mid`, `eq_high`) | 0.0-10.0 | 5.0 | -12 to +12 dB, 5 is flat: Low and High shelves at 100 Hz and 4 kHz, Mid a bell |
 | EQ Freq (`eq_freq`) | 0.0-10.0 | 5.0 | The centre of Mid, 200 Hz to 5 kHz on a log scale (5 is 1 kHz) |
+| Wah (`wah_on`) | on / off | off | Wah pedal, in front of the amp only |
+| Wah Pedal (`wah_pedal`) | 0.0-10.0 | 5.0 | The rocker: 0 is the heel (350 Hz), 10 the toe (2.2 kHz), on a log scale. Map a controller or an expression pedal to it in the host. In Auto mode, where the rocker rests |
+| Wah Bite (`wah_q`) | 0.0-10.0 | 5.0 | The resonance, Q 3 to 9: a wider, woofier peak to a narrow, vocal one |
+| Wah Mode (`wah_mode`) | Pedal / Auto | Pedal | Pedal: the rocker is where the dial puts it. Auto: the playing opens it up from the resting position |
+| Wah Sens (`wah_sens`) | 0.0-10.0 | 5.0 | Auto only: how far a loud note opens the pedal, as a share of the sweep |
 | Chorus, Phaser, Flanger, Tremolo (`chorus_on`, `phaser_on`, `flanger_on`, `trem_on`) | on / off | off | Modulation pedals |
 | Chorus Rate (`chorus_rate`) | 0.1-6 Hz | 0.8 Hz | Speed of the sweep, 7 to 12 ms |
 | Phaser Rate (`phaser_rate`) | 0.1-8 Hz | 0.5 Hz | Speed of the sweep, 200 Hz to 1.6 kHz |
@@ -412,6 +444,10 @@ cargo test -p amp --release pitch_report -- --ignored --nocapture
 # EQ pedal: gain per band at the dials' ends and middle, Mid across Freq, the largest step of a
 # sweep of the dials against the signal's own, and cost on either side of the amp.
 cargo test -p amp --release eq_report -- --ignored --nocapture
+
+# Wah pedal: peak, width and height of the response at the rocker's heel, middle and toe and
+# three Bite settings, the level through the sweep, Auto mode's opening and return, and cost.
+cargo test -p amp --release wah_report -- --ignored --nocapture
 cargo test -p amp --release fuzz_report -- --ignored --nocapture
 cargo test -p amp --release mods_report -- --ignored --nocapture
 

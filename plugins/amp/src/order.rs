@@ -3,8 +3,8 @@
 //!
 //! Not every pedal can stand everywhere. The gate is always first, since it listens to the
 //! guitar as it arrives, and the amp and its cabinet are one block in the middle: neither is
-//! part of the order. The drive pedal and the pitch shifter stay in front of the amp, where
-//! they share the amp's oversampling. The delay and the reverb stay behind the cabinet, where the signal is
+//! part of the order. The drive pedal, the pitch shifter and the wah stay in front of the amp,
+//! where they share the amp's oversampling. The delay and the reverb stay behind the cabinet, where the signal is
 //! stereo. The fuzz, the compressor, the modulation pedals and the EQ go either side.
 //!
 //! The order is not a parameter: a host cannot automate an arrangement. The editor changes
@@ -27,6 +27,7 @@ pub enum Pedal {
     Fuzz,
     Pitch,
     Eq,
+    Wah,
 }
 
 /// The two stretches of the chain a pedal can stand in
@@ -39,7 +40,7 @@ pub enum Zone {
 }
 
 impl Pedal {
-    pub const ALL: [Pedal; 11] = [
+    pub const ALL: [Pedal; 12] = [
         Pedal::Comp,
         Pedal::Drive,
         Pedal::Chorus,
@@ -51,6 +52,7 @@ impl Pedal {
         Pedal::Fuzz,
         Pedal::Pitch,
         Pedal::Eq,
+        Pedal::Wah,
     ];
 
     /// Frozen: what a saved project calls the pedal
@@ -67,6 +69,7 @@ impl Pedal {
             Pedal::Fuzz => "fuzz",
             Pedal::Pitch => "pitch",
             Pedal::Eq => "eq",
+            Pedal::Wah => "wah",
         }
     }
 
@@ -81,7 +84,7 @@ impl Pedal {
 
     pub fn can_be_in(self, zone: Zone) -> bool {
         match self {
-            Pedal::Drive | Pedal::Pitch => zone == Zone::Front,
+            Pedal::Drive | Pedal::Pitch | Pedal::Wah => zone == Zone::Front,
             Pedal::Delay | Pedal::Reverb => zone == Zone::Back,
             Pedal::Fuzz
             | Pedal::Comp
@@ -107,7 +110,8 @@ pub struct ChainOrder {
 
 /// The chain as it was before it could be rearranged, with the pedals that came later
 /// where they are used most: the pitch shifter first, since it follows a note best as the
-/// guitar plays it (the gate stays in front of everything), then the fuzz, where it hears
+/// guitar plays it (the gate stays in front of everything), the wah after it, ahead of the
+/// fuzz (a wah in front of a drive or a fuzz is the sound), then the fuzz, where it hears
 /// the guitar as it is, then the compressor, and the phaser in front of the amp; the other
 /// modulation behind the cabinet in front of the delay, and the EQ after them, where a room
 /// or a speaker is put right
@@ -116,6 +120,7 @@ impl Default for ChainOrder {
         Self {
             pedals: [
                 Pedal::Pitch,
+                Pedal::Wah,
                 Pedal::Fuzz,
                 Pedal::Comp,
                 Pedal::Drive,
@@ -127,7 +132,7 @@ impl Default for ChainOrder {
                 Pedal::Delay,
                 Pedal::Reverb,
             ],
-            front: 5,
+            front: 6,
         }
     }
 }
@@ -345,7 +350,7 @@ mod tests {
         assert!(is_legal(&order));
         assert_eq!(
             order.front(),
-            [Pedal::Pitch, Pedal::Fuzz, Pedal::Comp, Pedal::Drive, Pedal::Phaser]
+            [Pedal::Pitch, Pedal::Wah, Pedal::Fuzz, Pedal::Comp, Pedal::Drive, Pedal::Phaser]
         );
         assert_eq!(
             order.back(),
@@ -360,8 +365,8 @@ mod tests {
         assert_eq!(
             order.ids(),
             [
-                "pitch", "fuzz", "comp", "drive", "phaser", "amp", "chorus", "flanger", "tremolo",
-                "eq", "delay", "reverb"
+                "pitch", "wah", "fuzz", "comp", "drive", "phaser", "amp", "chorus", "flanger",
+                "tremolo", "eq", "delay", "reverb"
             ]
         );
     }
@@ -373,7 +378,10 @@ mod tests {
             assert_eq!(Pedal::ALL[pedal.index()], pedal);
             assert_ne!(pedal.id(), AMP_ID);
         }
-        assert_eq!(Pedal::from_id("wah"), None);
+        assert_eq!(Pedal::from_id("wah"), Some(Pedal::Wah));
+        assert_eq!(Pedal::from_id("octaver"), None);
+        // At the end, so that the number a saved order is kept as stays the same for the rest
+        assert_eq!(Pedal::ALL.last(), Some(&Pedal::Wah));
     }
 
     #[test]
@@ -383,7 +391,15 @@ mod tests {
         let chorus_first = order.moved(Pedal::Chorus, Zone::Front, 0);
         assert_eq!(
             chorus_first.front(),
-            [Pedal::Chorus, Pedal::Pitch, Pedal::Fuzz, Pedal::Comp, Pedal::Drive, Pedal::Phaser]
+            [
+                Pedal::Chorus,
+                Pedal::Pitch,
+                Pedal::Wah,
+                Pedal::Fuzz,
+                Pedal::Comp,
+                Pedal::Drive,
+                Pedal::Phaser
+            ]
         );
         assert_eq!(
             chorus_first.back(),
@@ -400,7 +416,15 @@ mod tests {
         let eq_in_front = order.moved(Pedal::Eq, Zone::Front, 99);
         assert_eq!(
             eq_in_front.front(),
-            [Pedal::Pitch, Pedal::Fuzz, Pedal::Comp, Pedal::Drive, Pedal::Phaser, Pedal::Eq]
+            [
+                Pedal::Pitch,
+                Pedal::Wah,
+                Pedal::Fuzz,
+                Pedal::Comp,
+                Pedal::Drive,
+                Pedal::Phaser,
+                Pedal::Eq
+            ]
         );
         assert_eq!(
             eq_in_front.back(),
@@ -408,22 +432,25 @@ mod tests {
         );
         let eq_first_behind = eq_in_front.moved(Pedal::Eq, Zone::Back, 0);
         assert_eq!(eq_first_behind.back()[0], Pedal::Eq);
-        assert_eq!(eq_first_behind.front().len(), 5);
+        assert_eq!(eq_first_behind.front().len(), 6);
         assert!(is_legal(&eq_in_front) && is_legal(&eq_first_behind));
 
-        let comp_behind_drive = order.moved(Pedal::Comp, Zone::Front, 3);
+        let comp_behind_drive = order.moved(Pedal::Comp, Zone::Front, 4);
         assert_eq!(
             comp_behind_drive.front(),
-            [Pedal::Pitch, Pedal::Fuzz, Pedal::Drive, Pedal::Comp, Pedal::Phaser]
+            [Pedal::Pitch, Pedal::Wah, Pedal::Fuzz, Pedal::Drive, Pedal::Comp, Pedal::Phaser]
         );
 
         let fuzz_last = order.moved(Pedal::Fuzz, Zone::Back, 99);
-        assert_eq!(fuzz_last.front(), [Pedal::Pitch, Pedal::Comp, Pedal::Drive, Pedal::Phaser]);
+        assert_eq!(
+            fuzz_last.front(),
+            [Pedal::Pitch, Pedal::Wah, Pedal::Comp, Pedal::Drive, Pedal::Phaser]
+        );
         assert_eq!(fuzz_last.back().last(), Some(&Pedal::Fuzz));
 
         // Past the end is last, and where a pedal already stands is no move
         assert_eq!(order.moved(Pedal::Comp, Zone::Back, 99).back().last(), Some(&Pedal::Comp));
-        assert_eq!(order.moved(Pedal::Drive, Zone::Front, 3), order);
+        assert_eq!(order.moved(Pedal::Drive, Zone::Front, 4), order);
         for moved in [chorus_first, reverb_into_delay, comp_behind_drive, fuzz_last] {
             assert!(is_legal(&moved));
         }
@@ -436,6 +463,8 @@ mod tests {
         assert_eq!(order.moved(Pedal::Delay, Zone::Front, 0), order);
         assert_eq!(order.moved(Pedal::Reverb, Zone::Front, 2), order);
         assert_eq!(order.moved(Pedal::Pitch, Zone::Back, 0), order);
+        assert_eq!(order.moved(Pedal::Wah, Zone::Back, 0), order);
+        assert_eq!(order.moved(Pedal::Wah, Zone::Back, 99), order);
 
         // Every move from every order that a few moves lead to
         let mut orders = vec![order];
@@ -472,7 +501,7 @@ mod tests {
         let older = ChainOrder::from_ids(["drive", "amp", "reverb", "delay"]);
         assert_eq!(
             older.front(),
-            [Pedal::Pitch, Pedal::Fuzz, Pedal::Comp, Pedal::Drive, Pedal::Phaser]
+            [Pedal::Pitch, Pedal::Wah, Pedal::Fuzz, Pedal::Comp, Pedal::Drive, Pedal::Phaser]
         );
         // A project saved before there was a fuzz: the pedals where it had them, and the fuzz
         // first, where the default has it
@@ -486,7 +515,10 @@ mod tests {
         ];
         assert_eq!(ChainOrder::from_ids(before_pitch), default);
         let moved = ChainOrder::from_ids(["drive", "comp", "amp", "reverb", "phaser"]);
-        assert_eq!(moved.front(), [Pedal::Pitch, Pedal::Fuzz, Pedal::Drive, Pedal::Comp]);
+        assert_eq!(
+            moved.front(),
+            [Pedal::Pitch, Pedal::Wah, Pedal::Fuzz, Pedal::Drive, Pedal::Comp]
+        );
         assert_eq!(
             older.back(),
             [Pedal::Chorus, Pedal::Flanger, Pedal::Tremolo, Pedal::Eq, Pedal::Reverb, Pedal::Delay]
@@ -516,7 +548,20 @@ mod tests {
                 Pedal::Phaser
             ]
         );
-        assert_eq!(moved_about.front(), [Pedal::Drive, Pedal::Pitch]);
+        assert_eq!(moved_about.front(), [Pedal::Drive, Pedal::Pitch, Pedal::Wah]);
+        // And one saved before the wah: it is behind the pitch shifter, where the default has it,
+        // wherever the project put that, and the pedals that were moved stay where they were
+        let before_wah = [
+            "pitch", "fuzz", "comp", "drive", "phaser", "amp", "chorus", "flanger", "tremolo",
+            "eq", "delay", "reverb",
+        ];
+        assert_eq!(ChainOrder::from_ids(before_wah), default);
+        let pitch_later = ChainOrder::from_ids(["fuzz", "pitch", "drive", "amp", "delay"]);
+        assert_eq!(&pitch_later.front()[..3], [Pedal::Fuzz, Pedal::Pitch, Pedal::Wah]);
+        // A wah named behind the cabinet cannot stand there: it goes in front of the amp
+        let wah_behind = ChainOrder::from_ids(["amp", "wah", "delay"]);
+        assert_eq!(wah_behind.zone_of(Pedal::Wah), Zone::Front);
+        assert!(is_legal(&wah_behind));
         // The EQ named in front of the amp stays there
         let eq_first = ChainOrder::from_ids(["eq", "amp"]);
         assert!(eq_first.front().contains(&Pedal::Eq));

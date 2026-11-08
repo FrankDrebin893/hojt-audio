@@ -255,3 +255,54 @@ fn test_the_eq_allocates_nothing() {
         }
     }
 }
+
+/// The wah pedal: off, on in Pedal mode with the rocker swept and Bite turned, on in Auto mode
+/// with Sens turned, the mode switched while it plays, and switched on and off in the middle of
+/// a block, in front of the amp at the rates that oversample 4 and 2 times
+#[test]
+fn test_the_wah_allocates_nothing() {
+    use crate::chain::AmpSettings;
+    use crate::wah::{WahMode, WahSettings};
+    for sample_rate in [44_100.0, 192_000.0] {
+        let mut chain = AmpChain::new();
+        chain.set_sample_rate(sample_rate);
+        let mut left = vec![0.0f32; host::BLOCKS[0]];
+        let mut right = vec![0.0f32; host::BLOCKS[0]];
+        host::assert_allocates_nothing("The wah", || {
+            for block in 0..600 {
+                let len = host::BLOCKS[block % host::BLOCKS.len()];
+                for i in 0..len {
+                    left[i] = (i as f32 * 0.0144).sin() * 0.5;
+                    right[i] = left[i];
+                }
+                let dial = (block % 40) as f32 / 40.0;
+                let wah = match block / 50 % 4 {
+                    0 => WahSettings::default(),
+                    1 => WahSettings {
+                        on: true,
+                        pedal: dial,
+                        bite: 1.0 - dial,
+                        ..WahSettings::default()
+                    },
+                    2 => WahSettings {
+                        on: true,
+                        mode: WahMode::Auto,
+                        pedal: 0.1,
+                        sens: dial,
+                        ..WahSettings::default()
+                    },
+                    _ => WahSettings {
+                        on: block % 3 != 0,
+                        mode: if block % 2 == 0 { WahMode::Pedal } else { WahMode::Auto },
+                        pedal: dial,
+                        bite: dial,
+                        sens: 1.0 - dial,
+                    },
+                };
+                let settings = AmpSettings { wah, ..AmpSettings::default() };
+                chain.process(&settings, &mut left[..len], Some(&mut right[..len]));
+                chain.process(&settings, &mut left[..len], None);
+            }
+        });
+    }
+}
