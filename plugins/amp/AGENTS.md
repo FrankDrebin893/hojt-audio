@@ -70,7 +70,13 @@ lead) and Drøn (a big, loose, dark amp with the low end let through). They shar
   (`amp/asio` -> `nih_plug/asio` -> cpal's): Windows only, and the Steinberg ASIO SDK has to be
   at `CPAL_ASIO_DIR` at build time. No CI job builds it (`check_mirrors_ci` wants every cargo
   step of CI in `check.sh`, which cannot reach the SDK): build it by hand on Windows,
-  `cargo run -p amp --features asio`
+  `cargo run -p amp --features asio`. Notes from trying it on a Focusrite: the driver takes the buffer size set in its own
+  control panel (the fork brings the size asked for into the driver's range), the panel's
+  device list and channel counts are read once before the streams open (`AsioSnapshot` in
+  `main.rs`: asking a running ASIO driver hangs the window), and Apply starts the program again
+  from a new process and exits at once, since closing the window with ASIO streams open hangs
+- The exe carries the HØJT badge (`assets/amp.ico`, `assets/amp.rc`, `build.rs`) and
+  `give_window_the_icon` in `main.rs` sets it on the window, which the framework makes without one
 - `src/editor.rs` - egui GUI (3204 x 650 board, opened scaled to the screen up to 3204 x 650 or 1762 x 358 on a 1920 x 1080 screen, and resizable from 0.4 to 1.0 by its corner handle): the oxblood strip across the top with the
   Bank and Preset displays, the list they drop open, or the tuner display in its left wing and
   Output, meters, Clip, On and Tuner in its right; the stack (two lanes, one per amp: its head

@@ -30,6 +30,10 @@ hound = "3.5"
 # Lists the standalone program's audio devices (the version nih-plug uses)
 cpal = { version = "0.15", optional = true }
 
+[build-dependencies]
+# The HØJT icon of the standalone program's exe (Windows; a no-op elsewhere)
+embed-resource = "3"
+
 [dev-dependencies]
 # The snapshot tests of the editor: suite_common::ui::snapshot
 suite_common = { workspace = true, features = ["snapshot"] }
