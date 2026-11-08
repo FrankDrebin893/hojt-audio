@@ -145,10 +145,10 @@ def fork(draw, rng, x, y, angle, length, width, depth):
                      length * 0.4, width * 0.55, depth - 1)
 
 
-# The amp's print covers the strip across the top of its window (3184 x 125 points of top face,
+# The amp's print covers the strip across the top of its window (3391 x 125 points of top face,
 # from (10, 10) in the window), so only a band of the picture shows: the loader scales the
 # picture to cover the face and cuts the rest off. This is what that mapping is, in window points
-AMP_FACE = (3184.0, 125.0)
+AMP_FACE = (3391.0, 125.0)
 AMP_ORIGIN = (10.0, 10.0)
 
 

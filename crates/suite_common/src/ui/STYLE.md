@@ -20,7 +20,8 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
   `chrome_button` (one such button alone, for an action such as Save), `crossfader` (a vertical
   slot with ticks on both sides and a chrome cap, for a parameter that is a balance between two
   things: 0 at the top, 1 at the bottom; drag the cap or the slot, Shift for fine, double-click
-  for the default),
+  for the default), `rocker` (the wah's heel-and-toe control: a tall slot with a ribbed chrome treadle,
+  1 at the top and 0 at the bottom, dragged as the crossfader is),
   `cents_meter` (a row of lamps on label tape), `level_meter` (a column of ten lamps on label tape for a signal level, the
   lowest lit from -45 dBFS, the top one at full scale), `value_knob` and `value_switch` (a knob
   and a rig switch for a plain value that is not a parameter),

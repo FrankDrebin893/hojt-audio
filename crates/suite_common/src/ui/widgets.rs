@@ -1,4 +1,5 @@
 use nih_plug::prelude::{BoolParam, Param, ParamSetter};
+use nih_plug_egui::egui::epaint::{Mesh, Vertex, WHITE_UV};
 use nih_plug_egui::egui::{
     vec2, Align2, Area, Color32, CornerRadius, Event, Id, Key, Order, Painter, Pos2, Rect,
     Response, Sense, Shape, Stroke, StrokeKind, Ui, Vec2, WidgetInfo,
@@ -362,6 +363,140 @@ pub fn crossfader<P: Param>(
         [Pos2::new(cap.left() + 3.0, y), Pos2::new(cap.right() - 3.0, y)],
         Stroke::new(2.0_f32, INK),
     );
+    cap
+}
+
+// A rocker's slot, its cap (a ribbed treadle, wider than a fader's) and its ticks
+const ROCKER_SLOT_WIDTH: f32 = 16.0;
+const ROCKER_CAP_SIZE: Vec2 = vec2(64.0, 34.0);
+const ROCKER_TICK_GAP: f32 = 20.0;
+const ROCKER_TICKS: usize = 10;
+const ROCKER_RIBS: usize = 6;
+/// How far the ticks of a `rocker` reach from its middle
+pub const ROCKER_REACH: f32 = ROCKER_TICK_GAP + 10.0;
+/// The room a `rocker`'s cap takes across, from its middle
+pub const ROCKER_CAP_HALF_WIDTH: f32 = ROCKER_CAP_SIZE.x / 2.0;
+/// The height of a `rocker`'s cap
+pub const ROCKER_CAP_HEIGHT: f32 = ROCKER_CAP_SIZE.y;
+
+/// A quad with a colour at each corner, clockwise from the top left
+fn gradient_quad(painter: &Painter, points: [Pos2; 4], colors: [Color32; 4]) {
+    let mut mesh = Mesh::default();
+    for (pos, color) in points.into_iter().zip(colors) {
+        mesh.vertices.push(Vertex { pos, uv: WHITE_UV, color });
+    }
+    mesh.indices.extend([0, 1, 2, 0, 2, 3]);
+    painter.add(Shape::mesh(mesh));
+}
+
+/// The big heel-and-toe control of a wah: a tall slot with a ribbed chrome treadle for a 0 to 1
+/// parameter, 1 (the toe) at the top of the slot and 0 (the heel) at the bottom. The slot is
+/// `length` high from `top` (the middle of the slot's upper end), a tick on each side every
+/// tenth with longer ones at the ends and the middle. Drag the cap (or the slot: it jumps there,
+/// Shift slows it), double-click for the default. Returns the cap's rect. Nothing else is
+/// drawn: the caller prints Toe, Heel and the value
+pub fn rocker<P: Param>(
+    ui: &mut Ui,
+    setter: &ParamSetter,
+    param: &P,
+    top: Pos2,
+    length: f32,
+    print: Color32,
+) -> Rect {
+    let id = Id::new(("rocker", param.name()));
+    let normalized = param.unmodulated_normalized_value();
+    // Where the cap is along the slot: 0 at the top, 1 at the bottom
+    let at = |position: f32| top.y + length * position;
+    let slot = Rect::from_min_size(
+        Pos2::new(top.x - ROCKER_SLOT_WIDTH / 2.0, top.y),
+        vec2(ROCKER_SLOT_WIDTH, length),
+    );
+    let touch = Rect::from_min_max(
+        Pos2::new(top.x - ROCKER_CAP_SIZE.x / 2.0, top.y - ROCKER_CAP_SIZE.y / 2.0),
+        Pos2::new(top.x + ROCKER_CAP_SIZE.x / 2.0, top.y + length + ROCKER_CAP_SIZE.y / 2.0),
+    );
+    let response = ui.interact(touch, id, Sense::click_and_drag());
+    if response.drag_started() {
+        setter.begin_set_parameter(param);
+        let grabbed =
+            response.interact_pointer_pos().map_or(0.0, |pointer| pointer.y - at(1.0 - normalized));
+        // A grip on the cap keeps where on the cap it was held; one on the slot takes the cap
+        let held = if grabbed.abs() <= ROCKER_CAP_SIZE.y / 2.0 { grabbed } else { 0.0 };
+        ui.data_mut(|data| data.insert_temp(id, (held, normalized)));
+    }
+    if response.dragged() {
+        let fine = ui.input(|input| input.modifiers.shift);
+        let (held, value) = ui.data_mut(|data| *data.get_temp_mut_or(id, (0.0, normalized)));
+        let value = if fine {
+            value - response.drag_delta().y / length * FINE_DRAG_FACTOR
+        } else if let Some(pointer) = response.interact_pointer_pos() {
+            1.0 - fader_position(pointer.y, held, top.y, length)
+        } else {
+            value
+        };
+        let value = value.clamp(0.0, 1.0);
+        ui.data_mut(|data| data.insert_temp(id, (held, value)));
+        setter.set_parameter_normalized(param, value);
+    }
+    if response.drag_stopped() {
+        setter.end_set_parameter(param);
+    }
+    if response.double_clicked() {
+        setter.begin_set_parameter(param);
+        setter.set_parameter_normalized(param, param.default_normalized_value());
+        setter.end_set_parameter(param);
+    }
+
+    let painter = ui.painter();
+    for tick in 0..=ROCKER_TICKS {
+        let y = at(tick as f32 / ROCKER_TICKS as f32);
+        let long = tick % (ROCKER_TICKS / 2) == 0;
+        let reach = if long { 10.0 } else { 5.0 };
+        for side in [-1.0, 1.0] {
+            painter.line_segment(
+                [
+                    Pos2::new(top.x + side * ROCKER_TICK_GAP, y),
+                    Pos2::new(top.x + side * (ROCKER_TICK_GAP + reach), y),
+                ],
+                Stroke::new(if long { 2.0_f32 } else { 1.3_f32 }, print),
+            );
+        }
+    }
+    painter.rect_filled(slot.expand(3.0), 6.0, Color32::from_black_alpha(90));
+    painter.rect_filled(slot, 4.0, Color32::from_rgb(8, 8, 8));
+    painter.rect_stroke(slot, 4.0, Stroke::new(1.5_f32, CHROME_DARK), StrokeKind::Outside);
+    // The cap: a ribbed chrome treadle, lit from above
+    let cap = Rect::from_center_size(Pos2::new(top.x, at(1.0 - normalized)), ROCKER_CAP_SIZE);
+    painter.rect_filled(cap.translate(vec2(1.0, 4.0)), 5.0, Color32::from_black_alpha(130));
+    painter.rect_filled(cap, 5.0, CHROME_DARK);
+    let inset = vec2(1.5, 1.5);
+    gradient_quad(
+        painter,
+        [
+            cap.left_top() + inset,
+            cap.right_top() + vec2(-inset.x, inset.y),
+            cap.right_bottom() - inset,
+            cap.left_bottom() + vec2(inset.x, -inset.y),
+        ],
+        [CHROME_SHINE, CHROME_SHINE, CHROME, CHROME],
+    );
+    painter.rect_stroke(
+        cap,
+        5.0,
+        Stroke::new(1.0_f32, Color32::from_black_alpha(140)),
+        StrokeKind::Inside,
+    );
+    for rib in 0..ROCKER_RIBS {
+        let y = cap.top() + 6.0 + rib as f32 * 4.4;
+        painter.line_segment(
+            [Pos2::new(cap.left() + 7.0, y), Pos2::new(cap.right() - 7.0, y)],
+            Stroke::new(1.4_f32, CHROME_DARK),
+        );
+        painter.line_segment(
+            [Pos2::new(cap.left() + 7.0, y + 1.4), Pos2::new(cap.right() - 7.0, y + 1.4)],
+            Stroke::new(0.8_f32, CHROME_SHINE),
+        );
+    }
     cap
 }
 
