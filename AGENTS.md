@@ -151,7 +151,12 @@ Two rules keep an issue from stalling once it leaves the spec stage:
   question, a pick or a listen, with a comment saying what. It lists the issue on the pinned
   "Specs to approve" under "Awaiting engineer decision", the Builder skips it, and his comment on the issue
   (not one signed with the agent's footer, which every agent comment on an issue carries) takes it off through `needs-owner.yml`, after which
-  `/next` picks the issue up with his answer Labels `kind:*`, `plugin:*` (`app:piano` for the piano viz) and `area:*` say what it is
+  `/next` picks the issue up with his answer
+- **An issue that stays open on purpose** (the approval list, the health log, the release reviews) carries `standing`: it is
+  not work, so no routine picks, grooms, specs or flags it. The work list is the search
+  `is:open -label:standing -label:wayfinder:map`
+
+Labels `kind:*`, `plugin:*` (`app:piano` for the piano viz) and `area:*` say what it is
 and where; `from:user` marks issues from outside the project. An outside issue that lacks what a spec
 would have to guess gets questions and `needs:reporter`, and no spec until the reporter answers (or 21 days pass);
 `/specwriter` re-checks it each run.

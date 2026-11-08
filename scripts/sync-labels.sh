@@ -17,6 +17,7 @@ needs:engineer|d93f0b|Waits for the owner: an answer, a pick or a listen (needs-
 needs:reporter|fef2c0|Waits for the person who filed it to answer our questions (/specwriter)
 approval-list|0e8a16|The list of specs to approve (approve-specs.yml)
 health|333333|The weekly health digest (health.yml)
+standing|c5c5c5|Stays open on purpose: a list or a log, never work to do (not picked, groomed or counted as stale)
 kind:feature|a2eeef|Something new
 kind:bug|d73a4a|Something does not work
 kind:sound|d4a017|How something sounds

@@ -15,7 +15,7 @@ What each script in this folder does, and the detail behind the rules in `AGENTS
 - `move-issue.sh` - Moves an issue to a state: its label and its place on the board
 - `weekly-checks.sh` - The weekly run of `weekly.yml`: files `state:idea` issues for stale
   `state:building`/`state:review`, newer dependencies, the nih-plug pin and the pinned Rust, and
-  instructions that name missing files, and one summary of the new ideas for `/groom`; tidies the
+  instructions that name missing files (each filed once, no digest issue); tidies the
   state label of a closed issue. `--dry-run` prints what it would do. It needs no model or key
 - `health.sh` - The project's health as one line of JSON (Health below); `health-digest.sh` turns the
   last two lines of the history into the Monday digest
