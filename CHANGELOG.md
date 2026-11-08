@@ -11,6 +11,7 @@ GitHub release.
   panel opens without freezing the window, Apply starts the program again instead of hanging, a
   buffer size the driver does not offer is brought into its range, and the window and exe wear
   the HØJT badge instead of Windows' default icon.
+  The program now opens only the interface's channels it uses, so other programs keep their sound.
 - The standalone program's Audio panel has two more rows: Input channels and Output channels,
   which pick the pair of the interface's channels (1-2, 3-4...) the amp listens to and plays on
   (the other outputs stay silent), kept with the other choices and put back to 1-2 when the
