@@ -8,8 +8,9 @@
 //! rate itself there, as the fuzz does.
 //!
 //! The order is not a parameter: a host cannot automate an arrangement. It is the twelve-pedal
-//! view of the chain model (`slots::Chain`, which the project saves): the editor changes it
-//! through `StoredChain`, and the chain reads it with the dials.
+//! view of the chain model (`slots::Chain`, which the project saves): the board draws it, and
+//! the editor changes it through `StoredChain`. The audio reads the chain as a `layout::Layout`,
+//! which holds the blocks that are not one of these twelve as well.
 
 /// The pedals that can be moved
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

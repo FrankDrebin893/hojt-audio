@@ -37,9 +37,15 @@ GitHub release.
   as before. Their place is saved with the project.
 
 - The host's parameter list of the amp now ends with 96 generic ones, Slot 1 On, Slot 1 Knob 1 to
-  Slot 16 Knob 5, which do nothing yet: they are reserved for the effect chain that is coming to
-  the window. Nothing else changes: projects and presets from before open with the same pedals in
-  the same order, and sound exactly as they did.
+  Slot 16 Knob 5, for the effect chain that is coming to the window. They are what an effect
+  plays from when it stands on a slot that is not its own pedal's: a second Delay, or a Reverb on
+  the slot of the Wah. Each knob goes from 0 to 10 and means what the same knob of that effect's
+  own pedal means (Knob 1 of a Delay is Time, Knob 2 Feedback, Knob 3 Mix, Knob 4 Sync, Knob 5
+  Note), the Gate can be a block too (in front of the amp, Thresh and Release), and a chain
+  holds up to two blocks of a kind. Nothing in the window puts such a block in the chain yet.
+  A pedal that the chain does not hold is no longer played, whatever its own switch says.
+  Nothing else changes: projects and presets from before open with the same pedals in the same
+  order, and sound exactly as they did.
 
 - Four new amps on the Amp stepper (and the second amp's), after Drøn, each with its own cabinet,
   head and two factory presets: Knald (KN-45), a thick, warm, slightly woolly mid-gain rock amp that

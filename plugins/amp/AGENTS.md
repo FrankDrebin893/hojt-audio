@@ -38,8 +38,8 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   (the modulated delay line of chorus and flanger)
 - `src/order.rs` - `ChainOrder`: which of the twelve pedals stand in front of the amp and which
   behind the cabinet, in what order, and the rules of where each may stand (none now: every
-  pedal stands on either side, #268). It is the view of the
-  chain the audio and the board read until the audio reads slots
+  pedal stands on either side, #268). It is the view of the chain the board draws and a project
+  saves for an older build; the audio reads `layout.rs`
 - `src/slots.rs` - The chain model (#252, #266): `Chain` (up to 16 blocks, `EffectKind` and a slot
   each, in two zones, and the amp lanes, the first of which cannot be removed), `StoredChain`
   (the chain as the editor sets it and the audio reads it, lock-free, saved as `chain`; also the
@@ -48,10 +48,20 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   a block on the slot of its own pedal (`Chain::is_home`: slot n of `Pedal::ALL`) keeps its values
   in that pedal's parameters, which hosts and old projects know, so automation of them keeps
   working; any other block (a duplicate, anything on slots 13 to 16) keeps them in its slot's
-  parameters, which the audio reads from #268 on (reserved until then: they do nothing yet). A
+  parameters, which the audio reads (`layout.rs`, `extras.rs`, #268). At most `MAX_PER_KIND` = 2 blocks of a kind (`AddError::TooMany`). A
   state with no `chain` (every project and preset from before) opens as the twelve pedals in the
   order of its `chain-order`; with both, `chain` wins (keys are read in alphabetical order, so
   `LegacyOrder` skips the `chain-order` that follows a `chain`). Slot ids are frozen
+- `src/layout.rs` - `Layout`: the line as the audio plays it (#268), made from the chain by
+  `Layout::of`: `Voice::Home(pedal)` for a block on its pedal's own slot (the pedal plays from its
+  own parameters, as it always did) and `Voice::Slot { kind, slot, rank }` for any other. A pedal
+  the chain does not hold is not in it, so it is not played, whatever its switch says
+- `src/extras.rs` - The effects that play from a slot's parameters (#268): `BlockSettings` (what
+  a block is told, one variant a kind), `Unit` (one effect, made for either side as the pedals
+  are) and `Pool` (`MAX_PER_KIND` units of each of the 13 kinds, made with the chain by
+  `AmpChain::set_sample_rate`, so putting a block in the chain allocates nothing). Units are
+  assigned by the layout (`Pool::follow`): one that is put in or moves to the other side starts
+  from rest
 - `src/dsp/` - `filters.rs` (f64 biquads), `oversample.rs` (minimum-phase IIR half-bands),
   `shaper.rs` (antialiased clippers), `resample.rs` (windowed-sinc resampler for cabinets),
   `pair.rs` (two samples' divisions and square roots as one SSE2 pair), `fft.rs` (radix-2 real
@@ -308,6 +318,25 @@ How it behaves:
   them, and the amp plays them. Behind the cabinet nothing changed, to the bit
   (`fingerprint_report` before and after). No latency in either place. `zone_report` prints the
   level, latency and cost of each effect on each side, `render_zones` writes them for listening
+- **Slot parameters** (#268, `layout.rs`, `extras.rs`, `slots.rs`): a block on a slot that is
+  not its pedal's own (`Chain::is_home`), a second Delay, a Gate block, plays from
+  `slot<n>_on` and `slot<n>_k<m>`. `GuitarAmpParams::slot_settings` turns the slot's 0..1 values
+  into the kind's settings with the own parameter's range (`preview_plain` of the pedal's own
+  knob `m`: the same order as `pedal_params`), so a value that moves between the pedal's own
+  parameters and a slot's (`Memory`) means the same in both; a test holds the order, another that
+  a slot plays as the pedal does, to the bit, on each side. The pedals keep their instances in
+  `AmpChain` and read their own parameters: their sound did not change (`fingerprint_report`
+  before and after, identical). The others are `extras::Pool`: `MAX_PER_KIND` (2) units of each
+  kind, each with an instance for either side where the sides need one (as the pedals do; about
+  11 to 12 MB in all, mostly the delays and reverbs: `pool_memory`), made in `set_sample_rate`. A unit is
+  assigned to a block by kind and `rank` (the block's place among the blocks of its kind that
+  are on slots of their own, by slot number), moves when the layout changes (the output fades
+  as for any change of order, `follow_order`) and starts from rest on the side it comes in
+  on. Told at the same reads as the dials (`tell_pool`), so a switch falls on the same sample
+  whatever the block size. A drive on a slot that is on in front of the amp pushes it as the
+  pedal does (`AmpChain::driven`). A pedal absent from the chain is put to rest and not run.
+  `slot_report` prints, for each kind and side, whether it is the pedal's sound, its level,
+  latency and cost
 - **Drive, wah and pitch shifter behind the cabinet** (#268, `AmpChain::back_drive`,
   `back_wah`, `back_pitch`): made for the host's rate next to the ones in front, so a pedal that
   changes sides allocates nothing (the pitch shifter's buffers, about 1 MB, once a channel).
