@@ -92,6 +92,9 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   device list and channel counts are read once before the streams open (`AsioSnapshot` in
   `main.rs`: asking a running ASIO driver hangs the window), and Apply starts the program again
   from a new process and exits at once, since closing the window with ASIO streams open hangs
+  WASAPI's shared mode hands the output callback more frames than the period asked for (528 against 512)
+  and the count can change; the fork's cpal backend walks such a callback in chunks of at most the period (#250).
+  The ASIO path is untouched by that
 - The exe carries the HØJT badge (`assets/amp.ico`, `assets/amp.rc`, `build.rs`) and
   `give_window_the_icon` in `main.rs` sets it on the window, which the framework makes without one
 - `src/editor.rs` - egui GUI (3411 x 584 board, opened scaled to the screen up to 3411 x 584 or 1876 x 321 on a 1920 x 1080 screen, and resizable from 0.4 to 1.0 by its corner handle): the slim oxblood strip
