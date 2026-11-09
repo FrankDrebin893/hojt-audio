@@ -238,7 +238,9 @@ impl Chain {
 
     /// The twelve-pedal view the audio reads until it reads slots (#268): the pedals of the
     /// chain in its order. A pedal the chain lacks, or has twice or where it cannot stand,
-    /// goes where `ChainOrder::from_ids` puts it, so this is always a legal order
+    /// goes where `ChainOrder::from_ids` puts it, so this is always a legal order. That puts a
+    /// pedal back that the chain has taken out, so #268, which makes the audio read blocks,
+    /// must replace this view and not rely on it
     pub fn order(&self) -> ChainOrder {
         let front = self.front().iter().filter_map(|block| block.kind.pedal()).map(Pedal::id);
         let back = self.back().iter().filter_map(|block| block.kind.pedal()).map(Pedal::id);
@@ -593,9 +595,12 @@ impl Inner {
             }
             std::hint::spin_loop();
         };
+        // The odd number must be seen before any of the words
+        fence(Ordering::Release);
         for (stored, word) in self.words.iter().zip(words) {
             stored.store(word, Ordering::Relaxed);
         }
+        fence(Ordering::Release);
         self.sequence.store(begun + 1, Ordering::Release);
     }
 }
@@ -622,7 +627,10 @@ impl StoredChain {
         self.inner.get()
     }
 
+    /// Any change that is not a state being loaded: a `chain` that came without a
+    /// `chain-order` no longer hides the next old-style state from `LegacyOrder`
     pub fn put(&self, chain: Chain) {
+        self.inner.explicit.store(false, Ordering::Relaxed);
         self.inner.put(chain);
     }
 
@@ -1064,6 +1072,16 @@ mod tests {
         // And a project of before, after one of now, still opens as it was
         opened.deserialize_fields(&old);
         assert_eq!(opened.chain.get(), Chain::from_order(&order));
+
+        // A state with a `chain` and no `chain-order`, then one of before
+        let mut chain_only = saved.clone();
+        chain_only.remove("chain-order");
+        let params = GuitarAmpParams::default();
+        params.deserialize_fields(&chain_only);
+        assert_eq!(params.chain.get(), chain);
+        params.chain.put(Chain::default());
+        params.deserialize_fields(&old);
+        assert_eq!(params.chain.get(), Chain::from_order(&order));
     }
 
     #[test]
