@@ -11,6 +11,11 @@ The reasons behind choices that the code alone does not explain. What it does is
 - Presets: good defaults first, a browser later. Cabinets: our own at first, a loader later
 - The window is one rig: a strip over one line in signal order, the half stack (head on cabinet)
   among the pedals, each pedal with its own paint and art (#96)
+- The strip's print is 13 points or more (7 px at the default zoom 0.55) and its meters are
+  lit green, amber (-10, -5 dBFS) and red (0), with the unlit state visible. The strip's knobs
+  keep no value readout (`bare_param_knob`; the hover hint and a double click say it). At zoom
+  0.4 the print is about 5 px: the least that reads is the window at 0.55, so the window does
+  not open smaller. The plus on the strip is #272's
 - The cabinet looks as the cabinet that plays (#100), but its box keeps one size for all
   twelve looks (a lane's, since #177): the pedals stand beside the stack as tall as it, and
   the cables, the controls and every click stay where they are whatever is picked. A real 1x10 and 4x12 differ in size; here only the speakers behind

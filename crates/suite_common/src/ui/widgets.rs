@@ -1191,6 +1191,16 @@ pub fn level_meter(painter: &Painter, center: Pos2, height: f32, dbfs: f32) {
     }
 }
 
+/// The colours of lamp `lamp` of a `level_meter_wide`, lit and dark: green up to -15 dBFS, amber
+/// for the next two, red for the last two, so the unlit meter already says where the top is
+fn level_lamp_colors(lamp: usize) -> (Color32, Color32) {
+    match lamp {
+        0..=6 => (Color32::from_rgb(70, 220, 90), Color32::from_rgb(30, 92, 42)),
+        7..=7 => (Color32::from_rgb(255, 176, 32), Color32::from_rgb(112, 76, 20)),
+        _ => (LED_ON, LED_OFF),
+    }
+}
+
 /// A `level_meter` lying down, for a strip too slim for the upright one: the same ten lamps
 /// from the quietest on the left to full scale on the right, on a strip of label tape `width`
 /// wide and `WIDE_METER_HEIGHT` high, centred on `center`
@@ -1209,17 +1219,18 @@ pub fn level_meter_wide(painter: &Painter, center: Pos2, width: f32, dbfs: f32) 
     let middle_y = rect.center().y.round();
     for lamp in 0..LEVEL_LAMPS {
         let on = lamp < lit;
+        let (lit_color, dark_color) = level_lamp_colors(lamp);
         let lens = Rect::from_center_size(Pos2::new(left_x + lamp as f32 * pitch, middle_y), size);
         if on {
             for (grow, alpha) in [(3.5, 0.16), (1.8, 0.3)] {
-                painter.rect_filled(lens.expand(grow), 1.5 + grow, LED_ON.gamma_multiply(alpha));
+                painter.rect_filled(lens.expand(grow), 1.5 + grow, lit_color.gamma_multiply(alpha));
             }
         }
-        painter.rect_filled(lens, 1.5, if on { LED_ON } else { LED_OFF });
+        painter.rect_filled(lens, 1.5, if on { lit_color } else { dark_color });
         if on {
             let shine =
                 Rect::from_min_size(lens.min + vec2(1.0, 1.0), vec2((size.x - 2.0).max(1.0), 2.0));
-            painter.rect_filled(shine, 1.0, Color32::from_rgb(255, 208, 196));
+            painter.rect_filled(shine, 1.0, lit_color.lerp_to_gamma(Color32::WHITE, 0.6));
         }
     }
 }

@@ -13,8 +13,8 @@ use suite_common::ui::{
     panel_knob, param_knob, param_switch, print_label, rig_led, signal_lamp, silk_frame,
     silk_label, small_footswitch, stepper, theme, tuner_display, type_into, type_on_tape, Beat,
     Column, MiniStyle, Motif, Ornament, PedalStyle, Pick, Plate, Row, Step, Typed, BENCH_MARGIN,
-    LED_HEIGHT, SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED, SLIM_PRINT_REACH, SLIM_STRIP_HEIGHT,
-    SLIM_SWITCH,
+    LED_HEIGHT, SLIM_JACK_X, SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED, SLIM_PRINT_REACH,
+    SLIM_STRIP_HEIGHT, SLIM_SWITCH,
 };
 
 use crate::board::STACK_WIDTH;
@@ -84,20 +84,20 @@ const STRIP_Y: f32 = BENCH_MARGIN + 30.0;
 const STRIP_FACE_RIGHT: f32 = WINDOW_WIDTH as f32 - BENCH_MARGIN;
 
 // A level meter lies down on the strip: its caption over it, the knob of its gain beside it
-const METER_WIDTH: f32 = 118.0;
+const METER_WIDTH: f32 = 260.0;
 const METER_Y: f32 = STRIP_Y + 6.0;
 const METER_CAPTION_Y: f32 = BENCH_MARGIN + 15.0;
-const METER_CAPTION_SIZE: f32 = 11.0;
+const METER_CAPTION_SIZE: f32 = 13.0;
 // The knobs of the strip are small and have no caption of their own: the meter's caption names
 // both. Their scale reaches `KNOB_TICKS` past the rim
-const STRIP_KNOB_RADIUS: f32 = 12.0;
+const STRIP_KNOB_RADIUS: f32 = 14.0;
 const KNOB_TICKS: f32 = 13.0;
 const KNOB_REACH: f32 = STRIP_KNOB_RADIUS + KNOB_TICKS;
 const METER_REACH: f32 = METER_WIDTH / 2.0;
 const STRIP_GAP: f32 = 16.0;
 
 // The input: the meter right of the jack and the Input gain right of the meter
-const INPUT_METER: Vec2 = vec2(150.0, METER_Y);
+const INPUT_METER: Vec2 = vec2(BENCH_MARGIN + SLIM_JACK_X + 3.0 * STRIP_GAP + METER_REACH, METER_Y);
 const INPUT_KNOB: Vec2 = vec2(INPUT_METER.x + METER_REACH + STRIP_GAP + KNOB_REACH, STRIP_Y);
 
 // The preset display: the bank and the name of the preset in one window, with a marker at its
@@ -115,18 +115,21 @@ const SAVE_NOTE_S: f64 = 1.5;
 
 // The icons stand in the middle of the strip, a pitch apart. The two with a switch have the lamp
 // and the switch to the right of the icon
-const ICONS_X: f32 = WINDOW_WIDTH as f32 / 2.0;
-const ICON_PITCH: f32 = 150.0;
-const METRONOME_X: f32 = ICONS_X - ICON_PITCH;
-const TUNER_X: f32 = ICONS_X;
-const SETTINGS_X: f32 = ICONS_X + ICON_PITCH;
+const ICON_PITCH: f32 = 240.0;
+const PRESET_END: f32 = PRESET_X + PRESET_WIDTH / 2.0;
+const ICONS_SPAN: f32 = 2.0 * ICON_PITCH + 2.0 * ui::icons::ICON_REACH;
+// The icons stand in the room between the preset display and the output knob, an equal room each side
+const METRONOME_X: f32 =
+    (PRESET_END + OUTPUT_KNOB.x - KNOB_REACH) / 2.0 - ICONS_SPAN / 2.0 + ui::icons::ICON_REACH;
+const TUNER_X: f32 = METRONOME_X + ICON_PITCH;
+const SETTINGS_X: f32 = TUNER_X + ICON_PITCH;
 
 // The output: the knob, the meter and the Clip lamp, lit while the output is rounded off by the
 // safety clip, with its caption under it. The model number and the logo are right of them
 const MODEL_LEFT: f32 = STRIP_FACE_RIGHT - SLIM_PRINT_REACH;
 const CLIP_LAMP_REACH: f32 = 20.0;
-const CLIP_LAMP: Vec2 = vec2(MODEL_LEFT - STRIP_GAP - 2.0 * STRIP_GAP - CLIP_LAMP_REACH, 34.0);
-const CLIP_CAPTION: Vec2 = vec2(0.0, 22.0);
+const CLIP_LAMP: Vec2 = vec2(MODEL_LEFT - 4.0 * STRIP_GAP - CLIP_LAMP_REACH, METER_Y);
+const CLIP_CAPTION: Vec2 = vec2(0.0, METER_CAPTION_Y - METER_Y);
 const LAMP_CAPTION: Vec2 = vec2(0.0, 18.0);
 const LAMP_CAPTION_SIZE: f32 = 13.0;
 const OUTPUT_METER: Vec2 =
@@ -2641,7 +2644,7 @@ mod tests {
             ("the input jack", Rect::from_center_size(print.jacks[0], Vec2::splat(16.0))),
             ("the input jack's caption", print.captions[0]),
             ("the input meter", meter(INPUT_METER)),
-            ("the input meter's caption", caption(INPUT_METER, 44.0)),
+            ("the input meter's caption", caption(INPUT_METER, 52.0)),
             ("the Input knob", knob(INPUT_KNOB)),
             (
                 "the preset display",
@@ -2652,9 +2655,9 @@ mod tests {
             ("the settings", icon(SETTINGS_X, false)),
             ("the output knob", knob(OUTPUT_KNOB)),
             ("the output meter", meter(OUTPUT_METER)),
-            ("the output meter's caption", caption(OUTPUT_METER, 52.0)),
+            ("the output meter's caption", caption(OUTPUT_METER, 62.0)),
             ("the clip lamp", around(CLIP_LAMP, Vec2::splat(LAMP))),
-            ("the clip lamp's caption", around(CLIP_LAMP + CLIP_CAPTION, vec2(16.0, 7.0))),
+            ("the clip lamp's caption", around(CLIP_LAMP + CLIP_CAPTION, vec2(24.0, 7.0))),
             ("the model number", print.model),
             ("the logo", print.logo),
             ("the output jack", Rect::from_center_size(print.jacks[1], Vec2::splat(16.0))),
@@ -2711,7 +2714,7 @@ mod tests {
         const { assert!(PLATE_TOP > BENCH_MARGIN + STRIP_HEIGHT) };
         // The controls end where the print begins
         let model = ui::slim_print(strip_face(), &STYLE).model;
-        assert_eq!(MODEL_LEFT, model.left());
+        assert!((MODEL_LEFT - model.left()).abs() < 0.01);
         // The center line: every row of controls is on it, as the icons are
         assert_eq!(STRIP_Y, INPUT_KNOB.y);
         assert_eq!(STRIP_Y, OUTPUT_KNOB.y);
@@ -2737,8 +2740,11 @@ mod tests {
     }
 
     #[test]
-    fn test_the_icons_stand_a_pitch_apart_in_the_middle_of_the_window() {
-        assert_eq!(TUNER_X, WINDOW_WIDTH as f32 / 2.0);
+    fn test_the_icons_stand_a_pitch_apart_between_the_preset_display_and_the_output() {
+        // The room left is shared: as much before the icons as after them
+        let before = METRONOME_X - ui::icons::ICON_REACH - PRESET_END;
+        let after = OUTPUT_KNOB.x - KNOB_REACH - (SETTINGS_X + ui::icons::ICON_REACH);
+        assert!((before - after).abs() < 0.01 && before > 40.0, "{before} {after}");
         assert_eq!(TUNER_X - METRONOME_X, SETTINGS_X - TUNER_X);
         // An icon with a switch reaches the next icon's room, no further
         const { assert!(METRONOME_X + ui::icons::SWITCH_REACH + 4.0 < TUNER_X - ui::icons::ICON_REACH) };

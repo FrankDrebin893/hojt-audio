@@ -166,17 +166,17 @@ pub const SLIM_STRIP_HEIGHT: f32 = 64.0;
 const SLIM_RADIUS: f32 = 16.0;
 /// How far the jacks of a `slim_strip` stand in from the left and the right edge of its face, and
 /// down from its top
-pub const SLIM_JACK_X: f32 = 44.0;
+pub const SLIM_JACK_X: f32 = 54.0;
 pub const SLIM_JACK_Y: f32 = 24.0;
 /// Where the caption of a jack of a `slim_strip` is, down from the jack
 const SLIM_JACK_CAPTION_DY: f32 = 20.0;
-const SLIM_LOGO_SIZE: f32 = 22.0;
+const SLIM_LOGO_SIZE: f32 = 28.0;
 const SLIM_LOGO_WIDTH: f32 = SLIM_LOGO_SIZE * 2.87;
-const SLIM_MODEL_WIDTH: f32 = 44.0;
+const SLIM_MODEL_WIDTH: f32 = 56.0;
 const SLIM_MODEL_GAP: f32 = 14.0;
 /// The gap between the logo of a `slim_strip` and the jack at the right end, and the model
 /// number's room left of the logo
-const SLIM_LOGO_GAP: f32 = 42.0;
+const SLIM_LOGO_GAP: f32 = 58.0;
 
 /// How far the print of a `slim_strip` reaches in from the right edge of its face: the right
 /// jack, the logo and the model number, as `slim_print` places them. The controls end before it
@@ -206,7 +206,7 @@ pub fn slim_print(face: Rect, style: &PedalStyle) -> SlimPrint {
     let caption = |at: Pos2, text: &str| {
         Rect::from_center_size(
             at + vec2(0.0, SLIM_JACK_CAPTION_DY),
-            vec2(text.chars().count() as f32 * 7.2, 12.0),
+            vec2(text.chars().count() as f32 * 8.6, 15.0),
         )
     };
     // The logo is as high as the badge makes it, on the strip's middle line
@@ -248,7 +248,7 @@ pub fn slim_strip(ui: &Ui, rect: Rect, style: &PedalStyle) -> Rect {
             at + vec2(0.0, SLIM_JACK_CAPTION_DY),
             Align2::CENTER_CENTER,
             &text.to_uppercase(),
-            display(11.0),
+            display(13.0),
             SILK,
             0.16,
         );
@@ -256,19 +256,19 @@ pub fn slim_strip(ui: &Ui, rect: Rect, style: &PedalStyle) -> Rect {
     badge(painter, print.logo.right_bottom(), SLIM_LOGO_SIZE);
     spaced_text(
         painter,
-        print.model.right_top() + vec2(0.0, 7.0),
+        print.model.right_top() + vec2(0.0, 8.0),
         Align2::RIGHT_CENTER,
         "MODEL",
-        display(10.0),
+        display(13.0),
         SILK,
         0.16,
     );
     spaced_text(
         painter,
-        print.model.right_bottom() - vec2(0.0, 7.0),
+        print.model.right_bottom() - vec2(0.0, 8.0),
         Align2::RIGHT_CENTER,
         style.model,
-        display(14.0),
+        display(17.0),
         SILK,
         0.16,
     );
