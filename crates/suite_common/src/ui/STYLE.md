@@ -36,6 +36,7 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
   and no name band), `slim_strip` (the same at 64 px for a rig whose controls are few: jack sockets
   with captions under them, model number and logo, no screws) and `mini_pedal` (small enclosure with only a title), each
   mini pedal described by a `MiniStyle`; `coupler` and `patch_cable` carry the signal between them
+- `sheet.rs` - the sheet that rises from below and the plus, the cross and the dashed place of a rig's chain
 - `plate.rs`, `icons.rs` - `plate` (a hardware plate in a layer above the window, closing on a click outside it or escape; the caller owns which is open) and `icon_switch` (a drawing that opens a plate, with a lamp and a chrome switch where the thing can be on or off)
 - `raster.rs` - Per-pixel lit surfaces (signed distance field + one fixed light; `paint_box_wide` for a long strip, one picture whose middle is stretched, never over 8192 px): `box_image`, `knob_image`
   (a `KnobCap`: `Fluted`, the pedals' knob, `ChickenHead`, `CreamChickenHead`, `GoldTop`, `ChromeSkirt`), `screw_image`, and for the
@@ -82,7 +83,9 @@ controls, portrait) or `plugins/drums/src/editor.rs` (many controls, landscape) 
 - **Plates and sheets** (the rule of the Guitar Amp's rig, #259, for any rig): configuration that
   is not on show at all times is a hardware plate that opens from an icon or a display and drops
   under it (`ui::plate`, `ui::icon_switch`), or a sheet that rises from below (the amp's effects
-  bank, with the signal line). No other pop-ups, no menus or dropdowns, no widgets of egui's own. A
+  bank, `ui::sheet`: a handle on its top edge, closing on a click outside, escape or its handle, with
+  `ui::plus_button` in a gap of the line that opens it, `ui::cross_button` on a block that takes it out
+  and `ui::dashed_frame` for the place a dragged card will land in; the amp's `bank.rs`). No other pop-ups, no menus or dropdowns, no widgets of egui's own. A
   plate keeps the amp's plate look: a dark plate with a chrome edge, label-tape rows, steppers
   and lit lamps. One is open at a time; it closes on a click outside it, on escape, or on its
   icon

@@ -7,8 +7,7 @@
 //! plate is open (one at a time) and closes it when [`Close`] says so, or when its icon is
 //! clicked again (see `icon_switch`).
 //!
-//! The effects bank that rises from below is a sheet, not a plate; it is built with the signal
-//! line (#272).
+//! The effects bank that rises from below is a sheet, not a plate (`sheet.rs`).
 
 use nih_plug_egui::egui::{
     vec2, Area, Id, Key, Order, Painter, Pos2, Rect, Sense, Stroke, StrokeKind, Ui,

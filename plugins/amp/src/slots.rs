@@ -817,7 +817,6 @@ impl GuitarAmpParams {
         ]
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     // The switch and the knobs a block's values are in: its pedal's own parameters when it
     // stands on their slot (`Chain::is_home`), else its slot's. Only as many knobs as its kind uses
     fn params_of(&self, block: Block) -> (ParamPtr, Vec<ParamPtr>) {
@@ -841,8 +840,6 @@ pub trait Values {
 }
 
 /// The parameters of a plugin, set through the host's setter as one edit
-// Not called until the window edits the chain (#272), which does it through `Live`
-#[cfg_attr(not(test), allow(dead_code))]
 pub struct Live<'a> {
     pub params: &'a GuitarAmpParams,
     pub setter: &'a ParamSetter<'a>,
@@ -874,12 +871,20 @@ impl Values for Live<'_> {
 }
 
 impl StoredChain {
-    /// Take the block on `slot` out of the chain, keeping its values by kind
+    /// Take the block on `slot` out of the chain, keeping its values by kind. A block on its
+    /// pedal's own parameters (`Chain::is_home`) is switched off too: the audio reads the twelve
+    /// pedals through `Chain::order`, which puts back a pedal the chain lacks, so only its switch
+    /// keeps it silent. Putting the kind in again brings the switch back with the rest of the
+    /// values. (#268's audio plays the blocks themselves, and then needs no switch)
     pub fn take_out(&self, values: &impl Values, slot: u8) -> Option<Block> {
         let mut chain = self.get();
         let block = chain.remove(slot)?;
-        self.memory().remember(block.kind, values.read(block));
+        let kept = values.read(block);
+        self.memory().remember(block.kind, kept);
         self.put(chain);
+        if Chain::is_home(block) && kept.on {
+            values.write(block, SlotValues { on: false, ..kept });
+        }
         Some(block)
     }
 
@@ -1221,6 +1226,27 @@ mod tests {
         assert_eq!(chain.get().back()[3], back);
         // What a block of another kind left is not what a block of this one gets
         assert_eq!(chain.memory().recall(EffectKind::Wah), None);
+    }
+
+    #[test]
+    fn test_a_pedal_taken_out_is_switched_off_and_comes_back_switched_on() {
+        // The audio plays the twelve pedals by their own switches (`Chain::order` puts a pedal the
+        // chain lacks back in its place), so a pedal taken out must be off to be silent
+        let (chain, store) = (StoredChain::new(), Store::default());
+        let comp = block(EffectKind::Comp, Pedal::Comp.index() as u8);
+        let values = SlotValues { on: true, knobs: [0.3, 0.6, 0.0, 0.0, 0.0] };
+        store.write(comp, values);
+        chain.take_out(&store, comp.slot).unwrap();
+        assert!(!store.read(comp).on);
+        assert_eq!(store.read(comp).knobs, values.knobs);
+        assert_eq!(chain.memory().recall(EffectKind::Comp), Some(values));
+        chain.put_in(&store, EffectKind::Comp, Zone::Front, 2).unwrap();
+        assert_eq!(store.read(comp), values);
+        // A duplicate on a slot of its own is left as it is: the audio does not play it (yet)
+        let extra = chain.put_in(&store, EffectKind::Comp, Zone::Front, 0).unwrap();
+        store.write(extra, values);
+        chain.take_out(&store, extra.slot).unwrap();
+        assert_eq!(store.read(extra), values);
     }
 
     /// The parameters are set as one edit, a pedal's own for a block on its slot and the

@@ -301,6 +301,17 @@ The reasons behind choices that the code alone does not explain. What it does is
   as hardware plates under the strip, one at a time; the Output knob's caption is over its meter
   (the pair is named once, as the input's is), where the pick has it over the knob, because the
   slim strip has no room for a caption over a knob with its scale
+- **#272 (plus, bank and drag; picks #261 A, #262 option 1) and what the build did differently from the
+  frames.** The explore's window is 650 high with the pedals in the middle; the build's is 584 high with
+  the heads standing over the pedals, so the sheet (196 high) covers the lower half of the pedals and
+  the plus of the gap the bank was opened from stands above it (it stands at the plug's height
+  otherwise). The cards are drawn flat in the pedal's paint with a lighter upper half, a card in
+  the air is straight (the frame tilts it) and is a small pedal-sized one so the place it opens
+  stays in view; the note that a block was taken out stands above the sheet as in frame 7. The Gate
+  has no card (it is the line's first piece and cannot go), where frames 5 to 7 show one; an empty
+  chain keeps the gate before the dashed place where frame 8 shows none. The "ADD HERE" caption is
+  above the pedals, where there is room, not under them. Hovering an amp for a plus that adds one
+  (frame 2) waits for #269: the stack draws both lanes and there is no amp to add
 - The gate's `OPEN` lamp is its own small lamp: a half-lit pedal LED was built and rejected
   because at 30 % the lens is about the colour of the paint
 - Rigs use `rig_led` (black socket, darker unlit lens): a plain unlit `led` disappears on dark paint

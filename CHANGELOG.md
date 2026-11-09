@@ -31,6 +31,19 @@ GitHub release.
 - The window is lower, the pedals and amps keep their size. The On button is gone from the
   window; the host's own bypass still works.
 
+- The Guitar Amp's effects are added and taken out on the line itself. Move the pointer into a gap
+  between two effects and a plus appears (and one at the end of the line); click it and the effects
+  bank rises from the bottom of the window with a card for every effect. Click a card to add that
+  effect there, or drag a card into any gap and a place opens for it, with the others making room;
+  let go over the bank and it goes back. The bank closes on a click outside it, on Escape or on its
+  own handle. A cross on the corner of the effect under the pointer takes it out of the line, its
+  settings kept: the bank rises with a note and an Undo, and putting the effect in again brings its
+  settings back. An effect taken out is switched off. A line with no effects shows a dashed place on
+  each side of the amps that says so, and with sixteen effects the plus says the line is full.
+  Today the amp plays one of each effect, the one on its own place on the line; a second Delay (or
+  any effect that is not on its own pedal's place) can be added, set and saved, but is silent until
+  the amp plays every effect on the line.
+
 - The Delay and the Reverb can be dragged in front of the amp too, like the Fuzz and the Comp:
   the amp plays the repeats and the tail, which is a different sound from the same effect behind
   the cabinet. In front they are one channel; behind the cabinet they are stereo and sound exactly
