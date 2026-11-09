@@ -1,7 +1,8 @@
 //! Pitch shifter pedal: moves the guitar up or down by whole semitones in front of the amp,
 //! for drop tunings, a baritone or a harmony. Three knobs, Semitones, Blend and Tracking, and
 //! a switch. It is the algorithm of the Pitch Shifter plugin (`suite_common::dsp::pitch`)
-//! as a stage of the chain: one channel, at the amp's oversampled rate, in front of it only.
+//! as a stage of the chain: one channel at the amp's oversampled rate in front of the amp, or
+//! an instance a channel at the host's rate behind the cabinet (#268).
 //!
 //! The pedal costs nothing while it is off, and passes the signal bit for bit. Switched on
 //! it adds what the Tracking knob says at most when it shifts (the output lags the input by

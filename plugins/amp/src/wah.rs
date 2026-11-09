@@ -2,8 +2,9 @@
 //! 2.2 kHz (toe down, thin and vocal). In Pedal mode one dial, the rocker, is turned by hand
 //! or automated by the host (a controller or an expression pedal mapped to it). In Auto mode the
 //! playing sweeps it: a harder pick opens it further and it falls back in a fraction of a
-//! second. Bite is the filter's resonance. Runs in front of the amp only, on one channel at
-//! the amp's oversampled rate, and adds no latency
+//! second. Bite is the filter's resonance. Runs in front of the amp on one channel at the amp's
+//! oversampled rate, or behind the cabinet on one instance a channel at the host's rate
+//! (#268), and adds no latency
 
 use crate::dsp::filters::ANTI_DENORMAL;
 use crate::dsp::{curve, db_to_gain, lerp, smoothing_coeff};

@@ -225,6 +225,12 @@ impl Preamp {
         }
     }
 
+    /// Whether the amp has been told the drive pedal is on in front of it
+    #[cfg(test)]
+    pub fn is_driven(&self) -> bool {
+        self.driven
+    }
+
     /// Tells the amp whether the drive pedal is on in front of it: the stages whose model
     /// asks for it clip at twice the rate while it is. They get there over `steps` samples
     /// (the pedal fades in as slowly), or at once from `snap`
