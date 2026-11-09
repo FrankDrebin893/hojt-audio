@@ -34,9 +34,11 @@ const CARD_GAP: f32 = 8.0;
 const CARD_HEIGHT: f32 = 64.0;
 const CARDS_TOP: f32 = 52.0;
 const TITLE_SIZE: f32 = 22.0;
-const NOTE_SIZE: f32 = 13.0;
-const CLOSE_SIZE: (f32, f32) = (104.0, 28.0);
-const TOAST: (f32, f32) = (430.0, 46.0);
+const NOTE_SIZE: f32 = 15.0;
+const CLOSE_SIZE: (f32, f32) = (108.0, 30.0);
+const UNDO_SIZE: (f32, f32) = (84.0, 30.0);
+/// How far above the pointer a card that is dragged is held
+const GHOST_LIFT: f32 = 90.0;
 
 /// The cards, in the order they stand on the sheet: two rows of six
 pub(crate) const CARDS: [EffectKind; 12] = [
@@ -53,24 +55,6 @@ pub(crate) const CARDS: [EffectKind; 12] = [
     EffectKind::Delay,
     EffectKind::Reverb,
 ];
-
-/// What a card says its effect has, as the knobs of its pedal are called
-fn knob_names(kind: EffectKind) -> &'static str {
-    match kind {
-        EffectKind::Gate => "Thresh · Release",
-        EffectKind::Pitch => "Semitones · Blend · Tracking",
-        EffectKind::Wah => "Rocker · Bite · Sens",
-        EffectKind::Comp => "Level · Sustain",
-        EffectKind::Fuzz => "Fuzz · Tone",
-        EffectKind::Drive => "Drive · Tone · Level",
-        EffectKind::Eq => "Low · Mid · Freq · High",
-        EffectKind::Phaser | EffectKind::Chorus | EffectKind::Flanger | EffectKind::Tremolo => {
-            "Rate · Depth"
-        }
-        EffectKind::Delay => "Time · Repeat · Mix",
-        EffectKind::Reverb => "Decay · Mix",
-    }
-}
 
 /// Where card number `index` of `CARDS` stands on a sheet filling `sheet`: two rows of six
 pub(crate) fn card_rect(sheet: Rect, index: usize) -> Rect {
@@ -99,16 +83,12 @@ pub(crate) fn risen_rect(width: f32, height: f32) -> Rect {
     Rect::from_min_max(Pos2::new(INSET, height - SHEET_HEIGHT), Pos2::new(width - INSET, height))
 }
 
-/// The note above the sheet that a block was taken out, with its Undo at the right
-pub(crate) fn toast_rect(sheet: Rect) -> Rect {
-    Rect::from_center_size(Pos2::new(sheet.center().x, sheet.top() - 34.0), vec2(TOAST.0, TOAST.1))
-}
-
-/// The Undo button on that note
-pub(crate) fn undo_rect(toast: Rect) -> Rect {
+/// The Undo button of the note in the sheet's header: beside Close, on its left
+pub(crate) fn undo_rect(sheet: Rect) -> Rect {
+    let close = close_rect(sheet);
     Rect::from_center_size(
-        Pos2::new(toast.right() - 18.0 - 38.0, toast.center().y),
-        vec2(76.0, 26.0),
+        Pos2::new(close.left() - 16.0 - UNDO_SIZE.0 / 2.0, close.center().y),
+        vec2(UNDO_SIZE.0, UNDO_SIZE.1),
     )
 }
 
@@ -205,10 +185,9 @@ pub(crate) fn show(
     let full = chain.blocks().len() >= MAX_SLOTS;
     let fresh = std::mem::take(&mut sheet.fresh);
     let kept = sheet.kept;
-    let toast = kept.map(|_| toast_rect(rect));
 
     let mut action = None;
-    let close = ui::sheet(ui, rect, "bank", fresh, toast, |ui, rect| {
+    let close = ui::sheet(ui, rect, "bank", fresh, |ui, rect| {
         // The title, and what the bank says about the chain
         let row = rect.top() + 32.0;
         let title = ui::left_label(
@@ -218,21 +197,45 @@ pub(crate) fn show(
             TITLE_SIZE,
             theme::SILK,
         );
-        let note = if full {
-            "All 16 slots in use. Take a block out to add another".to_owned()
+        let note_at = Pos2::new(title.right() + 34.0, row + 1.0);
+        if let Some(kept) = kept {
+            // What was taken out, and the way back: in the header, clear of the line
+            ui::left_label(
+                ui.painter(),
+                note_at,
+                &format!("{} taken out · settings kept", kind_look(kept.kind).title),
+                NOTE_SIZE,
+                theme::SILK,
+            );
+            let undo = undo_rect(rect);
+            let response = ui.interact(undo, Id::new("bank-undo"), Sense::click());
+            let painter = ui.painter();
+            painter.rect_filled(
+                undo,
+                3.0,
+                if response.hovered() { theme::CHROME_SHINE } else { theme::CHROME_LIGHT },
+            );
+            painter.rect_stroke(
+                undo,
+                3.0,
+                Stroke::new(1.0_f32, Color32::from_black_alpha(120)),
+                StrokeKind::Inside,
+            );
+            ui::center_label(painter, undo.center(), "Undo", 14.0, theme::INK);
+            if response.clicked() {
+                action = Some(Action::Undo(kept));
+            }
         } else {
-            format!(
-                "Drag a pedal into the chain · {} of {MAX_SLOTS} slots in use",
-                chain.blocks().len()
-            )
-        };
-        ui::left_label(
-            ui.painter(),
-            Pos2::new(title.right() + 34.0, row + 2.0),
-            &note,
-            NOTE_SIZE,
-            theme::SILK.gamma_multiply(0.7),
-        );
+            let note = if full {
+                "All 16 slots in use. Take a block out to add another".to_owned()
+            } else {
+                format!(
+                    "Drag a pedal into the chain · {} of {MAX_SLOTS} slots in use",
+                    chain.blocks().len()
+                )
+            };
+            ui::left_label(ui.painter(), note_at, &note, NOTE_SIZE, theme::SILK);
+        }
         let close = close_rect(rect);
         let response = ui.interact(close, Id::new("bank-close"), Sense::click());
         let painter = ui.painter();
@@ -247,7 +250,7 @@ pub(crate) fn show(
             Stroke::new(1.0_f32, Color32::from_black_alpha(120)),
             StrokeKind::Inside,
         );
-        ui::center_label(painter, close.center(), "Close", 12.0, theme::INK);
+        ui::center_label(painter, close.center(), "Close", 14.0, theme::INK);
         if response.clicked() {
             action = Some(Action::Close);
         }
@@ -279,43 +282,13 @@ pub(crate) fn show(
                 action = Some(Action::Add(kind));
             }
         }
-
-        // The note of a block taken out, above the sheet, with the way back
-        if let (Some(kept), Some(toast)) = (kept, toast) {
-            ui.allocate_rect(toast, Sense::click_and_drag());
-            ui::plate::paint_body(ui.painter(), toast);
-            ui::left_label(
-                ui.painter(),
-                Pos2::new(toast.left() + 18.0, toast.center().y),
-                &format!("{} taken out · settings kept", kind_look(kept.kind).title),
-                13.0,
-                theme::SILK,
-            );
-            let undo = undo_rect(toast);
-            let response = ui.interact(undo, Id::new("bank-undo"), Sense::click());
-            let painter = ui.painter();
-            painter.rect_filled(
-                undo,
-                3.0,
-                if response.hovered() { theme::CHROME_SHINE } else { theme::CHROME_LIGHT },
-            );
-            painter.rect_stroke(
-                undo,
-                3.0,
-                Stroke::new(1.0_f32, Color32::from_black_alpha(120)),
-                StrokeKind::Inside,
-            );
-            ui::center_label(painter, undo.center(), "Undo", 12.0, theme::INK);
-            if response.clicked() {
-                action = Some(Action::Undo(kept));
-            }
-        }
     });
 
     // The card that follows the pointer, above everything
     if let Some(drag) = sheet.drag.filter(|_| action.is_none()) {
         let size = vec2(crate::editor::PEDAL_WIDTH - 20.0, 100.0);
-        let at = window + drag.pointer.to_vec2();
+        // Held above the pointer, so that the place it opens in the line stays in view
+        let at = window + drag.pointer.to_vec2() - vec2(0.0, GHOST_LIFT);
         ui::floating(ui, Rect::from_center_size(at, size), "bank-ghost", |ui, rect| {
             ui.painter().rect_filled(
                 rect.translate(vec2(0.0, 8.0)).expand(3.0),
@@ -379,23 +352,24 @@ fn paint_ghost(ui: &Ui, rect: Rect, kind: EffectKind) {
     let painter = ui.painter();
     let style = kind_look(kind);
     let radius = CornerRadius::same(7);
-    painter.rect_filled(rect, radius, style.paint);
-    painter.rect_filled(
-        Rect::from_min_size(rect.min, vec2(rect.width(), rect.height() * 0.45)),
-        CornerRadius { nw: 7, ne: 7, sw: 0, se: 0 },
-        Color32::from_white_alpha(30),
-    );
+    painter.rect_filled(rect, radius, card_ground(kind));
     painter.rect_stroke(
         rect,
         radius,
-        Stroke::new(2.5_f32, theme::blend(style.paint, theme::SILK, 0.7)),
+        Stroke::new(3.0_f32, theme::blend(style.paint, theme::SILK, 0.8)),
         StrokeKind::Inside,
     );
-    ui::center_label(painter, rect.center(), style.title, 22.0, theme::SILK);
+    ui::center_label(painter, rect.center(), style.title, 24.0, theme::SILK);
 }
 
-/// A card: the effect in its own paint, its name, the knobs it has and how many of it are in the
-/// chain. `carried` dims the one that is being dragged, `lit` brightens the one the pointer is on
+/// The ground of a card: the effect's paint taken toward the sheet's metal, so the cream print on
+/// it reads at least as well as on the pedal itself
+pub(crate) fn card_ground(kind: EffectKind) -> Color32 {
+    theme::blend(kind_look(kind).paint, theme::PANEL, 0.3)
+}
+
+/// A card: the effect in its own paint, its name and how many of it are in the chain. `carried`
+/// dims the one that is being dragged, `lit` outlines the one the pointer is on
 fn paint_card(
     ui: &Ui,
     rect: Rect,
@@ -407,49 +381,36 @@ fn paint_card(
 ) {
     let painter = ui.painter();
     let style = kind_look(kind);
-    let mut paint = style.paint;
+    let mut ground = card_ground(kind);
     if dead || carried {
-        paint = theme::blend(theme::PANEL, paint, 0.45);
+        ground = theme::blend(theme::PANEL, ground, 0.45);
     }
     let radius = CornerRadius::same(7);
-    painter.rect_filled(rect, radius, paint);
-    let sheen = Rect::from_min_size(rect.min, vec2(rect.width(), rect.height() * 0.45));
-    painter.rect_filled(
-        sheen,
-        CornerRadius { nw: 7, ne: 7, sw: 0, se: 0 },
-        Color32::from_white_alpha(if lit { 30 } else { 14 }),
-    );
-    let edge = theme::blend(paint, theme::SILK, if lit { 0.7 } else { 0.35 });
+    painter.rect_filled(rect, radius, ground);
+    let edge = theme::blend(style.paint, theme::SILK, if lit { 0.8 } else { 0.3 });
     painter.rect_stroke(
         rect,
         radius,
-        Stroke::new(if lit { 2.5_f32 } else { 1.5 }, edge),
+        Stroke::new(if lit { 3.0_f32 } else { 1.5 }, edge),
         StrokeKind::Inside,
     );
 
     ui::center_label(
         painter,
-        Pos2::new(rect.center().x, rect.top() + 21.0),
+        Pos2::new(rect.center().x, rect.top() + 22.0),
         style.title,
-        20.0,
+        TITLE_SIZE + 2.0,
         theme::SILK,
-    );
-    ui::center_label(
-        painter,
-        Pos2::new(rect.center().x, rect.top() + 39.0),
-        knob_names(kind),
-        12.0,
-        theme::SILK.gamma_multiply(0.85),
     );
     let status = match in_chain {
         0 => "Not in chain".to_owned(),
         n => format!("In chain ×{n}"),
     };
-    ui::left_label(
+    ui::center_label(
         painter,
-        Pos2::new(rect.left() + 14.0, rect.bottom() - 11.0),
+        Pos2::new(rect.center().x, rect.bottom() - 16.0),
         &status,
-        11.0,
-        theme::SILK.gamma_multiply(0.8),
+        15.0,
+        theme::SILK,
     );
 }

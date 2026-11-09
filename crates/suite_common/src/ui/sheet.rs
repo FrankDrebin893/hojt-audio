@@ -30,15 +30,13 @@ pub const PLUS_RADIUS: f32 = 12.0;
 /// Draws a sheet filling `rect` in a layer above everything else and runs `add_contents` on it
 /// with that rectangle. `rect` is in the window's own points and may run past the window's bottom
 /// edge (a sheet that is still rising); it is not moved back inside. `fresh` is a click on the
-/// frame that opened the sheet, which is not a click outside it. `also` is a second rectangle that
-/// is part of the sheet for clicks (the note above it that a block was taken out). `id_source`
-/// tells this sheet from another.
+/// frame that opened the sheet, which is not a click outside it. `id_source` tells this sheet from
+/// another.
 pub fn sheet(
     ui: &Ui,
     rect: Rect,
     id_source: &str,
     fresh: bool,
-    also: Option<Rect>,
     add_contents: impl FnOnce(&mut Ui, Rect),
 ) -> Close {
     let parent_layer = ui.layer_id();
@@ -74,8 +72,7 @@ pub fn sheet(
 
             let pointer = ui.input(|input| input.pointer.interact_pos());
             let in_window = pointer.map(|at| to_local.map_or(at, |from_global| from_global * at));
-            let on_sheet = in_window
-                .is_some_and(|at| rect.contains(at) || also.is_some_and(|also| also.contains(at)));
+            let on_sheet = in_window.is_some_and(|at| rect.contains(at));
             close.outside = grip.clicked()
                 || (!fresh && ui.input(|input| input.pointer.any_click()) && !on_sheet);
             close.escape = ui.input(|input| input.key_pressed(Key::Escape));

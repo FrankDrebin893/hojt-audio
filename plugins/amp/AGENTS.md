@@ -120,7 +120,7 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   second block of a kind, or one off its pedal's slot, is drawn, kept and saved but silent until #268's last
   piece; taking out a pedal on its own slot switches its parameter off (`Chain::order` puts the pedal back, so
   only its switch keeps it silent) and putting it in again brings the values and the switch back
-  (kept by kind, `Memory`). The plus under an amp is not built: the stack draws both lanes (#269)
+  (kept by kind, `Memory`). The plus under the amps (`Chain::add_amp`) shows while the chain has fewer lanes than `MAX_AMPS` (two, four after #269); the stack always draws both lanes, so today it only shows for a chain saved with one, and amp lanes have no cross yet (amp 1 never)
 
 Signal flow:
 

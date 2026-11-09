@@ -263,6 +263,8 @@ const DIALS: [&str; 6] = ["Gain", "Bass", "Mid", "Treble", "Presence", "Master"]
 // one output jack. Positions are from the stack's top left corner
 const LANE_GAP: f32 = 18.0;
 const LANE_HEIGHT: f32 = (HEAD_HEIGHT + PEDAL_HEIGHT - LANE_GAP) / 2.0;
+/// The stack's height: both lanes and the gap between them
+pub(crate) const STACK_HEIGHT: f32 = HEAD_HEIGHT + PEDAL_HEIGHT;
 const LANE_HEAD_WIDTH: f32 = 420.0;
 const LANE_CAB_WIDTH: f32 = 120.0;
 const LANE_CAB_GAP: f32 = 6.0;
@@ -4074,6 +4076,7 @@ mod tests {
     }
 
     /// The bank open from `from`, risen: as it is a moment after a plus was clicked
+    #[cfg(target_os = "linux")]
     fn risen(view: &Rc<RefCell<View>>, from: (crate::order::Zone, usize)) {
         let mut sheet = crate::bank::Sheet::opened(from, -10.0, None);
         sheet.fresh = false;
@@ -4180,7 +4183,7 @@ mod tests {
 
         // Undo, on the note's right
         let sheet = crate::bank::risen_rect(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32);
-        click(&mut harness, crate::bank::undo_rect(crate::bank::toast_rect(sheet)).center());
+        click(&mut harness, crate::bank::undo_rect(sheet).center());
         let chain = params.chain.get();
         assert_eq!(chain.blocks().len(), 7);
         assert_eq!(chain.front()[1].kind, EffectKind::Comp);
@@ -4323,6 +4326,85 @@ mod tests {
         click(&mut harness, plus);
         assert!(view.borrow().effects.is_some());
         assert!(view.borrow().plate.is_none());
+    }
+
+    // The bank is a sheet with no text field: typed text is neither taken nor does it close the
+    // sheet, and the place text does go (the preset name) still takes it once the sheet is down
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_typed_text_still_works_with_the_bank_in_the_window() {
+        use crate::order::Zone;
+        with_presets_in("editor-typing-with-the-bank", |_| {
+            let params = GuitarAmpParams::default();
+            params.chain.put(half_chain());
+            let host = NoHost;
+            let setter = ParamSetter::new(&host);
+            let (mut harness, view) = bank_harness(&params, &setter);
+            risen(&view, (Zone::Front, 3));
+            harness.run_ok();
+            type_text(&mut harness, "Big Mud");
+            assert!(view.borrow().effects.is_some(), "typing does not close the sheet");
+            assert!(!harness.ctx.wants_keyboard_input(), "the sheet takes no keyboard focus");
+            assert_eq!(params.chain.get().blocks().len(), 7);
+            // A plate opens under its icon, takes the sheet down, and then takes the typing
+            click(&mut harness, Pos2::new(PRESET_X, STRIP_Y));
+            assert!(view.borrow().effects.is_none());
+            assert!(view.borrow().is_open(Plates::Presets));
+            view.borrow_mut().saving = Some(String::new());
+            type_text(&mut harness, "Big");
+            type_text(&mut harness, " ");
+            type_text(&mut harness, "Mud");
+            assert_eq!(view.borrow().saving.as_deref(), Some("Big Mud"));
+        });
+    }
+
+    // The pointer over the amps shows the plus that adds one while the chain has fewer lanes than
+    // the engine has (here one of two; with two of two nothing is offered, and amp 1 has no cross)
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_amps_show_a_plus_while_the_engine_has_room_for_another() {
+        let params = GuitarAmpParams::default();
+        params.chain.put(half_chain());
+        assert_eq!(params.chain.get().amps(), 1);
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, _) = bank_harness(&params, &setter);
+        let line = Line::of_chain(&params.chain.get());
+        let stack = line.places_for_test()[5];
+        let over_amp = Pos2::new(stack + 200.0, STACK_TOP + 100.0);
+        hover(&mut harness, over_amp);
+        harness.snapshot("bank_hover_amp");
+        // Its plus, near the stack's foot
+        let plus = Pos2::new(stack + STACK_WIDTH / 2.0 - 80.0, STACK_TOP + STACK_HEIGHT - 18.0);
+        click(&mut harness, plus);
+        assert_eq!(params.chain.get().amps(), 2);
+        // Two of two: the pointer over the amps offers nothing
+        hover(&mut harness, over_amp);
+        click(&mut harness, plus);
+        assert_eq!(params.chain.get().amps(), 2);
+        let mut chain = params.chain.get();
+        assert!(!chain.remove_amp(0), "amp 1 cannot be taken out");
+    }
+
+    // The line at rest with a chain of seven, the bank down
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_line_at_rest_with_the_bank_down_looks_as_it_did() {
+        let params = GuitarAmpParams::default();
+        params.chain.put(half_chain());
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        bank_harness(&params, &setter).0.snapshot("bank_rest");
+    }
+
+    // The print on a card reads as well as on the pedal it stands for
+    #[test]
+    fn test_the_print_on_every_card_reads_as_well_as_on_a_pedal() {
+        for kind in crate::bank::CARDS {
+            let ground = crate::bank::card_ground(kind);
+            let read = theme::contrast(theme::SILK, ground);
+            assert!(read >= theme::least_contrast(), "{kind:?}: {read}");
+        }
     }
 
     // A chain with no blocks is a dashed place on each side of the amps, each with a plus; a

@@ -20,9 +20,9 @@ use nih_plug_egui::egui::{vec2, Id, Painter, Pos2, Rect, Stroke, StrokeKind, Ui}
 use suite_common::ui::{self, theme, BENCH_MARGIN, PLUG_Y};
 
 use crate::bank::{self, Kept, Sheet};
-use crate::editor::{Jacks, Pedals, PEDAL_HEIGHT, PEDAL_TOP, PEDAL_WIDTH, STACK_TOP};
+use crate::editor::{Jacks, Pedals, PEDAL_HEIGHT, PEDAL_TOP, PEDAL_WIDTH, STACK_HEIGHT, STACK_TOP};
 use crate::order::Zone;
-use crate::slots::{Block, Chain, EffectKind, StoredChain, MAX_SLOTS};
+use crate::slots::{Block, Chain, EffectKind, StoredChain, MAX_AMPS, MAX_SLOTS};
 
 /// The two lanes (a head and its cabinet each) and the plate where they meet
 pub const STACK_WIDTH: f32 = 700.0;
@@ -531,6 +531,32 @@ pub fn board(
             }
         }
         board.plus = plus;
+    }
+    // The plus under the amps, while the chain has fewer amp lanes than the engine has (two
+    // today, four with #269): it adds one. Amp 1 has no cross, and no lane has one yet, since
+    // taking an amp out waits for the same
+    if !changed && browsing && current.amps() < MAX_AMPS {
+        let stack = Rect::from_min_size(
+            window + vec2(board.lefts[Piece::Stack.key()], STACK_TOP),
+            vec2(STACK_WIDTH, STACK_HEIGHT),
+        );
+        if ui::pointer_over(ui, stack) {
+            let center = Pos2::new(stack.center().x - 80.0, stack.bottom() - 18.0);
+            // Printed in ink: it stands on the cream head of the second amp
+            ui::center_label(
+                ui.painter(),
+                center + vec2(110.0, 0.0),
+                &format!("Add amp ({} of {MAX_AMPS})", current.amps() + 1),
+                15.0,
+                theme::INK,
+            );
+            if ui::plus_button(ui, center, ui::PLUS_RADIUS, "amp", true).clicked() {
+                let mut more = chain.get();
+                more.add_amp();
+                chain.put(more);
+                changed = true;
+            }
+        }
     }
     if changed {
         ui.ctx().request_repaint();

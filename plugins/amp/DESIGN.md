@@ -307,11 +307,13 @@ The reasons behind choices that the code alone does not explain. What it does is
   the plus of the gap the bank was opened from stands above it (it stands at the plug's height
   otherwise). The cards are drawn flat in the pedal's paint with a lighter upper half, a card in
   the air is straight (the frame tilts it) and is a small pedal-sized one so the place it opens
-  stays in view; the note that a block was taken out stands above the sheet as in frame 7. The Gate
+  stays in view and is held above the pointer; the note that a block was taken out is in the sheet's header with its Undo (frame 7 floats it over the line, where it covered pedals). The cards print cream on the pedal's paint taken a third toward the sheet's metal (a test holds the contrast to the pedal's), with the name and "in chain" count only: the parameter lists of the frame were too small to read at the opening size. The Gate
   has no card (it is the line's first piece and cannot go), where frames 5 to 7 show one; an empty
   chain keeps the gate before the dashed place where frame 8 shows none. The "ADD HERE" caption is
-  above the pedals, where there is room, not under them. Hovering an amp for a plus that adds one
-  (frame 2) waits for #269: the stack draws both lanes and there is no amp to add
+  above the pedals, where there is room, not under them. The plus that adds an amp (frame 2) shows under the amps while the chain has fewer lanes than
+  the engine has (`MAX_AMPS`, two until #269): the stack still draws both lanes, so a chain with
+  both has no amp to add and nothing shows; no lane has a cross yet (amp 1 never will), taking one
+  out waits for #269
 - The gate's `OPEN` lamp is its own small lamp: a half-lit pedal LED was built and rejected
   because at 30 % the lens is about the colour of the paint
 - Rigs use `rig_led` (black socket, darker unlit lens): a plain unlit `led` disappears on dark paint
