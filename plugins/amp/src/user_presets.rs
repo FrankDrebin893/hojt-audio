@@ -37,7 +37,7 @@ use std::path::{Path, PathBuf};
 use crate::cab::MicType;
 use crate::dial_memory;
 use crate::order::ChainOrder;
-use crate::presets::{self, Edit, MATCH_TOLERANCE, PRESETS};
+use crate::presets::{self, Edit, MATCH_TOLERANCE};
 use crate::user_cab;
 use crate::wah::WahMode;
 use crate::{Amp, GuitarAmpParams};
@@ -113,16 +113,6 @@ pub fn bank_name(bank: &str, max_chars: usize) -> String {
         Some(folder) => folder,
     };
     user_cab::display_name_without(name, "", max_chars)
-}
-
-/// The bank a step arrives at, round the banks there are now
-pub fn neighbour_bank(banks: &[String], bank: &str, forward: bool) -> String {
-    if banks.is_empty() {
-        return FACTORY.to_owned();
-    }
-    let at = banks.iter().position(|each| each == bank).unwrap_or(0);
-    let count = banks.len();
-    banks[(at + if forward { 1 } else { count - 1 }) % count].clone()
 }
 
 /// The bank a window shows for a project that holds `bank` with `user` loaded out of it:
@@ -542,10 +532,6 @@ impl Bank {
         bank
     }
 
-    pub fn len(&self) -> usize {
-        self.files.len()
-    }
-
     pub fn position(&self, file: &str) -> Option<usize> {
         self.files.iter().position(|each| each == file)
     }
@@ -557,27 +543,6 @@ impl Bank {
     pub fn find(&self, file: &str) -> Option<&UserPreset> {
         self.position(file).and_then(|index| self.presets.get(index))
     }
-}
-
-/// The factory preset a step arrives at, round that bank
-pub fn neighbour_factory(index: usize, forward: bool) -> usize {
-    let count = PRESETS.len();
-    (index.min(count - 1) + if forward { 1 } else { count - 1 }) % count
-}
-
-/// The preset a step arrives at in a bank of the player's, counting from `file`, the one
-/// loaded from it: with none loaded, the first one going forward and the last going back.
-/// Nothing when the bank holds no presets
-pub fn neighbour_user(bank: &Bank, file: &str, forward: bool) -> Option<usize> {
-    let count = bank.len();
-    if count == 0 {
-        return None;
-    }
-    Some(match bank.position(file) {
-        Some(at) => (at + if forward { 1 } else { count - 1 }) % count,
-        None if forward => 0,
-        None => count - 1,
-    })
 }
 
 /// A name as a file or a folder may be called: without the characters a name cannot hold,
@@ -669,6 +634,7 @@ pub fn display_name(file: &str, max_chars: usize) -> String {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::presets::PRESETS;
     use crate::user_cab::tests::test_dir;
     use std::sync::Mutex;
 
@@ -976,32 +942,6 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_stepping_comes_round_within_the_bank_showing() {
-        let dir = test_dir("user-presets-round");
-        let params = GuitarAmpParams::default();
-        for file in ["Mine.preset", "Other.preset"] {
-            save(&params, &dir, file).unwrap();
-        }
-        let bank = Bank::read(&params, Some(&dir));
-        // The factory bank comes round in itself and never leaves it
-        assert_eq!(neighbour_factory(3, true), 4);
-        assert_eq!(neighbour_factory(PRESETS.len() - 1, true), 0);
-        assert_eq!(neighbour_factory(0, false), PRESETS.len() - 1);
-        // An index out of a project of another build is brought back in
-        assert_eq!(neighbour_factory(PRESETS.len() + 5, true), 0);
-        // A bank of the player's comes round in its own files
-        assert_eq!(neighbour_user(&bank, "Mine.preset", true), Some(1));
-        assert_eq!(neighbour_user(&bank, "Other.preset", true), Some(0));
-        assert_eq!(neighbour_user(&bank, "Mine.preset", false), Some(1));
-        // With nothing loaded from the bank a step lands at the end it comes from
-        assert_eq!(neighbour_user(&bank, "", true), Some(0));
-        assert_eq!(neighbour_user(&bank, "Gone.preset", false), Some(1));
-        // A bank with nothing in it has nowhere to step
-        assert_eq!(neighbour_user(&Bank::default(), "", true), None);
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
     fn test_the_banks_are_the_factory_presets_the_folder_and_the_folders_in_it() {
         let dir = test_dir("user-presets-banks");
         let params = GuitarAmpParams::default();
@@ -1019,13 +959,6 @@ pub(crate) mod tests {
         assert_eq!(bank_name(MINE, 10), "MINE");
         assert_eq!(bank_name("/jazz", 10), "JAZZ");
         assert_eq!(bank_name("/Tåge og Regn", 8), "TÅG~REGN");
-
-        let banks = banks(Some(&dir));
-        assert_eq!(neighbour_bank(&banks, FACTORY, true), MINE);
-        assert_eq!(neighbour_bank(&banks, "/Metal", true), FACTORY);
-        assert_eq!(neighbour_bank(&banks, FACTORY, false), "/Metal");
-        // A bank that is no longer there counts as the factory one
-        assert_eq!(neighbour_bank(&banks, "/Gone", true), MINE);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -1138,7 +1071,7 @@ pub(crate) mod tests {
         assert_eq!(bank.find("A.preset"), Some(&UserPreset::parse(&params, SAVED)));
         assert_eq!(bank.get(1).map(|(file, _)| file), Some("b.preset"));
         assert_eq!(display_name("Tåge 2.preset", 13), "TÅGE 2");
-        assert_eq!(Bank::read(&params, None).len(), 0);
+        assert_eq!(Bank::read(&params, None).files.len(), 0);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

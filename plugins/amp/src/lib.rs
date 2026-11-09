@@ -98,7 +98,7 @@ pub enum Task {
 // The full table of ids is in `ids.txt`, held by the `ids` test
 #[derive(Params)]
 pub struct GuitarAmpParams {
-    #[persist = "editor-state-rig11"]
+    #[persist = "editor-state-rig12"]
     pub editor_state: Arc<EguiState>,
 
     /// Index into `presets::PRESETS` of the preset loaded last. Not a parameter: the editor
@@ -1696,13 +1696,17 @@ mod ids {
     #[test]
     fn the_windows_size_is_saved_under_the_key_of_the_current_width() {
         // The key moves on whenever the window's default size does, so a project saved at the
-        // old size opens at the new one (the wah's pedal made it wider: rig11)
+        // old size opens at the new one (the slim strip made it lower: rig12)
         use nih_plug::prelude::Params;
         let fields = <super::GuitarAmpParams as Default>::default().serialize_fields();
-        assert!(fields.contains_key("editor-state-rig11"));
-        for old in
-            ["editor-state-rig10", "editor-state-rig9", "editor-state-rig8", "editor-state-rig7"]
-        {
+        assert!(fields.contains_key("editor-state-rig12"));
+        for old in [
+            "editor-state-rig11",
+            "editor-state-rig10",
+            "editor-state-rig9",
+            "editor-state-rig8",
+            "editor-state-rig7",
+        ] {
             assert!(!fields.contains_key(old), "{old} is an old size's key");
         }
     }

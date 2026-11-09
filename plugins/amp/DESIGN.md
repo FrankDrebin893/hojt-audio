@@ -11,6 +11,11 @@ The reasons behind choices that the code alone does not explain. What it does is
 - Presets: good defaults first, a browser later. Cabinets: our own at first, a loader later
 - The window is one rig: a strip over one line in signal order, the half stack (head on cabinet)
   among the pedals, each pedal with its own paint and art (#96)
+- The strip's print is 13 points or more (7 px at the default zoom 0.55) and its meters are
+  lit green, amber (-10, -5 dBFS) and red (0), with the unlit state visible. The strip's knobs
+  keep no value readout (`bare_param_knob`; the hover hint and a double click say it). At zoom
+  0.4 the print is about 5 px: the least that reads is the window at 0.55, so the window does
+  not open smaller. The plus on the strip is #272's
 - The cabinet looks as the cabinet that plays (#100), but its box keeps one size for all
   twelve looks (a lane's, since #177): the pedals stand beside the stack as tall as it, and
   the cables, the controls and every click stay where they are whatever is picked. A real 1x10 and 4x12 differ in size; here only the speakers behind
@@ -263,11 +268,17 @@ The reasons behind choices that the code alone does not explain. What it does is
   panel's one line of knobs left no room for full scales at radius 19 with the jack and the
   pilot lamp beside them, so the dials are radius 18, and a scale is measured by where its
   ticks end, not by a circle round it (#99)
-- The window's size is persisted under a key of its own (`editor-state-rig11`); it is renamed
+- The window's size is persisted under a key of its own (`editor-state-rig12`); it is renamed
   whenever the default size changes, so a project saved before opens at the new size. The board is
-  drawn in 3411 x 650 points on `ui::rig_layer()` and scaled by a layer transform (`0.4` to `1.0`,
-  opening sized to the screen up to the full `3411 x 650` or `1876 x 358` px on a `1920 x 1080` screen) inside `ResizableWindow` with the `3411 : 650` proportions
-  locked (#227)
+  drawn in 3411 x 584 points on `ui::rig_layer()` and scaled by a layer transform (`0.4` to `1.0`,
+  opening sized to the screen up to the full `3411 x 584` or `1876 x 321` px on a `1920 x 1080` screen) inside `ResizableWindow` with the `3411 : 584` proportions
+  locked (#227). The slim strip (#267) made it 66 points lower than the 650 it was: the pedals and
+  the stack kept their size
+- The strip is slim (64 px, #261 direction A "Signal Line"): the controls that were on it all
+  at once are behind icons and plates (#258, #259): presets, the metronome and the settings open
+  as hardware plates under the strip, one at a time; the Output knob's caption is over its meter
+  (the pair is named once, as the input's is), where the pick has it over the knob, because the
+  slim strip has no room for a caption over a knob with its scale
 - The gate's `OPEN` lamp is its own small lamp: a half-lit pedal LED was built and rejected
   because at 30 % the lens is about the colour of the paint
 - Rigs use `rig_led` (black socket, darker unlit lens): a plain unlit `led` disappears on dark paint

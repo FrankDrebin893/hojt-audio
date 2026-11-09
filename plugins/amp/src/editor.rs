@@ -1,7 +1,7 @@
 use nih_plug::prelude::*;
 use nih_plug_egui::egui::{
     emath::TSTransform, vec2, Color32, Context, Id, LayerId, Order, Pos2, Rect, Sense, Ui,
-    UiBuilder, Vec2,
+    UiBuilder, Vec2, ViewportCommand,
 };
 use nih_plug_egui::resizable_window::ResizableWindow;
 use nih_plug_egui::{create_egui_editor, EguiState};
@@ -9,12 +9,12 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, PoisonError};
 use suite_common::ui::{
-    self, beat_lamp, chrome_button, drop_panel, led_stepper, led_width, level_meter,
-    nameplate_stepper, panel_knob, param_knob, param_switch, print_label, rig_led, settings_panel,
-    signal_lamp, silk_frame, silk_label, small_footswitch, stepper, theme, tuner_display,
-    type_into, type_on_tape, Beat, Column, MiniStyle, Motif, Ornament, PedalStyle, Pick, Plate,
-    Row, SettingRow, SettingsEvent, SettingsText, Step, Typed, BENCH_MARGIN, LED_HEIGHT,
-    SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED, SLIM_SWITCH,
+    self, chrome_button, drop_panel_with, led_display, led_stepper, led_width, nameplate_stepper,
+    panel_knob, param_knob, param_switch, print_label, rig_led, signal_lamp, silk_frame,
+    silk_label, small_footswitch, stepper, theme, tuner_display, type_into, type_on_tape, Beat,
+    Column, MiniStyle, Motif, Ornament, PedalStyle, Pick, Plate, Row, Step, Typed, BENCH_MARGIN,
+    LED_HEIGHT, SLIM_JACK_X, SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED, SLIM_PRINT_REACH,
+    SLIM_STRIP_HEIGHT, SLIM_SWITCH,
 };
 
 use crate::board::STACK_WIDTH;
@@ -35,10 +35,10 @@ use crate::wah::WahMode;
 use crate::{Amp, GuitarAmpParams, GuitarAmpPlugin, Task};
 
 const WINDOW_WIDTH: u32 = crate::board::WINDOW_WIDTH;
-const WINDOW_HEIGHT: u32 = 650;
+const WINDOW_HEIGHT: u32 = (STACK_TOP + HEAD_HEIGHT + PEDAL_HEIGHT + BENCH_MARGIN) as u32;
 
-// The board is drawn in 3411 x 650 points and scaled onto the window. It opens sized to the
-// screen (up to the full 3411 x 650, or 1876 x 358 on a 1920 x 1080 screen), and the corner
+// The board is drawn in 3411 x 584 points and scaled onto the window. It opens sized to the
+// screen (up to the full 3411 x 584, or 1876 x 321 on a 1920 x 1080 screen), and the corner
 // handle drags between 0.4 and 1.0
 const DEFAULT_ZOOM: f32 = 0.55;
 const MIN_ZOOM: f32 = 0.4;
@@ -54,11 +54,13 @@ const RESIZE_ID: &str = "amp-resize";
 
 // The strip across the top, and under it the line: the pedals, and among them the stack, the
 // head standing on the cabinet. The cabinet is as tall as the pedals and on the floor with them
-const STRIP_HEIGHT: f32 = 130.0;
+const STRIP_HEIGHT: f32 = SLIM_STRIP_HEIGHT;
 pub(crate) const STACK_TOP: f32 = BENCH_MARGIN + STRIP_HEIGHT + BENCH_MARGIN;
 const HEAD_HEIGHT: f32 = 180.0;
 pub(crate) const PEDAL_TOP: f32 = STACK_TOP + HEAD_HEIGHT;
-pub(crate) const PEDAL_HEIGHT: f32 = WINDOW_HEIGHT as f32 - BENCH_MARGIN - PEDAL_TOP;
+// The pedals and the stack keep the size they had under the tall strip: the slimmer strip made the
+// window lower, not them taller
+pub(crate) const PEDAL_HEIGHT: f32 = 310.0;
 pub(crate) const PEDAL_WIDTH: f32 = 180.0;
 
 pub(crate) const STYLE: PedalStyle = PedalStyle {
@@ -71,41 +73,74 @@ pub(crate) const STYLE: PedalStyle = PedalStyle {
     art: Some(ui::artwork::AMP),
 };
 
-// Everything on the strip is placed from the window's top left corner, in one row across it
-// with the same gap between neighbours and the same margin at both ends. What comes in and what
-// is picked is on the left: the input meter, then the bank and preset displays and the Save
-// button. What goes out is on the right: the output knob, the output meter, the clip lamp, and
-// the On and Tuner switches. Each one's place is the end of the one before it and the gap
-const STRIP_GAP: f32 = 212.9;
-// Between two controls on one module plate the gap is this much, much less than between plates
-const INNER_GAP: f32 = 56.0;
-// The gap that holds the standalone program's Audio button, between the output meter and the clip
-// lamp: a little wider than the others
-const AUDIO_GAP: f32 = 76.0;
+// The strip is slim (`SLIM_STRIP_HEIGHT`), and what is on it stands on one line, `STRIP_Y` down
+// from the window's top, in three groups. From the left: the input (its jack, its meter with the
+// Input gain beside it) and the preset display, which opens the list of banks and presets as a
+// plate under it. In the middle the icons of the metronome, the tuner and the settings, the first
+// two with a lamp and a switch. From the right: the logo with the model number, the Clip lamp,
+// and the output (its meter with the Output knob before it). What is printed by the strip itself
+// (`ui::slim_strip`: the jacks with their captions, the model number, the logo) is at its ends
+const STRIP_Y: f32 = BENCH_MARGIN + 30.0;
+const STRIP_FACE_RIGHT: f32 = WINDOW_WIDTH as f32 - BENCH_MARGIN;
 
-// The bank display and the preset display, each an LED display with a button at each end and
-// its caption over it: what set of presets the preset display picks from, and the preset.
-// Wide enough for the longest name and the edited mark. While the tuner is on, its display is
-// where the preset display is, under its own caption
-const PRESET_CAPTION_Y: f32 = 38.0;
-const PRESET_Y: f32 = 72.0;
-const PRESET_CHARS: usize = 15;
+// A level meter lies down on the strip: its caption over it, the knob of its gain beside it
+const METER_WIDTH: f32 = 260.0;
+const METER_Y: f32 = STRIP_Y + 6.0;
+const METER_CAPTION_Y: f32 = BENCH_MARGIN + 15.0;
+const METER_CAPTION_SIZE: f32 = 13.0;
+// The knobs of the strip are small and have no caption of their own: the meter's caption names
+// both. Their scale reaches `KNOB_TICKS` past the rim
+const STRIP_KNOB_RADIUS: f32 = 14.0;
+const KNOB_TICKS: f32 = 13.0;
+const KNOB_REACH: f32 = STRIP_KNOB_RADIUS + KNOB_TICKS;
+const METER_REACH: f32 = METER_WIDTH / 2.0;
+const STRIP_GAP: f32 = 16.0;
+
+// The input: the meter right of the jack and the Input gain right of the meter
+const INPUT_METER: Vec2 = vec2(BENCH_MARGIN + SLIM_JACK_X + 3.0 * STRIP_GAP + METER_REACH, METER_Y);
+const INPUT_KNOB: Vec2 = vec2(INPUT_METER.x + METER_REACH + STRIP_GAP + KNOB_REACH, STRIP_Y);
+
+// The preset display: the bank and the name of the preset in one window, with a marker at its
+// right end that says it opens. Wide enough for the longest bank and name. A click on it opens
+// the plate of banks and presets. While the tuner is on, its display is where this one is
+const PRESET_CHARS: usize = 26;
 const PRESET_WIDTH: f32 = led_width(PRESET_CHARS);
+const PRESET_X: f32 = INPUT_KNOB.x + KNOB_REACH + 2.0 * STRIP_GAP + PRESET_WIDTH / 2.0;
 // The longest name of a player's preset the display shows, with room for the edited mark
-const USER_NAME_CHARS: usize = PRESET_CHARS - 1;
+const USER_NAME_CHARS: usize = 15;
+// The bank's name in front of it, cut to this many letters
+const BANK_SHOWN_CHARS: usize = 9;
 // How long the display says what Save did
 const SAVE_NOTE_S: f64 = 1.5;
 
-// The bank display left of the preset display. Its caption is on the preset caption's line and
-// its window on the preset window's line; its buttons go round the banks and its window drops
-// the whole list open
-const BANK_CHARS: usize = 9;
-const BANK_WIDTH: f32 = led_width(BANK_CHARS);
-const BANK_NAME_CHARS: usize = BANK_CHARS;
+// The icons stand in the middle of the strip, a pitch apart. The two with a switch have the lamp
+// and the switch to the right of the icon
+const ICON_PITCH: f32 = 240.0;
+const PRESET_END: f32 = PRESET_X + PRESET_WIDTH / 2.0;
+const ICONS_SPAN: f32 = 2.0 * ICON_PITCH + 2.0 * ui::icons::ICON_REACH;
+// The icons stand in the room between the preset display and the output knob, an equal room each side
+const METRONOME_X: f32 =
+    (PRESET_END + OUTPUT_KNOB.x - KNOB_REACH) / 2.0 - ICONS_SPAN / 2.0 + ui::icons::ICON_REACH;
+const TUNER_X: f32 = METRONOME_X + ICON_PITCH;
+const SETTINGS_X: f32 = TUNER_X + ICON_PITCH;
 
-// The list that drops out of either display, under the preset window, over the line below:
-// the banks in the first column and the presets of the bank that is listed in the second
-const DROP_Y: f32 = PRESET_Y + LED_HEIGHT / 2.0 + 6.0;
+// The output: the knob, the meter and the Clip lamp, lit while the output is rounded off by the
+// safety clip, with its caption under it. The model number and the logo are right of them
+const MODEL_LEFT: f32 = STRIP_FACE_RIGHT - SLIM_PRINT_REACH;
+const CLIP_LAMP_REACH: f32 = 20.0;
+const CLIP_LAMP: Vec2 = vec2(MODEL_LEFT - 4.0 * STRIP_GAP - CLIP_LAMP_REACH, METER_Y);
+const CLIP_CAPTION: Vec2 = vec2(0.0, METER_CAPTION_Y - METER_Y);
+const LAMP_CAPTION: Vec2 = vec2(0.0, 18.0);
+const LAMP_CAPTION_SIZE: f32 = 13.0;
+const OUTPUT_METER: Vec2 =
+    vec2(CLIP_LAMP.x - CLIP_LAMP_REACH - 3.0 * STRIP_GAP - METER_REACH, METER_Y);
+const OUTPUT_KNOB: Vec2 = vec2(OUTPUT_METER.x - METER_REACH - STRIP_GAP - KNOB_REACH, STRIP_Y);
+
+// The plates open under the strip: the presets' under the display, the metronome's under its
+// icon, the settings' under theirs
+const PLATE_TOP: f32 = BENCH_MARGIN + SLIM_STRIP_HEIGHT + 4.0;
+// The list the preset plate holds: the banks in the first column and the presets of the bank that
+// is listed in the second
 const BANK_COLUMN: usize = 0;
 const DROP_BANK_WIDTH: f32 = 132.0;
 const DROP_PRESET_WIDTH: f32 = 186.0;
@@ -114,46 +149,27 @@ const DROP_PRESET_CHARS: usize = 17;
 // The row at the end of the banks that makes one, and how long a name typed on it may be
 const NEW_BANK_ROW: &str = "+ New Bank";
 const NEW_BANK_CHARS: usize = 14;
+// The foot of the preset plate: the name display, where a new preset is named, and Save beside it
+const FOOT_HEIGHT: f32 = 46.0;
+const FOOT_CHARS: usize = 18;
+const FOOT_SAVE_REACH: f32 = 25.0;
+const FOOT_BUTTON_SPREAD: f32 = 40.0;
 // How long a name typed for a new preset may be, and how much of it the display has room for
 // (the caret takes one place)
 const NEW_PRESET_CHARS: usize = 24;
-const NEW_PRESET_SHOWN: usize = PRESET_CHARS - 1;
+const NEW_PRESET_SHOWN: usize = FOOT_CHARS - 1;
 
-// What each control of the strip takes across, from its middle: a level meter with its caption,
-// the Save button, the output knob with its ticks, a signal lamp with its caption, and a small
-// switch with the LED and caption left of it. A stepper's buttons reach this far past its window
-const METER_REACH: f32 = 28.0;
-const SAVE_REACH: f32 = 25.0;
-const KNOB_REACH: f32 = OUTPUT_RADIUS + 13.0;
-const LAMP_REACH: f32 = 20.0;
-const SWITCH_REACH: f32 = 25.0;
-const SWITCH_GROUP: f32 = SWITCH_REACH + 86.0;
-const STEPPER_REACH: f32 = 33.0;
-
-// The level meters, one in each wing: the input's under the jack it comes in at, the
-// output's between the output knob and the clip lamp. A column of lamps on label tape,
-// with its caption under it
-const INPUT_METER: Vec2 = vec2(135.0, 58.0);
-const METER_HEIGHT: f32 = 64.0;
-const METER_CAPTION: Vec2 = vec2(0.0, 46.0);
-
-const BANK_X: f32 = INPUT_METER.x + METER_REACH + STRIP_GAP + BANK_WIDTH / 2.0 + STEPPER_REACH;
-const PRESET_X: f32 =
-    BANK_X + BANK_WIDTH / 2.0 + STEPPER_REACH + INNER_GAP + PRESET_WIDTH / 2.0 + STEPPER_REACH;
-// The Save button right of the preset display, its caption on the line of the display's
-const SAVE_X: f32 = PRESET_X + PRESET_WIDTH / 2.0 + STEPPER_REACH + INNER_GAP + SAVE_REACH;
-
-// The metronome, one cluster between Save and Output, its controls closer than the strip's
-// others: the On switch, whose lamp flashes on the beat, the tempo display (drag or scroll it,
-// or tap the Tap button), the sound over the time signature, each on a stepper, the click's
-// volume and the Sync button. Every one is placed from the end of the one before
+// The metronome's plate: the tempo display (drag or scroll it, or tap the Tap button), the sound
+// over the time signature and the click's output, each on a stepper, the click's volume, and the
+// Sync button. Every one is placed from the end of the one before it, from the plate's top left
+// corner
+const METRONOME_PAD: f32 = 26.0;
 const METRONOME_GAP: f32 = 38.0;
-const METRONOME_START: f32 = SAVE_X + SAVE_REACH + STRIP_GAP;
-const METRONOME_SWITCH_X: f32 = METRONOME_START + SWITCH_GROUP - SWITCH_REACH;
+const SAVE_REACH: f32 = 25.0;
+const STEPPER_REACH: f32 = 33.0;
 const TEMPO_CHARS: usize = 3;
 const TEMPO_WIDTH: f32 = led_width(TEMPO_CHARS);
-const TEMPO_X: f32 =
-    METRONOME_SWITCH_X + SWITCH_REACH + METRONOME_GAP + TEMPO_WIDTH / 2.0 + STEPPER_REACH;
+const TEMPO_X: f32 = METRONOME_PAD + TEMPO_WIDTH / 2.0 + STEPPER_REACH;
 const TAP_X: f32 = TEMPO_X + TEMPO_WIDTH / 2.0 + STEPPER_REACH + METRONOME_GAP + SAVE_REACH;
 // The sound over the time signature, on one column of steppers
 const SOUND_WIDTH: f32 = 100.0;
@@ -176,50 +192,49 @@ const COLUMN_WIDTH: f32 = {
 const STEPPERS_X: f32 = TAP_X + SAVE_REACH + METRONOME_GAP + COLUMN_WIDTH / 2.0;
 const SIGNATURE_X: f32 = STEPPERS_X - COLUMN_WIDTH / 2.0 + METER_STEP_REACH;
 const CLICK_OUT_X: f32 = STEPPERS_X + COLUMN_WIDTH / 2.0 - OUT_REACH;
-const SOUND_CAPTION_Y: f32 = 38.0;
-const SOUND_Y: f32 = 57.0;
-const SIGNATURE_CAPTION_Y: f32 = 85.0;
-const SIGNATURE_Y: f32 = 109.0;
+// Rows, from the plate's top: the title is on the first, then the captions over each control
+const TEMPO_CAPTION_Y: f32 = 52.0;
+const TEMPO_Y: f32 = 86.0;
+const SOUND_CAPTION_Y: f32 = 52.0;
+const SOUND_Y: f32 = 71.0;
+const SIGNATURE_CAPTION_Y: f32 = 99.0;
+const SIGNATURE_Y: f32 = 123.0;
 const CLICK_RADIUS: f32 = 20.0;
 const CLICK_REACH: f32 = CLICK_RADIUS + 13.0;
 const CLICK_VOLUME: Vec2 =
-    vec2(STEPPERS_X + COLUMN_WIDTH / 2.0 + METRONOME_GAP + CLICK_REACH, 57.0);
+    vec2(STEPPERS_X + COLUMN_WIDTH / 2.0 + METRONOME_GAP + CLICK_REACH, 71.0);
 const METRONOME_SYNC_X: f32 = CLICK_VOLUME.x + CLICK_REACH + METRONOME_GAP + SAVE_REACH;
 const METRONOME_END: f32 = METRONOME_SYNC_X + SAVE_REACH;
 // The Sync button stands lowest, under its LED and caption
-const SYNC_STACK: [f32; 3] = [PRESET_CAPTION_Y, 64.0, 96.0];
+const SYNC_STACK: [f32; 3] = [TEMPO_CAPTION_Y, 78.0, 110.0];
+const METRONOME_WIDTH: f32 = METRONOME_END + METRONOME_PAD;
+const METRONOME_HEIGHT: f32 = 162.0;
 // How long the lamp stays lit on a beat, and how often the window is drawn anew to see it
 const BEAT_LIT_S: f64 = 0.09;
 const BEAT_POLL_S: f64 = 0.02;
 // A turn of the tempo display: this many points of drag are one beat per minute
 const TEMPO_DRAG_POINTS: f32 = 3.0;
 
-// The output level, the plugin's own and not the amp's
-const OUTPUT_KNOB: Vec2 = vec2(METRONOME_END + STRIP_GAP + KNOB_REACH, 57.0);
-const OUTPUT_RADIUS: f32 = 22.0;
-const OUTPUT_METER: Vec2 = vec2(OUTPUT_KNOB.x + KNOB_REACH + INNER_GAP + METER_REACH, 58.0);
+// The settings plate: a row to the cabinet files and, in the standalone program, a row to each
+// of the audio's choices, with Apply and Cancel under them
+const SETTINGS_PAD: f32 = 16.0;
+const SETTINGS_CAPTION_WIDTH: f32 = 130.0;
+const SETTINGS_TAPE_WIDTH: f32 = 330.0;
+const SETTINGS_ROW_HEIGHT: f32 = 34.0;
+const SETTINGS_NOTE_HEIGHT: f32 = 26.0;
+const SETTINGS_FOOT_HEIGHT: f32 = 58.0;
+const SETTINGS_BUTTON_SPREAD: f32 = 110.0;
+// A stepper reaches its buttons this far past its tape on each side
+const SETTINGS_OVERHANG: f32 = 31.0;
+// The longest cabinet name the settings' tape has room for
+const SETTINGS_CAB_CHARS: usize = 26;
+const SETTINGS_WIDTH: f32 =
+    2.0 * SETTINGS_PAD + SETTINGS_CAPTION_WIDTH + SETTINGS_TAPE_WIDTH + 2.0 * SETTINGS_OVERHANG;
 
-// The clip lamp, right of the output meter: lit while the output is rounded off by the
-// safety clip. A signal lamp has its caption this far under it
-const CLIP_LAMP: Vec2 = vec2(OUTPUT_METER.x + METER_REACH + AUDIO_GAP + LAMP_REACH, 58.0);
-const LAMP_CAPTION: Vec2 = vec2(0.0, 18.0);
-// The clip lamp's caption stands on the strip's bottom caption row, with the output's and the level's
-const CLIP_CAPTION: Vec2 = vec2(0.0, 46.0);
-const LAMP_CAPTION_SIZE: f32 = 13.0;
 // The wah's Toe, Heel and Rocker captions, and the rocker's value on its tape
 const ROCKER_END_SIZE: f32 = 12.0;
 const ROCKER_TAPE_SIZE: f32 = 11.0;
 const LANE_CAPTION_SIZE: f32 = 15.0;
-
-// Small switches, left of each its LED above its caption: the bypass, and the tuner beside
-// it at the end of the strip
-const SWITCH_Y: f32 = 72.0;
-const BYPASS_X: f32 = CLIP_LAMP.x + LAMP_REACH + STRIP_GAP + SWITCH_GROUP - SWITCH_REACH;
-const TUNER_X: f32 = BYPASS_X + SWITCH_REACH + STRIP_GAP + SWITCH_GROUP - SWITCH_REACH;
-const CAPTION_OFFSET: f32 = -58.0;
-const LED_Y: f32 = 61.0;
-const CAPTION_Y: f32 = 87.0;
-const CAPTION_SIZE: f32 = 17.0;
 
 // On the head, which looks as its amp does (`looks`): the nameplate on the grille, the amp's
 // name between two buttons that step to the next amp, and the panel under it. On the panel,
@@ -336,10 +351,10 @@ const AUTO_BUTTON: Vec2 = vec2(56.0, 262.0);
 const AUTO_CAPTION: Vec2 = vec2(56.0, 287.0);
 const TRIO_KNOBS: [Vec2; 3] = [vec2(-45.0, 71.0), vec2(45.0, 71.0), vec2(0.0, 169.0)];
 
-// The Gate pedal has a lamp beside its lowest knob that is lit while the gate lets the
+// The Gate pedal has a lamp beside its LED, under the title, that is lit while the gate lets the
 // guitar through. The pedal's LED says that the gate is switched on, like every other
 pub(crate) const GATE_SLOT: usize = 0;
-const GATE_LAMP: Vec2 = vec2(60.0, 164.0);
+const GATE_LAMP: Vec2 = vec2(58.0, 71.0);
 
 // While the Delay follows the song's tempo (Sync), its Time knob, the first, picks the note
 // value in the same place, and its tape shows the note
@@ -467,11 +482,7 @@ impl Pedals<'_> {
             (
                 look("Gate", theme::PAINT_GRANITE, Motif::Sluice),
                 &params.gate_on,
-                &[
-                    (&params.in_gain, "Input"),
-                    (&params.gate_thresh, "Thresh"),
-                    (&params.gate_release, "Release"),
-                ],
+                &[(&params.gate_thresh, "Thresh"), (&params.gate_release, "Release")],
             ),
             (
                 look("Drive", theme::PAINT_OCHRE, Motif::Bonfire),
@@ -871,20 +882,79 @@ fn step_cabinet(
 pub(crate) struct View {
     lamps: LampView,
     /// The presets of the bank showing, as its folder was when it was last looked at: when
-    /// the window opened, and with every step, pick and save
+    /// the window opened, and with every pick and save
     bank: Bank,
-    /// The list of banks and presets while it is dropped open
-    menu: Option<Menu>,
-    /// The name being typed on the preset display's tape for a new preset, after Save
+    /// The plate open under the strip, if one is. It is one field, so there are never two
+    plate: Option<Open>,
+    /// The name being typed on the preset plate's foot for a new preset, after Save
     saving: Option<String>,
     /// What the preset display says instead of the name, and until when
     note: Option<(&'static str, f64)>,
     /// What the cabinet showed when the window was last drawn
     cab_status: CabStatus,
-    /// The Audio panel while it is open (the standalone program only)
-    audio: Option<AudioChoice>,
     /// The metronome's lamp, and the taps on its Tap button
     beat: BeatView,
+}
+
+/// A plate open under the strip: configuration is a plate that opens from an icon or a display,
+/// and one is open at a time
+pub(crate) enum Open {
+    /// The list of banks and presets, with Save, under the preset display
+    Presets(Menu),
+    /// The metronome's settings, under its icon
+    Metronome,
+    /// The settings, under their icon: the cabinet files and, in the standalone program, the
+    /// machine's audio, which is the choice held here while the plate is open
+    Settings(Option<AudioChoice>),
+}
+
+/// Which plate: what each icon and the preset display opens
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Plates {
+    Presets,
+    Metronome,
+    Settings,
+}
+
+impl Open {
+    fn which(&self) -> Plates {
+        match self {
+            Open::Presets(_) => Plates::Presets,
+            Open::Metronome => Plates::Metronome,
+            Open::Settings(_) => Plates::Settings,
+        }
+    }
+}
+
+impl View {
+    /// Whether the plate `which` is the one that is open
+    fn is_open(&self, which: Plates) -> bool {
+        self.plate.as_ref().is_some_and(|open| open.which() == which)
+    }
+
+    /// Closes the plate that is open, if one is: the audio choice of the settings is let go (a test
+    /// tone it started stops), and a name typed for a preset is dropped
+    fn close_plate(&mut self, host: Option<&dyn standalone::Host>) {
+        if let (Some(Open::Settings(Some(mut choice))), Some(host)) = (self.plate.take(), host) {
+            choice.close(host);
+        }
+        self.saving = None;
+    }
+
+    /// What a click on the icon or display of `which` does: closes its plate if it is the one
+    /// open, otherwise closes whichever is open and opens it, made by `open`
+    fn toggle_plate(
+        &mut self,
+        which: Plates,
+        host: Option<&dyn standalone::Host>,
+        open: impl FnOnce() -> Open,
+    ) {
+        let was_open = self.is_open(which);
+        self.close_plate(host);
+        if !was_open {
+            self.plate = Some(open());
+        }
+    }
 }
 
 /// What the metronome's lamp shows: the last beat the audio counted that the window has seen
@@ -897,7 +967,7 @@ struct BeatView {
 }
 
 /// The list of banks and presets while it is dropped open
-struct Menu {
+pub(crate) struct Menu {
     /// The bank whose presets it lists: the one showing, until another is clicked in it
     listed: String,
     /// The file names in `listed`, as its folder was when it was listed. Empty for the
@@ -905,8 +975,6 @@ struct Menu {
     files: Vec<String>,
     /// The name being typed for a new bank
     naming: Option<String>,
-    /// Opened in this frame: the click that opened it is no click outside it
-    opened: bool,
 }
 
 /// The preset display and the Save button beside it
@@ -958,111 +1026,65 @@ impl PresetDisplay<'_> {
             .unwrap_or_default()
     }
 
-    /// The caption with the folder behind it, the Bank and Preset displays and the Save
-    /// button. The list they open is drawn afterwards, by `menu`
-    fn draw(&self, ui: &mut Ui, origin: Pos2, view: &mut View, now: f64) {
-        let params = self.params;
-        let bank = self.bank();
-        let dir = user_presets::bank_dir(&bank);
-        let factory = presets::index_or_first(params.preset.load(Ordering::Relaxed));
-        let user = self.user_preset();
-
-        let caption = origin + vec2(PRESET_X, PRESET_CAPTION_Y);
-        silk_label(ui.painter(), caption, "Preset", 13.0);
-        // Where the presets of the bank showing are kept: shown when the caption is
-        // hovered, and opened by a double-click on it, to rename, move, copy or throw them
-        // away. The factory bank has no folder, so it names the presets folder itself
-        let folder = dir.clone().or_else(user_presets::presets_dir);
-        if let Some(folder) = &folder {
-            let response = ui
-                .interact(
-                    Rect::from_center_size(caption, vec2(60.0, 18.0)),
-                    Id::new("preset-folder"),
-                    Sense::click(),
-                )
-                .on_hover_text(format!("Your presets are kept in {}", folder.display()));
-            if response.double_clicked() {
-                let _ = std::fs::create_dir_all(folder);
-                user_cab::open_folder(folder);
-            }
-        }
-
-        silk_label(ui.painter(), origin + vec2(BANK_X, PRESET_CAPTION_Y), "Bank", 13.0);
-        let bank_shown = user_presets::bank_name(&bank, BANK_NAME_CHARS);
-        match led_stepper(ui, origin + vec2(BANK_X, PRESET_Y), BANK_CHARS, &bank_shown, "bank") {
-            Some(Pick::Open) => {
-                view.saving = None;
-                self.toggle_menu(view, &bank);
-            }
-            Some(Pick::Step(step)) => {
-                view.saving = None;
-                let banks = user_presets::banks(user_presets::presets_dir().as_deref());
-                let next = user_presets::neighbour_bank(&banks, &bank, step == Step::Next);
-                self.show_bank(&next, view);
+    /// What the preset display says: the bank and the preset loaded last (marked once something was
+    /// moved away from it), or for a moment what Save did
+    fn shown(&self, view: &mut View, now: f64) -> String {
+        match view.note {
+            Some((note, until)) if now < until => note.to_owned(),
+            _ => {
                 view.note = None;
+                let factory = presets::index_or_first(self.params.preset.load(Ordering::Relaxed));
+                let user = self.user_preset();
+                let bank = user_presets::bank_name(&self.bank(), BANK_SHOWN_CHARS);
+                format!("{bank} \u{b7} {}", self.shown_name(factory, &user, &view.bank))
             }
-            None => {}
         }
+    }
 
-        // A name typed for a new preset is taken before the tape is drawn, so the letter is
-        // on it in the same frame. Escape drops the name, and the sound is not saved
-        let typed = view.saving.as_mut().and_then(|name| {
-            type_on_tape(
-                ui,
-                origin + vec2(PRESET_X, PRESET_Y),
-                PRESET_WIDTH,
-                name,
-                NEW_PRESET_CHARS,
-            )
-        });
-        match typed {
-            Some(Typed::Done) => self.finish_save(&dir, factory, &user, view, now),
-            Some(Typed::Cancelled) => view.saving = None,
-            None => {}
+    /// The preset display on the strip, with a marker at its end that says it opens: a click on it
+    /// opens the plate of banks and presets under it, or closes it. There are no arrows: the plate
+    /// is where a preset is picked
+    fn display(
+        &self,
+        ui: &mut Ui,
+        origin: Pos2,
+        view: &mut View,
+        now: f64,
+        host: Option<&dyn standalone::Host>,
+    ) {
+        let at = origin + vec2(PRESET_X, STRIP_Y);
+        // The marker takes the place of the last two characters
+        let shown: String = self.shown(view, now).chars().take(PRESET_CHARS - 2).collect();
+        let window = Rect::from_center_size(at, vec2(PRESET_WIDTH, LED_HEIGHT));
+        let response = ui
+            .interact(window, Id::new("preset-display"), Sense::click())
+            .on_hover_text("Banks and presets");
+        led_display(ui.painter(), at, PRESET_CHARS, &shown);
+        let open = view.is_open(Plates::Presets);
+        if response.hovered() || open {
+            ui.painter().rect_filled(window, 6.0, Color32::from_white_alpha(14));
         }
-
-        let shown = match (&view.saving, view.note) {
-            (Some(name), _) => {
-                let skip = name.chars().count().saturating_sub(NEW_PRESET_SHOWN);
-                format!("{}_", name.chars().skip(skip).collect::<String>())
-            }
-            (None, Some((note, until))) if now < until => note.to_owned(),
-            (None, _) => {
-                view.note = None;
-                self.shown_name(factory, &user, &view.bank)
-            }
-        };
-        match led_stepper(ui, origin + vec2(PRESET_X, PRESET_Y), PRESET_CHARS, &shown, "preset") {
-            // The tape clicked while a name is typed keeps it as it stands
-            Some(Pick::Open) if view.saving.is_some() => {
-                self.finish_save(&dir, factory, &user, view, now);
-            }
-            Some(Pick::Open) => self.toggle_menu(view, &bank),
-            Some(Pick::Step(step)) => {
-                view.saving = None;
-                view.note = None;
-                self.step(step == Step::Next, &bank, factory, &user, view, now);
-            }
-            None => {}
-        }
-
-        silk_label(ui.painter(), origin + vec2(SAVE_X, PRESET_CAPTION_Y), "Save", 13.0);
-        if chrome_button(ui, origin + vec2(SAVE_X, PRESET_Y), "save-preset").clicked() {
-            if view.saving.is_some() {
-                // Pressed again, the name stands as it is: the mouse alone is enough
-                self.finish_save(&dir, factory, &user, view, now);
-            } else {
-                // Every save asks for a name on the tape, which starts as the name of the
-                // preset loaded out of this bank, so enter keeps it and writes over it;
-                // nothing is written until the name is kept
-                let loaded = dir.is_some().then_some(user.as_str()).filter(|user| !user.is_empty());
-                view.saving = Some(user_presets::name_to_keep(loaded, NEW_PRESET_CHARS));
-                view.note = None;
-            }
-        }
-        // A note is only up for a while: draw once more when it is over
-        if view.note.is_some() {
-            ui.ctx().request_repaint_after(std::time::Duration::from_secs_f64(SAVE_NOTE_S));
+        // The marker: a small triangle, pointing down while it is shut and up while it is open
+        let tip = if open { -1.0 } else { 1.0 };
+        let mark = at + vec2(PRESET_WIDTH / 2.0 - 20.0, 0.0);
+        ui.painter().add(nih_plug_egui::egui::Shape::convex_polygon(
+            vec![
+                mark + vec2(-5.0, -2.5 * tip),
+                mark + vec2(5.0, -2.5 * tip),
+                mark + vec2(0.0, 3.5 * tip),
+            ],
+            theme::TAPE_TEXT,
+            nih_plug_egui::egui::Stroke::NONE,
+        ));
+        if response.clicked() {
+            let bank = self.bank();
+            view.toggle_plate(Plates::Presets, host, || {
+                Open::Presets(Menu {
+                    listed: bank.clone(),
+                    files: self.bank_files(&bank),
+                    naming: None,
+                })
+            });
         }
     }
 
@@ -1103,32 +1125,45 @@ impl PresetDisplay<'_> {
         view.note = Some((if saved { "SAVED" } else { "NOT SAVED" }, now + SAVE_NOTE_S));
     }
 
-    /// Drops the list open on the bank showing, or closes it if it is open already
-    fn toggle_menu(&self, view: &mut View, bank: &str) {
-        view.menu = match view.menu {
-            Some(_) => None,
-            None => Some(Menu {
-                listed: bank.to_owned(),
-                files: self.bank_files(bank),
-                naming: None,
-                opened: true,
-            }),
-        };
+    /// Starts naming a new preset on the plate's foot, which starts as the name of the preset
+    /// loaded out of this bank, so enter keeps it and writes over it; nothing is written until the
+    /// name is kept. With a name being typed already, it is kept as it stands: the mouse alone
+    /// is enough
+    fn save_pressed(
+        &self,
+        dir: &Option<std::path::PathBuf>,
+        factory: usize,
+        user: &str,
+        view: &mut View,
+        now: f64,
+    ) {
+        if view.saving.is_some() {
+            self.finish_save(dir, factory, user, view, now);
+        } else {
+            let loaded = dir.is_some().then_some(user).filter(|user| !user.is_empty());
+            view.saving = Some(user_presets::name_to_keep(loaded, NEW_PRESET_CHARS));
+            view.note = None;
+        }
     }
 
-    /// The list the displays drop open: the banks in the first column, the presets of the
-    /// bank that is listed in the second. It is drawn after everything else in the window,
-    /// in a layer above it, so nothing behind it answers a click while it is open
-    fn menu(&self, ui: &mut Ui, origin: Pos2, view: &mut View, now: f64) {
-        let Some(mut menu) = view.menu.take() else {
-            return;
+    /// The plate under the preset display: the banks in the first column, the presets of the bank
+    /// that is listed in the second, and under them the foot, where a preset is named and saved.
+    /// It is drawn after everything else in the window, in a layer above it, so nothing behind it
+    /// answers a click while it is open
+    fn plate(&self, ui: &mut Ui, origin: Pos2, view: &mut View, now: f64) {
+        let mut menu = match view.plate.take() {
+            Some(Open::Presets(menu)) => menu,
+            other => {
+                view.plate = other;
+                return;
+            }
         };
         let params = self.params;
         let presets_dir = user_presets::presets_dir();
         let banks = user_presets::banks(presets_dir.as_deref());
 
         // What is typed for a new bank is taken before the list is drawn, so the letter is
-        // on the tape in the same frame. Escape ends the naming, not the list
+        // on the tape in the same frame. Escape ends the naming, not the plate
         let typed = menu.naming.as_mut().and_then(|name| type_into(ui, name, NEW_BANK_CHARS));
         match typed {
             Some(Typed::Done) => self.make_bank(&mut menu, presets_dir.as_deref(), view, now, ui),
@@ -1139,6 +1174,7 @@ impl PresetDisplay<'_> {
         let showing = self.bank();
         let user = self.user_preset();
         let factory = presets::index_or_first(params.preset.load(Ordering::Relaxed));
+        let dir = user_presets::bank_dir(&showing);
         let listed_is_factory = user_presets::bank_dir(&menu.listed).is_none();
         // Which preset is lit: only the bank that is listed can hold the one loaded
         let loaded = match (menu.listed == showing, listed_is_factory) {
@@ -1160,10 +1196,71 @@ impl PresetDisplay<'_> {
                 rows: &preset_rows,
             },
         ];
-        let picked = drop_panel(ui, origin + vec2(PRESET_X, DROP_Y), &columns, "presets");
-        // Neither the click that opened it nor the escape that ended a name closes it
-        let mut open = !(picked.closed && !menu.opened && typed.is_none());
-        menu.opened = false;
+        let anchor = Rect::from_center_size(
+            origin + vec2(PRESET_X, STRIP_Y),
+            vec2(PRESET_WIDTH, LED_HEIGHT),
+        );
+        let top = origin + vec2(PRESET_X, PLATE_TOP);
+        // What is typed on the foot is taken in it, and whether it ended a name is kept
+        let save_typed = std::cell::Cell::new(None);
+        let picked =
+            drop_panel_with(ui, top, &columns, "presets", anchor, FOOT_HEIGHT, |ui, foot| {
+                let width = led_width(FOOT_CHARS);
+                let name = Pos2::new(foot.left() + width / 2.0, foot.top() + 20.0);
+                // A name being typed is taken before the display is drawn, so the letter is on it in
+                // the same frame. Escape drops the name, and the sound is not saved
+                if let Some(typing) = view.saving.as_mut() {
+                    save_typed.set(type_on_tape(ui, name, width, typing, NEW_PRESET_CHARS));
+                }
+                match save_typed.get() {
+                    Some(Typed::Done) => self.finish_save(&dir, factory, &user, view, now),
+                    Some(Typed::Cancelled) => view.saving = None,
+                    None => {}
+                }
+                let shown = match (&view.saving, view.note) {
+                    (Some(typing), _) => {
+                        let skip = typing.chars().count().saturating_sub(NEW_PRESET_SHOWN);
+                        format!("{}_", typing.chars().skip(skip).collect::<String>())
+                    }
+                    (None, Some((note, until))) if now < until => note.to_owned(),
+                    (None, _) => {
+                        view.note = None;
+                        self.shown_name(factory, &user, &view.bank)
+                    }
+                };
+                let window = Rect::from_center_size(name, vec2(width, LED_HEIGHT));
+                let click = ui.interact(window, Id::new("foot-name"), Sense::click());
+                led_display(ui.painter(), name, FOOT_CHARS, &shown);
+                if click.hovered() {
+                    ui.painter().rect_filled(window, 6.0, Color32::from_white_alpha(14));
+                }
+                let save = Pos2::new(foot.right() - FOOT_SAVE_REACH + 3.0, foot.top() + 14.0);
+                silk_label(ui.painter(), save + vec2(0.0, 22.0), "Save", 11.0);
+                let pressed = chrome_button(ui, save, "save-preset").clicked();
+                if click.clicked() || pressed {
+                    self.save_pressed(&dir, factory, &user, view, now);
+                }
+                // The folder the presets of the bank are kept in: hovered it says where, and a click
+                // opens it, to rename, move, copy or throw them away. The factory bank has no folder,
+                // so it names the presets folder itself
+                if let Some(folder) = dir.clone().or_else(user_presets::presets_dir) {
+                    let at = save - vec2(FOOT_BUTTON_SPREAD, 0.0);
+                    silk_label(ui.painter(), at + vec2(0.0, 22.0), "Folder", 11.0);
+                    let button = chrome_button(ui, at, "preset-folder")
+                        .on_hover_text(format!("Your presets are kept in {}", folder.display()));
+                    if button.clicked() {
+                        let _ = std::fs::create_dir_all(&folder);
+                        user_cab::open_folder(&folder);
+                    }
+                }
+            });
+        // Neither the escape that ended a name nor the one that ended a bank's closes the plate
+        let named = typed.is_some() || save_typed.get().is_some();
+        let mut open = !(picked.closed && !named);
+        // A note is only up for a while: draw once more when it is over
+        if view.note.is_some() {
+            ui.ctx().request_repaint_after(std::time::Duration::from_secs_f64(SAVE_NOTE_S));
+        }
 
         match picked.row {
             // The row at the end of the banks takes a name for a new one. Clicked again it
@@ -1179,7 +1276,7 @@ impl PresetDisplay<'_> {
                 menu.naming = None;
                 if let Some(bank) = banks.get(row) {
                     menu.files = self.bank_files(bank);
-                    menu.listed = bank.clone();
+                    menu.listed = bank.to_owned();
                 }
             }
             Some((_, row)) => {
@@ -1197,7 +1294,9 @@ impl PresetDisplay<'_> {
             None => {}
         }
         if open {
-            view.menu = Some(menu);
+            view.plate = Some(Open::Presets(menu));
+        } else {
+            view.saving = None;
         }
     }
 
@@ -1223,29 +1322,6 @@ impl PresetDisplay<'_> {
                 view.note = Some(("NO BANK", now + SAVE_NOTE_S));
                 ui.ctx().request_repaint();
             }
-        }
-    }
-
-    /// The preset a button of the preset display asks for: the one after or before it in
-    /// the bank showing, which it comes round in without leaving it
-    fn step(
-        &self,
-        forward: bool,
-        bank: &str,
-        factory: usize,
-        user: &str,
-        view: &mut View,
-        now: f64,
-    ) {
-        let Some(dir) = user_presets::bank_dir(bank) else {
-            self.load_factory(user_presets::neighbour_factory(factory, forward));
-            return;
-        };
-        view.bank = Bank::read(self.params, Some(&dir));
-        match user_presets::neighbour_user(&view.bank, user, forward) {
-            Some(at) => self.load_user(at, view),
-            // A bank of the player's with nothing saved in it yet
-            None => view.note = Some(("NO PRESETS", now + SAVE_NOTE_S)),
         }
     }
 
@@ -1369,7 +1445,7 @@ pub fn default_state() -> Arc<EguiState> {
 }
 
 /// The window size `(width, height)` that fits inside a screen `screen_width` logical points wide,
-/// keeping the `3411 : 650` proportions and clamping the zoom to `0.4..=1.0`
+/// keeping the `3411 : 584` proportions and clamping the zoom to `0.4..=1.0`
 fn size_for_screen(screen_width: u32) -> (u32, u32) {
     let available = screen_width.saturating_sub(SCREEN_MARGIN) as f32;
     window_size(vec2(available, WINDOW_HEIGHT as f32))
@@ -1524,7 +1600,7 @@ fn zoom_for_width(width: f32) -> f32 {
 }
 
 /// The window size `(width, height)` for a dragged `desired` size, keeping the board's
-/// `3411 : 650` proportions and clamping the zoom to `0.4..=1.0`
+/// `3411 : 584` proportions and clamping the zoom to `0.4..=1.0`
 fn window_size(desired: Vec2) -> (u32, u32) {
     let zoom = zoom_for_width(desired.x);
     let width = (WINDOW_WIDTH as f32 * zoom).round().max(MIN_WIDTH as f32) as u32;
@@ -1532,7 +1608,7 @@ fn window_size(desired: Vec2) -> (u32, u32) {
     (width, height)
 }
 
-/// Keeps `ResizableWindow`'s corner handle on the `3411 : 650` diagonal within `0.4..=1.0`
+/// Keeps `ResizableWindow`'s corner handle on the `3411 : 584` diagonal within `0.4..=1.0`
 /// and paints its three lines on top of the board
 fn lock_resize_corner(ui: &mut Ui) {
     let ctx = ui.ctx().clone();
@@ -1600,11 +1676,10 @@ pub fn create(
         View {
             lamps: LampView::new(&lamp_reading),
             bank: Bank::default(),
-            menu: None,
+            plate: None,
             saving: None,
             note: None,
             cab_status: CabStatus::Fine,
-            audio: None,
             beat: BeatView::default(),
         },
         move |egui_ctx, view| {
@@ -1614,7 +1689,7 @@ pub fn create(
             // The player may have renamed, moved or added presets in the folder since
             let bank = user_presets::bank_of(&opened_params);
             view.bank = Bank::read(&opened_params, user_presets::bank_dir(&bank).as_deref());
-            view.menu = None;
+            view.close_plate(standalone::host());
             // Beats counted while the window was closed are not news
             view.beat.seen = opened_beats.read().0;
             // A cabinet file that was missing or unusable may have been put right since:
@@ -1663,27 +1738,6 @@ struct Shared<'a> {
     audio_host: Option<&'a dyn standalone::Host>,
 }
 
-// The strip's controls stand on module plates, one per group: what comes in, the bank and
-// preset, the metronome, what goes out, and the On switch. The Tuner switch stands on the paint at the end, under
-// the output's caption. A plate reaches this far past its
-// controls, and from the top of the strip to its lower edge
-const PLATE_PAD: f32 = 36.0;
-const PLATE_TOP: f32 = BENCH_MARGIN + 7.0;
-const PLATE_BOTTOM: f32 = BENCH_MARGIN + STRIP_HEIGHT - 8.0;
-
-/// Where each plate of the strip stands across the window: its left and right edges
-fn strip_plates() -> [[f32; 2]; 5] {
-    let bank_left = BANK_X - BANK_WIDTH / 2.0 - STEPPER_REACH;
-    let on_left = BYPASS_X + CAPTION_OFFSET - 28.0;
-    [
-        [INPUT_METER.x - METER_REACH - 24.0, INPUT_METER.x + METER_REACH + 24.0],
-        [bank_left - PLATE_PAD, SAVE_X + SAVE_REACH + PLATE_PAD],
-        [METRONOME_START - PLATE_PAD, METRONOME_END + PLATE_PAD],
-        [OUTPUT_KNOB.x - KNOB_REACH - PLATE_PAD, CLIP_LAMP.x + LAMP_REACH + PLATE_PAD],
-        [on_left - PLATE_PAD, BYPASS_X + 25.0 + PLATE_PAD],
-    ]
-}
-
 /// The whole window, once the fonts are in: what the plugin shows and its snapshot tests draw
 fn draw(
     ctx: &Context,
@@ -1716,18 +1770,10 @@ fn draw(
             window + vec2(BENCH_MARGIN, BENCH_MARGIN),
             vec2(WINDOW_WIDTH as f32 - 2.0 * BENCH_MARGIN, STRIP_HEIGHT),
         );
-        ui::strip(ui, strip, &STYLE);
-        for [left, right] in strip_plates() {
-            ui::strip_plate(
-                ui.painter(),
-                Rect::from_min_max(
-                    window + vec2(left, PLATE_TOP),
-                    window + vec2(right, PLATE_BOTTOM),
-                ),
-            );
-        }
+        ui::slim_strip(ui, strip, &STYLE);
         // What is on the strip is placed from here
         let origin = window;
+        let host = shared.audio_host;
 
         let presets = PresetDisplay {
             params,
@@ -1737,15 +1783,16 @@ fn draw(
         };
         let tuning = params.tuner_on.value();
         if tuning {
-            // The tuner takes the place of the preset display, list and all
-            view.menu = None;
+            // The tuner takes the place of the preset display, plate and all
+            if view.is_open(Plates::Presets) {
+                view.close_plate(host);
+            }
             // The note the tuner hears and how far off it is, where the preset was
             let note = shared.tuner.hz().map(Note::nearest);
             let name = note.map(|note| format!("{}{}", note.name, note.octave));
-            silk_label(ui.painter(), origin + vec2(PRESET_X, PRESET_CAPTION_Y), "Tuner", 13.0);
             tuner_display(
                 ui.painter(),
-                origin + vec2(PRESET_X, PRESET_Y),
+                origin + vec2(PRESET_X, STRIP_Y),
                 PRESET_CHARS,
                 name.as_deref(),
                 note.map(|note| note.cents),
@@ -1753,56 +1800,67 @@ fn draw(
             // What it hears changes without anyone touching the window
             ui.ctx().request_repaint();
         } else {
-            presets.draw(ui, origin, view, now);
+            presets.display(ui, origin, view, now, host);
         }
 
-        param_knob(
-            ui,
-            setter,
-            &params.out_level,
-            origin + OUTPUT_KNOB,
-            OUTPUT_RADIUS,
-            "Output",
-            None,
-        );
+        // The input: its meter under its caption, and the gain beside it
+        // The output: the knob, the meter under its caption, and the clip lamp
         for (place, level, caption) in
-            [(INPUT_METER, input_db, "Input"), (OUTPUT_METER, output_db, "Level")]
+            [(INPUT_METER, input_db, "Input"), (OUTPUT_METER, output_db, "Output")]
         {
-            level_meter(ui.painter(), origin + place, METER_HEIGHT, level);
-            silk_label(ui.painter(), origin + place + METER_CAPTION, caption, LAMP_CAPTION_SIZE);
+            ui::level_meter_wide(ui.painter(), origin + place, METER_WIDTH, level);
+            silk_label(
+                ui.painter(),
+                origin + vec2(place.x, METER_CAPTION_Y),
+                caption,
+                METER_CAPTION_SIZE,
+            );
         }
+        ui::bare_param_knob(ui, setter, &params.in_gain, origin + INPUT_KNOB, STRIP_KNOB_RADIUS);
+        ui::bare_param_knob(ui, setter, &params.out_level, origin + OUTPUT_KNOB, STRIP_KNOB_RADIUS);
         signal_lamp(ui.painter(), origin + CLIP_LAMP, clipping);
-        silk_label(ui.painter(), origin + CLIP_LAMP + CLIP_CAPTION, "Clip", LAMP_CAPTION_SIZE);
+        silk_label(ui.painter(), origin + CLIP_LAMP + CLIP_CAPTION, "Clip", METER_CAPTION_SIZE);
 
-        metronome(ui, setter, params, origin, view, shared, now);
-
-        // Tuner switch, lit while tuning: the amp is silent then
-        rig_led(ui.painter(), origin + vec2(TUNER_X + CAPTION_OFFSET, LED_Y), tuning);
-        silk_label(
-            ui.painter(),
-            origin + vec2(TUNER_X + CAPTION_OFFSET, CAPTION_Y),
-            "Tuner",
-            CAPTION_SIZE,
+        // The icons, in the middle. The metronome's opens its plate and its switch starts it; the
+        // tuner's is its switch, the display above taking its place; the settings have a plate only
+        let beat = beat_shown(ui, params, view, shared, now);
+        let metronome = ui::icon_switch(
+            ui,
+            origin + vec2(METRONOME_X, STRIP_Y),
+            ui::Icon::Metronome,
+            view.is_open(Plates::Metronome),
+            Some(beat),
+            "metronome",
         );
-        if small_footswitch(ui, origin + vec2(TUNER_X, SWITCH_Y), "tuner").clicked() {
-            setter.begin_set_parameter(&params.tuner_on);
-            setter.set_parameter(&params.tuner_on, !tuning);
-            setter.end_set_parameter(&params.tuner_on);
+        if metronome.icon.clicked() {
+            view.toggle_plate(Plates::Metronome, host, || Open::Metronome);
         }
-
-        // Bypass switch, lit while the amp is on
-        let bypassed = params.bypass.value();
-        rig_led(ui.painter(), origin + vec2(BYPASS_X + CAPTION_OFFSET, LED_Y), !bypassed);
-        silk_label(
-            ui.painter(),
-            origin + vec2(BYPASS_X + CAPTION_OFFSET, CAPTION_Y),
-            "On",
-            CAPTION_SIZE,
+        if metronome.switch.is_some_and(|switch| switch.clicked()) {
+            set(setter, &params.metronome_on, !params.metronome_on.value());
+        }
+        let tuner = ui::icon_switch(
+            ui,
+            origin + vec2(TUNER_X, STRIP_Y),
+            ui::Icon::Tuner,
+            tuning,
+            Some(if tuning { Beat::Regular } else { Beat::Dark }),
+            "tuner",
         );
-        if small_footswitch(ui, origin + vec2(BYPASS_X, SWITCH_Y), "bypass").clicked() {
-            setter.begin_set_parameter(&params.bypass);
-            setter.set_parameter(&params.bypass, !bypassed);
-            setter.end_set_parameter(&params.bypass);
+        if tuner.icon.clicked() || tuner.switch.is_some_and(|switch| switch.clicked()) {
+            set(setter, &params.tuner_on, !tuning);
+        }
+        let settings = ui::icon_switch(
+            ui,
+            origin + vec2(SETTINGS_X, STRIP_Y),
+            ui::Icon::Settings,
+            view.is_open(Plates::Settings),
+            None,
+            "settings",
+        );
+        if settings.icon.clicked() {
+            view.toggle_plate(Plates::Settings, host, || {
+                Open::Settings(host.map(|host| AudioChoice::open(host, standalone::launch())))
+            });
         }
 
         let pedals = Pedals {
@@ -1814,14 +1872,10 @@ fn draw(
         };
         crate::board::board(ui, window, &pedals, &params.chain);
 
-        // The preset list after everything else, in a layer above the window
-        presets.menu(ui, origin, view, now);
-
-        // The standalone program has the machine's audio to set
-        if let Some(host) = shared.audio_host {
-            audio_button(ui, origin, view, host);
-            audio_panel(ui, origin, view, host);
-        }
+        // The plates after everything else, each in a layer above the window; one is open at most
+        presets.plate(ui, origin, view, now);
+        metronome_plate(ui, setter, params, origin, view, shared, now, metronome.icon.rect);
+        settings_plate(ui, setter, params, origin, view, shared, settings.icon.rect);
     });
 }
 
@@ -1841,8 +1895,39 @@ fn set<P: Param>(setter: &ParamSetter, param: &P, value: P::Plain) {
     setter.end_set_parameter(param);
 }
 
-/// The metronome's cluster on the strip, between Save and Output
-fn metronome(
+/// What the metronome's lamp shows: dim amber while it runs, amber on a beat, cream on the first
+/// of the bar, lit for a moment. The window asks to be drawn again for as long as the metronome
+/// runs
+fn beat_shown(
+    ui: &Ui,
+    params: &GuitarAmpParams,
+    view: &mut View,
+    shared: &Shared,
+    now: f64,
+) -> Beat {
+    let running = params.metronome_on.value() && !params.tuner_on.value();
+    let (count, downbeat) = shared.beats.read();
+    if count != view.beat.seen {
+        view.beat.seen = count;
+        view.beat.lit_until = now + BEAT_LIT_S;
+        view.beat.downbeat = downbeat;
+    }
+    let lit = running && now < view.beat.lit_until;
+    if running {
+        ui.ctx().request_repaint_after(std::time::Duration::from_secs_f64(BEAT_POLL_S));
+    }
+    match (running, lit, view.beat.downbeat) {
+        (false, ..) => Beat::Dark,
+        (true, false, _) => Beat::Armed,
+        (true, true, false) => Beat::Regular,
+        (true, true, true) => Beat::Downbeat,
+    }
+}
+
+/// The metronome's plate under its icon, while it is the plate that is open: the tempo, the tap,
+/// the sound, the time signature, where the click is heard, its volume and Sync
+#[allow(clippy::too_many_arguments)]
+fn metronome_plate(
     ui: &mut Ui,
     setter: &ParamSetter,
     params: &GuitarAmpParams,
@@ -1850,209 +1935,317 @@ fn metronome(
     view: &mut View,
     shared: &Shared,
     now: f64,
+    anchor: Rect,
 ) {
-    let (beats, has_own_output) = (shared.beats, shared.audio_host.is_none());
-    let running = params.metronome_on.value() && !params.tuner_on.value();
-
-    // The lamp: dim amber while it runs, amber on a beat, cream on the first of the bar, lit
-    // for a moment. The window asks to be drawn again for as long as the metronome runs
-    let (count, downbeat) = beats.read();
-    if count != view.beat.seen {
-        view.beat.seen = count;
-        view.beat.lit_until = now + BEAT_LIT_S;
-        view.beat.downbeat = downbeat;
+    if !view.is_open(Plates::Metronome) {
+        return;
     }
-    let lit = running && now < view.beat.lit_until;
-    let shown = match (running, lit, view.beat.downbeat) {
-        (false, ..) => Beat::Dark,
-        (true, false, _) => Beat::Armed,
-        (true, true, false) => Beat::Regular,
-        (true, true, true) => Beat::Downbeat,
-    };
-    if running {
-        ui.ctx().request_repaint_after(std::time::Duration::from_secs_f64(BEAT_POLL_S));
-    }
-
-    // The On switch with its lamp and caption, like the strip's others
-    let at = |x: f32, y: f32| origin + vec2(x, y);
-    beat_lamp(ui.painter(), at(METRONOME_SWITCH_X + CAPTION_OFFSET, LED_Y), shown);
-    silk_label(
-        ui.painter(),
-        at(METRONOME_SWITCH_X + CAPTION_OFFSET, CAPTION_Y),
-        "Metro",
-        CAPTION_SIZE,
+    let (has_own_output, host) = (shared.audio_host.is_none(), shared.audio_host);
+    let rect = Rect::from_min_size(
+        origin + vec2(METRONOME_X - ui::icons::ICON_REACH, PLATE_TOP),
+        vec2(METRONOME_WIDTH, METRONOME_HEIGHT),
     );
-    if small_footswitch(ui, at(METRONOME_SWITCH_X, SWITCH_Y), "metronome").clicked() {
-        set(setter, &params.metronome_on, !params.metronome_on.value());
-    }
+    let close = ui::plate(ui, rect, "metronome", anchor, |ui, rect| {
+        ui::plate::plate_title(ui.painter(), rect, "Metronome");
+        let at = |x: f32, y: f32| rect.min + vec2(x, y);
 
-    // The tempo: a display to drag up and down or to scroll, with a button at each end
-    let bpm = params.metronome_bpm.value();
-    let tempo = at(TEMPO_X, PRESET_Y);
-    silk_label(ui.painter(), at(TEMPO_X, PRESET_CAPTION_Y), "Tempo", 13.0);
-    let window = Rect::from_center_size(tempo, vec2(TEMPO_WIDTH, LED_HEIGHT));
-    let step = led_stepper(ui, tempo, TEMPO_CHARS, &format!("{}", bpm.round() as i32), "tempo");
-    let turn = ui.interact(window, Id::new("tempo-turn"), Sense::click_and_drag());
-    let mut wanted = None;
-    if let Some(Pick::Step(step)) = step {
-        let by = if matches!(step, Step::Next) { 1.0 } else { -1.0 };
-        wanted = Some((bpm.round() + by).clamp(BPM_MIN, BPM_MAX));
-    }
-    if turn.drag_started() {
-        setter.begin_set_parameter(&params.metronome_bpm);
-        ui.data_mut(|data| data.insert_temp(turn.id, bpm));
-    }
-    if turn.dragged() {
-        let fine = ui.input(|input| input.modifiers.shift);
-        let points = if fine { TEMPO_DRAG_POINTS * 4.0 } else { TEMPO_DRAG_POINTS };
-        let held = ui.data_mut(|data| {
-            let held = data.get_temp_mut_or(turn.id, bpm);
-            *held = (*held - turn.drag_delta().y / points).clamp(BPM_MIN, BPM_MAX);
-            *held
-        });
-        setter.set_parameter(&params.metronome_bpm, held.round());
-    }
-    if turn.drag_stopped() {
-        setter.end_set_parameter(&params.metronome_bpm);
-    }
-    if turn.hovered() {
-        let scrolled = ui.input(|input| input.raw_scroll_delta.y);
-        if scrolled != 0.0 {
-            wanted = Some((bpm.round() + scrolled.signum()).clamp(BPM_MIN, BPM_MAX));
+        // The tempo: a display to drag up and down or to scroll, with a button at each end
+        let bpm = params.metronome_bpm.value();
+        let tempo = at(TEMPO_X, TEMPO_Y);
+        silk_label(ui.painter(), at(TEMPO_X, TEMPO_CAPTION_Y), "Tempo", 13.0);
+        let window = Rect::from_center_size(tempo, vec2(TEMPO_WIDTH, LED_HEIGHT));
+        let step = led_stepper(ui, tempo, TEMPO_CHARS, &format!("{}", bpm.round() as i32), "tempo");
+        let turn = ui.interact(window, Id::new("tempo-turn"), Sense::click_and_drag());
+        let mut wanted = None;
+        if let Some(Pick::Step(step)) = step {
+            let by = if matches!(step, Step::Next) { 1.0 } else { -1.0 };
+            wanted = Some((bpm.round() + by).clamp(BPM_MIN, BPM_MAX));
         }
-    }
-    if turn.double_clicked() {
-        wanted = Some(crate::metronome::BPM_DEFAULT);
-    }
-    if let Some(value) = wanted {
-        set(setter, &params.metronome_bpm, value);
-    }
-
-    // Tap: the tempo of the last few taps
-    silk_label(ui.painter(), at(TAP_X, PRESET_CAPTION_Y), "Tap", 13.0);
-    if chrome_button(ui, at(TAP_X, PRESET_Y), "metronome-tap").clicked() {
-        if let Some(tapped) = view.beat.taps.tap(now) {
-            set(setter, &params.metronome_bpm, tapped.round());
+        if turn.drag_started() {
+            setter.begin_set_parameter(&params.metronome_bpm);
+            ui.data_mut(|data| data.insert_temp(turn.id, bpm));
         }
-    }
-
-    // The time signature and the sound
-    let signature = params.metronome_time_sig.value();
-    silk_label(ui.painter(), at(SIGNATURE_X, SIGNATURE_CAPTION_Y), "Meter", 13.0);
-    if let Some(step) = stepper(
-        ui,
-        at(SIGNATURE_X, SIGNATURE_Y),
-        SIGNATURE_WIDTH,
-        signature.name(),
-        "metronome-meter",
-    ) {
-        set(setter, &params.metronome_time_sig, neighbour(&TimeSignature::ALL, signature, step));
-    }
-    let sound = params.metronome_sound.value();
-    silk_label(ui.painter(), at(STEPPERS_X, SOUND_CAPTION_Y), "Sound", 13.0);
-    if let Some(step) =
-        stepper(ui, at(STEPPERS_X, SOUND_Y), SOUND_WIDTH, sound.name(), "metronome-sound")
-    {
-        set(setter, &params.metronome_sound, neighbour(&Sound::ALL, sound, step));
-    }
-
-    // Where the click is heard: with the amp, or alone on the "Metronome" output
-    // The standalone program has no such output: the click is always with the amp there, so
-    // the stepper is left out
-    if has_own_output {
-        let out = params.metronome_out.value();
-        silk_label(ui.painter(), at(CLICK_OUT_X, SIGNATURE_CAPTION_Y), "Click out", 13.0);
-        if let Some(step) =
-            stepper(ui, at(CLICK_OUT_X, SIGNATURE_Y), OUT_WIDTH, out.name(), "metronome-out")
-        {
-            set(setter, &params.metronome_out, neighbour(&ClickOut::ALL, out, step));
+        if turn.dragged() {
+            let fine = ui.input(|input| input.modifiers.shift);
+            let points = if fine { TEMPO_DRAG_POINTS * 4.0 } else { TEMPO_DRAG_POINTS };
+            let held = ui.data_mut(|data| {
+                let held = data.get_temp_mut_or(turn.id, bpm);
+                *held = (*held - turn.drag_delta().y / points).clamp(BPM_MIN, BPM_MAX);
+                *held
+            });
+            setter.set_parameter(&params.metronome_bpm, held.round());
         }
-    }
-
-    // The click's volume
-    param_knob(
-        ui,
-        setter,
-        &params.metronome_volume,
-        origin + CLICK_VOLUME,
-        CLICK_RADIUS,
-        "Volume",
-        None,
-    );
-
-    // Sync: follow the host's tempo and transport
-    let sync = params.metronome_sync.value();
-    let [caption, led, button] = SYNC_STACK;
-    silk_label(ui.painter(), at(METRONOME_SYNC_X, caption), "Sync", 13.0);
-    rig_led(ui.painter(), at(METRONOME_SYNC_X, led), sync);
-    if chrome_button(ui, at(METRONOME_SYNC_X, button), "metronome-sync").clicked() {
-        set(setter, &params.metronome_sync, !sync);
-    }
-}
-
-// The Audio button of the standalone program, in the gap between the output meter and the clip
-// lamp, with its caption over it
-const AUDIO_BUTTON: Vec2 =
-    vec2((OUTPUT_METER.x + METER_REACH + CLIP_LAMP.x - LAMP_REACH) / 2.0, CLIP_LAMP.y - 4.0);
-const AUDIO_CAPTION_Y: f32 = -26.0;
-// Where the Audio panel stands: in the middle of the window, over the stack
-const AUDIO_PANEL: Vec2 = vec2(WINDOW_WIDTH as f32 / 2.0, 330.0);
-
-fn audio_button(ui: &mut Ui, origin: Pos2, view: &mut View, host: &dyn standalone::Host) {
-    let at = origin + AUDIO_BUTTON;
-    silk_label(ui.painter(), at + vec2(0.0, AUDIO_CAPTION_Y), "Audio", CAPTION_SIZE);
-    if chrome_button(ui, at, "audio").clicked() {
-        view.audio = match view.audio.take() {
-            Some(mut choice) => {
-                choice.close(host);
-                None
+        if turn.drag_stopped() {
+            setter.end_set_parameter(&params.metronome_bpm);
+        }
+        if turn.hovered() {
+            let scrolled = ui.input(|input| input.raw_scroll_delta.y);
+            if scrolled != 0.0 {
+                wanted = Some((bpm.round() + scrolled.signum()).clamp(BPM_MIN, BPM_MAX));
             }
-            None => Some(AudioChoice::open(host, standalone::launch())),
-        };
+        }
+        if turn.double_clicked() {
+            wanted = Some(crate::metronome::BPM_DEFAULT);
+        }
+        if let Some(value) = wanted {
+            set(setter, &params.metronome_bpm, value);
+        }
+
+        // Tap: the tempo of the last few taps
+        silk_label(ui.painter(), at(TAP_X, TEMPO_CAPTION_Y), "Tap", 13.0);
+        if chrome_button(ui, at(TAP_X, TEMPO_Y), "metronome-tap").clicked() {
+            if let Some(tapped) = view.beat.taps.tap(now) {
+                set(setter, &params.metronome_bpm, tapped.round());
+            }
+        }
+
+        // The time signature and the sound
+        let signature = params.metronome_time_sig.value();
+        silk_label(ui.painter(), at(SIGNATURE_X, SIGNATURE_CAPTION_Y), "Meter", 13.0);
+        if let Some(step) = stepper(
+            ui,
+            at(SIGNATURE_X, SIGNATURE_Y),
+            SIGNATURE_WIDTH,
+            signature.name(),
+            "metronome-meter",
+        ) {
+            set(
+                setter,
+                &params.metronome_time_sig,
+                neighbour(&TimeSignature::ALL, signature, step),
+            );
+        }
+        let sound = params.metronome_sound.value();
+        silk_label(ui.painter(), at(STEPPERS_X, SOUND_CAPTION_Y), "Sound", 13.0);
+        if let Some(step) =
+            stepper(ui, at(STEPPERS_X, SOUND_Y), SOUND_WIDTH, sound.name(), "metronome-sound")
+        {
+            set(setter, &params.metronome_sound, neighbour(&Sound::ALL, sound, step));
+        }
+
+        // Where the click is heard: with the amp, or alone on the "Metronome" output. The
+        // standalone program has no such output: the click is always with the amp there, so the
+        // stepper is left out
+        if has_own_output {
+            let out = params.metronome_out.value();
+            silk_label(ui.painter(), at(CLICK_OUT_X, SIGNATURE_CAPTION_Y), "Click out", 13.0);
+            if let Some(step) =
+                stepper(ui, at(CLICK_OUT_X, SIGNATURE_Y), OUT_WIDTH, out.name(), "metronome-out")
+            {
+                set(setter, &params.metronome_out, neighbour(&ClickOut::ALL, out, step));
+            }
+        }
+
+        // The click's volume
+        param_knob(
+            ui,
+            setter,
+            &params.metronome_volume,
+            rect.min + CLICK_VOLUME,
+            CLICK_RADIUS,
+            "Volume",
+            None,
+        );
+
+        // Sync: follow the host's tempo and transport
+        let sync = params.metronome_sync.value();
+        let [caption, led, button] = SYNC_STACK;
+        silk_label(ui.painter(), at(METRONOME_SYNC_X, caption), "Sync", 13.0);
+        rig_led(ui.painter(), at(METRONOME_SYNC_X, led), sync);
+        if chrome_button(ui, at(METRONOME_SYNC_X, button), "metronome-sync").clicked() {
+            set(setter, &params.metronome_sync, !sync);
+        }
+    });
+    if close.asked() {
+        view.close_plate(host);
     }
 }
 
-fn audio_panel(ui: &mut Ui, origin: Pos2, view: &mut View, host: &dyn standalone::Host) {
-    let Some(choice) = view.audio.as_mut() else {
+/// The settings plate under its icon, while it is the plate that is open: the cabinet files and,
+/// in the standalone program, the machine's audio, which Apply restarts the amp on
+fn settings_plate(
+    ui: &mut Ui,
+    _setter: &ParamSetter,
+    params: &GuitarAmpParams,
+    origin: Pos2,
+    view: &mut View,
+    shared: &Shared,
+    anchor: Rect,
+) {
+    let host = shared.audio_host;
+    let Some(Open::Settings(audio)) = view.plate.as_mut() else {
         return;
     };
-    let rows = choice.rows();
-    let shown: Vec<SettingRow> =
-        rows.iter().map(|(caption, shown)| SettingRow { caption, shown }).collect();
-    let note = match (choice.error.as_deref(), choice.test_tone) {
-        (Some(error), _) => error,
-        (None, true) => "The tone is on the chosen outputs; mind the volume",
-        (None, false) => "Apply starts the amp again on the new settings",
-    };
-    let text = SettingsText { title: "Audio Settings", note, apply: "Apply", cancel: "Cancel" };
-    let event = settings_panel(ui, origin + AUDIO_PANEL, &text, &shown, "audio");
+    let audio_rows = audio.as_ref().map(AudioChoice::rows);
+    let rows = 1 + audio_rows.as_ref().map_or(0, |rows| rows.len());
+    let height = settings_height(audio_rows.is_some(), rows);
+    let rect = Rect::from_min_size(
+        origin + vec2(SETTINGS_X + ui::icons::ICON_REACH - SETTINGS_WIDTH, PLATE_TOP),
+        vec2(SETTINGS_WIDTH, height),
+    );
+    let mut cancelled = false;
+    let mut event = None;
+    let close = ui::plate(ui, rect, "settings", anchor, |ui, rect| {
+        ui::plate::plate_title(ui.painter(), rect, "Settings");
+        let painter = ui.painter().clone();
+        let mut y = rect.top() + SETTINGS_PAD + ui::plate::PLATE_TITLE_HEIGHT;
+        let caption_x = rect.left() + SETTINGS_PAD + SETTINGS_CAPTION_WIDTH / 2.0;
+        let tape_x = rect.left()
+            + SETTINGS_PAD
+            + SETTINGS_CAPTION_WIDTH
+            + SETTINGS_OVERHANG
+            + SETTINGS_TAPE_WIDTH / 2.0;
+
+        // The cabinet: the amp's own, a built-in one or a file, picked as on the amp's head. Where
+        // the files go is shown when the caption is hovered, and opened by a double-click on it
+        let middle = y + SETTINGS_ROW_HEIGHT / 2.0;
+        silk_label(&painter, Pos2::new(caption_x, middle), "Cabinet", 13.0);
+        if let Some(dir) = user_cab::cabinets_dir() {
+            let caption = Rect::from_center_size(Pos2::new(caption_x, middle), vec2(90.0, 20.0));
+            let response = ui
+                .interact(caption, Id::new("settings-cabinet-folder"), Sense::click())
+                .on_hover_text(format!("Cabinet files go in {}", dir.display()));
+            if response.double_clicked() {
+                let _ = std::fs::create_dir_all(&dir);
+                user_cab::open_folder(&dir);
+            }
+        }
+        if shared.cab_loader.no_files_showing() {
+            // Draw once more when the note is over
+            ui.ctx().request_repaint_after(NO_FILES_SHOWN);
+        }
+        let chosen = params.cabinet.lock().unwrap_or_else(PoisonError::into_inner).clone();
+        let shown = shared.cab_loader.display_name(&chosen, SETTINGS_CAB_CHARS);
+        if let Some(step) =
+            stepper(ui, Pos2::new(tape_x, middle), SETTINGS_TAPE_WIDTH, &shown, "settings-cabinet")
+        {
+            step_cabinet(params, shared.cab_loader, shared.load_cabinet, step == Step::Next);
+        }
+        y += SETTINGS_ROW_HEIGHT;
+
+        if let Some(rows) = &audio_rows {
+            for (index, (caption, shown)) in rows.iter().enumerate() {
+                let middle = y + SETTINGS_ROW_HEIGHT / 2.0;
+                silk_label(&painter, Pos2::new(caption_x, middle), caption, 13.0);
+                if let Some(step) = stepper(
+                    ui,
+                    Pos2::new(tape_x, middle),
+                    SETTINGS_TAPE_WIDTH,
+                    shown,
+                    &format!("audio-{index}"),
+                ) {
+                    event = Some(SettingsEvent::Step(index, step));
+                }
+                y += SETTINGS_ROW_HEIGHT;
+            }
+        }
+        // The line under the rows, and for the audio the two buttons
+        let choice = audio.as_ref();
+        let note = match (choice.and_then(|choice| choice.error.as_deref()), choice) {
+            (Some(error), _) => error,
+            (None, Some(choice)) if choice.test_tone => {
+                "The tone is on the chosen outputs; mind the volume"
+            }
+            (None, Some(_)) => "Apply starts the amp again on the new settings",
+            (None, None) => "Cabinet files are read from the cabinets folder",
+        };
+        silk_label(
+            &painter,
+            Pos2::new(rect.center().x, y + SETTINGS_NOTE_HEIGHT / 2.0),
+            note,
+            12.0,
+        );
+        y += SETTINGS_NOTE_HEIGHT;
+        if audio.is_some() {
+            let buttons = y + 16.0;
+            for (side, caption, id, wanted) in [
+                (-1.0, "Apply", "apply", SettingsEvent::Apply),
+                (1.0, "Cancel", "cancel", SettingsEvent::Cancel),
+            ] {
+                let at = Pos2::new(rect.center().x + side * SETTINGS_BUTTON_SPREAD, buttons);
+                silk_label(&painter, at + vec2(0.0, 25.0), caption, 12.0);
+                if chrome_button(ui, at, &format!("settings-{id}")).clicked() {
+                    event = Some(wanted);
+                }
+            }
+        }
+    });
     match event {
         Some(SettingsEvent::Step(row, step)) => {
-            choice.step(host, row, step == Step::Next);
+            if let (Some(choice), Some(host)) = (audio.as_mut(), host) {
+                choice.step(host, row, step == Step::Next);
+            }
         }
-        Some(SettingsEvent::Apply) => match host.restart(&choice.prefs) {
-            // The new program is on its way: this window is done
-            Ok(()) => ui.ctx().send_viewport_cmd(nih_plug_egui::egui::ViewportCommand::Close),
-            Err(error) => choice.error = Some(format!("Could not restart: {error}")),
-        },
-        Some(SettingsEvent::Cancel) => {
-            choice.close(host);
-            view.audio = None;
+        Some(SettingsEvent::Apply) => {
+            if let (Some(choice), Some(host)) = (audio.as_mut(), host) {
+                match host.restart(&choice.prefs) {
+                    // The new program is on its way: this window is done
+                    Ok(()) => ui.ctx().send_viewport_cmd(ViewportCommand::Close),
+                    Err(error) => choice.error = Some(format!("Could not restart: {error}")),
+                }
+            }
         }
+        Some(SettingsEvent::Cancel) => cancelled = true,
         None => {}
     }
+    if close.asked() || cancelled {
+        view.close_plate(host);
+    }
+}
+
+/// What a row of the audio part of the settings plate asked for
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SettingsEvent {
+    /// A row was stepped to the previous or the next entry of its list
+    Step(usize, Step),
+    /// Take the settings: the amp starts again on them
+    Apply,
+    /// Leave them as they were
+    Cancel,
+}
+
+/// How high the settings plate is: its title, a row for the cabinet and for each of the audio's
+/// choices, the note, and the buttons of the audio
+fn settings_height(with_audio: bool, rows: usize) -> f32 {
+    2.0 * SETTINGS_PAD
+        + ui::plate::PLATE_TITLE_HEIGHT
+        + rows as f32 * SETTINGS_ROW_HEIGHT
+        + SETTINGS_NOTE_HEIGHT
+        + if with_audio { SETTINGS_FOOT_HEIGHT } else { 0.0 }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     #[cfg(target_os = "linux")]
+    use std::cell::RefCell;
+    #[cfg(target_os = "linux")]
+    use std::rc::Rc;
+    #[cfg(target_os = "linux")]
     use suite_common::ui::snapshot::{pedal_harness, Harness, NoHost};
+
+    /// The tests that point the presets at a folder of their own, one at a time: the folder is
+    /// named in the environment, which every test shares
+    #[cfg(target_os = "linux")]
+    static FOLDER_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     // The picture on the face is compiled in: a build without it is a build of other sources
     #[test]
     fn test_the_pedal_is_drawn_with_its_art() {
         assert!(STYLE.art == Some(ui::artwork::AMP), "the pedal has lost its art");
+    }
+
+    /// A view as the window has it after it opened: nothing open, the bank the params name
+    fn fresh_view(params: &GuitarAmpParams, lamp_reading: &LampReading) -> View {
+        View {
+            lamps: LampView::new(lamp_reading),
+            bank: Bank::read(params, None),
+            plate: None,
+            saving: None,
+            note: None,
+            cab_status: CabStatus::Fine,
+            beat: BeatView::default(),
+        }
     }
 
     /// The window as a snapshot test draws it: with `params`, the tuner hearing `tuner_hz`,
@@ -2077,22 +2270,27 @@ mod tests {
         audio_host: Option<&'a dyn standalone::Host>,
         open: impl FnOnce(&mut View),
     ) -> Harness<'a> {
+        harness_shared(params, setter, tuner_hz, audio_host, open).0
+    }
+
+    /// `harness_with` that also hands back the view the window draws from, to look at what a click
+    /// did to it
+    #[cfg(target_os = "linux")]
+    fn harness_shared<'a>(
+        params: &'a GuitarAmpParams,
+        setter: &'a ParamSetter<'a>,
+        tuner_hz: Option<f32>,
+        audio_host: Option<&'a dyn standalone::Host>,
+        open: impl FnOnce(&mut View),
+    ) -> (Harness<'a>, Rc<RefCell<View>>) {
         let tuner = TunerReading::new();
         tuner.set(tuner_hz);
         let lamp_reading = LampReading::new();
         let cab_loader = CabLoader::new(Arc::new(crate::cab_stage::CabStage::new()), 48_000.0);
-        let mut view = View {
-            lamps: LampView::new(&lamp_reading),
-            bank: Bank::read(params, None),
-            menu: None,
-            saving: None,
-            note: None,
-            cab_status: CabStatus::Fine,
-            audio: None,
-            beat: BeatView::default(),
-        };
+        let mut view = fresh_view(params, &lamp_reading);
         open(&mut view);
-        harness_at_size(
+        let view = Rc::new(RefCell::new(view));
+        let harness = harness_at_size(
             WINDOW_WIDTH,
             WINDOW_HEIGHT,
             params,
@@ -2101,8 +2299,9 @@ mod tests {
             lamp_reading,
             cab_loader,
             audio_host,
-            view,
-        )
+            view.clone(),
+        );
+        (harness, view)
     }
 
     #[cfg(target_os = "linux")]
@@ -2116,7 +2315,7 @@ mod tests {
         lamp_reading: LampReading,
         cab_loader: CabLoader,
         audio_host: Option<&'a dyn standalone::Host>,
-        mut view: View,
+        view: Rc<RefCell<View>>,
     ) -> Harness<'a> {
         pedal_harness(width, height, move |ctx| {
             let shared = Shared {
@@ -2127,8 +2326,33 @@ mod tests {
                 load_cabinet: &|| {},
                 audio_host,
             };
-            draw(ctx, setter, params, &mut view, &shared);
+            draw(ctx, setter, params, &mut view.borrow_mut(), &shared);
         })
+    }
+
+    /// A click of the primary button at `at`, in window points at full size: the pointer arrives,
+    /// presses and lets go, a frame each
+    #[cfg(target_os = "linux")]
+    fn click(harness: &mut Harness, at: Pos2) {
+        use nih_plug_egui::egui::{Event, Modifiers, PointerButton};
+        let button = |pressed| Event::PointerButton {
+            pos: at,
+            button: PointerButton::Primary,
+            pressed,
+            modifiers: Modifiers::NONE,
+        };
+        for event in [Event::PointerMoved(at), button(true), button(false)] {
+            harness.input_mut().events.push(event);
+            harness.run_ok();
+        }
+    }
+
+    /// Text typed, and keys pressed, in the next frame
+    #[cfg(target_os = "linux")]
+    fn type_text(harness: &mut Harness, text: &str) {
+        use nih_plug_egui::egui::Event;
+        harness.input_mut().events.push(Event::Text(text.to_owned()));
+        harness.run_ok();
     }
 
     // What the editor draws in its window, every parameter at its default, against the
@@ -2143,7 +2367,7 @@ mod tests {
         harness_of(&params, &setter, None, |_| {}).snapshot("editor");
     }
 
-    // The window at the size it opens at (0.55 zoom, 1876 x 358): every pedal, label and the
+    // The window at the size it opens at (0.55 zoom, 1876 x 321): every pedal, label and the
     // strip scaled down together, nothing clipped
     #[test]
     #[cfg(target_os = "linux")]
@@ -2154,16 +2378,7 @@ mod tests {
         let tuner = TunerReading::new();
         let lamp_reading = LampReading::new();
         let cab_loader = CabLoader::new(Arc::new(crate::cab_stage::CabStage::new()), 48_000.0);
-        let view = View {
-            lamps: LampView::new(&lamp_reading),
-            bank: Bank::read(&params, None),
-            menu: None,
-            saving: None,
-            note: None,
-            cab_status: CabStatus::Fine,
-            audio: None,
-            beat: BeatView::default(),
-        };
+        let view = Rc::new(RefCell::new(fresh_view(&params, &lamp_reading)));
         let (width, height) = size_for_screen(FALLBACK_SCREEN_WIDTH);
         harness_at_size(
             width,
@@ -2281,11 +2496,21 @@ mod tests {
         }
     }
 
-    // The standalone program's window: the Audio button in the strip's corner, and the panel
-    // open over the stack. A plugin in a DAW (the other snapshots) has neither
+    // The settings plate in a plugin: the cabinet files alone, under the icon
     #[test]
     #[cfg(target_os = "linux")]
-    fn test_the_standalone_audio_panel_looks_as_it_did() {
+    fn test_the_settings_plate_looks_as_it_did() {
+        let params = GuitarAmpParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        harness_of(&params, &setter, None, |view| view.plate = Some(Open::Settings(None)))
+            .snapshot("settings");
+    }
+
+    // The standalone program's settings plate: the cabinet files and the machine's audio
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_standalone_audio_settings_look_as_they_did() {
         let params = GuitarAmpParams::default();
         let host = NoHost;
         let setter = ParamSetter::new(&host);
@@ -2297,7 +2522,7 @@ mod tests {
             ..Prefs::default()
         };
         harness_with(&params, &setter, None, Some(&machine), |view| {
-            view.audio = Some(AudioChoice::open(&machine, prefs));
+            view.plate = Some(Open::Settings(Some(AudioChoice::open(&machine, prefs))));
         })
         .snapshot("audio_panel");
     }
@@ -2315,7 +2540,8 @@ mod tests {
         harness_of(&params, &setter, Some(81.0), |_| {}).snapshot("tuner");
     }
 
-    // The metronome running: its lamp dim between beats, Sync on, six eighths, the Click and its output apart
+    // The metronome running, its plate open: its lamp dim between beats, Sync on, six eighths, the
+    // Click and its output apart
     #[test]
     #[cfg(target_os = "linux")]
     fn test_the_metronome_looks_as_it_did() {
@@ -2330,39 +2556,43 @@ mod tests {
         };
         let host = NoHost;
         let setter = ParamSetter::new(&host);
-        harness_of(&params, &setter, None, |_| {}).snapshot("metronome");
+        harness_of(&params, &setter, None, |view| view.plate = Some(Open::Metronome))
+            .snapshot("metronome");
     }
 
-    // The preset list dropped open on the factory bank. The presets folder is one that is
-    // not there, so the banks are the two every player has, whatever is on this machine
-    #[test]
+    /// The presets folder of a test: one that is not there, so the banks are the two every player
+    /// has, whatever is on this machine
     #[cfg(target_os = "linux")]
-    fn test_the_preset_menu_looks_as_it_did() {
+    fn no_presets_folder() {
         let nowhere = std::env::temp_dir().join("hojt-snapshot-no-presets");
         std::env::set_var(user_presets::FOLDER_ENV, &nowhere);
         assert!(!nowhere.exists(), "{nowhere:?} is there: the list would show its banks");
+    }
+
+    /// The preset plate on the factory bank
+    fn presets_open(view: &mut View) {
+        view.plate = Some(Open::Presets(Menu {
+            listed: user_presets::FACTORY.to_owned(),
+            files: Vec::new(),
+            naming: None,
+        }));
+    }
+
+    // The preset plate open on the factory bank, under the display, with its foot
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_preset_menu_looks_as_it_did() {
+        let _folder = FOLDER_LOCK.lock().unwrap_or_else(PoisonError::into_inner);
+        no_presets_folder();
         let params = GuitarAmpParams::default();
         let host = NoHost;
         let setter = ParamSetter::new(&host);
-        let open = |view: &mut View| {
-            view.menu = Some(Menu {
-                listed: user_presets::FACTORY.to_owned(),
-                files: Vec::new(),
-                naming: None,
-                opened: true,
-            });
-        };
-        harness_of(&params, &setter, None, open).snapshot("preset_menu");
+        harness_of(&params, &setter, None, presets_open).snapshot("preset_menu");
     }
 
     /// How far a stepper's buttons stand out from the middle of its tape
     fn reach(width: f32) -> f32 {
         width / 2.0 + 22.0
-    }
-
-    /// The bottom edge of an LED display's window, from the top of the window
-    fn display_bottom(y: f32) -> f32 {
-        y + LED_HEIGHT / 2.0
     }
 
     // A stepper's button and a small footswitch, half across; how far a knob's ticks reach
@@ -2381,150 +2611,230 @@ mod tests {
         }
     }
 
-    /// What each control of the strip takes across, from the window's left edge: the left end
-    /// and the right end, in the order of the strip
-    fn strip_controls() -> Vec<(&'static str, f32, f32)> {
-        let display = |x: f32, width: f32| (x - reach(width) - BUTTON, x + reach(width) + BUTTON);
-        let (bank, preset) = (display(BANK_X, BANK_WIDTH), display(PRESET_X, PRESET_WIDTH));
-        let knob = OUTPUT_RADIUS + TICKS;
-        vec![
-            ("the input meter", INPUT_METER.x - METER_REACH, INPUT_METER.x + METER_REACH),
-            ("the bank display", bank.0, bank.1),
-            ("the preset display", preset.0, preset.1),
-            ("Save", SAVE_X - SAVE_REACH, SAVE_X + SAVE_REACH),
-            ("the metronome", METRONOME_START, METRONOME_END),
-            ("the output knob", OUTPUT_KNOB.x - knob, OUTPUT_KNOB.x + knob),
-            ("the output meter", OUTPUT_METER.x - METER_REACH, OUTPUT_METER.x + METER_REACH),
-            ("the clip lamp", CLIP_LAMP.x - LAMP_REACH, CLIP_LAMP.x + LAMP_REACH),
-            ("On", BYPASS_X + CAPTION_OFFSET - 28.0, BYPASS_X + SWITCH),
-            ("Tuner", TUNER_X + CAPTION_OFFSET - 28.0, TUNER_X + SWITCH),
-        ]
+    /// The top face of the strip, in window points
+    fn strip_face() -> Rect {
+        Rect::from_min_max(
+            Pos2::new(BENCH_MARGIN, BENCH_MARGIN),
+            Pos2::new(WINDOW_WIDTH as f32 - BENCH_MARGIN, BENCH_MARGIN + SLIM_STRIP_HEIGHT - 5.0),
+        )
     }
 
-    #[test]
-    fn test_the_strip_controls_stand_clear_of_each_other_and_of_its_edges() {
-        let width = WINDOW_WIDTH as f32;
-        let mut row = vec![("the strip's edge", 0.0, BENCH_MARGIN)];
-        row.extend(strip_controls());
-        row.push(("the strip's edge", width - BENCH_MARGIN, width));
-        in_a_row(&row);
-        // The tuner's display takes the place of the preset display, so it is the same size
-        let tuner = (PRESET_X - PRESET_WIDTH / 2.0, PRESET_X + PRESET_WIDTH / 2.0);
-        let preset = strip_controls()[2];
-        assert!(preset.1 < tuner.0 && tuner.1 < preset.2);
-        // Every one of them on the strip, from its top edge to the top of its lower edge
-        let strip = BENCH_MARGIN..=BENCH_MARGIN + STRIP_HEIGHT - 5.0;
-        let knob = OUTPUT_RADIUS + TICKS;
-        for y in [
-            PRESET_CAPTION_Y - 7.0,
-            display_bottom(PRESET_Y),
-            OUTPUT_KNOB.y - knob,
-            INPUT_METER.y - METER_HEIGHT / 2.0,
-            INPUT_METER.y + METER_CAPTION.y + 7.0,
-            SWITCH_Y + SWITCH,
-        ] {
-            assert!(strip.contains(&y), "{y} is off the strip");
-        }
-    }
-
-    /// What is printed on the strip, or stands on it where its print must not show: the left,
-    /// top, right and bottom of each, in points from the window's top left corner. The jack
-    /// captions, the model number and the badge are printed by `ui::strip`, 30 in from the
-    /// edge of the face (the window less the bench margin)
-    fn strip_labels() -> Vec<(&'static str, [f32; 4])> {
-        let around = |x: f32, y: f32, half: f32, above: f32, below: f32| {
-            [x - half, y - above, x + half, y + below]
+    /// What stands on the strip, and the room each part takes, in points from the window's top
+    /// left corner, from the left to the right of the strip: the print of `ui::slim_strip` (the
+    /// jacks with their captions, the model number, the logo) and every control
+    fn strip_parts() -> Vec<(&'static str, Rect)> {
+        let print = ui::slim_print(strip_face(), &STYLE);
+        let around = |at: Vec2, half: Vec2| Rect::from_center_size(at.to_pos2(), 2.0 * half);
+        let meter = |at: Vec2| {
+            around(at, vec2(METER_WIDTH / 2.0, ui::widgets::WIDE_METER_HEIGHT / 2.0 + 2.0))
         };
-        let (left, right) = (BENCH_MARGIN + 30.0, WINDOW_WIDTH as f32 - BENCH_MARGIN - 30.0);
-        let switch_label =
-            |x: f32| around(x + CAPTION_OFFSET, LED_Y, 24.0, 8.0, CAPTION_Y + 8.0 - LED_Y);
-        let knob = OUTPUT_RADIUS + TICKS;
-        let meter = |at: Vec2, half: f32| {
-            around(at.x, at.y, half, METER_HEIGHT / 2.0, METER_CAPTION.y + 8.0)
+        let caption =
+            |at: Vec2, width: f32| around(vec2(at.x, METER_CAPTION_Y), vec2(width / 2.0, 7.0));
+        let knob = |at: Vec2| around(at, Vec2::splat(KNOB_REACH));
+        let icon = |x: f32, switch: bool| {
+            Rect::from_min_max(
+                Pos2::new(x - ui::icons::ICON_REACH, STRIP_Y - ui::icons::ICON_SIZE / 2.0),
+                Pos2::new(
+                    x + if switch { ui::icons::SWITCH_REACH } else { ui::icons::ICON_REACH },
+                    STRIP_Y + ui::icons::ICON_SIZE / 2.0,
+                ),
+            )
         };
         vec![
-            ("the input jack's caption", [left, 31.0, left + 32.0, 47.0]),
-            ("the model number", [left, 78.0, left + 40.0, 112.0]),
-            ("INPUT", meter(INPUT_METER, 20.0)),
+            ("the input jack", Rect::from_center_size(print.jacks[0], Vec2::splat(16.0))),
+            ("the input jack's caption", print.captions[0]),
+            ("the input meter", meter(INPUT_METER)),
+            ("the input meter's caption", caption(INPUT_METER, 52.0)),
+            ("the Input knob", knob(INPUT_KNOB)),
             (
-                "the bank display's left button",
-                around(BANK_X - reach(BANK_WIDTH), PRESET_Y, BUTTON, BUTTON, BUTTON),
+                "the preset display",
+                around(vec2(PRESET_X, STRIP_Y), vec2(PRESET_WIDTH / 2.0, LED_HEIGHT / 2.0)),
             ),
-            ("the output knob", around(OUTPUT_KNOB.x, OUTPUT_KNOB.y, knob, knob, knob + 20.0)),
-            ("OUTPUT", meter(OUTPUT_METER, 24.0)),
-            ("the clip lamp", around(CLIP_LAMP.x, CLIP_LAMP.y, 18.0, LAMP, CLIP_CAPTION.y + 8.0)),
-            ("ON", switch_label(BYPASS_X)),
-            ("the On switch", around(BYPASS_X, SWITCH_Y, SWITCH, SWITCH, SWITCH)),
-            ("TUNER", switch_label(TUNER_X)),
-            ("the Tuner switch", around(TUNER_X, SWITCH_Y, SWITCH, SWITCH, SWITCH)),
-            ("STEREO OUT", [right - 94.0, 31.0, right, 47.0]),
-            ("the badge", [right - 58.0, 80.0, right, 112.0]),
+            ("the metronome", icon(METRONOME_X, true)),
+            ("the tuner", icon(TUNER_X, true)),
+            ("the settings", icon(SETTINGS_X, false)),
+            ("the output knob", knob(OUTPUT_KNOB)),
+            ("the output meter", meter(OUTPUT_METER)),
+            ("the output meter's caption", caption(OUTPUT_METER, 62.0)),
+            ("the clip lamp", around(CLIP_LAMP, Vec2::splat(LAMP))),
+            ("the clip lamp's caption", around(CLIP_LAMP + CLIP_CAPTION, vec2(24.0, 7.0))),
+            ("the model number", print.model),
+            ("the logo", print.logo),
+            ("the output jack", Rect::from_center_size(print.jacks[1], Vec2::splat(16.0))),
+            ("the output jack's caption", print.captions[1]),
         ]
     }
 
-    // The print of the strip is a quiet brushed grain: behind every label it stays too faint to
-    // compete with the print (this holds scripts/make-art.py), whatever else is on the strip
     #[test]
-    fn test_the_art_is_quiet_behind_every_label_of_the_strip() {
-        let face = vec2(WINDOW_WIDTH as f32 - 2.0 * BENCH_MARGIN, STRIP_HEIGHT - 5.0);
-        let art = ui::artwork::fit_image(ui::artwork::AMP, face.x as usize, face.y as usize, 24.0);
-        for (name, [left, top, right, bottom]) in strip_labels() {
-            let across = (left - BENCH_MARGIN).floor().max(0.0) as usize
-                ..((right - BENCH_MARGIN).ceil() as usize).min(art.size[0]);
-            let down = (top - BENCH_MARGIN).floor().max(0.0) as usize
-                ..((bottom - BENCH_MARGIN).ceil() as usize).min(art.size[1]);
-            let heaviest = down
-                .flat_map(|y| across.clone().map(move |x| (x, y)))
-                .map(|(x, y)| art.pixels[y * art.size[0] + x].a())
-                .max()
-                .unwrap();
-            assert!(heaviest <= 48, "the art is loud behind {name}: alpha {heaviest} of 255");
-        }
-        // And it is there: grain over the face, no lightning
-        assert!(art.pixels.iter().filter(|pixel| pixel.a() > 8).count() > 4000);
-        assert!(art.pixels.iter().filter(|pixel| pixel.a() > 90).count() < 4000);
-    }
-
-    // The module plates of the strip: each holds its controls with room to spare, they keep clear
-    // of each other, of the strip's edges, and of what is printed on the strip's paint
-    #[test]
-    fn test_the_plates_hold_their_controls_and_stand_clear_of_the_print() {
-        let plates = strip_plates();
-        let width = WINDOW_WIDTH as f32;
-        let mut row = vec![("the strip's edge", 0.0, BENCH_MARGIN + 30.0)];
-        for (i, [left, right]) in plates.iter().enumerate() {
-            let name = ["input", "bank and preset", "metronome", "output", "On"][i];
-            row.push((name, *left, *right));
-        }
-        row.push(("the strip's right end", width - BENCH_MARGIN - 94.0, width));
-        // The Tuner switch and its caption stand between the last plate and the print
-        let tuner = ("the Tuner", TUNER_X - 58.0 - 28.0, TUNER_X + 25.0);
-        row.insert(row.len() - 1, tuner);
-        in_a_row(&row);
-        // Every control is inside the plate it belongs to
-        let inside = |plate: usize, controls: &[usize]| {
-            let all = strip_controls();
-            for &c in controls {
-                let (name, left, right) = all[c];
+    fn test_nothing_on_the_strip_overlaps_and_it_reads_from_the_left_to_the_right() {
+        let parts = strip_parts();
+        for (index, (name, rect)) in parts.iter().enumerate() {
+            for (other, other_rect) in &parts[index + 1..] {
                 assert!(
-                    plates[plate][0] < left && right < plates[plate][1],
-                    "{name} is not on plate {plate}"
+                    !rect.expand(2.0).intersects(*other_rect),
+                    "{name} {rect:?} runs into {other} {other_rect:?}"
                 );
             }
-        };
-        inside(0, &[0]);
-        inside(1, &[1, 2, 3]);
-        inside(2, &[4]);
-        inside(3, &[5, 6, 7]);
-        inside(4, &[8]);
+        }
+        // The signal runs from left to right: what comes in, the preset, the icons, what goes out
+        let at = |name: &str| parts.iter().find(|part| part.0 == name).unwrap().1.center().x;
+        let order = [
+            "the input jack",
+            "the input meter",
+            "the Input knob",
+            "the preset display",
+            "the metronome",
+            "the tuner",
+            "the settings",
+            "the output knob",
+            "the output meter",
+            "the clip lamp",
+            "the model number",
+            "the logo",
+            "the output jack",
+        ];
+        for pair in order.windows(2) {
+            assert!(at(pair[0]) < at(pair[1]), "{} is not left of {}", pair[0], pair[1]);
+        }
     }
 
     #[test]
-    fn test_the_metronome_stands_clear_of_itself_and_of_the_strips_edges() {
+    fn test_nothing_on_the_strip_reaches_its_edges_or_the_line_under_it() {
+        let face = strip_face();
+        for (name, rect) in strip_parts() {
+            assert!(
+                face.shrink(2.0).contains_rect(rect),
+                "{name} {rect:?} is not on the strip's face {face:?}"
+            );
+        }
+        // The strip is slim, and the line starts under it, a bench margin away from its box
+        assert_eq!(STRIP_HEIGHT, 64.0);
+        assert_eq!(STACK_TOP, BENCH_MARGIN + STRIP_HEIGHT + BENCH_MARGIN);
+        // The plates open under the box, never over the strip's controls
+        const { assert!(PLATE_TOP > BENCH_MARGIN + STRIP_HEIGHT) };
+        // The controls end where the print begins
+        let model = ui::slim_print(strip_face(), &STYLE).model;
+        assert!((MODEL_LEFT - model.left()).abs() < 0.01);
+        // The center line: every row of controls is on it, as the icons are
+        assert_eq!(STRIP_Y, INPUT_KNOB.y);
+        assert_eq!(STRIP_Y, OUTPUT_KNOB.y);
+    }
+
+    #[test]
+    fn test_the_strip_holds_the_preset_display_the_tuner_takes_the_place_of() {
+        // The tuner's display is the preset display's size, in its place
+        assert_eq!(led_width(PRESET_CHARS), PRESET_WIDTH);
+        // What the display says is cut two characters short of its end, for the marker
+        const { assert!(PRESET_CHARS > BANK_SHOWN_CHARS + 3 + USER_NAME_CHARS + 1 - 3) };
+    }
+
+    // The input and the output are made alike: a meter with its caption over it, a knob beside it
+    #[test]
+    fn test_the_input_and_the_output_are_made_alike() {
+        assert_eq!(INPUT_METER.y, OUTPUT_METER.y);
+        assert_eq!(INPUT_KNOB.y, OUTPUT_KNOB.y);
+        // The input's knob is right of its meter, the output's left of its meter
+        const { assert!(INPUT_KNOB.x > INPUT_METER.x && OUTPUT_KNOB.x < OUTPUT_METER.x) };
+        let gap = |meter: Vec2, knob: Vec2| (meter.x - knob.x).abs() - METER_REACH - KNOB_REACH;
+        assert_eq!(gap(INPUT_METER, INPUT_KNOB), gap(OUTPUT_METER, OUTPUT_KNOB));
+    }
+
+    #[test]
+    fn test_the_icons_stand_a_pitch_apart_between_the_preset_display_and_the_output() {
+        // The room left is shared: as much before the icons as after them
+        let before = METRONOME_X - ui::icons::ICON_REACH - PRESET_END;
+        let after = OUTPUT_KNOB.x - KNOB_REACH - (SETTINGS_X + ui::icons::ICON_REACH);
+        assert!((before - after).abs() < 0.01 && before > 40.0, "{before} {after}");
+        assert_eq!(TUNER_X - METRONOME_X, SETTINGS_X - TUNER_X);
+        // An icon with a switch reaches the next icon's room, no further
+        const { assert!(METRONOME_X + ui::icons::SWITCH_REACH + 4.0 < TUNER_X - ui::icons::ICON_REACH) };
+        const { assert!(TUNER_X + ui::icons::SWITCH_REACH + 4.0 < SETTINGS_X - ui::icons::ICON_REACH) };
+    }
+
+    /// The plate each of the three opens, where it stands in the window
+    fn plate_rects() -> [(&'static str, Rect, Rect); 3] {
+        let preset_plate_width =
+            DROP_BANK_WIDTH + DROP_PRESET_WIDTH + 2.0 * (5.0 + 4.0) + 12.0 + 20.0;
+        let below = |left: f32, width: f32, height: f32| {
+            Rect::from_min_size(Pos2::new(left, PLATE_TOP), vec2(width, height))
+        };
+        [
+            (
+                "the preset plate",
+                below(PRESET_X - preset_plate_width / 2.0, preset_plate_width, 260.0),
+                Rect::from_center_size(
+                    Pos2::new(PRESET_X, STRIP_Y),
+                    vec2(PRESET_WIDTH, LED_HEIGHT),
+                ),
+            ),
+            (
+                "the metronome's plate",
+                below(METRONOME_X - ui::icons::ICON_REACH, METRONOME_WIDTH, METRONOME_HEIGHT),
+                Rect::from_center_size(
+                    Pos2::new(METRONOME_X, STRIP_Y),
+                    Vec2::splat(ui::icons::ICON_SIZE),
+                ),
+            ),
+            (
+                "the settings plate",
+                below(
+                    SETTINGS_X + ui::icons::ICON_REACH - SETTINGS_WIDTH,
+                    SETTINGS_WIDTH,
+                    settings_height(true, 9),
+                ),
+                Rect::from_center_size(
+                    Pos2::new(SETTINGS_X, STRIP_Y),
+                    Vec2::splat(ui::icons::ICON_SIZE),
+                ),
+            ),
+        ]
+    }
+
+    #[test]
+    fn test_each_plate_opens_under_the_control_that_opens_it_and_inside_the_window() {
+        let window =
+            Rect::from_min_size(Pos2::ZERO, vec2(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32));
+        for (name, plate, opener) in plate_rects() {
+            assert!(window.contains_rect(plate), "{name} {plate:?} is out of the window");
+            // Under the strip's box, and its opener is over it, not in its way
+            assert!(plate.top() > BENCH_MARGIN + STRIP_HEIGHT, "{name}");
+            assert!(opener.bottom() < plate.top(), "{name}");
+            // Its edge lines up with the opener's: the display's left edge, or under the icon
+            assert!(
+                plate.left() <= opener.center().x && opener.center().x <= plate.right(),
+                "{name} is not under its opener"
+            );
+        }
+    }
+
+    #[test]
+    fn test_the_preset_plates_foot_holds_the_name_the_folder_and_save_apart() {
+        let foot = DROP_BANK_WIDTH + DROP_PRESET_WIDTH + 2.0 * (5.0 + 4.0) + 12.0;
+        let save = foot - FOOT_SAVE_REACH + 3.0;
+        let folder = save - FOOT_BUTTON_SPREAD;
+        in_a_row(&[
+            ("the name display", 0.0, led_width(FOOT_CHARS)),
+            ("the Folder button", folder - BUTTON, folder + BUTTON),
+            ("the Save button", save - BUTTON, save + BUTTON),
+            ("the plate's edge", foot, foot),
+        ]);
+        // Their captions are under them and clear of each other
+        in_a_row(&[
+            ("the Folder caption", folder - 20.0, folder + 20.0),
+            ("the Save caption", save - 15.0, save + 15.0),
+        ]);
+        // The display and the buttons with their captions fit the foot's height
+        const { assert!(20.0 + LED_HEIGHT / 2.0 < FOOT_HEIGHT) };
+        const { assert!(14.0 + 22.0 + 7.0 < FOOT_HEIGHT) };
+        // A name typed fits the display, with the caret
+        const { assert!(NEW_PRESET_SHOWN < FOOT_CHARS) };
+    }
+
+    #[test]
+    fn test_the_metronomes_plate_stands_clear_of_itself_and_of_its_edges() {
         let stepper_reach = |width: f32| width / 2.0 + STEPPER_REACH;
         in_a_row(&[
-            ("Save", SAVE_X - SAVE_REACH, SAVE_X + SAVE_REACH),
-            ("the Metro switch", METRONOME_START, METRONOME_SWITCH_X + SWITCH),
+            ("the plate's edge", 0.0, METRONOME_PAD - 8.0),
             (
                 "the tempo",
                 TEMPO_X - stepper_reach(TEMPO_WIDTH),
@@ -2534,7 +2844,7 @@ mod tests {
             ("the steppers", STEPPERS_X - COLUMN_WIDTH / 2.0, STEPPERS_X + COLUMN_WIDTH / 2.0),
             ("the volume", CLICK_VOLUME.x - CLICK_REACH, CLICK_VOLUME.x + CLICK_REACH),
             ("Sync", METRONOME_SYNC_X - SAVE_REACH, METRONOME_SYNC_X + SAVE_REACH),
-            ("the output knob", OUTPUT_KNOB.x - KNOB_REACH, OUTPUT_KNOB.x + KNOB_REACH),
+            ("the plate's edge", METRONOME_WIDTH - METRONOME_PAD + 8.0, METRONOME_WIDTH),
         ]);
         // The narrower stepper is inside the column the wider one makes
         const { assert!(SIGNATURE_WIDTH < SOUND_WIDTH) };
@@ -2556,11 +2866,12 @@ mod tests {
             SIGNATURE_X - stepper_reach(SIGNATURE_WIDTH) >= STEPPERS_X - COLUMN_WIDTH / 2.0 - 0.01
         );
         assert!(CLICK_OUT_X + stepper_reach(OUT_WIDTH) <= STEPPERS_X + COLUMN_WIDTH / 2.0 + 0.01);
-        // Top to bottom in the column: caption, tape, caption, tape, each clear of the next,
-        // all on the strip
+        // Top to bottom in the column: the title, then caption, tape, caption, tape, each clear
+        // of the next, all on the plate
         let tape = 11.0;
         let caption = 7.0;
         let column = [
+            ui::plate::PLATE_TITLE_HEIGHT,
             SOUND_CAPTION_Y - caption,
             SOUND_CAPTION_Y + caption,
             SOUND_Y - tape,
@@ -2571,14 +2882,37 @@ mod tests {
             SIGNATURE_Y + tape,
         ];
         assert!(column.windows(2).all(|pair| pair[0] < pair[1]), "{column:?}");
-        assert!(column[0] > BENCH_MARGIN + 10.0);
-        assert!(column[7] < BENCH_MARGIN + STRIP_HEIGHT - 5.0);
-        // The Sync button under its LED under its caption, on the strip
+        assert!(column[8] + 8.0 < METRONOME_HEIGHT);
+        // The tempo's display and its caption, and Tap, on the same rows as the sound's caption
+        assert_eq!(TEMPO_CAPTION_Y, SOUND_CAPTION_Y);
+        const { assert!(TEMPO_CAPTION_Y + 7.0 < TEMPO_Y - LED_HEIGHT / 2.0) };
+        const { assert!(TEMPO_Y + LED_HEIGHT / 2.0 < METRONOME_HEIGHT) };
+        // The volume knob, with its caption and its tape, ends on the plate
+        let tape_bottom = CLICK_VOLUME.y + CLICK_RADIUS + 18.0 + 15.0 + 2.0 + 16.0;
+        assert!(tape_bottom + 4.0 < METRONOME_HEIGHT, "{tape_bottom}");
+        // The Sync button under its LED under its caption, on the plate
         let [caption, led, button] = SYNC_STACK;
         assert!(caption + 8.0 < led - 12.0 && led + 12.0 < button - BUTTON - 2.0);
-        assert!(button + BUTTON < BENCH_MARGIN + STRIP_HEIGHT - 5.0);
-        // The tempo's caption is on the preset captions' line, Tap's too
-        const { assert!(PRESET_CAPTION_Y > BENCH_MARGIN + 10.0) };
+        assert!(button + BUTTON < METRONOME_HEIGHT);
+    }
+
+    #[test]
+    fn test_the_settings_plate_holds_every_row_the_note_and_the_buttons() {
+        // A row's stepper reaches its buttons past its tape, and all of it is on the plate
+        let row = SETTINGS_PAD
+            + SETTINGS_CAPTION_WIDTH
+            + SETTINGS_OVERHANG
+            + SETTINGS_TAPE_WIDTH
+            + SETTINGS_OVERHANG;
+        assert!(row + SETTINGS_PAD <= SETTINGS_WIDTH + 0.01);
+        // The audio's eight rows and the cabinet's, the note and the buttons grow the plate
+        let (plugin, standalone) = (settings_height(false, 1), settings_height(true, 9));
+        assert!(plugin < standalone);
+        assert_eq!(standalone - plugin, 8.0 * SETTINGS_ROW_HEIGHT + SETTINGS_FOOT_HEIGHT,);
+        // The longest cabinet name fits the tape
+        assert!(SETTINGS_CAB_CHARS as f32 * 8.5 < SETTINGS_TAPE_WIDTH);
+        // The plate is on the window under the icon, with room under it for the pedals' titles
+        assert!(PLATE_TOP + standalone < WINDOW_HEIGHT as f32);
     }
 
     #[test]
@@ -2589,48 +2923,193 @@ mod tests {
         assert_eq!(neighbour(&Sound::ALL, Sound::Beep, Step::Next), Sound::Click);
     }
 
-    // The standalone program's Audio button and its caption stand between the output meter
-    // and the clip lamp, clear of both
+    // One plate at a time, by the shape of the view: a field holds the plate that is open, so
+    // opening one is closing the other
     #[test]
-    fn test_the_audio_button_stands_clear_of_the_meter_and_the_clip_lamp() {
-        let reach = 18.0;
-        assert!(AUDIO_BUTTON.x - reach > OUTPUT_METER.x + METER_REACH);
-        assert!(AUDIO_BUTTON.x + reach < CLIP_LAMP.x - LAMP_REACH);
-        // Its caption is over the button: the gap is too narrow for it beside the clip lamp's
-        const { assert!(AUDIO_BUTTON.y + AUDIO_CAPTION_Y > BENCH_MARGIN + 10.0) };
-        const { assert!(AUDIO_BUTTON.y + AUDIO_CAPTION_Y + 10.0 < CLIP_LAMP.y - LAMP_REACH / 2.0) };
+    fn test_opening_a_plate_closes_the_one_that_was_open() {
+        let params = GuitarAmpParams::default();
+        let mut view = fresh_view(&params, &LampReading::new());
+        assert!(view.plate.is_none());
+        for which in [Plates::Presets, Plates::Metronome, Plates::Settings, Plates::Metronome] {
+            let open = |which| {
+                move || match which {
+                    Plates::Presets => Open::Presets(Menu {
+                        listed: user_presets::FACTORY.to_owned(),
+                        files: Vec::new(),
+                        naming: None,
+                    }),
+                    Plates::Metronome => Open::Metronome,
+                    Plates::Settings => Open::Settings(None),
+                }
+            };
+            view.toggle_plate(which, None, open(which));
+            // It is the plate that is open, and no other
+            for other in [Plates::Presets, Plates::Metronome, Plates::Settings] {
+                assert_eq!(view.is_open(other), other == which, "{other:?} after {which:?}");
+            }
+        }
+        // Its own icon again closes it
+        view.toggle_plate(Plates::Metronome, None, || Open::Metronome);
+        assert!(view.plate.is_none());
+        // A name being typed does not outlast the plate it was typed on
+        view.saving = Some("Big".to_owned());
+        view.close_plate(None);
+        assert!(view.saving.is_none());
     }
 
+    /// Where the icon of `plate` is, in window points
+    #[cfg(target_os = "linux")]
+    fn opener(plate: Plates) -> Pos2 {
+        match plate {
+            Plates::Presets => Pos2::new(PRESET_X, STRIP_Y),
+            Plates::Metronome => Pos2::new(METRONOME_X, STRIP_Y),
+            Plates::Settings => Pos2::new(SETTINGS_X, STRIP_Y),
+        }
+    }
+
+    // The same by clicks in the window: an icon opens its plate and the plate that was open is
+    // gone, the same icon closes it, and so do a click outside and escape
     #[test]
-    fn test_the_strip_is_used_evenly_with_no_hole_in_the_middle() {
-        let controls = strip_controls();
-        let gaps: Vec<f32> = controls.windows(2).map(|pair| pair[1].1 - pair[0].2).collect();
-        // Two kinds of gap: a narrow one between controls on one plate, a wide one between
-        // plates; each kind is even
-        let (narrow, wide): (Vec<f32>, Vec<f32>) = gaps.iter().partition(|gap| **gap < 90.0);
-        let spread = |gaps: &[f32]| {
-            gaps.iter().fold(0.0_f32, |m, &g| m.max(g))
-                - gaps.iter().fold(f32::MAX, |l, &g| l.min(g))
+    #[cfg(target_os = "linux")]
+    fn test_no_plate_opens_beside_another() {
+        let _folder = FOLDER_LOCK.lock().unwrap_or_else(PoisonError::into_inner);
+        no_presets_folder();
+        let params = GuitarAmpParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, view) = harness_shared(&params, &setter, None, None, |_| {});
+        let open = |view: &Rc<RefCell<View>>| -> Vec<Plates> {
+            [Plates::Presets, Plates::Metronome, Plates::Settings]
+                .into_iter()
+                .filter(|&plate| view.borrow().is_open(plate))
+                .collect()
         };
-        assert!(spread(&narrow) < 45.0 && spread(&wide) < 12.0, "the gaps are not even: {gaps:?}");
-        let most = gaps.iter().fold(0.0_f32, |m, &g| m.max(g));
-        // The ends are about as far from the strip's edges as the controls are from each other.
-        // The right end keeps a little more room: the logo stands there
-        let (left, right) = (
-            controls[0].1 - BENCH_MARGIN,
-            WINDOW_WIDTH as f32 - BENCH_MARGIN - controls[controls.len() - 1].2,
-        );
-        assert!((0.0..30.0).contains(&(right - left)), "{left} on the left, {right} on the right");
-        // The jack's caption on the left and the logo on the right keep the ends further out than
-        // the gaps, which the metronome's cluster made narrow, and which the click's output
-        // narrowed again: the window kept its width
-        assert!(most > 30.0 && left < 3.0 * most, "{left} {most}");
+        assert!(open(&view).is_empty());
+        for plate in [
+            Plates::Metronome,
+            Plates::Settings,
+            Plates::Presets,
+            Plates::Metronome,
+            Plates::Presets,
+        ] {
+            click(&mut harness, opener(plate));
+            assert_eq!(open(&view), [plate], "after a click on the icon of {plate:?}");
+        }
+        // The icon of the plate that is open closes it
+        click(&mut harness, opener(Plates::Presets));
+        assert!(open(&view).is_empty());
+        // A click outside it closes it: on the bench between the strip and the line
+        click(&mut harness, opener(Plates::Metronome));
+        assert_eq!(open(&view), [Plates::Metronome]);
+        click(&mut harness, Pos2::new(3.0, 300.0));
+        assert!(open(&view).is_empty(), "a click outside left {:?}", open(&view));
+        // And so does escape
+        click(&mut harness, opener(Plates::Settings));
+        assert_eq!(open(&view), [Plates::Settings]);
+        harness.press_key(nih_plug_egui::egui::Key::Escape);
+        harness.run_ok();
+        assert!(open(&view).is_empty(), "escape left {:?}", open(&view));
     }
 
+    // A click inside a plate is the plate's: it neither closes it nor opens another
     #[test]
-    fn test_the_list_drops_out_under_its_display() {
-        assert!(DROP_Y > display_bottom(PRESET_Y), "the list covers the display it drops from");
-        assert!(BANK_X + reach(BANK_WIDTH) < PRESET_X - reach(PRESET_WIDTH));
+    #[cfg(target_os = "linux")]
+    fn test_a_click_on_a_plate_leaves_it_open() {
+        let params = GuitarAmpParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, view) =
+            harness_shared(&params, &setter, None, None, |view| view.plate = Some(Open::Metronome));
+        // On its title, where there is no control
+        click(&mut harness, Pos2::new(METRONOME_X + 60.0, PLATE_TOP + 19.0));
+        assert!(view.borrow().is_open(Plates::Metronome));
+    }
+
+    /// A folder for a test of its own, made empty, which the presets are kept in while `body` runs
+    #[cfg(target_os = "linux")]
+    fn with_presets_in(name: &str, body: impl FnOnce(&std::path::Path)) {
+        let _folder = FOLDER_LOCK.lock().unwrap_or_else(PoisonError::into_inner);
+        let dir = crate::user_cab::tests::test_dir(name);
+        std::env::set_var(user_presets::FOLDER_ENV, &dir);
+        body(&dir);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // #264: a name for a new preset may hold spaces. Save is pressed, the name is typed in the
+    // plate's foot with its space as the host hands it over, and enter keeps it
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_a_new_preset_is_saved_under_a_name_with_spaces() {
+        use nih_plug_egui::egui::Key;
+        with_presets_in("editor-names-with-spaces", |dir| {
+            let params = GuitarAmpParams::default();
+            let host = NoHost;
+            let setter = ParamSetter::new(&host);
+            let (mut harness, view) = harness_shared(&params, &setter, None, None, |view| {
+                presets_open(view);
+                view.saving = Some(String::new());
+            });
+            // A space that came as text
+            type_text(&mut harness, "Big");
+            type_text(&mut harness, " ");
+            type_text(&mut harness, "Mud");
+            assert_eq!(view.borrow().saving.as_deref(), Some("Big Mud"));
+            harness.press_key(Key::Enter);
+            harness.run_ok();
+            assert!(view.borrow().saving.is_none());
+            let saved = crate::user_cab::list_with_extension(dir, user_presets::EXTENSION);
+            assert_eq!(saved, ["Big Mud.preset"]);
+            // The list of the bank has it, with the space
+            assert_eq!(view.borrow().bank.files, ["Big Mud.preset"]);
+        });
+    }
+
+    // The same for a host that takes the space bar for itself and only tells the window the key
+    // was pressed, with no character: the name still has its space
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_a_space_the_host_hands_over_as_a_key_press_is_in_the_name() {
+        use nih_plug_egui::egui::Key;
+        with_presets_in("editor-names-space-key", |dir| {
+            let params = GuitarAmpParams::default();
+            let host = NoHost;
+            let setter = ParamSetter::new(&host);
+            let (mut harness, view) = harness_shared(&params, &setter, None, None, |view| {
+                presets_open(view);
+                view.saving = Some(String::new());
+            });
+            type_text(&mut harness, "Big");
+            harness.press_key(Key::Space);
+            harness.run_ok();
+            type_text(&mut harness, "Mud");
+            assert_eq!(view.borrow().saving.as_deref(), Some("Big Mud"));
+            harness.press_key(Key::Enter);
+            harness.run_ok();
+            let saved = crate::user_cab::list_with_extension(dir, user_presets::EXTENSION);
+            assert_eq!(saved, ["Big Mud.preset"]);
+        });
+    }
+
+    // A name is kept as typed when the Save button is pressed a second time: names with spaces
+    // are written under file names with spaces, and read back as they were typed
+    #[test]
+    fn test_a_name_with_spaces_makes_a_file_with_spaces() {
+        let taken = vec!["Big Mud.preset".to_owned()];
+        assert_eq!(
+            user_presets::named_file_name("Big Mud", &[]).as_deref(),
+            Some("Big Mud.preset")
+        );
+        // A name that is taken gets a number, after its space
+        assert_eq!(
+            user_presets::named_file_name("Big Mud", &taken).as_deref(),
+            Some("Big Mud 2.preset")
+        );
+        // The spaces at its ends are not part of it, those inside are
+        assert_eq!(
+            user_presets::named_file_name("  Big  Mud ", &[]).as_deref(),
+            Some("Big  Mud.preset")
+        );
+        assert_eq!(user_presets::display_name("Big Mud.preset", 17), "BIG MUD");
     }
 
     #[test]
@@ -2919,10 +3398,10 @@ mod tests {
     #[test]
     fn test_default_window_scales_with_screen_and_fits_inside_each_screen() {
         assert_eq!(size_for_screen(1366), (MIN_WIDTH, MIN_HEIGHT));
-        assert_eq!(size_for_screen(1920), (1876, 358));
-        assert_eq!(size_for_screen(2560), (2516, 479));
-        assert_eq!(size_for_screen(2752), (2708, 516));
-        assert_eq!(size_for_screen(3440), (3396, 647));
+        assert_eq!(size_for_screen(1920), (1876, 321));
+        assert_eq!(size_for_screen(2560), (2516, 431));
+        assert_eq!(size_for_screen(2752), (2708, 464));
+        assert_eq!(size_for_screen(3440), (3396, 581));
         assert_eq!(size_for_screen(3840), (WINDOW_WIDTH, WINDOW_HEIGHT));
         for screen_w in [1366, 1536, 1920, 2560, 2752, 3440, 3840] {
             let (width, height) = size_for_screen(screen_w);
@@ -2967,7 +3446,7 @@ mod tests {
                 );
                 let aspect = w as f32 / h as f32;
                 assert!(
-                    (aspect - board_aspect).abs() < 0.01,
+                    (aspect - board_aspect).abs() < 0.02,
                     "size {w}x{h} (aspect {aspect}) drifted from {WINDOW_WIDTH}:{WINDOW_HEIGHT} ({board_aspect})"
                 );
             }

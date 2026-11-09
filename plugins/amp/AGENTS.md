@@ -74,7 +74,7 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
 - `src/standalone.rs` - The standalone program's settings (`Prefs`, saved as
   `amp-standalone.json` in the system's settings folder or `HOJT_CONFIG_DIR`), the `Host` trait
   `main.rs` implements with cpal to list devices and restart, and the Audio panel's choices. The
-  panel itself is `suite_common::ui::settings`. nih-plug's host opens its streams once from its
+  panel itself is the rows of the settings plate in `editor.rs` (`settings_plate`). nih-plug's host opens its streams once from its
   command line, so Apply saves and starts the program again; no host is installed in a DAW and
   the editor then shows no Audio button. Eight rows: Driver, Input, Input channels, Output,
   Output channels, Buffer, Sample rate, Test tone. Channels are the amp's stereo pair (the first
@@ -93,9 +93,11 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   from a new process and exits at once, since closing the window with ASIO streams open hangs
 - The exe carries the HØJT badge (`assets/amp.ico`, `assets/amp.rc`, `build.rs`) and
   `give_window_the_icon` in `main.rs` sets it on the window, which the framework makes without one
-- `src/editor.rs` - egui GUI (3411 x 650 board, opened scaled to the screen up to 3411 x 650 or 1876 x 358 on a 1920 x 1080 screen, and resizable from 0.4 to 1.0 by its corner handle): the oxblood strip across the top with the
-  Bank and Preset displays, the list they drop open, or the tuner display in its left wing and
-  Output, meters, Clip, On and Tuner in its right; the stack (two lanes, one per amp: its head
+- `src/editor.rs` - egui GUI (3411 x 584 board, opened scaled to the screen up to 3411 x 584 or 1876 x 321 on a 1920 x 1080 screen, and resizable from 0.4 to 1.0 by its corner handle): the slim oxblood strip
+  across the top (64 px) with the input (meter and Input gain), the preset display that opens
+  the bank and preset plate, or the tuner display in its place, the metronome, tuner and
+  settings icons in the middle, and the output (knob, meter, Clip) with the model and logo at
+  its right; the plates that open under it (`View.plate`: presets, metronome, settings); the stack (two lanes, one per amp: its head
   with nameplate and dials, and the cabinet it plays through beside it; the plate where they meet
   with the Blend fader); each of the thirteen pedals in its own paint with its own art
 - `src/looks.rs` - What each amp's head looks like: a `Look` (its `HeadStyle` and knob cap) per
@@ -259,30 +261,31 @@ How it behaves:
   for the presets folder itself and `/<folder>` for a folder in it, checked like a file name so
   it is never a path and never `..`. A project saved before there were banks has a preset of
   the player's and no bank, and opens on `MINE`
-- The Preset display's buttons step through the bank showing and come round in it without ever
-  leaving it; in a bank with nothing in it they say `NO PRESETS` for 1.5 s. The tape of either
-  display drops the list open: the banks in one column and the presets of the bank clicked in
-  the other. The bank showing changes when a preset is picked out of another bank, when the
-  Bank buttons step and when a bank is made; the sound then stays as it stands, and with
-  nothing loaded out of the bank the display falls back to the name of the preset the sound
-  came from
+- The preset display on the strip says the bank and the preset (`FACTORY · INIT`) and is one
+  click target, with no step arrows: it opens the preset plate, the banks in one column and the
+  presets of the bank clicked in the other, with the foot (Save, Folder) under them. The bank
+  showing changes when a preset is picked out of another bank and when a bank is made; the
+  sound then stays as it stands, and with nothing loaded out of the bank the display falls back
+  to the name of the preset the sound came from
 - `+ NEW BANK`, at the end of the banks, makes one. Clicked, its tape takes a name; enter keeps
-  it, escape drops it, and a second click on the tape keeps it as it stands, so a bank can be
+  it, escape drops it (the plate stays open), and a second click on the tape keeps it as it stands, so a bank can be
   made with the mouse alone. A bank nobody named is `Bank 1`, `Bank 2` and so on, the first
   that is free, renamed in the folder afterwards. A name is filtered like a file name, and one
   that already stands as a folder is simply that bank, with everything still in it
-- Save writes into the bank showing and always asks for a name: it makes the Preset display's
-  tape take one, which starts as the name of the preset loaded out of the bank showing (empty
-  with none loaded). Enter or a second press of Save keeps it, escape drops it and writes
-  nothing, stepping or opening a list drops it too. The name kept as it stands writes over the
+- Save, in the foot of the preset plate, writes into the bank showing and always asks for a name:
+  it makes the foot's display take one, which starts as the name of the preset loaded out of
+  the bank showing (empty with none loaded). Enter or a second press of Save keeps it, escape
+  drops it and writes nothing, closing the plate drops it too. A name may hold spaces (#264):
+  `type_into` takes a space that arrives as text, and one that arrives only as the space bar's
+  key press (a host that keeps the key for play and stop), and a test holds both. The name kept as it stands writes over the
   preset loaded; any other is the file name, `<name>.preset`, with a number added when it is
   taken. A name with nothing left once the characters a file name cannot hold are taken out is
   one nobody gave, and is `<name> 2.preset` (the next free number) named after the preset the
   sound came from, as before. Nothing is written into `FACTORY`: a sound saved there goes into `MINE`, which is the
   bank showing from then on. The file name of the one loaded last is persisted as `user-preset`
   (empty after a factory preset, and after the bank changed); renaming, moving from one bank to
-  another, copying and deleting is done in the folder, which a double-click on the Preset
-  caption opens — the folder of the bank showing
+  another, copying and deleting is done in the folder, which the foot's Folder button opens
+  (hovered it says where) — the folder of the bank showing
 - The pedal order (`order.rs`, held by the chain model `slots.rs`): Gate always first, amp and cabinet one block in the middle.
   Drive, Pitch and Wah only in front of the amp; Delay and Reverb only behind the cabinet; Fuzz, Comp,
   Chorus, Phaser, Flanger, Tremolo and EQ on either side. Default: Pitch, Wah, Fuzz, Comp, Drive, Phaser, amp,
@@ -673,14 +676,19 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   not print: silk triangles still mean signal direction at the jacks only
 - **An order is never a parameter.** Keep it in a `#[persist]` field, as ids, like a preset
   or a file choice
-- **The strip's row:** with no name band, the strip's controls stand in one row across it with
-  the same gap between neighbours (`STRIP_GAP`): the input meter, the Bank and Preset displays,
-  Save, the output knob, the output meter, the Clip lamp, On and Tuner. Each one's place is
-  worked from the end of the one before it, and a test holds the gaps even, the controls clear
-  of each other and of the edges, and the right end a little further from its edge (the logo
-  stands there)
-- **Level meters:** a signal level (the amp's input and output) is a `level_meter`, a column
-  of lamps on label tape with a `silk_label` caption under it, in a wing of the strip. Same atomics and repaint rule as the signal lamps
+- **The strip is slim** (`ui::slim_strip`, 64 px, picked as A "Signal Line" on #261): the enclosure
+  with the jack sockets and their captions, the model number and the logo, no name band and no
+  screws. What is on it stands on one line (`STRIP_Y`), in groups: from the left the input
+  (jack, meter with its caption over it, the Input gain beside it), the preset display; in the
+  middle the metronome, tuner and settings icons; from the right the output (knob, meter with
+  its caption, Clip lamp), the model number and the logo, the output jack. Its knobs are
+  `bare_param_knob`s with no caption (the meter's caption names the pair, the name and value
+  show as a hint). **On is not on it:** the `bypass` parameter and `make_bypass()` stay for the
+  host, nothing in the editor sets it (a rules test holds that). Tests hold that nothing on the
+  strip overlaps, that all of it is on the face, and that the plates open under it. The input
+  gain moved here from the Gate pedal, which is a pair of knobs now
+- **Level meters:** a signal level (the amp's input and output) is a `level_meter_wide`, a row
+  of lamps on label tape with a `silk_label` caption over it, on the strip. Same atomics and repaint rule as the signal lamps
 - **The Delay's Sync:** the one on/off of the rig that is not a stomp switch. A second
   `small_footswitch` beside the On switch runs off the face, so Sync is a `chrome_button` with
   a `rig_led` above it and its `silk_label` above that, right of the Mix knob where the Gate
@@ -691,32 +699,38 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   control it belongs to. An LED above or beside a switch only ever says that the switch is on.
   Lamps are read from atomics the audio thread writes once per block; the editor asks for a
   repaint only when one changes, 20 times a second at most
-- **The sound bank's LED display:** the Bank and Preset displays are built-in LED displays
-  (`suite_common::ui::led`): flat dark glass with a crisp white Plex Mono readout, no dot grid. It
-  is `LED_HEIGHT` high and `led_width(chars)` wide: Bank holds 9 characters, Preset 15. The
+- **The sound bank's LED display:** the preset display and the foot's name display are built-in
+  LED displays (`suite_common::ui::led`): flat dark glass with a crisp white Plex Mono readout,
+  no dot grid. It is `LED_HEIGHT` high and `led_width(chars)` wide: the strip's holds 26
+  characters (two are the marker's), the foot's 18. The
   text is capitals from the left, so a name being typed grows to the right, with the `_` caret
   after it; what does not fit is cut. The font has every letter a name can hold. The
   tuner's display is the same glass
-- **Pick one of many (presets):** a `led_stepper` (a stepper on an LED display) with a
-  `silk_label` caption above it, in the left
-  wing of the strip. Step arrows are
-  engraved in chrome buttons; silk triangles on the paint mean signal direction at the jacks only.
-  Names have at most 15 characters and are our own words. A trailing `*` on the display means a
-  control was moved since loading. The bank the presets come from is picked the same way, on a
-  `led_stepper` of 10 characters left of the preset display, its `Bank` caption on the preset
-  caption's line and its window on the preset window's line. While the tuner is on neither is drawn
-- **A list that drops open** is for the preset banks and nothing else, where stepping through
-  every preset one at a time is too slow: everywhere else a choice is stepped through, with no
-  dropdowns, lists or pop-ups. It is hardware, not a menu. `drop_panel` drops a dark plate with
-  a chrome edge from under the window of a `led_stepper`, its columns under cream `display`
-  captions and every row a strip of label tape in `mono` capitals. The row in use carries a lit
-  lamp at its left, the row under the pointer lightens, and a column of more than seven rows
-  shows seven, with a chrome bar at its right and the wheel to reach the others. It is drawn
-  after everything else in the window, in a foreground layer, so nothing behind it answers a
-  click while it is open, and it closes on a pick, on a click outside it or on escape. No bar to
-  drag, no icons, and no widget of egui's own
-- **Typed text** is taken in two places only: the name of a new preset bank, on its row of that
-  list, and the name of a new preset, on the Preset display after Save
+- **Pick one of many (presets):** the preset display is one click target that opens the preset
+  plate (`drop_panel_with`: the banks and presets, a foot with the name display, Folder and Save).
+  There are no step arrows on it. A trailing `*` on the display means a control was moved since
+  loading. Names have at most 15 characters and are our own words. While the tuner is on the
+  display is the tuner's and opens nothing
+- **Plates and the sheet** (#259, replacing "a list that drops open is for the preset banks and
+  nothing else"): configuration that is not on show at all times is a **hardware plate** that
+  opens from an icon or a display on the strip and drops under it (`ui::plate`; `drop_panel_with`
+  for the preset plate), or the effects **sheet** that rises from below (built with the signal
+  line, #272). No other pop-ups, no dropdowns, and no widget of egui's own. A plate keeps the
+  amp's plate look: dark with a chrome edge, label tape rows, steppers, lit lamps; its title is
+  a `silk_label`. **One is open at a time:** `View.plate` is one field, so opening one closes
+  the other (a test clicks through them). It closes on a click outside it (the icon or display
+  that opens it is not outside: its click closes it, as Escape does), and while a name is typed on
+  it escape drops the name first. It is drawn after everything else in the window, in a
+  foreground layer, so nothing behind it answers a click while it is open, and it is kept inside
+  the window. The three plates: presets (under the display, a row of columns of tape rows
+  that show seven rows at a time with a chrome bar and the wheel), the metronome's (tempo, tap,
+  sound, meter, click out, volume, Sync; its switch with a lamp that flashes on the beat is on
+  the strip beside the icon) and the settings' (the cabinet files, picked as on the head, and in
+  the standalone program the machine's audio with Apply and Cancel: the audio's choice opens with
+  the plate and is let go when it closes). Icons are `ui::icon_switch`: a drawing, and where the
+  thing can be on or off a lamp and a chrome switch; the tuner's is its switch
+- **Typed text** is taken in two places only: the name of a new preset bank, on its row of the
+  preset plate, and the name of a new preset, on the plate's foot after Save
   (`type_on_tape`, 24 letters, the last 15 shown). Both are `type_into`: the letters on the tape or display with a `_` after them,
   enter to keep it and escape to drop it. Nothing else in the suite is typed, and egui's text widget is never drawn.
   Nothing ever waits for the keyboard: a second click on the row (or a second press of Save) keeps the name as it stands,

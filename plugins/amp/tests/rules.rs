@@ -396,3 +396,24 @@ fn files(dir: &Path, keep: &dyn Fn(&Path) -> bool) -> Vec<PathBuf> {
 fn shown(path: &Path) -> String {
     path.strip_prefix(amp_dir()).unwrap().to_string_lossy().replace('\\', "/")
 }
+
+// The On button is gone from the editor (#258): nothing in it sets `bypass`, and the host's
+// bypass is still the parameter `make_bypass()` marks (the ids test holds its id)
+#[test]
+fn test_the_editor_has_no_on_button_and_the_host_keeps_its_bypass() {
+    let src = amp_dir().join("src");
+    let editor = std::fs::read_to_string(src.join("editor.rs")).unwrap();
+    let setting: Vec<String> = outside_tests(&editor)
+        .into_iter()
+        .filter(|(_, code)| {
+            code.contains("&params.bypass") && (code.contains("set") || code.contains("toggle"))
+        })
+        .map(|(line, code)| format!("editor.rs:{line}: {}", code.trim()))
+        .collect();
+    assert!(setting.is_empty(), "the editor sets bypass again:\n{}", setting.join("\n"));
+    let lib = std::fs::read_to_string(src.join("lib.rs")).unwrap();
+    assert!(
+        lib.contains("BoolParam::new(\"Bypass\", defaults.bypass).make_bypass()"),
+        "the host's bypass parameter is gone"
+    );
+}

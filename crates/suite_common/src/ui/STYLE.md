@@ -14,9 +14,12 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
   `small_footswitch`, `rig_led` and `param_switch` (the switch and LED of a rig, bound to an on/off
   parameter), `stepper` (label tape with a chrome button at each end, for picking one of many),
   `menu_stepper` (one whose tape drops a list open instead of stepping on) and `led_stepper` (the
-  same on an LED display) with `drop_panel`
-  (the plate of tape rows that list, the amp's preset banks, is picked from) and `type_into`
-  (a name typed on a row of it, the one place in the suite that takes typed text),
+  same on an LED display) with `drop_panel` and `drop_panel_with` (the plate of tape rows that
+  list, the amp's preset banks, is picked from, with a foot of its own) and `type_into`
+  (a name typed on a row or the foot of it, the places in the suite that take typed text; a space
+  that arrives only as the space bar's key press is a space too),
+  `level_meter_wide` (the level meter lying down, for a slim strip), `bare_param_knob` (a knob
+  with no caption, for a slim strip), `beat_lamp_sized`,
   `chrome_button` (one such button alone, for an action such as Save), `crossfader` (a vertical
   slot with ticks on both sides and a chrome cap, for a parameter that is a balance between two
   things: 0 at the top, 1 at the bottom; drag the cap or the slot, Shift for fine, double-click
@@ -30,8 +33,10 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
 - `frame.rs` - `pedal`: enclosure, screws, jack captions, tilted name band, model number, logo.
   A plugin describes itself with a `PedalStyle`. For a window with several enclosures: `rig`
   (the bare bench), `strip` (shallow enclosure with the jack captions, model number and logo of a pedal,
-  and no name band) and `mini_pedal` (small enclosure with only a title), each
+  and no name band), `slim_strip` (the same at 64 px for a rig whose controls are few: jack sockets
+  with captions under them, model number and logo, no screws) and `mini_pedal` (small enclosure with only a title), each
   mini pedal described by a `MiniStyle`; `coupler` and `patch_cable` carry the signal between them
+- `plate.rs`, `icons.rs` - `plate` (a hardware plate in a layer above the window, closing on a click outside it or escape; the caller owns which is open) and `icon_switch` (a drawing that opens a plate, with a lamp and a chrome switch where the thing can be on or off)
 - `raster.rs` - Per-pixel lit surfaces (signed distance field + one fixed light): `box_image`, `knob_image`
   (a `KnobCap`: `Fluted`, the pedals' knob, `ChickenHead`, `CreamChickenHead`, `GoldTop`, `ChromeSkirt`), `screw_image`, and for the
   half stack `tolex_image` (`Tolex`), `grille_image` (`Grille`, cloth or mesh with the speakers behind it) and
@@ -74,6 +79,13 @@ controls, portrait) or `plugins/drums/src/editor.rs` (many controls, landscape) 
 
 - **One pedal per plugin.** The whole window is one enclosure from `ui::pedal`. No panels, tabs,
   menus or default egui widgets on top of it
+- **Plates and sheets** (the rule of the Guitar Amp's rig, #259, for any rig): configuration that
+  is not on show at all times is a hardware plate that opens from an icon or a display and drops
+  under it (`ui::plate`, `ui::icon_switch`), or a sheet that rises from below (the amp's effects
+  bank, with the signal line). No other pop-ups, no menus or dropdowns, no widgets of egui's own. A
+  plate keeps the amp's plate look: a dark plate with a chrome edge, label-tape rows, steppers
+  and lit lamps. One is open at a time; it closes on a click outside it, on escape, or on its
+  icon
 - **Paint:** each plugin has its own saturated paint colour, a `PAINT_*` constant in `theme.rs`.
   Taken: orange (Pitch Shifter), teal (Drum Synth), oxblood red (Guitar Amp), cobalt (Bass Synth),
   plum (Shimmer Pad), pine green (Glass Bells). A new one must be clearly different from those
@@ -110,7 +122,7 @@ After changing an editor, run it standalone (see `AGENTS.md`, Build Commands) an
 
 Each editor also has a snapshot test (`suite_common::ui::snapshot`), which draws it off screen with
 every parameter at its default and compares the picture with `plugins/<name>/tests/snapshots/editor.png`
-(the amp has `tuner.png` and `preset_menu.png` too). After changing an editor:
+(the amp has `tuner.png`, `preset_menu.png`, `metronome.png`, `settings.png` and `audio_panel.png`, each a plate open, too). After changing an editor:
 
 - Run its tests (`cargo test -p <name> editor`). A change of look fails them and leaves
   `<scene>.new.png` and `<scene>.diff.png` beside the reference: open both and look

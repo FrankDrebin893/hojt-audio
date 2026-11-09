@@ -161,6 +161,127 @@ pub fn strip(ui: &Ui, rect: Rect, style: &PedalStyle) -> Rect {
     top
 }
 
+/// The height of a `slim_strip`'s rectangle: its face and the lower edge of the box
+pub const SLIM_STRIP_HEIGHT: f32 = 64.0;
+const SLIM_RADIUS: f32 = 16.0;
+/// How far the jacks of a `slim_strip` stand in from the left and the right edge of its face, and
+/// down from its top
+pub const SLIM_JACK_X: f32 = 54.0;
+pub const SLIM_JACK_Y: f32 = 24.0;
+/// Where the caption of a jack of a `slim_strip` is, down from the jack
+const SLIM_JACK_CAPTION_DY: f32 = 20.0;
+const SLIM_LOGO_SIZE: f32 = 28.0;
+const SLIM_LOGO_WIDTH: f32 = SLIM_LOGO_SIZE * 2.87;
+const SLIM_MODEL_WIDTH: f32 = 56.0;
+const SLIM_MODEL_GAP: f32 = 14.0;
+/// The gap between the logo of a `slim_strip` and the jack at the right end, and the model
+/// number's room left of the logo
+const SLIM_LOGO_GAP: f32 = 58.0;
+
+/// How far the print of a `slim_strip` reaches in from the right edge of its face: the right
+/// jack, the logo and the model number, as `slim_print` places them. The controls end before it
+pub const SLIM_PRINT_REACH: f32 =
+    SLIM_JACK_X + SLIM_LOGO_GAP + SLIM_LOGO_WIDTH + SLIM_MODEL_GAP + SLIM_MODEL_WIDTH;
+
+/// What a `slim_strip` prints and where, from the top left corner of its face: the two jacks,
+/// the model number and the logo. The controls of the strip go in between
+pub struct SlimPrint {
+    /// The middle of each jack, left and right
+    pub jacks: [Pos2; 2],
+    /// The room the logo takes
+    pub logo: Rect,
+    /// The room the model number takes, left of the logo
+    pub model: Rect,
+    /// The room each jack's caption takes
+    pub captions: [Rect; 2],
+}
+
+/// Where a `slim_strip` over `face`, its top face, prints what it prints
+pub fn slim_print(face: Rect, style: &PedalStyle) -> SlimPrint {
+    let jacks = [
+        Pos2::new(face.left() + SLIM_JACK_X, face.top() + SLIM_JACK_Y),
+        Pos2::new(face.right() - SLIM_JACK_X, face.top() + SLIM_JACK_Y),
+    ];
+    // The widest of the captions at the size they are printed, give or take a letter
+    let caption = |at: Pos2, text: &str| {
+        Rect::from_center_size(
+            at + vec2(0.0, SLIM_JACK_CAPTION_DY),
+            vec2(text.chars().count() as f32 * 8.6, 15.0),
+        )
+    };
+    // The logo is as high as the badge makes it, on the strip's middle line
+    let height = SLIM_LOGO_SIZE * 1.4;
+    let width = SLIM_LOGO_WIDTH;
+    let right = jacks[1].x - SLIM_LOGO_GAP;
+    let middle = face.center().y;
+    let logo = Rect::from_min_max(
+        Pos2::new(right - width, middle - height / 2.0),
+        Pos2::new(right, middle + height / 2.0),
+    );
+    let model = Rect::from_min_max(
+        Pos2::new(logo.left() - SLIM_MODEL_GAP - SLIM_MODEL_WIDTH, middle - 14.0),
+        Pos2::new(logo.left() - SLIM_MODEL_GAP, middle + 14.0),
+    );
+    SlimPrint {
+        jacks,
+        logo,
+        model,
+        captions: [caption(jacks[0], style.jacks[0]), caption(jacks[1], style.jacks[1])],
+    }
+}
+
+/// The strip across the top of a rig when its controls are few: the same enclosure as `strip`,
+/// shallow (`SLIM_STRIP_HEIGHT`), with no screws and no name band. The jacks are sockets with
+/// their captions under them, left and right (the signal runs left to right), the model number
+/// and the logo stand by the right one; the middle is the rig's own. Returns the top face.
+pub fn slim_strip(ui: &Ui, rect: Rect, style: &PedalStyle) -> Rect {
+    let painter = ui.painter();
+    let top = painted_box(painter, rect, style.paint, SLIM_RADIUS);
+    if let Some(art) = style.art {
+        super::artwork::paint_art(painter, top, SLIM_RADIUS, art);
+    }
+    let print = slim_print(top, style);
+    for (at, text) in print.jacks.into_iter().zip(style.jacks) {
+        jack_socket(painter, at);
+        spaced_text(
+            painter,
+            at + vec2(0.0, SLIM_JACK_CAPTION_DY),
+            Align2::CENTER_CENTER,
+            &text.to_uppercase(),
+            display(13.0),
+            SILK,
+            0.16,
+        );
+    }
+    badge(painter, print.logo.right_bottom(), SLIM_LOGO_SIZE);
+    spaced_text(
+        painter,
+        print.model.right_top() + vec2(0.0, 8.0),
+        Align2::RIGHT_CENTER,
+        "MODEL",
+        display(13.0),
+        SILK,
+        0.16,
+    );
+    spaced_text(
+        painter,
+        print.model.right_bottom() - vec2(0.0, 8.0),
+        Align2::RIGHT_CENTER,
+        style.model,
+        display(17.0),
+        SILK,
+        0.16,
+    );
+    top
+}
+
+/// A jack socket on the face of an enclosure: the nut a patch cable's plug goes into
+pub fn jack_socket(painter: &Painter, at: Pos2) {
+    painter.circle_filled(at, JACK_RADIUS, CHROME_DARK);
+    painter.circle_filled(at, JACK_RADIUS - 2.0, CHROME);
+    painter.circle_filled(at, JACK_RADIUS - 4.0, CHROME_DARK);
+}
+
 /// A module plate on the strip: a recessed panel in dark wine, with a thin lit lip along its
 /// lower edge and a shadow under its top, so a group of controls reads as one unit set into the
 /// strip. The print on it is cream on near-black, so it reads at a glance. `rect` is the whole
@@ -634,6 +755,33 @@ mod tests {
             });
         });
         output.shapes.len()
+    }
+
+    // `slim_print` says where the logo stands before it is drawn: the badge is as wide and as high
+    // as it says, so what is placed by it never runs into the logo
+    #[test]
+    fn test_the_slim_strips_logo_is_where_it_says() {
+        let ctx = Context::default();
+        install(&ctx);
+        let _ = ctx.run(RawInput::default(), |_| {});
+        let mut drawn = Rect::NOTHING;
+        let _ = ctx.run(RawInput::default(), |ctx| {
+            CentralPanel::default().show(ctx, |ui| {
+                let face = Rect::from_min_size(Pos2::new(10.0, 10.0), vec2(1000.0, 59.0));
+                let print = slim_print(face, &TEST_STYLE);
+                drawn = badge(ui.painter(), print.logo.right_bottom(), SLIM_LOGO_SIZE);
+                assert!(
+                    (drawn.width() - print.logo.width()).abs() < 3.0,
+                    "{drawn:?} {print:?}",
+                    print = print.logo
+                );
+                assert!((drawn.height() - print.logo.height()).abs() < 3.0);
+                // The model number is clear of the logo and of the jack's caption
+                assert!(print.model.right() < print.logo.left());
+                assert!(print.logo.right() < print.captions[1].left());
+            });
+        });
+        assert!(drawn.width() > 40.0);
     }
 
     #[test]

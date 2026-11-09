@@ -207,6 +207,22 @@ pub fn param_knob_with<P: Param>(
     response
 }
 
+/// A knob bound to a parameter with no name or value printed round it, for a strip too slim for
+/// them: its scale ticks and the cap only. Dragged like every knob. The name and the value show
+/// as a hint while the pointer rests on it.
+pub fn bare_param_knob<P: Param>(
+    ui: &mut Ui,
+    setter: &ParamSetter,
+    param: &P,
+    center: Pos2,
+    radius: f32,
+) -> Response {
+    let (response, normalized) = turn_param(ui, setter, param, center, radius);
+    knob_with(ui.painter(), center, radius, normalized, None, KnobCap::Fluted, SILK);
+    let value = param.normalized_value_to_string(normalized, true);
+    response.on_hover_text(format!("{}: {value}", param.name()))
+}
+
 /// What a knob of `radius` on `center` does to `param` when it is dragged or double-clicked.
 /// Returns its response and where the parameter stands now
 fn turn_param<P: Param>(
@@ -833,6 +849,22 @@ pub struct Picked {
 /// so nothing behind it answers while it is open. A column of more than `DROP_ROWS` rows
 /// shows that many and scrolls with the wheel.
 pub fn drop_panel(ui: &Ui, top_center: Pos2, columns: &[Column], id_source: &str) -> Picked {
+    drop_panel_with(ui, top_center, columns, id_source, Rect::NOTHING, 0.0, |_, _| {})
+}
+
+/// A `drop_panel` that opens from `anchor` (a click there is not a click outside it, so the
+/// display or icon can close it itself) with a foot `footer_height` high under its columns, which
+/// `footer` fills: it is given the plate's `ui` and the foot's rectangle. The preset plate has its
+/// Save row there.
+pub fn drop_panel_with(
+    ui: &Ui,
+    top_center: Pos2,
+    columns: &[Column],
+    id_source: &str,
+    anchor: Rect,
+    footer_height: f32,
+    footer: impl FnOnce(&mut Ui, Rect),
+) -> Picked {
     let lane = DROP_BAR_WIDTH + DROP_BAR_GAP;
     let shown =
         columns.iter().map(|column| column.rows.len().clamp(1, DROP_ROWS)).max().unwrap_or(1);
@@ -840,13 +872,16 @@ pub fn drop_panel(ui: &Ui, top_center: Pos2, columns: &[Column], id_source: &str
         shown as f32 * DROP_ROW_HEIGHT + (shown.saturating_sub(1)) as f32 * DROP_ROW_GAP;
     let inner: f32 = columns.iter().map(|column| column.width + lane).sum::<f32>()
         + DROP_COLUMN_GAP * columns.len().saturating_sub(1) as f32;
-    let size =
-        vec2(inner + 2.0 * DROP_PADDING, rows_height + DROP_TITLE_HEIGHT + 2.0 * DROP_PADDING);
+    let size = vec2(
+        inner + 2.0 * DROP_PADDING,
+        rows_height + DROP_TITLE_HEIGHT + 2.0 * DROP_PADDING + footer_height,
+    );
     let rect = Rect::from_min_size(Pos2::new(top_center.x - size.x / 2.0, top_center.y), size);
 
     let mut picked = Picked::default();
     let parent_layer = ui.layer_id();
     let clip = ui.clip_rect();
+    let to_local = ui.ctx().layer_transform_from_global(parent_layer);
     // Its own layer above the window: it is drawn over what is under it, and the controls
     // under it are in a lower layer, so they answer no clicks while it is open
     Area::new(Id::new(("drop-panel", id_source)))
@@ -862,9 +897,7 @@ pub fn drop_panel(ui: &Ui, top_center: Pos2, columns: &[Column], id_source: &str
             // wheel over a column is the column's
             ui.allocate_rect(rect, Sense::click_and_drag());
             let painter = ui.painter().clone();
-            painter.rect_filled(rect.translate(vec2(0.0, 5.0)).expand(2.0), 7.0, SHADOW);
-            painter.rect_filled(rect, 5.0, PANEL);
-            painter.rect_stroke(rect, 5.0, Stroke::new(1.0_f32, CHROME_DARK), StrokeKind::Inside);
+            super::plate::paint_body(&painter, rect);
 
             let top = rect.top() + DROP_PADDING + DROP_TITLE_HEIGHT;
             let mut left = rect.left() + DROP_PADDING;
@@ -910,9 +943,26 @@ pub fn drop_panel(ui: &Ui, top_center: Pos2, columns: &[Column], id_source: &str
                 left += column.width + lane + DROP_COLUMN_GAP;
             }
 
-            // A click anywhere else, or escape, asks it to close
-            let away =
-                ui.input(|input| input.pointer.any_click()) && !ui.rect_contains_pointer(rect);
+            footer(
+                ui,
+                Rect::from_min_max(
+                    Pos2::new(
+                        rect.left() + DROP_PADDING,
+                        rect.bottom() - DROP_PADDING - footer_height,
+                    ),
+                    Pos2::new(rect.right() - DROP_PADDING, rect.bottom() - DROP_PADDING),
+                ),
+            );
+
+            // A click anywhere else (the display that opens it excepted), or escape, asks it
+            // to close
+            let pointer = ui.input(|input| input.pointer.interact_pos());
+            let on_anchor = pointer
+                .map(|at| to_local.map_or(at, |from_global| from_global * at))
+                .is_some_and(|at| anchor.contains(at));
+            let away = ui.input(|input| input.pointer.any_click())
+                && !ui.rect_contains_pointer(rect)
+                && !on_anchor;
             picked.closed = away || ui.input(|input| input.key_pressed(Key::Escape));
         });
     picked
@@ -1024,12 +1074,31 @@ pub fn type_on_tape(
     type_into(ui, text, max_chars)
 }
 
-/// Takes what was typed this frame into `text`: letters, backspace, enter and escape, and
-/// `max_chars` at most. For the one place in the suite where a name is typed (a new bank of
-/// presets, on its row of a `drop_panel`), so that no egui text widget is drawn.
+/// Takes what was typed this frame into `text`: letters, spaces, backspace, enter and escape, and
+/// `max_chars` at most. For the places in the suite where a name is typed (a new bank of
+/// presets, a new preset), so that no egui text widget is drawn.
+///
+/// A space the host takes for a key press without sending the character with it (it is the
+/// space bar, and a host may keep it for play and stop: #264) is still a space in the name: a
+/// press of the key that came with no space of text in the same frame is taken as the space.
 pub fn type_into(ui: &Ui, text: &mut String, max_chars: usize) -> Option<Typed> {
     let mut end = None;
     ui.input(|input| {
+        let mut spaces_as_text = 0usize;
+        let mut spaces_as_keys = 0usize;
+        for event in &input.events {
+            match event {
+                Event::Text(typed) => {
+                    spaces_as_text += typed.chars().filter(|letter| *letter == ' ').count();
+                }
+                Event::Key { key: Key::Space, pressed: true, repeat: false, .. } => {
+                    spaces_as_keys += 1;
+                }
+                _ => {}
+            }
+        }
+        // The presses of the key that no text came with
+        let mut keys_alone = spaces_as_keys.saturating_sub(spaces_as_text);
         for event in &input.events {
             match event {
                 Event::Text(typed) => {
@@ -1037,6 +1106,14 @@ pub fn type_into(ui: &Ui, text: &mut String, max_chars: usize) -> Option<Typed> 
                         if text.chars().count() < max_chars {
                             text.push(letter);
                         }
+                    }
+                }
+                Event::Key { key: Key::Space, pressed: true, repeat: false, .. }
+                    if keys_alone > 0 =>
+                {
+                    keys_alone -= 1;
+                    if text.chars().count() < max_chars {
+                        text.push(' ');
                     }
                 }
                 Event::Key { key: Key::Backspace, pressed: true, .. } => {
@@ -1113,6 +1190,53 @@ pub fn level_meter(painter: &Painter, center: Pos2, height: f32, dbfs: f32) {
         }
     }
 }
+
+/// The colours of lamp `lamp` of a `level_meter_wide`, lit and dark: green up to -15 dBFS, amber
+/// for the next two, red for the last two, so the unlit meter already says where the top is
+fn level_lamp_colors(lamp: usize) -> (Color32, Color32) {
+    match lamp {
+        0..=6 => (Color32::from_rgb(70, 220, 90), Color32::from_rgb(30, 92, 42)),
+        7..=7 => (Color32::from_rgb(255, 176, 32), Color32::from_rgb(112, 76, 20)),
+        _ => (LED_ON, LED_OFF),
+    }
+}
+
+/// A `level_meter` lying down, for a strip too slim for the upright one: the same ten lamps
+/// from the quietest on the left to full scale on the right, on a strip of label tape `width`
+/// wide and `WIDE_METER_HEIGHT` high, centred on `center`
+pub fn level_meter_wide(painter: &Painter, center: Pos2, width: f32, dbfs: f32) {
+    let tape = Rect::from_center_size(center, vec2(width, WIDE_METER_HEIGHT));
+    painter.rect_filled(tape.translate(vec2(0.0, 2.0)), 2.0, SHADOW);
+    painter.rect_filled(tape, 2.0, TAPE);
+
+    let rect = tape.shrink2(vec2(METER_PADDING, 0.0));
+    let lit = lit_level_lamps(dbfs);
+    // Whole pixels from lamp to lamp and even sizes, so every lamp is as wide as the next
+    let pitch = (rect.width() / LEVEL_LAMPS as f32).floor();
+    let even = |size: f32| (size / 2.0).round() * 2.0;
+    let size = vec2(even(pitch * 0.6), even(rect.height() * 0.5));
+    let left_x = (rect.center().x - pitch * (LEVEL_LAMPS as f32 - 1.0) / 2.0).round();
+    let middle_y = rect.center().y.round();
+    for lamp in 0..LEVEL_LAMPS {
+        let on = lamp < lit;
+        let (lit_color, dark_color) = level_lamp_colors(lamp);
+        let lens = Rect::from_center_size(Pos2::new(left_x + lamp as f32 * pitch, middle_y), size);
+        if on {
+            for (grow, alpha) in [(3.5, 0.16), (1.8, 0.3)] {
+                painter.rect_filled(lens.expand(grow), 1.5 + grow, lit_color.gamma_multiply(alpha));
+            }
+        }
+        painter.rect_filled(lens, 1.5, if on { lit_color } else { dark_color });
+        if on {
+            let shine =
+                Rect::from_min_size(lens.min + vec2(1.0, 1.0), vec2((size.x - 2.0).max(1.0), 2.0));
+            painter.rect_filled(shine, 1.0, lit_color.lerp_to_gamma(Color32::WHITE, 0.6));
+        }
+    }
+}
+
+/// How high a `level_meter_wide` is
+pub const WIDE_METER_HEIGHT: f32 = 18.0;
 
 /// The lamps of a `cents_meter`, spread over the width of `rect`
 fn meter_lamps(painter: &Painter, rect: Rect, cents: Option<f32>) {
@@ -1293,7 +1417,11 @@ pub enum Beat {
 /// switch: dark while off, a dim amber while running, amber on a beat and cream on the first of
 /// the bar
 pub fn beat_lamp(painter: &Painter, center: Pos2, beat: Beat) {
-    let radius = 9.0;
+    beat_lamp_sized(painter, center, beat, 9.0);
+}
+
+/// A `beat_lamp` of another size: `radius` is that of its lens, and 9 is the full-size lamp's
+pub fn beat_lamp_sized(painter: &Painter, center: Pos2, beat: Beat, radius: f32) {
     painter.circle_filled(center + vec2(0.0, 1.5), radius + 2.0, SHADOW);
     painter.circle_filled(center, radius + 1.5, Color32::from_rgb(8, 7, 6));
     let (lens, glow) = match beat {
@@ -1368,8 +1496,8 @@ pub fn silk_frame(painter: &Painter, rect: Rect, title: &str, paint: Color32) {
 }
 
 /// The HØJT logo on its black plate. The Ø is a knob and its slash the pointer.
-/// `right_bottom` is the plate's lower right corner.
-pub fn badge(painter: &Painter, right_bottom: Pos2, size: f32) {
+/// `right_bottom` is the plate's lower right corner. Returns the plate.
+pub fn badge(painter: &Painter, right_bottom: Pos2, size: f32) -> Rect {
     let spacing = 0.1;
     let h = layout(painter, "H", display(size), SILK, spacing);
     let jt = layout(painter, "JT", display(size), SILK, spacing);
@@ -1410,10 +1538,57 @@ pub fn badge(painter: &Painter, right_bottom: Pos2, size: f32) {
     x += o_width + gap;
 
     painter.galley(Pos2::new(x, text_y), jt, SILK);
+    plate
 }
 
 #[cfg(test)]
 mod tests {
+    /// What `type_into` makes of the events of one frame, from `start`, at most `max_chars` long
+    fn typed(start: &str, events: Vec<Event>, max_chars: usize) -> String {
+        let ctx = Context::default();
+        let mut text = start.to_owned();
+        let input = RawInput { events, ..RawInput::default() };
+        let _ = ctx.run(input, |ctx| {
+            CentralPanel::default().show(ctx, |ui| {
+                type_into(ui, &mut text, max_chars);
+            });
+        });
+        text
+    }
+
+    fn space_key() -> Event {
+        key(Key::Space)
+    }
+
+    fn text(typed: &str) -> Event {
+        Event::Text(typed.to_owned())
+    }
+
+    // #264: a name may hold spaces, however the host hands the space bar over
+    #[test]
+    fn test_a_space_typed_as_text_is_kept() {
+        assert_eq!(typed("", vec![text("Big"), text(" "), text("Mud")], 24), "Big Mud");
+        assert_eq!(typed("", vec![text("Big Mud")], 24), "Big Mud");
+    }
+
+    #[test]
+    fn test_a_space_that_came_as_a_key_press_only_is_kept() {
+        assert_eq!(typed("", vec![text("Big"), space_key(), text("Mud")], 24), "Big Mud");
+        assert_eq!(typed("Big", vec![space_key()], 24), "Big ");
+    }
+
+    #[test]
+    fn test_a_space_that_came_as_both_is_one_space() {
+        assert_eq!(typed("Big", vec![space_key(), text(" ")], 24), "Big ");
+        assert_eq!(typed("Big", vec![text(" "), space_key()], 24), "Big ");
+    }
+
+    #[test]
+    fn test_a_space_respects_the_longest_name() {
+        assert_eq!(typed("abc", vec![space_key()], 3), "abc");
+        assert_eq!(typed("ab", vec![space_key(), text("c")], 3), "ab ");
+    }
+
     #[test]
     fn test_the_crossfader_is_the_first_at_the_top_and_the_second_at_the_bottom() {
         // Top of the slot is 0.0 (amp 1), bottom 1.0 (amp 2), the middle between; past either
