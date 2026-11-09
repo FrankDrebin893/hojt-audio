@@ -105,6 +105,7 @@ impl BlockSettings {
 }
 
 // The effect of a unit: one instance for either side where the two sides need different ones
+#[allow(clippy::large_enum_variant)]
 enum Body {
     Gate(Gate),
     Drive { front: Drive, back: BackDrive },

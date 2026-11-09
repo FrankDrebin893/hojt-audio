@@ -1100,7 +1100,8 @@ mod tests {
         let mut chain = Chain::empty();
         for number in 0..MAX_SLOTS {
             let zone = if number % 2 == 0 { Zone::Front } else { Zone::Back };
-            let kind = if number % 2 == 0 { EffectKind::Comp } else { EffectKind::Delay };
+            // Eight kinds, two of each (`MAX_PER_KIND`)
+            let kind = EffectKind::ALL[1 + number / 2];
             let slot = chain.add(kind, zone, 99).unwrap();
             assert!(chain.block_on(slot).is_some());
         }
@@ -1109,6 +1110,12 @@ mod tests {
         slots.sort();
         assert_eq!(slots, (0..MAX_SLOTS as u8).collect::<Vec<_>>());
         assert_eq!(chain.add(EffectKind::Comp, Zone::Front, 0), Err(AddError::Full));
+
+        // A third of a kind is refused
+        let mut chain = Chain::empty();
+        assert!(chain.add(EffectKind::Comp, Zone::Front, 0).is_ok());
+        assert!(chain.add(EffectKind::Comp, Zone::Front, 0).is_ok());
+        assert_eq!(chain.add(EffectKind::Comp, Zone::Back, 0), Err(AddError::TooMany));
 
         let mut chain = Chain::empty();
         // Every effect stands on either side (#268); the gate only in front
@@ -1166,8 +1173,10 @@ mod tests {
             assert_eq!(Chain::from_words(words), None, "{words:x?}");
         }
         // More than sixteen are cut at the sixteenth
-        let many: Vec<String> =
-            (0..40).map(|n| format!("eq@{}", n % 16 + 1)).chain(["amp".to_string()]).collect();
+        let many: Vec<String> = (0..40)
+            .map(|n| format!("{}@{}", EffectKind::ALL[1 + n % 8].id(), n % 16 + 1))
+            .chain(["amp".to_string()])
+            .collect();
         assert_eq!(Chain::from_ids(many.iter().map(String::as_str)).blocks().len(), MAX_SLOTS);
     }
 

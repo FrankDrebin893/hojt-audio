@@ -8789,7 +8789,7 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
         for (amp_name, amp, gain) in [("brol", Amp::Brol, 0.5), ("torden", Amp::Torden, 0.8)] {
             let base = AmpSettings { out_level: 0.25, ..with_amp(amp, gain) };
             let mut slots = [BlockSettings::None; MAX_SLOTS];
-            let mut render = |name: &str, settings: AmpSettings| {
+            let render = |name: &str, settings: AmpSettings| {
                 let (left, right) = run_stereo(&settings, &phrase, SAMPLE_RATE);
                 let file = format!("amp_slots_{amp_name}_{name}.wav");
                 crate::test_util::write_wav(&dir.join(file), &[&left, &right], rate);
