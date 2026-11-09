@@ -952,7 +952,6 @@ mod tests {
         assert_eq!(chain.add(EffectKind::Comp, Zone::Front, 0), Err(AddError::Full));
 
         let mut chain = Chain::empty();
-        assert_eq!(chain.add(EffectKind::Delay, Zone::Front, 0), Err(AddError::WrongZone));
         assert_eq!(chain.add(EffectKind::Drive, Zone::Back, 0), Err(AddError::WrongZone));
         assert_eq!(chain.add(EffectKind::Gate, Zone::Back, 0), Err(AddError::WrongZone));
         assert!(chain.blocks().is_empty());
@@ -994,7 +993,8 @@ mod tests {
             "eq@6",
         ]);
         assert_eq!(chain.amps(), MAX_AMPS);
-        assert_eq!(kinds(chain.front()), [EffectKind::Comp]);
+        // The delay named in front of the amp stands there (#268)
+        assert_eq!(kinds(chain.front()), [EffectKind::Comp, EffectKind::Delay]);
         assert_eq!(kinds(chain.back()), [EffectKind::Delay, EffectKind::Eq]);
         // No amp in it: damaged
         assert_eq!(Chain::from_ids(["comp@1"]), Chain::default());
@@ -1018,7 +1018,7 @@ mod tests {
         let mut chain = Chain::default();
         chain.remove(Pedal::Wah.index() as u8);
         chain.add(EffectKind::Delay, Zone::Back, 0).unwrap();
-        assert_eq!(chain.add(EffectKind::Reverb, Zone::Front, 2), Err(AddError::WrongZone));
+        assert_eq!(chain.add(EffectKind::Wah, Zone::Back, 2), Err(AddError::WrongZone));
         stored.put(chain);
         let values = SlotValues { on: true, knobs: [0.1, 0.25, 0.5, 0.75, 1.0 / 3.0] };
         stored.memory().remember(EffectKind::Wah, values);

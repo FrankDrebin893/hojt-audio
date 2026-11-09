@@ -4,8 +4,9 @@
 //! Not every pedal can stand everywhere. The gate is always first, since it listens to the
 //! guitar as it arrives, and the amp and its cabinet are one block in the middle: neither is
 //! part of the order. The drive pedal, the pitch shifter and the wah stay in front of the amp,
-//! where they share the amp's oversampling. The delay and the reverb stay behind the cabinet, where the signal is
-//! stereo. The fuzz, the compressor, the modulation pedals and the EQ go either side.
+//! where they share the amp's oversampling. The fuzz, the compressor, the modulation pedals, the EQ,
+//! the delay and the reverb go either side (the delay and the reverb run on one channel in front
+//! of the amp, #268).
 //!
 //! The order is not a parameter: a host cannot automate an arrangement. It is the twelve-pedal
 //! view of the chain model (`slots::Chain`, which the project saves): the editor changes it
@@ -83,8 +84,9 @@ impl Pedal {
     pub fn can_be_in(self, zone: Zone) -> bool {
         match self {
             Pedal::Drive | Pedal::Pitch | Pedal::Wah => zone == Zone::Front,
-            Pedal::Delay | Pedal::Reverb => zone == Zone::Back,
-            Pedal::Fuzz
+            Pedal::Delay
+            | Pedal::Reverb
+            | Pedal::Fuzz
             | Pedal::Comp
             | Pedal::Chorus
             | Pedal::Phaser
@@ -395,8 +397,6 @@ mod tests {
     fn test_no_move_takes_a_pedal_where_it_cannot_stand() {
         let order = ChainOrder::default();
         assert_eq!(order.moved(Pedal::Drive, Zone::Back, 0), order);
-        assert_eq!(order.moved(Pedal::Delay, Zone::Front, 0), order);
-        assert_eq!(order.moved(Pedal::Reverb, Zone::Front, 2), order);
         assert_eq!(order.moved(Pedal::Pitch, Zone::Back, 0), order);
         assert_eq!(order.moved(Pedal::Wah, Zone::Back, 0), order);
         assert_eq!(order.moved(Pedal::Wah, Zone::Back, 99), order);
@@ -509,9 +509,15 @@ mod tests {
         assert_eq!(odd.zone_of(Pedal::Chorus), Zone::Front);
         assert_eq!(odd.zone_of(Pedal::Comp), Zone::Back);
         assert_eq!(odd.zone_of(Pedal::Drive), Zone::Front);
-        assert_eq!(odd.zone_of(Pedal::Delay), Zone::Back);
+        // The delay and the reverb stand in front of the amp too (#268)
+        assert_eq!(odd.zone_of(Pedal::Delay), Zone::Front);
         let all_in_front = ChainOrder::from_ids(Pedal::ALL.map(Pedal::id));
         assert!(is_legal(&all_in_front));
-        assert_eq!(all_in_front.back(), [Pedal::Delay, Pedal::Reverb]);
+        assert!(all_in_front.back().is_empty());
+        let delay_first = ChainOrder::default().moved(Pedal::Delay, Zone::Front, 0);
+        assert_eq!(delay_first.front()[0], Pedal::Delay);
+        let reverb_second = ChainOrder::default().moved(Pedal::Reverb, Zone::Front, 1);
+        assert_eq!(reverb_second.front()[1], Pedal::Reverb);
+        assert!(is_legal(&delay_first) && is_legal(&reverb_second));
     }
 }
