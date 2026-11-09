@@ -292,7 +292,8 @@ its quick part before each commit. The details, and the sound reports of a pull 
   one on branch `hojt-standalone-audio` (the standalone host's `--input-channel` and `--output-channel`,
   `nih_standalone_set_test_tone` and the `asio` feature, #180, then one Device for ASIO input and output, a capture
   callback that never waits, the buffer size taken from the driver, and only the channels the plugin uses
-  opened; the pin is that branch's tip). To move to a
+  opened, then a cpal callback longer than the buffer size processed in chunks, for WASAPI's shared mode,
+  #250; the pin is that branch's tip). To move to a
   newer upstream, rebase those commits onto it and pin the result
 - An editor paints only when something asks for it, not every frame: anything an editor shows
   that changes on its own asks for a repaint in the frame that draws the change. The rule is in

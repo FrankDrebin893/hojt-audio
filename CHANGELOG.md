@@ -7,6 +7,7 @@ GitHub release.
 
 ### Guitar Amp
 
+- The standalone program no longer stops with a buffer-size error when it plays through WASAPI.
 - The strip across the top of the Guitar Amp is slim now, and shows only what you need all the time: the
   input meter with the Input gain beside it, the preset name, and the output knob with its meter and
   the Clip lamp, with the jacks, the model number and the logo at its ends. The Bank and Preset
