@@ -12,8 +12,8 @@
 //! - `frame`: the enclosure every editor is drawn on. `pedal` is one stompbox filling the window;
 //!   `rig` is the bare bench for a `strip` with `mini_pedal`s below it,
 //!   joined by `coupler`s and `patch_cable`s
-//! - `settings`: the panel a standalone program drops over its window for the machine's own
-//!   settings (the audio interface)
+//! - `plate`: the hardware plate that opens from an icon or a display, and `icons`: the icon with
+//!   a lamp and a switch that opens one
 //! - `snapshot` (feature `snapshot`, tests only): draws an editor off screen into a picture
 
 pub mod amp;
@@ -22,9 +22,10 @@ pub mod artwork;
 pub mod frame;
 pub mod hardware;
 pub mod host_keys;
+pub mod icons;
 pub mod led;
+pub mod plate;
 pub mod raster;
-pub mod settings;
 #[cfg(feature = "snapshot")]
 pub mod snapshot;
 pub mod theme;
@@ -36,18 +37,21 @@ pub use amp::{
 };
 pub use art::Motif;
 pub use frame::{
-    coupler, enclosure, lifted, mini_pedal, patch_cable, pedal, rig, rig_layer, strip, strip_plate,
-    title_grip, MiniStyle, Ornament, PedalStyle, BENCH_MARGIN, PLUG_Y, SLIM_KNOBS,
-    SLIM_KNOB_RADIUS, SLIM_LED, SLIM_SWITCH, STRIP_BAND_WIDTH,
+    coupler, enclosure, jack_socket, lifted, mini_pedal, patch_cable, pedal, rig, rig_layer,
+    slim_print, slim_strip, strip, strip_plate, title_grip, MiniStyle, Ornament, PedalStyle,
+    SlimPrint, BENCH_MARGIN, PLUG_Y, SLIM_JACK_X, SLIM_JACK_Y, SLIM_KNOBS, SLIM_KNOB_RADIUS,
+    SLIM_LED, SLIM_PRINT_REACH, SLIM_STRIP_HEIGHT, SLIM_SWITCH, STRIP_BAND_WIDTH,
 };
+pub use icons::{icon_switch, Icon, IconSwitch};
 pub use led::{led_display, led_width, tuner_display, LED_HEIGHT};
+pub use plate::{plate, Close};
 pub use raster::{Grille, KnobCap, Plate, Tolex};
-pub use settings::{settings_panel, SettingRow, SettingsEvent, SettingsText};
 pub use theme::install;
 pub use widgets::{
-    beat_lamp, cents_meter, chrome_button, crossfader, drop_panel, footswitch, led, led_stepper,
-    level_meter, lit_level_lamps, menu_stepper, nameplate_stepper, panel_caption, panel_knob,
-    panel_knob_rect, param_knob, param_knob_with, param_switch, print_label, rig_led, rocker,
-    signal_lamp, silk_frame, silk_label, small_footswitch, stepper, type_into, type_on_tape,
-    value_knob, value_switch, Beat, Column, Pick, Picked, Row, Step, Typed, LEVEL_MIN_DB,
+    bare_param_knob, beat_lamp, beat_lamp_sized, cents_meter, chrome_button, crossfader,
+    drop_panel, drop_panel_with, footswitch, led, led_stepper, level_meter, level_meter_wide,
+    lit_level_lamps, menu_stepper, nameplate_stepper, panel_caption, panel_knob, panel_knob_rect,
+    param_knob, param_knob_with, param_switch, print_label, rig_led, rocker, signal_lamp,
+    silk_frame, silk_label, small_footswitch, stepper, type_into, type_on_tape, value_knob,
+    value_switch, Beat, Column, Pick, Picked, Row, Step, Typed, LEVEL_MIN_DB,
 };

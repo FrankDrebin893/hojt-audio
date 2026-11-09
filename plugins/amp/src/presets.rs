@@ -1206,14 +1206,8 @@ mod tests {
     }
 
     #[test]
-    fn test_stepping_goes_round_and_survives_a_stale_index() {
-        // The factory bank is a round of its own: a step never leaves it
+    fn test_a_stale_index_is_brought_back_in() {
         let last = PRESETS.len() - 1;
-        let neighbour = crate::user_presets::neighbour_factory;
-        assert_eq!(neighbour(0, true), 1);
-        assert_eq!(neighbour(last, true), 0);
-        assert_eq!(neighbour(0, false), last);
-        assert_eq!(neighbour(1, false), 0);
         assert_eq!(index_or_first(last as u32), last);
         assert_eq!(index_or_first(PRESETS.len() as u32), 0);
         assert_eq!(index_or_first(u32::MAX), 0);

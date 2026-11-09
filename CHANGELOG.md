@@ -7,6 +7,23 @@ GitHub release.
 
 ### Guitar Amp
 
+- The strip across the top of the Guitar Amp is slim now, and shows only what you need all the time: the
+  input meter with the Input gain beside it, the preset name, and the output knob with its meter and
+  the Clip lamp, with the jacks, the model number and the logo at its ends. The Bank and Preset
+  arrows, Save, the metronome's controls, the tuner and the On button are gone from it. The Input
+  gain moved here from the Gate pedal, which has Thresh and Release now.
+- A click on the preset name opens a plate under it with the banks, the presets, a new bank, and
+  at its foot the name of the preset with Save and a Folder button. A preset name can hold spaces
+  now, also in REAPER, where the space bar did not get through.
+- The metronome, the tuner and the settings are icons in the middle of the strip. The metronome
+  and the tuner have a lamp and a switch beside them; the metronome's tempo, sound and the rest
+  open on a plate from its icon, and the tuner's display still takes the place of the preset name
+  while it is on. The settings plate holds the cabinet files and, in the standalone program, the
+  audio device (it was the Audio button). One plate is open at a time, and it closes on a click
+  outside it, on Escape, or on its icon.
+- The window is lower, the pedals and amps keep their size. The On button is gone from the
+  window; the host's own bypass still works.
+
 - The host's parameter list of the amp now ends with 96 generic ones, Slot 1 On, Slot 1 Knob 1 to
   Slot 16 Knob 5, which do nothing yet: they are reserved for the effect chain that is coming to
   the window. Nothing else changes: projects and presets from before open with the same pedals in

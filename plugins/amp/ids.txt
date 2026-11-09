@@ -183,7 +183,7 @@ persist cabinet
 persist cabinet2
 persist chain
 persist chain-order
-persist editor-state-rig11
+persist editor-state-rig12
 persist preset
 persist preset-bank
 persist user-preset
