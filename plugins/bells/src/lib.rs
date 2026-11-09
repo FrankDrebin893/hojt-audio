@@ -281,6 +281,9 @@ impl Plugin for GlassBellsPlugin {
                     NoteEvent::MidiCC { cc, .. } if cc == control_change::ALL_SOUND_OFF => {
                         self.bells.reset()
                     }
+                    NoteEvent::MidiCC { cc, value, .. } if cc == control_change::MODULATION_MSB => {
+                        self.bells.set_wheel(value)
+                    }
                     _ => {}
                 }
 

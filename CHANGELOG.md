@@ -69,6 +69,17 @@ GitHub release.
 - The standalone program reads a stereo input channel by channel; before, the two channels'
   samples could land in the wrong halves of the buffer.
 
+### Shimmer Pad and Glass Bells
+
+- The mod wheel (MIDI CC 1) shapes the sound while you play. In the Shimmer Pad it opens the filter
+  by up to two octaves and lifts the shimmer by up to 30 points (never past the Shimmer Level
+  knob's own top, and with the Shimmer switch off it adds none). In the Glass Bells it raises
+  Brightness: a full wheel gives the glass of the knob at the top, whatever the knob says, to
+  each bell struck while it is up; a bell already ringing keeps its glass. A fast move makes no
+  zipper noise, the knobs do not move, and with the wheel at 0, as in every project from before,
+  the sound is exactly what it was. The page lists the wheel among what the two instruments
+  respond to with the release.
+
 ## 0.3.0
 
 ### Guitar Amp

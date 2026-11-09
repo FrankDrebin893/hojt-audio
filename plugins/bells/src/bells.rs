@@ -62,6 +62,8 @@ const GLASS_DECAY_S: f32 = 0.35;
 // How quickly a switch and the delay time are followed
 const SWITCH_MS: f32 = 10.0;
 const TIME_GLIDE_MS: f32 = 60.0;
+// Time constant of the mod wheel's smoothing
+const WHEEL_SMOOTHING_MS: f32 = 30.0;
 
 #[derive(Clone, Copy, Default)]
 struct Bell {
@@ -106,6 +108,11 @@ pub struct GlassBells {
     reverb_gain: f32,
     switch_step: f32,
     out_hps: [Svf; 2],
+
+    // The mod wheel, 0.0-1.0, as it was set and as it is followed, a step every sample
+    wheel_target: f32,
+    wheel: f32,
+    wheel_follow: f32,
 }
 
 impl GlassBells {
@@ -135,6 +142,9 @@ impl GlassBells {
             reverb_gain: 1.0,
             switch_step: 1.0,
             out_hps: [Svf::new(), Svf::new()],
+            wheel_target: 0.0,
+            wheel: 0.0,
+            wheel_follow: 1.0,
         };
         bells.set_sample_rate(44100.0);
         bells
@@ -151,6 +161,7 @@ impl GlassBells {
         self.echo_glide = 1.0 - (-1.0 / (TIME_GLIDE_MS * 0.001 * sample_rate)).exp();
         self.switch_step = 1.0 / (SWITCH_MS * 0.001 * sample_rate);
         self.glass_decay = (-1.0 / (GLASS_DECAY_S * sample_rate)).exp();
+        self.wheel_follow = 1.0 - (-1.0 / (WHEEL_SMOOTHING_MS * 0.001 * sample_rate)).exp();
         self.hall.set_sample_rate(sample_rate);
         for filter in &mut self.out_hps {
             filter.set(80.0, 0.7, sample_rate);
@@ -160,7 +171,8 @@ impl GlassBells {
         self.reset();
     }
 
-    /// Silence at once: bells, echoes and hall. Allocates nothing
+    /// Silence at once: bells, echoes and hall. Allocates nothing. The mod wheel stays where it
+    /// is: it is where a hand is, not sound
     pub fn reset(&mut self) {
         self.bells = [Bell::default(); VOICES];
         self.echo_left.fill(0.0);
@@ -172,6 +184,12 @@ impl GlassBells {
         }
         self.delay_gain = if self.settings.delay_on { 1.0 } else { 0.0 };
         self.reverb_gain = if self.settings.reverb_on { 1.0 } else { 0.0 };
+    }
+
+    /// The mod wheel, 0.0-1.0: raises Brightness for the bells struck from now on, followed over
+    /// about 30 ms
+    pub fn set_wheel(&mut self, value: f32) {
+        self.wheel_target = value.clamp(0.0, 1.0);
     }
 
     /// Once per block
@@ -206,13 +224,15 @@ impl GlassBells {
             .or_else(|| (0..VOICES).min_by_key(|&index| self.bells[index].strike))
             .unwrap_or(0);
         self.strikes += 1;
+        // A full wheel reaches the top whatever the knob says
+        let brightness = self.settings.brightness + self.wheel * (1.0 - self.settings.brightness);
         self.bells[index] = Bell {
             freq_hz,
             carrier: 0.0,
             modulator: 0.0,
             octave: 0.0,
             env: 0.00001,
-            glass: (0.6 + 2.4 * self.settings.brightness) * (0.4 + 0.6 * velocity),
+            glass: (0.6 + 2.4 * brightness) * (0.4 + 0.6 * velocity),
             attack: 0.0,
             velocity,
             decay: (-1.0 / (decay_s * self.sample_rate)).exp(),
@@ -224,6 +244,9 @@ impl GlassBells {
 
     /// One stereo frame, before Volume
     pub fn process(&mut self) -> (f32, f32) {
+        let gap = self.wheel_target - self.wheel;
+        self.wheel =
+            if gap.abs() < 1e-5 { self.wheel_target } else { self.wheel + gap * self.wheel_follow };
         let rate = self.sample_rate;
         let settings = &self.settings;
 
@@ -530,6 +553,110 @@ pub(crate) mod tests {
         }
     }
 
+    /// A bell struck once the wheel, set first, has settled
+    fn struck_at_wheel(settings: &BellSettings, wheel: f32) -> Vec<f32> {
+        let mut bells = bells(settings, SAMPLE_RATE);
+        bells.set_wheel(wheel);
+        render(&mut bells, SAMPLE_RATE, 0.5);
+        bells.note_on(60, 0.8);
+        render(&mut bells, SAMPLE_RATE, 0.2).0
+    }
+
+    #[test]
+    fn test_wheel_at_zero_is_what_it_was_without_a_wheel() {
+        let settings = BellSettings::default();
+        let without = strike(&settings, 60, 0.8, 3.0);
+        let mut touched = bells(&settings, SAMPLE_RATE);
+        touched.set_wheel(0.0);
+        touched.note_on(60, 0.8);
+        assert!(without == render(&mut touched, SAMPLE_RATE, 3.0));
+    }
+
+    #[test]
+    fn test_wheel_adds_glass_up_to_the_top() {
+        let settings = BellSettings { brightness: 0.2, ..plain() };
+        let glass = |wheel: f32| brightness(&struck_at_wheel(&settings, wheel));
+        let levels: Vec<f32> = [0.0, 0.25, 0.5, 0.75, 1.0].into_iter().map(glass).collect();
+        assert!(levels.windows(2).all(|pair| pair[1] > pair[0]), "{levels:?}");
+        // A full wheel is the knob at the top, whatever the knob says
+        let top = brightness(&strike(&BellSettings { brightness: 1.0, ..plain() }, 60, 0.8, 0.2).0);
+        for knob in [0.0, 0.2, 0.9] {
+            let at =
+                brightness(&struck_at_wheel(&BellSettings { brightness: knob, ..plain() }, 1.0));
+            assert!((at / top - 1.0).abs() < 0.01, "knob {knob}: {at} against {top}");
+        }
+    }
+
+    #[test]
+    fn test_a_bell_ringing_keeps_the_glass_it_was_struck_with() {
+        let settings = plain();
+        let mut still = bells(&settings, SAMPLE_RATE);
+        let mut moved = bells(&settings, SAMPLE_RATE);
+        for bells in [&mut still, &mut moved] {
+            bells.note_on(60, 0.8);
+            render(bells, SAMPLE_RATE, 0.05);
+        }
+        moved.set_wheel(1.0);
+        assert!(render(&mut still, SAMPLE_RATE, 1.0) == render(&mut moved, SAMPLE_RATE, 1.0));
+    }
+
+    #[test]
+    fn test_a_fast_move_of_the_wheel_is_followed_not_jumped_to() {
+        let settings = BellSettings { brightness: 0.2, ..plain() };
+        let soon = |samples: usize| {
+            let mut bells = bells(&settings, SAMPLE_RATE);
+            bells.set_wheel(1.0);
+            for _ in 0..samples {
+                bells.process();
+            }
+            bells.note_on(60, 0.8);
+            brightness(&render(&mut bells, SAMPLE_RATE, 0.2).0)
+        };
+        assert!(soon(48) < soon(24000));
+    }
+
+    #[test]
+    fn test_output_is_bounded_with_the_wheel_at_both_ends() {
+        for wheel in [0.0, 1.0] {
+            let settings = BellSettings {
+                brightness: 1.0,
+                decay_s: DECAY_MAX_S,
+                attack_ms: ATTACK_MIN_MS,
+                dry: 1.0,
+                delay_on: true,
+                delay_ms: DELAY_MIN_MS,
+                delay_feedback: FEEDBACK_MAX,
+                delay_mix: 1.0,
+                reverb_on: true,
+                reverb_decay_s: REVERB_DECAY_MAX_S,
+                reverb_mix: 1.0,
+            };
+            let mut bells = bells(&settings, 44100.0);
+            bells.set_wheel(wheel);
+            let mut output = Vec::new();
+            for round in 0..4 {
+                for note in 0..12 {
+                    bells.note_on(48 + note * 3 + round, 1.0);
+                }
+                let (left, right) = render(&mut bells, 44100.0, 0.5);
+                output.extend(left);
+                output.extend(right);
+            }
+            assert!(output.iter().all(|sample| sample.is_finite()));
+            assert!(peak(&output) < 12.0, "Peak {} at wheel {wheel}", peak(&output));
+        }
+    }
+
+    #[test]
+    fn test_reset_leaves_the_wheel_where_it_is() {
+        let mut bells = bells(&plain(), SAMPLE_RATE);
+        bells.set_wheel(0.7);
+        bells.reset();
+        assert_eq!(bells.wheel_target, 0.7);
+        bells.set_wheel(-1.0);
+        assert_eq!(bells.wheel_target, 0.0);
+    }
+
     /// Level per note and the cost of twelve bells:
     ///   cargo test -p bells --release bells_report -- --ignored --nocapture
     #[test]
@@ -566,6 +693,73 @@ pub(crate) mod tests {
             per_frame_ns * 48000.0 / 1e7,
             sum.is_finite()
         );
+    }
+
+    /// Writes target/renders/bells-wheel-0.wav, -50 and -100 for listening: the sparse line of
+    /// `render_wavs` with the mod wheel at rest, half way and at the top, and with it moved up
+    /// and down through it:
+    ///   cargo test -p bells --release render_wheel_wavs -- --ignored
+    #[test]
+    #[ignore]
+    fn render_wheel_wavs() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/renders");
+        std::fs::create_dir_all(&dir).unwrap();
+        let line: [(f32, u8, f32); 14] = [
+            (0.0, 76, 0.7),
+            (1.5, 83, 0.5),
+            (3.0, 79, 0.6),
+            (4.0, 88, 0.45),
+            (6.0, 81, 0.6),
+            (7.5, 76, 0.5),
+            (8.0, 74, 0.7),
+            (9.5, 81, 0.5),
+            (11.0, 78, 0.6),
+            (12.0, 86, 0.45),
+            (14.0, 81, 0.55),
+            (15.0, 69, 0.6),
+            (16.0, 76, 0.7),
+            (16.0, 64, 0.5),
+        ];
+        let samples_per_beat = SAMPLE_RATE * 60.0 / 72.0;
+        let length = (16.0 * samples_per_beat) as usize + SAMPLE_RATE as usize * 10;
+        let volume = suite_common::dsp::db_to_gain(VOLUME_DEFAULT_DB);
+        let spec = hound::WavSpec {
+            channels: 2,
+            sample_rate: SAMPLE_RATE as u32,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        for (name, wheel, sweep) in [
+            ("bells-wheel-0", 0.0, false),
+            ("bells-wheel-50", 0.5, false),
+            ("bells-wheel-100", 1.0, false),
+            ("bells-wheel-sweep", 0.0, true),
+        ] {
+            let mut bells = bells(&BellSettings::default(), SAMPLE_RATE);
+            bells.set_wheel(wheel);
+            let mut writer =
+                hound::WavWriter::create(dir.join(format!("{name}.wav")), spec).unwrap();
+            let mut next = 0;
+            for sample in 0..length {
+                if sweep {
+                    // Up over the first 8 beats and back down over the next 8
+                    let at = (sample as f32 / samples_per_beat / 8.0).min(2.0);
+                    bells.set_wheel(if at < 1.0 { at } else { (2.0 - at).max(0.0) });
+                }
+                while next < line.len() && (line[next].0 * samples_per_beat) as usize <= sample {
+                    bells.note_on(line[next].1, line[next].2);
+                    next += 1;
+                }
+                let (left, right) = bells.process();
+                for channel in [left, right] {
+                    writer
+                        .write_sample(((channel * volume).clamp(-1.0, 1.0) * 32767.0) as i16)
+                        .unwrap();
+                }
+            }
+            writer.finalize().unwrap();
+        }
+        println!("Wrote renders to {}", dir.display());
     }
 
     /// Writes target/renders/bells.wav for listening:

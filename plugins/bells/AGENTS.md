@@ -20,6 +20,11 @@ How it behaves:
   and bounces them right and back, each bounce a little darker
 - A new bell takes a voice that has rung out, or else the one struck longest ago
 - All sound off stops bells and tails at once
+- The mod wheel (CC 1, any channel; `set_wheel`, not a parameter, so no id) raises Brightness:
+  the value a strike uses is `brightness + wheel * (1 - brightness)`, so a full wheel reaches the
+  top whatever the knob says. It is read when a bell is struck, so a bell already ringing keeps its
+  glass. The wheel is followed over about 30 ms. At 0 the sound is bit-for-bit what it was; the
+  knob does not move on screen. Reset keeps the wheel where it is
 - The delay time glides when its knob is turned, and when the song's tempo moves while Sync is
   on. The tempo is read from the host only while Sync is on; with none, the Time knob's ms.
   The footswitches fade in 10 ms; with Delay off the echoes are out of the hall as well

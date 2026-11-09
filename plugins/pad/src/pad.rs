@@ -15,6 +15,9 @@ pub const DETUNE_MAX_CENTS: f32 = 30.0;
 pub const REVERB_DECAY_MIN_S: f32 = 1.0;
 pub const REVERB_DECAY_MAX_S: f32 = 20.0;
 pub const SHIMMER_MAX: f32 = 0.6;
+/// What the mod wheel adds at its top: octaves of cutoff, and shimmer level
+pub const WHEEL_OCTAVES: f32 = 2.0;
+pub const WHEEL_SHIMMER: f32 = 0.3;
 
 /// Everything the pedal sets except Volume, as the plugin reads it once per block
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -71,6 +74,8 @@ const ENV_FREE: f32 = 0.0001;
 const CONTROL_SAMPLES: u32 = 32;
 // How quickly a switch is followed
 const SWITCH_MS: f32 = 20.0;
+// Time constant of the mod wheel's smoothing
+const WHEEL_SMOOTHING_MS: f32 = 30.0;
 // Damping of the voice filters (1 / Q)
 const FILTER_K: f32 = 1.25;
 
@@ -145,6 +150,11 @@ pub struct ShimmerPad {
     shimmer_gain: f32,
     switch_step: f32,
     out_hps: [Svf; 2],
+
+    // The mod wheel, 0.0-1.0, as it was set and as it is followed, a step every control tick
+    wheel_target: f32,
+    wheel: f32,
+    wheel_follow: f32,
 }
 
 impl ShimmerPad {
@@ -182,6 +192,9 @@ impl ShimmerPad {
             shimmer_gain: 1.0,
             switch_step: 1.0,
             out_hps: [Svf::new(), Svf::new()],
+            wheel_target: 0.0,
+            wheel: 0.0,
+            wheel_follow: 1.0,
         };
         pad.set_sample_rate(44100.0);
         pad
@@ -209,6 +222,8 @@ impl ShimmerPad {
 
         self.hall.set_sample_rate(sample_rate);
         self.switch_step = 1.0 / (SWITCH_MS * 0.001 * sample_rate);
+        self.wheel_follow =
+            1.0 - (-(CONTROL_SAMPLES as f32) / (WHEEL_SMOOTHING_MS * 0.001 * sample_rate)).exp();
         for filter in &mut self.out_hps {
             filter.set(35.0, 0.7, sample_rate);
         }
@@ -216,7 +231,8 @@ impl ShimmerPad {
         self.reset();
     }
 
-    /// Silence at once: voices, chorus, hall and shimmer. Allocates nothing
+    /// Silence at once: voices, chorus, hall and shimmer. Allocates nothing. The mod wheel stays
+    /// where it is: it is where a hand is, not sound
     pub fn reset(&mut self) {
         self.voices = [Voice::default(); VOICES];
         self.control = 0;
@@ -232,6 +248,11 @@ impl ShimmerPad {
         }
         self.chorus_gain = if self.settings.chorus_on { 1.0 } else { 0.0 };
         self.shimmer_gain = if self.settings.shimmer_on { 1.0 } else { 0.0 };
+    }
+
+    /// The mod wheel, 0.0-1.0: opens the filter and lifts the shimmer, followed over about 30 ms
+    pub fn set_wheel(&mut self, value: f32) {
+        self.wheel_target = value.clamp(0.0, 1.0);
     }
 
     /// Once per block
@@ -312,6 +333,12 @@ impl ShimmerPad {
         advance(&mut self.drift, 0.06 * elapsed);
         let drift = sine(self.drift);
 
+        let gap = self.wheel_target - self.wheel;
+        self.wheel =
+            if gap.abs() < 1e-5 { self.wheel_target } else { self.wheel + gap * self.wheel_follow };
+        // 1.0 at 0, so a wheel at rest leaves the cutoff as it was
+        let wheel_open = 2.0f32.powf(WHEEL_OCTAVES * self.wheel);
+
         for (index, voice) in self.voices.iter_mut().enumerate() {
             if !voice.held && voice.env <= ENV_FLOOR {
                 continue;
@@ -319,6 +346,7 @@ impl ShimmerPad {
             advance(&mut voice.wobble, 0.13 * (1.0 + 0.4 * index as f32 / VOICES as f32) * elapsed);
             // Higher notes, harder notes and notes that have swelled are more open
             let cutoff_hz = settings.cutoff_hz
+                * wheel_open
                 * (voice.freq_hz / 261.6).powf(0.3)
                 * (0.65 + 0.35 * voice.velocity)
                 * (0.45 + 0.55 * voice.env)
@@ -425,8 +453,10 @@ impl ShimmerPad {
         };
         let octave_up = read(self.shimmer_delay) + read(other_delay);
         let octave_up = self.shimmer_lp.process(self.shimmer_hp.process(octave_up).high).low;
-        self.shimmer_feedback =
-            (octave_up * settings.shimmer * self.shimmer_gain * 1.2).tanh() * 0.5;
+        // The wheel lifts the level, up to the knob's own top; the switch stays the master
+        let shimmer =
+            (settings.shimmer + WHEEL_SHIMMER * self.wheel).min(SHIMMER_MAX.max(settings.shimmer));
+        self.shimmer_feedback = (octave_up * shimmer * self.shimmer_gain * 1.2).tanh() * 0.5;
 
         let left = pad_left * settings.dry + hall_left * settings.reverb * 0.9;
         let right = pad_right * settings.dry + hall_right * settings.reverb * 0.9;
@@ -681,6 +711,144 @@ mod tests {
         }
     }
 
+    /// A held chord with the wheel at `wheel`, which was set before the first note
+    fn with_wheel(settings: &PadSettings, wheel: f32, seconds: f32) -> Vec<f32> {
+        let mut pad = pad(settings, SAMPLE_RATE);
+        pad.set_wheel(wheel);
+        for note in [45, 52, 57] {
+            pad.note_on(note, 0.8);
+        }
+        render(&mut pad, SAMPLE_RATE, seconds).0
+    }
+
+    #[test]
+    fn test_wheel_at_zero_is_what_it_was_without_a_wheel() {
+        // Everything on, so the shimmer, the chorus and the motion are all in it
+        let settings = PadSettings::default();
+        let without = hold(&settings, &[45, 52, 57], 3.0);
+        let mut touched = pad(&settings, SAMPLE_RATE);
+        touched.set_wheel(0.0);
+        for note in [45, 52, 57] {
+            touched.note_on(note, 0.8);
+        }
+        let with = render(&mut touched, SAMPLE_RATE, 3.0);
+        assert!(without == with);
+    }
+
+    #[test]
+    fn test_wheel_opens_the_filter() {
+        let top = |wheel: f32| brightness(&with_wheel(&plain(), wheel, 1.5)[48000..]);
+        let levels: Vec<f32> = [0.0, 0.25, 0.5, 0.75, 1.0].into_iter().map(top).collect();
+        assert!(levels.windows(2).all(|pair| pair[1] > pair[0]), "{levels:?}");
+        assert!(levels[4] > levels[0] * 2.0, "{levels:?}");
+    }
+
+    #[test]
+    fn test_wheel_lifts_the_shimmer_of_the_tail_and_the_switch_stays_the_master() {
+        // The voices are gone when the wheel moves, so only the shimmer can answer it
+        let tail = |shimmer_on: bool, wheel: f32| {
+            let settings = PadSettings {
+                attack_s: 0.05,
+                release_s: 0.1,
+                breath: 0.0,
+                motion: 0.0,
+                chorus_on: false,
+                shimmer_on,
+                shimmer: 0.2,
+                cutoff_hz: 500.0,
+                ..PadSettings::default()
+            };
+            let mut pad = pad(&settings, SAMPLE_RATE);
+            pad.note_on(45, 0.8);
+            render(&mut pad, SAMPLE_RATE, 1.5);
+            pad.note_off(45);
+            render(&mut pad, SAMPLE_RATE, 1.5);
+            pad.set_wheel(wheel);
+            render(&mut pad, SAMPLE_RATE, 4.0).0
+        };
+        let energy = |wheel: f32| brightness(&tail(true, wheel)[96000..]);
+        let levels: Vec<f32> = [0.0, 0.5, 1.0].into_iter().map(energy).collect();
+        assert!(levels.windows(2).all(|pair| pair[1] > pair[0]), "{levels:?}");
+        assert!(tail(false, 1.0) == tail(false, 0.0));
+    }
+
+    #[test]
+    fn test_wheel_never_lifts_the_shimmer_past_the_knobs_top() {
+        // The voices are gone when the wheel moves, so only the shimmer could answer it
+        let settings = PadSettings { shimmer: SHIMMER_MAX, shimmer_on: true, ..plain() };
+        let late = |wheel: f32| {
+            let mut pad = pad(&settings, SAMPLE_RATE);
+            pad.note_on(45, 0.8);
+            render(&mut pad, SAMPLE_RATE, 0.5);
+            pad.note_off(45);
+            render(&mut pad, SAMPLE_RATE, 1.0);
+            pad.set_wheel(wheel);
+            render(&mut pad, SAMPLE_RATE, 1.0).0
+        };
+        assert!(late(1.0) == late(0.0));
+    }
+
+    #[test]
+    fn test_a_step_of_the_wheel_makes_no_click() {
+        // How far one sample is from the last, the most over the window
+        let jump =
+            |samples: &[f32]| samples.windows(2).map(|w| (w[1] - w[0]).abs()).fold(0.0, f32::max);
+        let settings = PadSettings { motion: 0.5, ..plain() };
+        let mut stepped = pad(&settings, SAMPLE_RATE);
+        for note in [45, 52, 57] {
+            stepped.note_on(note, 0.8);
+        }
+        render(&mut stepped, SAMPLE_RATE, 1.0);
+        stepped.set_wheel(1.0);
+        let after = render(&mut stepped, SAMPLE_RATE, 0.5).0;
+        // At rest with the wheel up, the same chord
+        let steady = with_wheel(&settings, 1.0, 1.5);
+        let steady = &steady[24000 + 24000..];
+        assert!(jump(&after[..4800]) < jump(steady) * 1.3, "{} {}", jump(&after), jump(steady));
+    }
+
+    #[test]
+    fn test_reset_leaves_the_wheel_where_it_is() {
+        let mut pad = pad(&plain(), SAMPLE_RATE);
+        pad.set_wheel(0.7);
+        pad.reset();
+        assert_eq!(pad.wheel_target, 0.7);
+        pad.set_wheel(3.0);
+        assert_eq!(pad.wheel_target, 1.0);
+    }
+
+    #[test]
+    fn test_output_is_bounded_with_the_wheel_at_both_ends() {
+        for wheel in [0.0, 1.0] {
+            let settings = PadSettings {
+                attack_s: ATTACK_MIN_S,
+                release_s: RELEASE_MAX_S,
+                cutoff_hz: CUTOFF_MAX_HZ,
+                detune_cents: DETUNE_MAX_CENTS,
+                breath: 1.0,
+                motion: 1.0,
+                dry: 1.0,
+                chorus_on: true,
+                chorus: 1.0,
+                reverb: 1.0,
+                reverb_decay_s: REVERB_DECAY_MAX_S,
+                shimmer_on: true,
+                shimmer: SHIMMER_MAX,
+            };
+            for sample_rate in [44100.0, 192000.0] {
+                let mut pad = pad(&settings, sample_rate);
+                pad.set_wheel(wheel);
+                for note in 0..12 {
+                    pad.note_on(36 + note * 5, 1.0);
+                }
+                let (left, right) = render(&mut pad, sample_rate, 6.0);
+                assert!(left.iter().chain(&right).all(|sample| sample.is_finite()));
+                let level = peak(&left).max(peak(&right));
+                assert!(level < 40.0, "Peak {level} at {sample_rate} Hz, wheel {wheel}");
+            }
+        }
+    }
+
     /// Level of a chord over time and the cost of twelve voices:
     ///   cargo test -p pad --release pad_report -- --ignored --nocapture
     #[test]
@@ -723,6 +891,57 @@ mod tests {
             per_frame_ns * 48000.0 / 1e7,
             sum.is_finite()
         );
+    }
+
+    /// Writes target/renders/pad-wheel-0.wav, -50 and -100 for listening: a held chord with
+    /// the mod wheel at rest, half way and at the top, and then moved up and down through it:
+    ///   cargo test -p pad --release render_wheel_wavs -- --ignored
+    #[test]
+    #[ignore]
+    fn render_wheel_wavs() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/renders");
+        std::fs::create_dir_all(&dir).unwrap();
+        let volume = suite_common::dsp::db_to_gain(VOLUME_DEFAULT_DB);
+        let spec = hound::WavSpec {
+            channels: 2,
+            sample_rate: SAMPLE_RATE as u32,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        // (file, the wheel at second 0, and a sweep up and down in the last six seconds)
+        for (name, wheel, sweep) in [
+            ("pad-wheel-0", 0.0, false),
+            ("pad-wheel-50", 0.5, false),
+            ("pad-wheel-100", 1.0, false),
+            ("pad-wheel-sweep", 0.0, true),
+        ] {
+            let mut pad = pad(&PadSettings::default(), SAMPLE_RATE);
+            pad.set_wheel(wheel);
+            for note in [45, 52, 60, 64] {
+                pad.note_on(note, 0.7);
+            }
+            let mut writer =
+                hound::WavWriter::create(dir.join(format!("{name}.wav")), spec).unwrap();
+            for sample in 0..SAMPLE_RATE as usize * 18 {
+                let second = sample as f32 / SAMPLE_RATE;
+                if sweep && second >= 6.0 {
+                    // Up over three seconds and back down over three
+                    let at = ((second - 6.0) / 3.0).min(2.0);
+                    pad.set_wheel(if at < 1.0 { at } else { (2.0 - at).max(0.0) });
+                }
+                if sample == SAMPLE_RATE as usize * 12 {
+                    pad.release();
+                }
+                let (left, right) = pad.process();
+                for channel in [left, right] {
+                    writer
+                        .write_sample(((channel * volume).clamp(-1.0, 1.0) * 32767.0) as i16)
+                        .unwrap();
+                }
+            }
+            writer.finalize().unwrap();
+        }
+        println!("Wrote renders to {}", dir.display());
     }
 
     /// Writes target/renders/pad.wav for listening:
