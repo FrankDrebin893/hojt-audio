@@ -307,6 +307,53 @@ fn test_the_wah_allocates_nothing() {
     }
 }
 
+/// The delay and the reverb in front of the amp (#268), on the oversampled rate, and moved from
+/// one side of the amp to the other while they play, at the rates that oversample 4 and 2 times
+#[test]
+fn test_the_delay_and_the_reverb_allocate_nothing_in_front_of_the_amp() {
+    use crate::chain::AmpSettings;
+    use crate::delay::DelaySettings;
+    use crate::order::{ChainOrder, Pedal, Zone};
+    use crate::reverb::ReverbSettings;
+    for sample_rate in [44_100.0, 192_000.0] {
+        let mut chain = AmpChain::new();
+        chain.set_sample_rate(sample_rate);
+        let mut left = vec![0.0f32; host::BLOCKS[0]];
+        let mut right = vec![0.0f32; host::BLOCKS[0]];
+        host::assert_allocates_nothing("The effects in front", || {
+            for block in 0..600 {
+                let len = host::BLOCKS[block % host::BLOCKS.len()];
+                for i in 0..len {
+                    left[i] = (i as f32 * 0.0144).sin() * 0.5;
+                    right[i] = left[i];
+                }
+                let dial = (block % 40) as f32 / 40.0;
+                // In front for the first half of each stretch of a hundred blocks, behind for
+                // the rest
+                let zone = if block % 100 < 50 { Zone::Front } else { Zone::Back };
+                let order = ChainOrder::default().moved(Pedal::Delay, zone, 0).moved(
+                    Pedal::Reverb,
+                    zone,
+                    1,
+                );
+                let settings = AmpSettings {
+                    delay: DelaySettings {
+                        on: block % 7 != 0,
+                        time_ms: 20.0 + 900.0 * dial,
+                        feedback: dial,
+                        mix: 1.0 - dial,
+                    },
+                    reverb: ReverbSettings { on: block % 5 != 0, ..ReverbSettings::default() },
+                    order,
+                    ..AmpSettings::default()
+                };
+                chain.process(&settings, &mut left[..len], Some(&mut right[..len]));
+                chain.process(&settings, &mut left[..len], None);
+            }
+        });
+    }
+}
+
 /// The chain model, as the audio thread meets it (a host may restore a saved state from there,
 /// and every block reads the chain with the dials): the chain read and written while blocks are
 /// taken out, put in and moved, its twelve-pedal view worked out, and the memory of the effects

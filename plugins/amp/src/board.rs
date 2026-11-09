@@ -58,8 +58,6 @@ enum Zone {
     Fixed,
     /// In front of the amp
     Front,
-    /// Behind the cabinet
-    Back,
     Either,
 }
 
@@ -68,8 +66,9 @@ impl Pedal {
         match self {
             Pedal::Gate | Pedal::Stack => Zone::Fixed,
             Pedal::Drive | Pedal::Pitch | Pedal::Wah => Zone::Front,
-            Pedal::Delay | Pedal::Reverb => Zone::Back,
             Pedal::Fuzz
+            | Pedal::Delay
+            | Pedal::Reverb
             | Pedal::Comp
             | Pedal::Phaser
             | Pedal::Chorus
@@ -224,7 +223,6 @@ impl Order {
             let allowed = match pedal.zone() {
                 Zone::Fixed => false,
                 Zone::Front => in_front,
-                Zone::Back => !in_front,
                 Zone::Either => true,
             };
             if allowed {
@@ -460,10 +458,6 @@ mod tests {
             assert!(in_front(&order, Pedal::Drive), "{order:?}");
             assert!(in_front(&order, Pedal::Pitch), "{order:?}");
             assert!(in_front(&order, Pedal::Wah), "{order:?}");
-            assert!(
-                !in_front(&order, Pedal::Delay) && !in_front(&order, Pedal::Reverb),
-                "{order:?}"
-            );
             for pedal in MOVABLE {
                 assert_eq!(
                     order.pedals.iter().filter(|&&other| other == pedal).count(),
@@ -547,16 +541,20 @@ mod tests {
             ]
         );
         assert_eq!(moved.front, 7);
-        // The reverb as far left as it goes: first behind the cabinet
+        // The reverb as far left as it goes: right behind the gate, in front of the amp (#268)
         let moved = order.nearest(Reverb, 0.0);
         assert_eq!(
             moved.pedals,
             [
-                Gate, Pitch, Wah, Fuzz, Comp, Drive, Phaser, Stack, Reverb, Chorus, Flanger,
+                Gate, Reverb, Pitch, Wah, Fuzz, Comp, Drive, Phaser, Stack, Chorus, Flanger,
                 Tremolo, Eq, Delay
             ]
         );
+        assert_eq!(moved.front, 8);
+        // And the reverb just behind the cabinet is still possible
+        let moved = order.nearest(Reverb, order.places()[Pedal::Chorus as usize]);
         assert_eq!(moved.front, 7);
+        assert_eq!(moved.pedals[8], Reverb);
         // The phaser to the far end
         let moved = order.nearest(Phaser, WINDOW_WIDTH as f32);
         assert_eq!(

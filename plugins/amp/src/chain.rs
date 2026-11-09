@@ -339,6 +339,11 @@ pub struct AmpChain {
     dc: DcBlocker,
     delay: Delay,
     reverb: Reverb,
+    // The same two effects for when they stand in front of the amp (#268): one of each, made
+    // for the oversampled rate, so a pedal that changes sides allocates nothing. Only the
+    // one of the side the pedal stands on is run; the other is left at rest
+    front_delay: Delay,
+    front_reverb: Reverb,
     // What the effects are told. Read with the dials, so a switch takes effect on the same
     // sample whatever the block size
     delay_settings: DelaySettings,
@@ -435,6 +440,8 @@ impl AmpChain {
             dc: DcBlocker::new(),
             delay: Delay::new(),
             reverb: Reverb::new(),
+            front_delay: Delay::new(),
+            front_reverb: Reverb::new(),
             delay_settings: DelaySettings::default(),
             reverb_settings: ReverbSettings::default(),
             out_level: Ramp::new(1.0),
@@ -485,6 +492,9 @@ impl AmpChain {
         }
         self.delay.set_sample_rate(sample_rate);
         self.reverb.set_sample_rate(sample_rate);
+        let oversampled = self.oversampled_rate();
+        self.front_delay.set_sample_rate(oversampled);
+        self.front_reverb.set_sample_rate(oversampled);
 
         self.cab_irs = Amp::ALL
             .iter()
@@ -538,7 +548,17 @@ impl AmpChain {
             Pedal::Flanger => self.flanger.set_sample_rate(rate),
             Pedal::Tremolo => self.tremolo.set_sample_rate(rate),
             // These stay on their side, and are set up with the chain
-            Pedal::Drive | Pedal::Delay | Pedal::Reverb => {}
+            Pedal::Drive => {}
+            // One of each for either side (`front_delay`, `front_reverb`): the one it left is
+            // dropped, so its tail is not heard if it comes back
+            Pedal::Delay => match zone {
+                Zone::Front => self.delay.reset(),
+                Zone::Back => self.front_delay.reset(),
+            },
+            Pedal::Reverb => match zone {
+                Zone::Front => self.reverb.reset(),
+                Zone::Back => self.front_reverb.reset(),
+            },
         }
     }
 
@@ -783,6 +803,12 @@ impl AmpChain {
         if !self.reverb.is_idle() {
             self.reverb.reset();
         }
+        if !self.front_delay.is_idle() {
+            self.front_delay.reset();
+        }
+        if !self.front_reverb.is_idle() {
+            self.front_reverb.reset();
+        }
         self.amp_fade = self.amp_fade_len;
         self.order_fade = self.order_fade_len;
         self.cabinet_busy = 0;
@@ -793,6 +819,8 @@ impl AmpChain {
     pub fn is_idle(&self) -> bool {
         self.delay.is_idle()
             && self.reverb.is_idle()
+            && self.front_delay.is_idle()
+            && self.front_reverb.is_idle()
             && self.pitch.is_idle()
             && self.chorus.is_idle()
             && self.flanger.is_idle()
@@ -1108,6 +1136,20 @@ impl AmpChain {
         }
     }
 
+    /// Runs a stereo effect on one channel, for an effect that stands in front of the amp:
+    /// the signal goes in on both sides and what comes out is the mean of the two, so the
+    /// level of the dry signal is as it was and the repeats and the tail are what a listener
+    /// in the middle would hear of them. Does not allocate
+    fn mono_through_stereo(high: &mut [f32], effect: impl FnOnce(&mut [f32], &mut [f32])) {
+        let mut other = [0.0f32; OVERSAMPLED_CHUNK];
+        let other = &mut other[..high.len()];
+        other.copy_from_slice(high);
+        effect(high, other);
+        for (sample, other) in high.iter_mut().zip(other.iter()) {
+            *sample = 0.5 * (*sample + *other);
+        }
+    }
+
     /// At most `CHUNK` samples
     fn process_chunk(&mut self, wet_target: f32, left: &mut [f32], mut right: Option<&mut [f32]>) {
         let bypassed = |chain: &Self| chain.wet == 0.0 && wet_target == 0.0;
@@ -1174,8 +1216,18 @@ impl AmpChain {
                 Pedal::Phaser => self.phaser.process_mono(&self.phaser_settings, high),
                 Pedal::Flanger => self.flanger.process_mono(&self.flanger_settings, high),
                 Pedal::Tremolo => self.tremolo.process_mono(&self.tremolo_settings, high),
-                // Never in front of the amp
-                Pedal::Delay | Pedal::Reverb => {}
+                Pedal::Delay => {
+                    if self.delay_settings.on || !self.front_delay.is_idle() {
+                        let (delay, settings) = (&mut self.front_delay, &self.delay_settings);
+                        Self::mono_through_stereo(high, |l, r| delay.process(settings, l, r));
+                    }
+                }
+                Pedal::Reverb => {
+                    if self.reverb_settings.on || !self.front_reverb.is_idle() {
+                        let (reverb, settings) = (&mut self.front_reverb, &self.reverb_settings);
+                        Self::mono_through_stereo(high, |l, r| reverb.process(settings, l, r));
+                    }
+                }
             }
         }
         // The second amp hears what the first one hears
@@ -2214,6 +2266,12 @@ mod tests {
             ("chorus in front of the drive", default.moved(Pedal::Chorus, Zone::Front, 1)),
             ("compressor behind the cabinet", default.moved(Pedal::Comp, Zone::Back, 0)),
             ("phaser last", default.moved(Pedal::Phaser, Zone::Back, 99)),
+            ("delay in front of the amp", default.moved(Pedal::Delay, Zone::Front, 99)),
+            ("reverb first in front of the amp", default.moved(Pedal::Reverb, Zone::Front, 0)),
+            (
+                "delay and reverb in front of the drive",
+                default.moved(Pedal::Delay, Zone::Front, 4).moved(Pedal::Reverb, Zone::Front, 5),
+            ),
             ("fuzz behind the cabinet", default.moved(Pedal::Fuzz, Zone::Back, 0)),
             ("fuzz behind the drive", default.moved(Pedal::Fuzz, Zone::Front, 4)),
             ("wah behind the drive", default.moved(Pedal::Wah, Zone::Front, 4)),
@@ -4200,6 +4258,103 @@ mod tests {
         let alike = correlation(&repeats_left[first..], &repeats_right[first..]);
         assert!(alike < 0.9, "Left and right repeats correlate by {}", alike);
         assert!(rms(&difference(&left, &right)) > 0.05 * rms(&dry));
+    }
+
+    /// The delay and the reverb with the amp in front of them on one side and behind on the other
+    fn effect_in(zone: Zone, delay: bool) -> AmpSettings {
+        // Turned down, so the safety clip stays out of it
+        let plain = AmpSettings { out_level: 0.25, ..with_amp(Amp::Klar, 0.5) };
+        let (pedal, delay_settings, reverb_settings) = if delay {
+            (Pedal::Delay, delay_on(100.0, 0.4, 0.5), ReverbSettings::default())
+        } else {
+            (Pedal::Reverb, DelaySettings::default(), reverb_on(0.8, 0.5))
+        };
+        AmpSettings {
+            delay: delay_settings,
+            reverb: reverb_settings,
+            order: ChainOrder::default().moved(pedal, zone, 0),
+            ..plain
+        }
+    }
+
+    #[test]
+    fn test_delay_and_reverb_in_front_of_the_amp_are_mono_heard_through_it_and_add_no_latency() {
+        let input = power_chords(SAMPLE_RATE, 0.5);
+        let plain = AmpSettings { out_level: 0.25, ..with_amp(Amp::Klar, 0.5) };
+        let dry = run(&plain, &input, SAMPLE_RATE);
+        let first = (0.09 * SAMPLE_RATE) as usize;
+        for delay in [true, false] {
+            let name = if delay { "delay" } else { "reverb" };
+            let front = effect_in(Zone::Front, delay);
+            let back = effect_in(Zone::Back, delay);
+            let (left, right) = run_stereo(&front, &input, SAMPLE_RATE);
+            let (back_left, _) = run_stereo(&back, &input, SAMPLE_RATE);
+
+            // Mono: the amp makes one signal of it, so both sides are the same
+            assert!(left == right, "{name} in front: the sides differ");
+            // Heard: the repeats and the tail are added in front of the amp, which is not
+            // what is added behind the cabinet
+            let added = difference(&left, &dry);
+            assert!(
+                rms(&added[first..]) > 0.1 * rms(&dry),
+                "{name} in front adds {} to an amp at {}",
+                rms(&added[first..]),
+                rms(&dry)
+            );
+            assert!(left != back_left, "{name} sounds the same on both sides of the amp");
+            if delay {
+                // Until the first repeat there is only the amp, to the bit
+                assert!(left[..first] == dry[..first], "{name} in front changes the amp alone");
+            }
+            // No latency: the impulse comes out when it goes in, as the amp's own does
+            let latency = latency_samples_with(&front, SAMPLE_RATE);
+            let amp_alone = latency_samples_with(&plain, SAMPLE_RATE);
+            assert!(latency == amp_alone, "{name} in front: {latency} samples, amp {amp_alone}");
+        }
+    }
+
+    #[test]
+    fn test_delay_and_reverb_in_front_ring_on_after_the_input_and_end() {
+        let playing = 192 * BLOCK;
+        let mut input = power_chords(SAMPLE_RATE, 0.3)[..playing].to_vec();
+        input.resize(playing + 4 * 48_000, 0.0);
+        let plain = AmpSettings { out_level: 0.25, ..with_amp(Amp::Klar, 0.5) };
+        let dry = run(&plain, &input, SAMPLE_RATE);
+        for delay in [true, false] {
+            let name = if delay { "delay" } else { "reverb" };
+            let mut chain = new_chain(SAMPLE_RATE);
+            assert!(chain.is_idle());
+            let (left, _, idle) = run_watching(&mut chain, &effect_in(Zone::Front, delay), &input);
+            // Just after the last note there is a tail the amp alone does not have
+            let after = playing + 4800..playing + 9600;
+            assert!(peak(&dry[after.clone()]) < 1e-6);
+            assert!(rms(&left[after.clone()]) > 1e-4, "{name} in front has no tail");
+            assert!(!idle[(playing + 4800) / BLOCK], "{name} in front is idle while it rings");
+            // And it ends, and the chain falls idle
+            let ended = idle.iter().rposition(|idle| !idle).map_or(0, |last| (last + 2) * BLOCK);
+            assert!(ended < input.len(), "{name} in front never falls idle");
+            // What was still in the amp when the effect ended is gone within a few milliseconds
+            let rest = largest_difference(&left[ended + 480..], &dry[ended + 480..]);
+            assert!(rest < 1e-6, "{name} in front leaves something behind, {rest}");
+        }
+    }
+
+    #[test]
+    fn test_delay_and_reverb_going_from_one_side_to_the_other_start_from_rest() {
+        // Played behind the cabinet, then moved in front of the amp and back while silent: what
+        // rang on the side they left is not heard when they return
+        let loud = power_chords(SAMPLE_RATE, 0.3);
+        let silence = vec![0.0; 3 * 48_000];
+        for delay in [true, false] {
+            let back = effect_in(Zone::Back, delay);
+            let front = effect_in(Zone::Front, delay);
+            let mut chain = new_chain(SAMPLE_RATE);
+            run_stereo_blocks(&mut chain, &back, &loud, BLOCK);
+            run_stereo_blocks(&mut chain, &front, &silence[..9_600], BLOCK);
+            let (left, right) = run_stereo_blocks(&mut chain, &back, &silence[..24_000], BLOCK);
+            let ringing = peak(&left).max(peak(&right));
+            assert!(ringing < 1e-6, "delay {delay}: the old tail is heard again, {ringing}");
+        }
     }
 
     #[test]
@@ -6660,6 +6815,98 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
             }
             println!();
         }
+    }
+
+    /// The effects that can stand on the side of the amp they did not before (#268), on each
+    /// side: how loud they make the amp at their defaults and with Mix flat out (level of the
+    /// output against the amp alone, through Klar at Gain 5 and Torden at Gain 8, chords),
+    /// the latency, and the cost of a block as a share of real time, against the amp alone
+    ///   cargo test -p amp --release zone_report -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn zone_report() {
+        println!("Effect, side, dials | level against the amp alone in dB (Klar 5 / Torden 8) | latency in samples at 48 kHz | cost in % of real time at 48 / 96 / 192 kHz");
+        for (name, delay) in [("delay", true), ("reverb", false)] {
+            for (side, zone) in [("behind", Zone::Back), ("front", Zone::Front)] {
+                for (dials, mix) in [("default", None), ("mix 10", Some(1.0))] {
+                    let settings_for = |amp: Amp, gain: f32| {
+                        let mut settings = effect_in(zone, delay);
+                        settings.amp = amp;
+                        settings.gain = gain;
+                        settings.out_level = 1.0;
+                        let default_mix = if delay { 0.35 } else { 0.2 };
+                        let mix = mix.unwrap_or(default_mix);
+                        settings.delay.mix = mix;
+                        settings.reverb.mix = mix;
+                        settings
+                    };
+                    let level = |amp: Amp, gain: f32| {
+                        let chords = power_chords(SAMPLE_RATE, 3.0);
+                        let alone = AmpSettings { out_level: 1.0, ..with_amp(amp, gain) };
+                        let dry = run_stereo(&alone, &chords, SAMPLE_RATE).0;
+                        let wet = run_stereo(&settings_for(amp, gain), &chords, SAMPLE_RATE).0;
+                        to_db(rms(&wet) / rms(&dry))
+                    };
+                    let latency = latency_samples_with(&settings_for(Amp::Klar, 0.5), SAMPLE_RATE);
+                    print!(
+                        "{name:<7}{side:<7}{dials:<8}| {:>5.1} / {:>5.1} | {latency:>3} |",
+                        level(Amp::Klar, 0.5),
+                        level(Amp::Torden, 0.8)
+                    );
+                    for sample_rate in [48000.0, 96000.0, 192000.0] {
+                        let block_us = BLOCK as f64 / sample_rate as f64 * 1e6;
+                        let chords = power_chords(sample_rate, 2.0);
+                        let time = |settings: &AmpSettings| {
+                            let mut chain = new_chain(sample_rate);
+                            run_stereo_blocks(&mut chain, settings, &chords, BLOCK);
+                            (0..5)
+                                .map(|_| block_time_stereo_us(&mut chain, settings, &chords))
+                                .fold(f64::MAX, f64::min)
+                        };
+                        let alone =
+                            time(&AmpSettings { out_level: 1.0, ..with_amp(Amp::Torden, 0.8) });
+                        let with = time(&settings_for(Amp::Torden, 0.8));
+                        print!("{:>6.2}", (with - alone) / block_us * 100.0);
+                    }
+                    println!();
+                }
+            }
+        }
+    }
+
+    /// The delay and the reverb on each side of the amp (#268), for listening: a guitar through
+    /// Brøl at Gain 5 and through Torden at Gain 8, as WAV files in target/renders
+    /// (amp_zone_*.wav), each with the effect behind the cabinet first and in front of the amp
+    ///   cargo test -p amp --release render_zones -- --ignored
+    #[test]
+    #[ignore]
+    fn render_zones() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/renders");
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut phrase = guitar_di(SAMPLE_RATE);
+        phrase.extend(vec![0.0; 5 * 48_000]);
+        let rate = SAMPLE_RATE as u32;
+        for (amp_name, amp, gain) in [("brol", Amp::Brol, 0.5), ("torden", Amp::Torden, 0.8)] {
+            for (name, delay) in [("delay_350ms", true), ("reverb_1s8", false)] {
+                for (side, zone) in [("behind", Zone::Back), ("front", Zone::Front)] {
+                    let mut settings = effect_in(zone, delay);
+                    settings.amp = amp;
+                    settings.gain = gain;
+                    settings.out_level = 1.0;
+                    settings.delay = delay_on(350.0, 0.4, 0.4);
+                    settings.reverb = reverb_on(1.8, 0.35);
+                    if delay {
+                        settings.reverb.on = false;
+                    } else {
+                        settings.delay.on = false;
+                    }
+                    let (left, right) = run_stereo(&settings, &phrase, SAMPLE_RATE);
+                    let file = format!("amp_zone_{amp_name}_{name}_{side}.wav");
+                    crate::test_util::write_wav(&dir.join(file), &[&left, &right], rate);
+                }
+            }
+        }
+        println!("Wrote renders to {}", dir.display());
     }
 
     /// Median time to process one stereo block, in microseconds

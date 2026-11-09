@@ -24,6 +24,12 @@ GitHub release.
 - The window is lower, the pedals and amps keep their size. The On button is gone from the
   window; the host's own bypass still works.
 
+- The Delay and the Reverb can be dragged in front of the amp too, like the Fuzz and the Comp:
+  the amp plays the repeats and the tail, which is a different sound from the same effect behind
+  the cabinet. In front they are one channel; behind the cabinet they are stereo and sound exactly
+  as before. Their place is saved with the project. Drive, Pitch and Wah stay in front of the amp
+  for now.
+
 - The host's parameter list of the amp now ends with 96 generic ones, Slot 1 On, Slot 1 Knob 1 to
   Slot 16 Knob 5, which do nothing yet: they are reserved for the effect chain that is coming to
   the window. Nothing else changes: projects and presets from before open with the same pedals in

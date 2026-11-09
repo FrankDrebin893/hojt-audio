@@ -37,8 +37,9 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
 - `src/mods/` - `chorus.rs`, `flanger.rs`, `phaser.rs`, `tremolo.rs`, with `lfo.rs` and `line.rs`
   (the modulated delay line of chorus and flanger)
 - `src/order.rs` - `ChainOrder`: which of the twelve pedals stand in front of the amp and which
-  behind the cabinet, in what order, and the rules of where each may stand. It is the view of the
-  chain the audio and the board read until #268 makes the audio read slots
+  behind the cabinet, in what order, and the rules of where each may stand (#268 is lifting them,
+  group by group: the delay and the reverb stand on either side now). It is the view of the
+  chain the audio and the board read until the audio reads slots
 - `src/slots.rs` - The chain model (#252, #266): `Chain` (up to 16 blocks, `EffectKind` and a slot
   each, in two zones, and the amp lanes, the first of which cannot be removed), `StoredChain`
   (the chain as the editor sets it and the audio reads it, lock-free, saved as `chain`; also the
@@ -115,7 +116,8 @@ Signal flow:
    (antiderivative method; second order where the gain is highest)
 3. Cabinet: a short impulse response (5 to 10 ms) with the speaker resonance as a filter behind
    it, then the Mic and Resonance dials, DC blocker
-4. Two channels from here: the pedals behind the cabinet in their order. Delay and reverb add
+4. Two channels from here: the pedals behind the cabinet in their order. (A delay or reverb
+   dragged in front of the amp runs in step 2 instead, on one channel.) Delay and reverb add
    wet to an untouched dry signal, smooth their own settings, ring out when switched off and
    cost nothing once idle. What each gives out is rounded off under full scale (`soft_limit`,
    left alone below 0.7)
@@ -287,12 +289,23 @@ How it behaves:
   another, copying and deleting is done in the folder, which the foot's Folder button opens
   (hovered it says where) — the folder of the bank showing
 - The pedal order (`order.rs`, held by the chain model `slots.rs`): Gate always first, amp and cabinet one block in the middle.
-  Drive, Pitch and Wah only in front of the amp; Delay and Reverb only behind the cabinet; Fuzz, Comp,
-  Chorus, Phaser, Flanger, Tremolo and EQ on either side. Default: Pitch, Wah, Fuzz, Comp, Drive, Phaser, amp,
+  Drive, Pitch and Wah only in front of the amp (until #268 lifts that for them in its next pull
+  requests); Fuzz, Comp, Chorus, Phaser, Flanger, Tremolo, EQ, Delay and Reverb on either side
+  (Delay and Reverb since #268, below). Default: Pitch, Wah, Fuzz, Comp, Drive, Phaser, amp,
   Chorus, Flanger, Tremolo, EQ, Delay, Reverb, which with the new pedals off is the chain as it
   was, to the bit. A project saved before a pedal existed gets it where the default has it (the
   wah behind the pitch shifter, wherever the project put that). `Pedal::ALL` only ever grows at the
   end: the order is saved as a number of four bits a pedal too
+- **Delay and reverb in front of the amp** (#268, `AmpChain::front_delay`, `front_reverb`): one
+  more `Delay` and `Reverb` made for the oversampled rate, so a pedal that changes sides
+  allocates nothing (about 3 MB of lines for the delay at 192 kHz). Only the instance of the side
+  the pedal stands on runs; the other is reset when the pedal crosses (`set_up_pedal`), so
+  a tail does not come back. In front the effect is mono: the signal goes in on both channels of
+  the stereo effect and the mean of the two comes out (`mono_through_stereo`), which leaves the
+  dry signal as it was and gives the amp the repeats and the tail as a centred listener hears
+  them, and the amp plays them. Behind the cabinet nothing changed, to the bit
+  (`fingerprint_report` before and after). No latency in either place. `zone_report` prints the
+  level, latency and cost of each effect on each side, `render_zones` writes them for listening
 - In front of the amp a pedal runs on one channel at the oversampled rate, behind the cabinet
   on two at the host's rate (chorus, flanger and phaser a quarter turn apart left and right).
   Either way without latency (but for the pitch shifter, below). The fuzz is the one exception behind the cabinet: it raises the
@@ -412,13 +425,13 @@ How it behaves:
 | Cab Mic (`cab_mic`) | 0.0-10.0 | 5.0 | Darker to brighter microphone position |
 | Cab Mic Type (`cab_mic_type`) | Dynamic, Ribbon, Condenser, Close, Air | Dynamic | Which microphone hears the cabinet (`MicType` in `cab.rs`): Dynamic leaves it as designed; Close is dark with the lows up, Air bright with the lows let go. New ones go at the end, a project stores the position |
 | Cab Resonance (`cab_res`) | 0.0-10.0 | 5.0 | Less or more low thump |
-| Delay (`delay_on`) | on / off | off | Stereo delay behind the cabinet |
+| Delay (`delay_on`) | on / off | off | Stereo delay behind the cabinet, or mono in front of the amp |
 | Delay Time (`delay_time`) | 20-1000 ms | 350 ms | Time between repeats |
 | Delay Feedback (`delay_feedback`) | 0-90 % | 35 % | Level of each repeat against the one before |
 | Delay Mix (`delay_mix`) | 0-100 % | 25 % | Level of the repeats |
 | Delay Sync (`delay_sync`) | on / off | off | The repeats follow the song's tempo: the Time knob picks Delay Note, and the time is `60000 / bpm` times the note's beats, kept to 20-1000 ms. With no tempo from the host, the Time knob's ms. Factory presets set it off |
 | Delay Note (`delay_note`) | 1/4, 1/8 dotted, 1/8, 1/8 triplet, 1/16 | 1/8 dotted | The note value while Sync is on (`suite_common::dsp::NoteValue`). Variant ids `quarter`, `dotted_eighth`, `eighth`, `eighth_triplet`, `sixteenth`; a new one goes at the end |
-| Reverb (`reverb_on`) | on / off | off | Stereo reverb behind the delay |
+| Reverb (`reverb_on`) | on / off | off | Stereo reverb behind the delay, or mono in front of the amp |
 | Reverb Decay (`reverb_decay`) | 0.3-6.0 s | 1.5 s | Time for the tail to fall by 60 dB |
 | Reverb Mix (`reverb_mix`) | 0-100 % | 20 % | Level of the tail |
 | Output (`out_level`) | -30 to +6 dB | 0 dB | Output level, in front of the safety clip |
