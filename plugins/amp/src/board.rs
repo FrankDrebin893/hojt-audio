@@ -56,8 +56,6 @@ enum Zone {
     /// Where it is: the gate first, the stack between the pedals in front of the amp and
     /// those behind the cabinet
     Fixed,
-    /// In front of the amp
-    Front,
     Either,
 }
 
@@ -65,8 +63,10 @@ impl Pedal {
     fn zone(self) -> Zone {
         match self {
             Pedal::Gate | Pedal::Stack => Zone::Fixed,
-            Pedal::Drive | Pedal::Pitch | Pedal::Wah => Zone::Front,
-            Pedal::Fuzz
+            Pedal::Drive
+            | Pedal::Pitch
+            | Pedal::Wah
+            | Pedal::Fuzz
             | Pedal::Delay
             | Pedal::Reverb
             | Pedal::Comp
@@ -222,7 +222,6 @@ impl Order {
             let in_front = at <= front;
             let allowed = match pedal.zone() {
                 Zone::Fixed => false,
-                Zone::Front => in_front,
                 Zone::Either => true,
             };
             if allowed {
@@ -416,10 +415,6 @@ mod tests {
         Pedal::Reverb,
     ];
 
-    fn in_front(order: &Order, pedal: Pedal) -> bool {
-        order.pedals[..order.front].contains(&pedal)
-    }
-
     #[test]
     fn the_row_fills_the_window() {
         let order = Order::default();
@@ -455,9 +450,6 @@ mod tests {
         for order in orders {
             assert_eq!(order.pedals[0], Pedal::Gate, "{order:?}");
             assert_eq!(order.pedals[order.front], Pedal::Stack, "{order:?}");
-            assert!(in_front(&order, Pedal::Drive), "{order:?}");
-            assert!(in_front(&order, Pedal::Pitch), "{order:?}");
-            assert!(in_front(&order, Pedal::Wah), "{order:?}");
             for pedal in MOVABLE {
                 assert_eq!(
                     order.pedals.iter().filter(|&&other| other == pedal).count(),
@@ -495,12 +487,12 @@ mod tests {
         sorted.sort_unstable();
         sorted.dedup();
         assert_eq!(sorted, (0..PEDALS - 1).collect::<Vec<_>>());
-        // The pitch shifter has three knobs: a wide pedal, in front of the amp only
+        // The pitch shifter has three knobs: a wide pedal
         assert!(!Pedals::is_slim(PITCH_SLOT));
-        assert!(Pedal::Pitch.zone() == Zone::Front);
-        // The wah has a rocker, Bite and Sens: a wide pedal too, in front of the amp only
+        assert!(Pedal::Pitch.zone() == Zone::Either);
+        // The wah has a rocker, Bite and Sens: a wide pedal too
         assert!(!Pedals::is_slim(WAH_SLOT));
-        assert!(Pedal::Wah.zone() == Zone::Front);
+        assert!(Pedal::Wah.zone() == Zone::Either);
         // The EQ has four, as wide, and stands on either side
         assert!(!Pedals::is_slim(EQ_SLOT));
         assert!(Pedal::Eq.zone() == Zone::Either);
@@ -531,16 +523,16 @@ mod tests {
             ]
         );
         assert_eq!(moved.front, 8);
-        // The drive as far right as it goes: last in front of the amp
+        // The drive as far right as it goes: last behind the cabinet (#268)
         let moved = order.nearest(Drive, WINDOW_WIDTH as f32);
         assert_eq!(
             moved.pedals,
             [
-                Gate, Pitch, Wah, Fuzz, Comp, Phaser, Drive, Stack, Chorus, Flanger, Tremolo, Eq,
-                Delay, Reverb
+                Gate, Pitch, Wah, Fuzz, Comp, Phaser, Stack, Chorus, Flanger, Tremolo, Eq, Delay,
+                Reverb, Drive
             ]
         );
-        assert_eq!(moved.front, 7);
+        assert_eq!(moved.front, 6);
         // The reverb as far left as it goes: right behind the gate, in front of the amp (#268)
         let moved = order.nearest(Reverb, 0.0);
         assert_eq!(
@@ -575,27 +567,26 @@ mod tests {
             ]
         );
         assert_eq!(moved.front, 6);
-        // The pitch shifter as far right as it goes: last in front of the amp, never behind it
+        // The pitch shifter as far right as it goes: last behind the cabinet (#268)
         let moved = order.nearest(Pitch, WINDOW_WIDTH as f32);
         assert_eq!(
             moved.pedals,
             [
-                Gate, Wah, Fuzz, Comp, Drive, Phaser, Pitch, Stack, Chorus, Flanger, Tremolo, Eq,
-                Delay, Reverb
+                Gate, Wah, Fuzz, Comp, Drive, Phaser, Stack, Chorus, Flanger, Tremolo, Eq, Delay,
+                Reverb, Pitch
             ]
         );
-        assert_eq!(moved.front, 7);
-        // The wah the same: as far right as it goes it is last in front of the amp, never behind
-        // it, and as far left as it goes it is first after the gate
+        assert_eq!(moved.front, 6);
+        // The wah the same, and as far left as it goes it is first after the gate
         let moved = order.nearest(Wah, WINDOW_WIDTH as f32);
         assert_eq!(
             moved.pedals,
             [
-                Gate, Pitch, Fuzz, Comp, Drive, Phaser, Wah, Stack, Chorus, Flanger, Tremolo, Eq,
-                Delay, Reverb
+                Gate, Pitch, Fuzz, Comp, Drive, Phaser, Stack, Chorus, Flanger, Tremolo, Eq, Delay,
+                Reverb, Wah
             ]
         );
-        assert_eq!(moved.front, 7);
+        assert_eq!(moved.front, 6);
         let moved = order.nearest(Wah, 0.0);
         assert_eq!(
             moved.pedals,

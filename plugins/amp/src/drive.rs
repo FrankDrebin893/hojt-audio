@@ -1,4 +1,5 @@
 use crate::dsp::filters::{OnePoleHp, ANTI_DENORMAL};
+use crate::dsp::oversample::{factor_for, Oversampler, MAX_FACTOR};
 use crate::dsp::pair::Pair;
 use crate::dsp::shaper::AsymClipper;
 use crate::dsp::{curve, db_to_gain, lerp, Ramp};
@@ -31,7 +32,7 @@ const TRIM_DB: [f32; 3] = [-7.0, -11.5, -12.5];
 // Crossfade to and from the untouched signal when the pedal is switched
 const FADE_MS: f32 = 10.0;
 
-/// Overdrive pedal in front of the amp: mid-focused, with the low end kept out of the
+/// Overdrive pedal, in front of the amp here (`BackDrive` is the one behind the cabinet, #268): mid-focused, with the low end kept out of the
 /// clipping. With little Drive and a lot of Level it tightens and pushes a high gain amp;
 /// with more Drive it is an overdrive of its own. Runs at the oversampled rate
 pub struct Drive {
@@ -167,6 +168,140 @@ impl Drive {
             wet
         } else {
             dry + mix * (wet - dry)
+        }
+    }
+}
+
+// Samples at the host's rate worked on at a time behind the cabinet
+const BACK_PIECE: usize = 32;
+
+/// The drive pedal behind the cabinet (#268): two channels at the host's rate, each raised to
+/// the rate the clipping needs and brought back, as the fuzz does there. One `Drive` a channel,
+/// with the same dials; the pedal's own switch is held on while this is awake and the
+/// crossfade to the untouched signal is made here, at the host's rate, so that a pedal that is
+/// off leaves the signal alone to the bit, and does not even pass the oversampler
+pub struct BackDrive {
+    sides: [Drive; 2],
+    oversamplers: [Oversampler; 2],
+    factor: usize,
+    // Share of the pedal in the output: 0.0 switched off, 1.0 on
+    share: Ramp,
+    fade_steps: u32,
+    // Off and faded out: the signal is left alone
+    idle: bool,
+}
+
+impl BackDrive {
+    pub fn new() -> Self {
+        let mut pedal = Self {
+            sides: [Drive::new(), Drive::new()],
+            oversamplers: [Oversampler::new(), Oversampler::new()],
+            factor: MAX_FACTOR,
+            share: Ramp::new(0.0),
+            fade_steps: 1,
+            idle: true,
+        };
+        pedal.configure(44_100.0);
+        pedal
+    }
+
+    /// `sample_rate` is the host's. Never allocates
+    pub fn configure(&mut self, sample_rate: f32) {
+        self.factor = factor_for(sample_rate);
+        for oversampler in &mut self.oversamplers {
+            oversampler.set_factor(self.factor);
+        }
+        for side in &mut self.sides {
+            side.configure(sample_rate * self.factor as f32);
+        }
+        self.fade_steps = ((FADE_MS * 0.001 * sample_rate).round() as u32).max(1);
+        self.reset();
+    }
+
+    /// As after a long time switched off
+    pub fn reset(&mut self) {
+        self.share = Ramp::new(0.0);
+        self.idle = true;
+    }
+
+    /// Moves to the dial positions (0.0 to 1.0) over the next `steps` samples of the raised rate
+    pub fn set(&mut self, drive: f32, tone: f32, level: f32, steps: u32) {
+        for side in &mut self.sides {
+            side.set(drive, tone, level, steps);
+        }
+    }
+
+    /// Crossfades to the pedal or to the untouched signal. A pedal that was idle starts from
+    /// rest, with its dials where they were last set
+    pub fn set_on(&mut self, on: bool) {
+        if on && self.idle {
+            for (side, oversampler) in self.sides.iter_mut().zip(&mut self.oversamplers) {
+                side.reset();
+                oversampler.reset();
+                side.set_on(true);
+                side.snap();
+            }
+            self.idle = false;
+        }
+        let target = if on { 1.0 } else { 0.0 };
+        if !self.idle && target != self.share.target() {
+            self.share.set_target(target, self.fade_steps);
+        }
+    }
+
+    /// Ends the moves started by `set` and `set_on` at once
+    pub fn snap(&mut self) {
+        for side in &mut self.sides {
+            side.snap();
+        }
+        self.share.snap();
+        self.settle();
+    }
+
+    /// True while the pedal is off and has faded out
+    #[cfg(test)]
+    pub fn is_idle(&self) -> bool {
+        self.idle
+    }
+
+    /// Falls idle where the pedal has faded out
+    fn settle(&mut self) {
+        if !self.idle && self.share.value() == 0.0 && self.share.target() == 0.0 {
+            for side in &mut self.sides {
+                side.set_on(false);
+                side.snap();
+            }
+            self.idle = true;
+        }
+    }
+
+    pub fn process_stereo(&mut self, left: &mut [f32], right: &mut [f32]) {
+        debug_assert_eq!(left.len(), right.len());
+        if self.idle {
+            return;
+        }
+        let factor = self.factor;
+        for (left, right) in left.chunks_mut(BACK_PIECE).zip(right.chunks_mut(BACK_PIECE)) {
+            let len = left.len();
+            let mut shares = [0.0f32; BACK_PIECE];
+            for share in &mut shares[..len] {
+                *share = self.share.next();
+            }
+            for (channel, block) in [left, right].into_iter().enumerate() {
+                let mut high = [0.0f32; BACK_PIECE * MAX_FACTOR];
+                let high = &mut high[..len * factor];
+                self.oversamplers[channel].upsample(block, high);
+                self.sides[channel].process(high);
+                let mut wet = [0.0f32; BACK_PIECE];
+                self.oversamplers[channel].downsample(high, &mut wet[..len]);
+                for ((sample, &wet), &share) in block.iter_mut().zip(&wet).zip(&shares) {
+                    *sample = if share >= 1.0 { wet } else { *sample + share * (wet - *sample) };
+                }
+            }
+            self.settle();
+            if self.idle {
+                return;
+            }
         }
     }
 }

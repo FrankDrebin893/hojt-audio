@@ -37,8 +37,8 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
 - `src/mods/` - `chorus.rs`, `flanger.rs`, `phaser.rs`, `tremolo.rs`, with `lfo.rs` and `line.rs`
   (the modulated delay line of chorus and flanger)
 - `src/order.rs` - `ChainOrder`: which of the twelve pedals stand in front of the amp and which
-  behind the cabinet, in what order, and the rules of where each may stand (#268 is lifting them,
-  group by group: the delay and the reverb stand on either side now). It is the view of the
+  behind the cabinet, in what order, and the rules of where each may stand (none now: every
+  pedal stands on either side, #268). It is the view of the
   chain the audio and the board read until the audio reads slots
 - `src/slots.rs` - The chain model (#252, #266): `Chain` (up to 16 blocks, `EffectKind` and a slot
   each, in two zones, and the amp lanes, the first of which cannot be removed), `StoredChain`
@@ -292,9 +292,8 @@ How it behaves:
   another, copying and deleting is done in the folder, which the foot's Folder button opens
   (hovered it says where) — the folder of the bank showing
 - The pedal order (`order.rs`, held by the chain model `slots.rs`): Gate always first, amp and cabinet one block in the middle.
-  Drive, Pitch and Wah only in front of the amp (until #268 lifts that for them in its next pull
-  requests); Fuzz, Comp, Chorus, Phaser, Flanger, Tremolo, EQ, Delay and Reverb on either side
-  (Delay and Reverb since #268, below). Default: Pitch, Wah, Fuzz, Comp, Drive, Phaser, amp,
+  Every pedal stands on either side of the amp (#268: Delay and Reverb in front, Drive, Pitch and
+  Wah behind the cabinet, below); the gate is the one fixed place. Default: Pitch, Wah, Fuzz, Comp, Drive, Phaser, amp,
   Chorus, Flanger, Tremolo, EQ, Delay, Reverb, which with the new pedals off is the chain as it
   was, to the bit. A project saved before a pedal existed gets it where the default has it (the
   wah behind the pitch shifter, wherever the project put that). `Pedal::ALL` only ever grows at the
@@ -309,14 +308,31 @@ How it behaves:
   them, and the amp plays them. Behind the cabinet nothing changed, to the bit
   (`fingerprint_report` before and after). No latency in either place. `zone_report` prints the
   level, latency and cost of each effect on each side, `render_zones` writes them for listening
+- **Drive, wah and pitch shifter behind the cabinet** (#268, `AmpChain::back_drive`,
+  `back_wah`, `back_pitch`): made for the host's rate next to the ones in front, so a pedal that
+  changes sides allocates nothing (the pitch shifter's buffers, about 1 MB, once a channel).
+  Only the instance of the side the pedal stands on runs; the other is reset when it crosses,
+  from rest. The wah and the pitch shifter are one instance a channel with the same settings,
+  so a mono signal comes out the same on both sides; after a stereo effect (a chorus in front
+  of them) each channel follows its own signal, which is what a stereo pedal pair would do. The
+  drive raises the rate itself, like the fuzz (`drive::BackDrive`: two `Drive` and two
+  oversamplers, 4x, 2x from 88.2 kHz) and crossfades to the untouched signal at the host's rate,
+  so off it does not even pass the oversampler and leaves the signal alone, to the bit. A drive
+  pedal behind the cabinet does not push the amp (`set_driven` is only for the pedal in front:
+  `AmpChain::follow_drive_side`), and the second amp follows the same switch. In front of the amp
+  nothing changed, to the bit (`fingerprint_report` before and after, with a pitch and a wah
+  row added). The wah's and the pitch shifter's latency is what it is in front; the drive's is
+  the oversampler's fraction of a millisecond, like the fuzz's. `zone_report` and `render_zones`
+  cover these too
 - In front of the amp a pedal runs on one channel at the oversampled rate, behind the cabinet
   on two at the host's rate (chorus, flanger and phaser a quarter turn apart left and right).
   Either way without latency (but for the pitch shifter, below). The fuzz is the one exception behind the cabinet: it raises the
   rate itself for its clipping (as the amp does: 4x, 2x from 88.2 kHz), which delays it by
   the oversampler's fraction of a millisecond while it is on
 - The pitch shifter (`pitch.rs`, the algorithm of the Pitch Shifter plugin in
-  `suite_common::dsp::pitch`) stands in front of the amp only, on one channel at the amp's
-  oversampled rate, and is first in front of the amp by default (the gate stays in front of
+  `suite_common::dsp::pitch`) stands on either side of the amp (behind the cabinet since #268, one
+  instance a channel at the host's rate); in front it is on one channel at the amp's
+  oversampled rate, and it is first in front of the amp by default (the gate stays in front of
   everything: it listens to the guitar as it arrives). Its buffers (about 1 MB) are made with
   the chain and cleared when the pedal wakes, never resized: the `no_alloc` tests hold it.
   Off it is skipped and the signal is bit-identical; switching crossfades in 20 ms, and a
@@ -342,7 +358,8 @@ How it behaves:
   band moved 0.06 to 0.11 % at 48 kHz (behind the cabinet / in front of the amp) and 0.25 to
   0.26 % at 192 kHz, 99th percentile under 0.4 %. `is_idle` is only for the tests: the chain's
   own `is_idle` leaves the EQ out, since a filter's ring is a few milliseconds and keeps no tail
-- The wah (`wah.rs`, #240) stands in front of the amp only, on one channel at the oversampled
+- The wah (`wah.rs`, #240) stands on either side of the amp (behind the cabinet since #268, one
+  instance a channel at the host's rate); in front it is on one channel at the oversampled
   rate, and is second there by default, ahead of the fuzz and the drive. A resonant band-pass: one
   state-variable filter in the topology-preserving form (f64, stable at any sweep speed and from
   44.1 kHz to the 4x rate of a host at 96 kHz and over), its centre by `wah_pedal` on a log
@@ -393,13 +410,13 @@ How it behaves:
 | Comp (`comp_on`) | on / off | off | Compressor pedal |
 | Comp Sustain (`comp_sustain`) | 0.0-10.0 | 5.0 | How much it evens out: threshold and ratio together |
 | Comp Level (`comp_level`) | 0.0-10.0 | 5.0 | The pedal's output, -12 to +12 dB around as loud as off |
-| Drive (`drive_on`) | on / off | off | Overdrive pedal in front of the amp |
+| Drive (`drive_on`) | on / off | off | Overdrive pedal, in front of the amp or behind the cabinet |
 | Drive Gain (`drive_gain`) | 0.0-10.0 | 3.0 | Amount of clipping in the pedal |
 | Drive Tone (`drive_tone`) | 0.0-10.0 | 5.0 | The pedal's top end, 1.5 to 7 kHz |
 | Drive Level (`drive_level`) | 0.0-10.0 | 5.0 | The pedal's output, -20 to +20 dB into the amp |
 | Fuzz (`fuzz_on`) | on / off | off | Fuzz pedal, either side of the amp |
 | Fuzz Amount (`fuzz_fuzz`) | 0.0-10.0 | 5.0 | Gain into the clipper, 26 to 56 dB |
-| Pitch (`pitch_on`) | on / off | off | Pitch shifter pedal, in front of the amp only |
+| Pitch (`pitch_on`) | on / off | off | Pitch shifter pedal, in front of the amp or behind the cabinet |
 | Pitch Semitones (`pitch_semitones`) | -12 to +12 | 0 | Whole semitones: the guitar down an octave to up one. Shown `-5`, `0`, `+7`; double-click returns to 0 |
 | Pitch Blend (`pitch_blend`) | 0-100 % | 100 % | The guitar as it comes in (0) to the shifted guitar alone (100). The dry part is not delayed |
 | Pitch Tracking (`pitch_latency`) | 2-50 ms | 15 ms | The most the shifted guitar may lag behind the input: the longest period that splices cleanly (a low E is 12 ms, a power chord on it about 24 ms) |
@@ -413,7 +430,7 @@ How it behaves:
 | EQ (`eq_on`) | on / off | off | EQ pedal, either side of the amp |
 | EQ Low, Mid, High (`eq_low`, `eq_mid`, `eq_high`) | 0.0-10.0 | 5.0 | -12 to +12 dB, 5 is flat: Low and High shelves at 100 Hz and 4 kHz, Mid a bell |
 | EQ Freq (`eq_freq`) | 0.0-10.0 | 5.0 | The centre of Mid, 200 Hz to 5 kHz on a log scale (5 is 1 kHz) |
-| Wah (`wah_on`) | on / off | off | Wah pedal, in front of the amp only |
+| Wah (`wah_on`) | on / off | off | Wah pedal, in front of the amp or behind the cabinet |
 | Wah Pedal (`wah_pedal`) | 0.0-10.0 | 5.0 | The rocker: 0 is the heel (350 Hz), 10 the toe (2.2 kHz), on a log scale. Map a controller or an expression pedal to it in the host. In Auto mode, where the rocker rests |
 | Wah Bite (`wah_q`) | 0.0-10.0 | 5.0 | The resonance, Q 3 to 9: a wider, woofier peak to a narrow, vocal one |
 | Wah Mode (`wah_mode`) | Pedal / Auto | Pedal | Pedal: the rocker is where the dial puts it. Auto: the playing opens it up from the resting position |

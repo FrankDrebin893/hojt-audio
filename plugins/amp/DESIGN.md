@@ -126,7 +126,7 @@ The reasons behind choices that the code alone does not explain. What it does is
 
 - #179: the Pitch Shifter plugin's algorithm as a pedal, so the rig is self-contained for drop
   tunings. It moved to `suite_common::dsp::pitch` (tests and reports with it) so both use one
-  copy. It stands in front of the amp only, first by default: pitch tracking works best on the
+  copy. It stands in front of the amp by default (it can stand behind the cabinet since #268), first: pitch tracking works best on the
   raw guitar, and the gate stays first (it listens to the guitar as it arrives). It runs in the
   oversampled region like the other front pedals; a splice at 4x costs under 50 us, which a
   block at 192 kHz absorbs. A third pedal of three knobs is a wide one, so the window grew
@@ -209,7 +209,7 @@ The reasons behind choices that the code alone does not explain. What it does is
 
 ## Wah
 
-- #240, #243: a wah on the board, in front of the amp only (`wah_pedal` is the rocker, 0 heel to
+- #240, #243: a wah on the board, in front of the amp (and behind the cabinet since #268; `wah_pedal` is the rocker, 0 heel to
   10 toe). Look picked on #242 out of three: a treadle drawn in perspective, a slider with a
   chrome cap, and one very large knob; the owner chose the slider. It is a variant of the
   crossfader (`ui::rocker`): the treadle is wider than a fader's cap and ribbed, the toe is at

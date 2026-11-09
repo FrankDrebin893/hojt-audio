@@ -6,7 +6,7 @@ use crate::cab::{design_ir, CabIr, CabVoicing, Cabinet, MicType};
 use crate::cab_stage::CabStage;
 use crate::comp::{Comp, CompSettings};
 use crate::delay::{Delay, DelaySettings};
-use crate::drive::Drive;
+use crate::drive::{BackDrive, Drive};
 use crate::dsp::filters::DcBlocker;
 use crate::dsp::oversample::{factor_for, Oversampler, MAX_FACTOR};
 use crate::dsp::shaper::{output_clip, OUTPUT_CLIP_KNEE};
@@ -106,9 +106,9 @@ pub struct AmpSettings {
     /// The fuzz and the compressor pedals. They smooth their own settings
     pub fuzz: FuzzSettings,
     pub comp: CompSettings,
-    /// The pitch shifter pedal, in front of the amp only. It smooths its own settings
+    /// The pitch shifter pedal. It smooths its own settings
     pub pitch: PitchSettings,
-    /// The wah pedal, in front of the amp only. It smooths its own settings
+    /// The wah pedal. It smooths its own settings
     pub wah: WahSettings,
     /// The EQ pedal, on either side of the amp. It smooths its own settings
     pub eq: EqSettings,
@@ -344,6 +344,14 @@ pub struct AmpChain {
     // one of the side the pedal stands on is run; the other is left at rest
     front_delay: Delay,
     front_reverb: Reverb,
+    // And the three that were only ever in front of the amp, for when they stand behind the
+    // cabinet (#268): the wah and the pitch shifter one a channel at the host's rate, the drive
+    // raising the rate itself as the fuzz does there
+    back_drive: BackDrive,
+    back_wah: [Wah; 2],
+    back_pitch: [Pitch; 2],
+    // Whether the drive pedal's switch is on, as of the last read of the dials
+    drive_on: bool,
     // What the effects are told. Read with the dials, so a switch takes effect on the same
     // sample whatever the block size
     delay_settings: DelaySettings,
@@ -442,6 +450,10 @@ impl AmpChain {
             reverb: Reverb::new(),
             front_delay: Delay::new(),
             front_reverb: Reverb::new(),
+            back_drive: BackDrive::new(),
+            back_wah: [Wah::new(), Wah::new()],
+            back_pitch: [Pitch::new(), Pitch::new()],
+            drive_on: false,
             delay_settings: DelaySettings::default(),
             reverb_settings: ReverbSettings::default(),
             out_level: Ramp::new(1.0),
@@ -487,6 +499,15 @@ impl AmpChain {
         self.oversampler.set_factor(self.factor);
         self.gate.set_sample_rate(sample_rate);
         self.drive.configure(self.oversampled_rate());
+        self.back_drive.configure(sample_rate);
+        // The pedals that stand on either side are made for both: only the one of the side
+        // the pedal is on is run, so a pedal that changes sides allocates nothing
+        self.pitch.set_sample_rate(self.oversampled_rate());
+        self.wah.set_sample_rate(self.oversampled_rate());
+        for side in 0..2 {
+            self.back_pitch[side].set_sample_rate(sample_rate);
+            self.back_wah[side].set_sample_rate(sample_rate);
+        }
         for pedal in Pedal::ALL {
             self.set_up_pedal(pedal);
         }
@@ -540,15 +561,30 @@ impl AmpChain {
             // Behind the cabinet it raises the rate itself for its clipping
             Pedal::Fuzz => self.fuzz.set_sample_rate(rate, zone == Zone::Back),
             Pedal::Comp => self.comp.set_sample_rate(rate),
-            Pedal::Pitch => self.pitch.set_sample_rate(rate),
-            Pedal::Wah => self.wah.set_sample_rate(rate),
+            // One instance for either side (`back_pitch`, `back_wah`): the one it left is
+            // dropped, so what it held is not heard if it comes back
+            Pedal::Pitch => match zone {
+                Zone::Front => self.back_pitch.iter_mut().for_each(Pitch::reset),
+                Zone::Back => self.pitch.reset(),
+            },
+            Pedal::Wah => match zone {
+                Zone::Front => self.back_wah.iter_mut().for_each(Wah::reset),
+                Zone::Back => self.wah.reset(),
+            },
             Pedal::Eq => self.eq.set_sample_rate(rate),
             Pedal::Chorus => self.chorus.set_sample_rate(rate),
             Pedal::Phaser => self.phaser.set_sample_rate(rate),
             Pedal::Flanger => self.flanger.set_sample_rate(rate),
             Pedal::Tremolo => self.tremolo.set_sample_rate(rate),
-            // These stay on their side, and are set up with the chain
-            Pedal::Drive => {}
+            // The pedal's switch follows the side it is on, and the amp is driven only by the
+            // one in front of it. From rest, as it crosses
+            Pedal::Drive => {
+                match zone {
+                    Zone::Front => self.back_drive.reset(),
+                    Zone::Back => self.drive.reset(),
+                }
+                self.follow_drive_side(true);
+            }
             // One of each for either side (`front_delay`, `front_reverb`): the one it left is
             // dropped, so its tail is not heard if it comes back
             Pedal::Delay => match zone {
@@ -559,6 +595,25 @@ impl AmpChain {
                 Zone::Front => self.reverb.reset(),
                 Zone::Back => self.front_reverb.reset(),
             },
+        }
+    }
+
+    /// Tells the pedal that is on the side the drive stands on, and the amp, about the switch.
+    /// With the pedal in front the amp is pushed harder than it ever is without; behind the
+    /// cabinet it is not in front of it. `snap` for a pedal that has just changed sides, while
+    /// nothing of it is heard
+    fn follow_drive_side(&mut self, snap: bool) {
+        let in_front = self.order.zone_of(Pedal::Drive) == Zone::Front;
+        let steps = if snap { 0 } else { self.drive.fade_steps() };
+        self.drive.set_on(self.drive_on && in_front);
+        self.back_drive.set_on(self.drive_on && !in_front);
+        self.preamp.set_driven(self.drive_on && in_front, steps);
+        self.power.set_driven(self.drive_on && in_front, steps);
+        self.second.preamp.set_driven(self.drive_on && in_front, steps);
+        self.second.power.set_driven(self.drive_on && in_front, steps);
+        if snap {
+            self.drive.snap();
+            self.back_drive.snap();
         }
     }
 
@@ -777,6 +832,9 @@ impl AmpChain {
         self.comp.reset();
         self.pitch.reset();
         self.wah.reset();
+        self.back_drive.reset();
+        self.back_pitch.iter_mut().for_each(Pitch::reset);
+        self.back_wah.iter_mut().for_each(Wah::reset);
         self.eq.reset();
         // As for the delay and the reverb below: a pedal with nothing in it is left alone
         if !self.chorus.is_idle() {
@@ -822,6 +880,7 @@ impl AmpChain {
             && self.front_delay.is_idle()
             && self.front_reverb.is_idle()
             && self.pitch.is_idle()
+            && self.back_pitch.iter().all(Pitch::is_idle)
             && self.chorus.is_idle()
             && self.flanger.is_idle()
             && self.phaser.is_idle()
@@ -935,16 +994,13 @@ impl AmpChain {
             settings.gate_thresh_db.clamp(GATE_THRESHOLD_DB[0], GATE_THRESHOLD_DB[1]),
             settings.gate_release_ms.clamp(GATE_RELEASE_MS[0], GATE_RELEASE_MS[1]),
         );
-        self.drive.set_on(settings.drive_on);
-        // With the pedal in front the amp is pushed harder than it ever is without
-        self.preamp.set_driven(settings.drive_on, self.drive.fade_steps());
-        self.power.set_driven(settings.drive_on, self.drive.fade_steps());
-        self.drive.set(
-            self.dials.drive_gain,
-            self.dials.drive_tone,
-            self.dials.drive_level,
-            self.oversampled_chunk(),
-        );
+        self.drive_on = settings.drive_on;
+        self.follow_drive_side(false);
+        let steps = self.oversampled_chunk();
+        let (gain, tone, level) =
+            (self.dials.drive_gain, self.dials.drive_tone, self.dials.drive_level);
+        self.drive.set(gain, tone, level, steps);
+        self.back_drive.set(gain, tone, level, steps);
         let cab_target = if settings.cab_on { 1.0 } else { 0.0 };
         if cab_target != self.cab_mix.target() {
             self.cab_mix.set_target(cab_target, self.cab_fade_steps);
@@ -983,6 +1039,7 @@ impl AmpChain {
             self.out_level.snap();
             self.gate.snap();
             self.drive.snap();
+            self.back_drive.snap();
             self.cab_mix.snap();
         }
         self.apply_dials(jump);
@@ -1002,8 +1059,9 @@ impl AmpChain {
             self.second.on_fade = if self.second.wanted_on { self.amp_fade_len } else { 0 };
         }
         // The stages follow the first amp's drive pedal like the first amp's own
-        self.second.preamp.set_driven(settings.drive_on, self.drive.fade_steps());
-        self.second.power.set_driven(settings.drive_on, self.drive.fade_steps());
+        let driven = settings.drive_on && self.order.zone_of(Pedal::Drive) == Zone::Front;
+        self.second.preamp.set_driven(driven, self.drive.fade_steps());
+        self.second.power.set_driven(driven, self.drive.fade_steps());
         if !self.second.runs() {
             self.second.dials = self.second.target;
             self.second.blend.snap();
@@ -1305,8 +1363,15 @@ impl AmpChain {
                 Pedal::Tremolo => {
                     self.tremolo.process_stereo(&self.tremolo_settings, wide_left, wide_right)
                 }
-                // Never behind the cabinet
-                Pedal::Drive | Pedal::Pitch | Pedal::Wah => {}
+                Pedal::Drive => self.back_drive.process_stereo(wide_left, wide_right),
+                Pedal::Pitch => {
+                    self.back_pitch[0].process_mono(&self.pitch_settings, wide_left);
+                    self.back_pitch[1].process_mono(&self.pitch_settings, wide_right);
+                }
+                Pedal::Wah => {
+                    self.back_wah[0].process_mono(&self.wah_settings, wide_left);
+                    self.back_wah[1].process_mono(&self.wah_settings, wide_right);
+                }
             }
         }
 
@@ -1579,6 +1644,9 @@ mod tests {
         layout.extend(chain.second.cabinet.buffers());
         layout.extend(chain.cab_stage.buffer());
         layout.extend(chain.pitch.buffers());
+        for pitch in &chain.back_pitch {
+            layout.extend(pitch.buffers());
+        }
         layout.extend(chain.delay.buffers());
         layout.extend(chain.reverb.buffers());
         layout
@@ -2026,10 +2094,10 @@ mod tests {
     }
 
     #[test]
-    fn test_wah_stands_in_front_of_the_amp_only_and_adds_no_latency() {
+    fn test_wah_stands_anywhere_in_front_of_the_amp_and_adds_no_latency() {
         let default = ChainOrder::default();
         assert_eq!(default.front()[..2], [Pedal::Pitch, Pedal::Wah]);
-        assert_eq!(default.moved(Pedal::Wah, Zone::Back, 0), default);
+        assert_ne!(default.moved(Pedal::Wah, Zone::Back, 0), default);
         let input = power_chords(SAMPLE_RATE, 0.5);
         let with = AmpSettings { wah: wah_at(0.3), ..with_amp(Amp::Brol, 0.5) };
         let reference = run_stereo(&with, &input, SAMPLE_RATE);
@@ -2114,9 +2182,8 @@ mod tests {
         let reference = run_stereo(&default, &input, SAMPLE_RATE);
         let off = AmpSettings { pitch: PitchSettings::default(), ..default };
         assert!(run_stereo(&off, &input, SAMPLE_RATE) != reference, "it is heard");
-        // Anywhere in front of the amp, and never behind the cabinet
+        // Anywhere in front of the amp (behind the cabinet it is tried with the others, #268)
         let order = ChainOrder::default();
-        assert_eq!(order.moved(Pedal::Pitch, Zone::Back, 0), order);
         for place in 0..order.front().len() {
             let moved = order.moved(Pedal::Pitch, Zone::Front, place);
             assert_eq!(moved.front().iter().position(|&pedal| pedal == Pedal::Pitch), Some(place));
@@ -2276,6 +2343,16 @@ mod tests {
             ("fuzz behind the drive", default.moved(Pedal::Fuzz, Zone::Front, 4)),
             ("wah behind the drive", default.moved(Pedal::Wah, Zone::Front, 4)),
             ("wah behind the fuzz", default.moved(Pedal::Wah, Zone::Front, 2)),
+            ("drive behind the cabinet", default.moved(Pedal::Drive, Zone::Back, 0)),
+            ("wah behind the cabinet", default.moved(Pedal::Wah, Zone::Back, 1)),
+            (
+                "drive, wah and pitch behind the cabinet",
+                default.moved(Pedal::Drive, Zone::Back, 0).moved(Pedal::Wah, Zone::Back, 1).moved(
+                    Pedal::Pitch,
+                    Zone::Back,
+                    2,
+                ),
+            ),
             (
                 "all that can in front",
                 default
@@ -4357,6 +4434,246 @@ mod tests {
         }
     }
 
+    /// The drive pedal, the wah and the pitch shifter, on, at the head of the chain behind
+    /// the cabinet or at the head of the one in front of the amp (#268)
+    fn pedal_in(pedal: Pedal, zone: Zone) -> AmpSettings {
+        // Turned down, so the safety clip stays out of it
+        let plain = AmpSettings { out_level: 0.25, ..with_amp(Amp::Klar, 0.5) };
+        let order = ChainOrder::default().moved(pedal, zone, 0);
+        match pedal {
+            Pedal::Drive => AmpSettings {
+                drive_on: true,
+                drive_gain: 0.6,
+                drive_tone: 0.5,
+                drive_level: 0.5,
+                order,
+                ..plain
+            },
+            Pedal::Wah => AmpSettings { wah: wah_at(0.2), order, ..plain },
+            Pedal::Pitch => AmpSettings { pitch: pitch_on(-5), order, ..plain },
+            _ => panic!("{pedal:?} could stand on either side before"),
+        }
+    }
+
+    const ONCE_FRONT_ONLY: [Pedal; 3] = [Pedal::Drive, Pedal::Wah, Pedal::Pitch];
+
+    #[test]
+    fn test_drive_wah_and_pitch_behind_the_cabinet_are_stereo_heard_and_do_not_drive_the_amp() {
+        let input = power_chords(SAMPLE_RATE, 0.5);
+        let first = (0.05 * SAMPLE_RATE) as usize;
+        for pedal in ONCE_FRONT_ONLY {
+            let behind = pedal_in(pedal, Zone::Back);
+            let front = pedal_in(pedal, Zone::Front);
+            let off = AmpSettings {
+                drive_on: false,
+                wah: WahSettings::default(),
+                pitch: PitchSettings::default(),
+                ..behind
+            };
+            let (left, right) = run_stereo(&behind, &input, SAMPLE_RATE);
+            let (front_left, _) = run_stereo(&front, &input, SAMPLE_RATE);
+            let (off_left, off_right) = run_stereo(&off, &input, SAMPLE_RATE);
+            for signal in [&left, &right] {
+                assert!(signal.iter().all(|s| s.is_finite() && s.abs() <= 1.0), "{pedal:?}");
+            }
+            // Heard, and not the same as in front of the amp
+            let added = difference(&left, &off_left);
+            assert!(rms(&added[first..]) > 0.05 * rms(&off_left), "{pedal:?} is not heard");
+            assert!(left != front_left, "{pedal:?} sounds the same on both sides of the amp");
+            // Both channels are played alike: the amp is mono, and so is what it is given
+            assert!(left == right, "{pedal:?}: the channels differ");
+            // Off, it is the amp alone to the bit, wherever it stands
+            let plain = AmpSettings { order: ChainOrder::default(), ..off };
+            assert!(
+                (off_left.clone(), off_right.clone()) == run_stereo(&plain, &input, SAMPLE_RATE),
+                "{pedal:?} off changes the amp"
+            );
+        }
+        // The amp is pushed by a drive pedal in front of it, not by one behind the cabinet
+        for (zone, driven) in [(Zone::Front, true), (Zone::Back, false)] {
+            let mut chain = new_chain(SAMPLE_RATE);
+            run_stereo_blocks(&mut chain, &pedal_in(Pedal::Drive, zone), &input[..4800], BLOCK);
+            assert_eq!(chain.preamp.is_driven(), driven, "{zone:?}");
+        }
+    }
+
+    #[test]
+    fn test_drive_wah_and_pitch_behind_the_cabinet_add_no_latency_and_do_not_depend_on_block_size()
+    {
+        let input = power_chords(SAMPLE_RATE, 0.5);
+        let plain = AmpSettings { out_level: 0.25, ..with_amp(Amp::Klar, 0.5) };
+        for pedal in ONCE_FRONT_ONLY {
+            let behind = pedal_in(pedal, Zone::Back);
+            let same = AmpSettings { out_level: 1.0, ..behind };
+            for sample_rate in [44_100.0, 96_000.0] {
+                let (with, without) = (
+                    latency_samples_with(&behind, sample_rate),
+                    latency_samples_with(&plain, sample_rate),
+                );
+                // The pitch shifter's own lag is its Tracking at most, and a few samples at a
+                // shift of 0; it is measured in `pitch_report`
+                let allowed = if pedal == Pedal::Pitch { 0.05 * sample_rate } else { 4.0 };
+                assert!(
+                    (with as f32 - without as f32).abs() <= allowed,
+                    "{pedal:?} at {sample_rate} Hz: {with} samples, the amp alone {without}"
+                );
+            }
+            let whole = run_stereo_blocks(&mut new_chain(SAMPLE_RATE), &same, &input, input.len());
+            for block in [1, 7, 33, 480] {
+                let output = run_stereo_blocks(&mut new_chain(SAMPLE_RATE), &same, &input, block);
+                assert!(output == whole, "{pedal:?} in blocks of {block}");
+            }
+        }
+    }
+
+    #[test]
+    fn test_drive_wah_and_pitch_behind_the_cabinet_start_from_rest_and_fall_idle() {
+        let loud = power_chords(SAMPLE_RATE, 0.6);
+        let silence = vec![0.0; 3 * 48_000];
+        for pedal in ONCE_FRONT_ONLY {
+            let (back, front) = (pedal_in(pedal, Zone::Back), pedal_in(pedal, Zone::Front));
+            // Played in front, moved behind and back again while silent: what rang on the
+            // side it left is not heard when it returns
+            for (first, second) in [(&front, &back), (&back, &front)] {
+                let mut chain = new_chain(SAMPLE_RATE);
+                run_stereo_blocks(&mut chain, first, &loud, BLOCK);
+                run_stereo_blocks(&mut chain, second, &silence[..9_600], BLOCK);
+                let (left, right) = run_stereo_blocks(&mut chain, first, &silence[..24_000], BLOCK);
+                let ringing = peak(&left).max(peak(&right));
+                assert!(ringing < 1e-6, "{pedal:?}: the old sound is heard again, {ringing}");
+            }
+            // Switched off, it fades out and leaves the amp alone: the chain is idle again
+            let mut chain = new_chain(SAMPLE_RATE);
+            let off = AmpSettings {
+                drive_on: false,
+                wah: WahSettings::default(),
+                pitch: PitchSettings::default(),
+                ..back
+            };
+            run_stereo_blocks(&mut chain, &back, &loud[..24_000], BLOCK);
+            let gone = run_stereo_blocks(&mut chain, &off, &loud, BLOCK);
+            let alone = run_stereo_blocks(&mut new_chain(SAMPLE_RATE), &off, &loud, BLOCK);
+            let tail = loud.len() - 12_000..loud.len();
+            assert!(
+                largest_difference(&gone.0[tail.clone()], &alone.0[tail.clone()])
+                    < 0.001 * peak(&alone.0[tail]),
+                "{pedal:?} does not leave the amp alone after it is switched off"
+            );
+            assert!(chain.is_idle() && chain.back_drive.is_idle(), "{pedal:?} is not idle");
+        }
+    }
+
+    #[test]
+    fn test_the_drive_behind_the_cabinet_follows_its_dials_without_aliasing() {
+        // Level turns it up and down, Drive makes the clipping harder
+        // Above the corner under which the pedal leaves the low end alone
+        let input = sine(1_000.0, 0.01, SAMPLE_RATE, 24_000);
+        let at = |drive: f32, level: f32| {
+            let settings = AmpSettings {
+                drive_gain: drive,
+                drive_level: level,
+                gain: 0.0,
+                gate_on: false,
+                cab_on: false,
+                ..pedal_in(Pedal::Drive, Zone::Back)
+            };
+            run(&settings, &input, SAMPLE_RATE)[12_000..].to_vec()
+        };
+        let (quiet, loud) = (at(0.5, 0.0), at(0.5, 1.0));
+        assert!(to_db(rms(&loud) / rms(&quiet)) > 10.0);
+        let (soft, hard) = (at(0.0, 0.5), at(1.0, 0.5));
+        let (soft_thd, hard_thd) =
+            (thd_db(&soft, SAMPLE_RATE, 1_000.0), thd_db(&hard, SAMPLE_RATE, 1_000.0));
+        assert!(hard_thd > soft_thd + 3.0, "THD {soft_thd:.1} dB at Drive 0, {hard_thd:.1} at 10");
+        // The clipping is raised in rate behind the cabinet, as the fuzz's is: what folds back
+        // between the harmonics stays as far under them as the amps' own limit, which the
+        // cabinet and the tone dial help to keep
+        for sample_rate in [44_100.0, 96_000.0] {
+            for freq_hz in ALIAS_TONES_HZ {
+                let with = |zone| AmpSettings {
+                    drive_gain: 1.0,
+                    gain: 0.0,
+                    gate_on: false,
+                    ..pedal_in(Pedal::Drive, zone)
+                };
+                let (front, behind) = (
+                    aliasing_db_at(&with(Zone::Front), freq_hz, sample_rate),
+                    aliasing_db_at(&with(Zone::Back), freq_hz, sample_rate),
+                );
+                assert!(
+                    behind < -78.0,
+                    "Drive 10 at {sample_rate} Hz, {freq_hz} Hz: {behind:.1} dB behind the cabinet, {front:.1} in front"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_the_wah_and_the_pitch_shifter_behind_the_cabinet_do_what_they_do_in_front() {
+        // The wah: the rocker at the heel keeps the lows and at the toe the highs
+        let input = power_chords(SAMPLE_RATE, 1.0);
+        let bands = |signal: &[f32]| {
+            spectrum_level_db(&signal[12_000..], SAMPLE_RATE, 250.0, 500.0)
+                - spectrum_level_db(&signal[12_000..], SAMPLE_RATE, 1_600.0, 3_200.0)
+        };
+        let base = AmpSettings { gate_on: false, ..pedal_in(Pedal::Wah, Zone::Back) };
+        let heel = run(&AmpSettings { wah: wah_at(0.0), ..base }, &input, SAMPLE_RATE);
+        let toe = run(&AmpSettings { wah: wah_at(1.0), ..base }, &input, SAMPLE_RATE);
+        assert!(bands(&heel) > bands(&toe) + 6.0, "{:.1} against {:.1}", bands(&heel), bands(&toe));
+        // The pitch shifter: a clean amp keeps the pitch of a note, so the shift is read at
+        // the output
+        let input = sine(110.0, 0.05, SAMPLE_RATE, 96_000);
+        for (semitones, wanted) in [(12, 220.0), (7, 164.8), (-5, 82.4)] {
+            let settings = AmpSettings {
+                pitch: pitch_on(semitones),
+                gate_on: false,
+                cab_on: false,
+                ..pedal_in(Pedal::Pitch, Zone::Back)
+            };
+            let tail = run(&settings, &input, SAMPLE_RATE)[48_000..].to_vec();
+            let heard = level_at(&tail, SAMPLE_RATE, wanted);
+            let left = level_at(&tail, SAMPLE_RATE, 110.0);
+            assert!(
+                to_db(heard / left.max(1e-9)) > 10.0,
+                "{semitones} semitones behind the cabinet: {:.1} dB",
+                to_db(heard / left.max(1e-9))
+            );
+        }
+    }
+
+    #[test]
+    fn test_every_pedal_stands_everywhere_and_the_whole_board_stays_finite_in_both_zones() {
+        let input = power_chords(SAMPLE_RATE, 0.5);
+        for amp in [Amp::Klar, Amp::Torden] {
+            for sample_rate in [44_100.0, 96_000.0, 192_000.0] {
+                let chords = power_chords(sample_rate, 0.4);
+                for (zone, place) in [(Zone::Front, 0), (Zone::Back, 0), (Zone::Back, 99)] {
+                    // All twelve into the zone one after the other
+                    let order = Pedal::ALL.iter().fold(ChainOrder::default(), |order, &pedal| {
+                        order.moved(pedal, zone, place)
+                    });
+                    assert_eq!(order.back().is_empty(), zone == Zone::Front);
+                    let settings = AmpSettings { order, ..whole_board(amp) };
+                    let (left, right) = run_stereo(&settings, &chords, sample_rate);
+                    assert!(left.iter().chain(&right).all(|s| s.is_finite() && s.abs() <= 1.0));
+                    assert!(peak(&left) > 0.01, "{zone:?} {place}: nothing is heard");
+                }
+            }
+        }
+        // Every order that puts one of the three on the far side of the amp from where it was
+        let default = ChainOrder::default();
+        for pedal in ONCE_FRONT_ONLY {
+            let moved = default.moved(pedal, Zone::Back, 0);
+            assert_eq!(moved.zone_of(pedal), Zone::Back);
+            let (left, _) = run_stereo(
+                &AmpSettings { order: moved, ..whole_board(Amp::Brol) },
+                &input,
+                SAMPLE_RATE,
+            );
+            assert!(left.iter().all(|s| s.is_finite() && s.abs() <= 1.0));
+        }
+    }
+
     #[test]
     fn test_effects_add_no_latency() {
         // The amp's own signal comes through as without them, to the sample: bit for bit
@@ -5632,12 +5949,21 @@ mod tests {
                         ("drive", true, false, false),
                         ("effects", false, true, false),
                         ("fuzz", false, false, true),
+                        // The pitch shifter and the wah in front of the amp (#268): they are
+                        // run with the fingerprints taken before that change
+                        ("pitch", false, false, false),
+                        ("wah", false, false, false),
                     ] {
                         let mut settings = with_amp(amp, gain);
                         settings.drive_on = drive_on;
                         settings.fuzz.on = fuzz_on;
                         settings.delay.on = effects_on;
                         settings.reverb.on = effects_on;
+                        match pedals {
+                            "pitch" => settings.pitch = pitch_on(-5),
+                            "wah" => settings.wah = wah_at(0.3),
+                            _ => {}
+                        }
                         let mut chain = new_chain(sample_rate);
                         let (mut left, mut right) = (recording.to_vec(), recording.to_vec());
                         for (left, right) in left.chunks_mut(BLOCK).zip(right.chunks_mut(BLOCK)) {
@@ -6817,29 +7143,71 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
         }
     }
 
-    /// The effects that can stand on the side of the amp they did not before (#268), on each
-    /// side: how loud they make the amp at their defaults and with Mix flat out (level of the
-    /// output against the amp alone, through Klar at Gain 5 and Torden at Gain 8, chords),
-    /// the latency, and the cost of a block as a share of real time, against the amp alone
+    /// Every effect that was held to one side of the amp (#268), on, in `zone`: `extreme` is
+    /// the effect as strong as it goes (Mix flat out, Drive 10, the wah's bite up, the pitch
+    /// shifter at -12), otherwise as it is when it is switched on
+    fn zone_settings(pedal: Pedal, zone: Zone, extreme: bool, amp: Amp, gain: f32) -> AmpSettings {
+        let mut settings = match pedal {
+            Pedal::Delay => effect_in(zone, true),
+            Pedal::Reverb => effect_in(zone, false),
+            _ => pedal_in(pedal, zone),
+        };
+        settings.amp = amp;
+        settings.gain = gain;
+        settings.out_level = 1.0;
+        match pedal {
+            Pedal::Delay | Pedal::Reverb => {
+                let default_mix = if pedal == Pedal::Delay { 0.35 } else { 0.2 };
+                let mix = if extreme { 1.0 } else { default_mix };
+                settings.delay.mix = mix;
+                settings.reverb.mix = mix;
+            }
+            Pedal::Drive => {
+                let defaults = AmpSettings::default();
+                settings.drive_gain = if extreme { 1.0 } else { defaults.drive_gain };
+                settings.drive_tone = defaults.drive_tone;
+                settings.drive_level = defaults.drive_level;
+            }
+            Pedal::Wah => {
+                settings.wah = if extreme {
+                    WahSettings { bite: 1.0, ..wah_at(1.0) }
+                } else {
+                    WahSettings { on: true, ..WahSettings::default() }
+                };
+            }
+            _ => {
+                settings.pitch = if extreme {
+                    pitch_on(-12)
+                } else {
+                    PitchSettings { on: true, ..PitchSettings::default() }
+                };
+            }
+        }
+        settings
+    }
+
+    const ZONE_PEDALS: [(&str, Pedal); 5] = [
+        ("delay", Pedal::Delay),
+        ("reverb", Pedal::Reverb),
+        ("drive", Pedal::Drive),
+        ("wah", Pedal::Wah),
+        ("pitch", Pedal::Pitch),
+    ];
+
+    /// The effects that can stand on either side of the amp (#268), on each side: how loud they
+    /// make the amp at their defaults and as strong as they go (level of the output against the
+    /// amp alone, through Klar at Gain 5 and Torden at Gain 8, chords), the latency, and the cost
+    /// of a block as a share of real time, against the amp alone
     ///   cargo test -p amp --release zone_report -- --ignored --nocapture
     #[test]
     #[ignore]
     fn zone_report() {
         println!("Effect, side, dials | level against the amp alone in dB (Klar 5 / Torden 8) | latency in samples at 48 kHz | cost in % of real time at 48 / 96 / 192 kHz");
-        for (name, delay) in [("delay", true), ("reverb", false)] {
+        for (name, pedal) in ZONE_PEDALS {
             for (side, zone) in [("behind", Zone::Back), ("front", Zone::Front)] {
-                for (dials, mix) in [("default", None), ("mix 10", Some(1.0))] {
-                    let settings_for = |amp: Amp, gain: f32| {
-                        let mut settings = effect_in(zone, delay);
-                        settings.amp = amp;
-                        settings.gain = gain;
-                        settings.out_level = 1.0;
-                        let default_mix = if delay { 0.35 } else { 0.2 };
-                        let mix = mix.unwrap_or(default_mix);
-                        settings.delay.mix = mix;
-                        settings.reverb.mix = mix;
-                        settings
-                    };
+                for (dials, extreme) in [("default", false), ("extreme", true)] {
+                    let settings_for =
+                        |amp: Amp, gain: f32| zone_settings(pedal, zone, extreme, amp, gain);
                     let level = |amp: Amp, gain: f32| {
                         let chords = power_chords(SAMPLE_RATE, 3.0);
                         let alone = AmpSettings { out_level: 1.0, ..with_amp(amp, gain) };
@@ -6874,9 +7242,9 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
         }
     }
 
-    /// The delay and the reverb on each side of the amp (#268), for listening: a guitar through
-    /// Brøl at Gain 5 and through Torden at Gain 8, as WAV files in target/renders
-    /// (amp_zone_*.wav), each with the effect behind the cabinet first and in front of the amp
+    /// The effects on each side of the amp (#268), for listening: a guitar through Brøl at
+    /// Gain 5 and through Torden at Gain 8, as WAV files in target/renders (amp_zone_*.wav),
+    /// each with the effect behind the cabinet first and in front of the amp
     ///   cargo test -p amp --release render_zones -- --ignored
     #[test]
     #[ignore]
@@ -6887,19 +7255,36 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
         phrase.extend(vec![0.0; 5 * 48_000]);
         let rate = SAMPLE_RATE as u32;
         for (amp_name, amp, gain) in [("brol", Amp::Brol, 0.5), ("torden", Amp::Torden, 0.8)] {
-            for (name, delay) in [("delay_350ms", true), ("reverb_1s8", false)] {
+            for (name, pedal) in ZONE_PEDALS {
                 for (side, zone) in [("behind", Zone::Back), ("front", Zone::Front)] {
-                    let mut settings = effect_in(zone, delay);
-                    settings.amp = amp;
-                    settings.gain = gain;
-                    settings.out_level = 1.0;
-                    settings.delay = delay_on(350.0, 0.4, 0.4);
-                    settings.reverb = reverb_on(1.8, 0.35);
-                    if delay {
-                        settings.reverb.on = false;
-                    } else {
-                        settings.delay.on = false;
-                    }
+                    let mut settings = zone_settings(pedal, zone, false, amp, gain);
+                    let name = match pedal {
+                        Pedal::Delay => {
+                            settings.delay = delay_on(350.0, 0.4, 0.4);
+                            "delay_350ms"
+                        }
+                        Pedal::Reverb => {
+                            settings.reverb = reverb_on(1.8, 0.35);
+                            "reverb_1s8"
+                        }
+                        // The playing sweeps it, the way a wah is played on a rhythm
+                        Pedal::Wah => {
+                            settings.wah = WahSettings {
+                                on: true,
+                                mode: WahMode::Auto,
+                                pedal: 0.15,
+                                bite: 0.5,
+                                sens: 0.8,
+                            };
+                            "wah_auto"
+                        }
+                        // A fourth down, with the guitar as it is under it
+                        Pedal::Pitch => {
+                            settings.pitch = PitchSettings { blend: 0.5, ..pitch_on(-5) };
+                            "pitch_down_a_fourth_half"
+                        }
+                        _ => name,
+                    };
                     let (left, right) = run_stereo(&settings, &phrase, SAMPLE_RATE);
                     let file = format!("amp_zone_{amp_name}_{name}_{side}.wav");
                     crate::test_util::write_wav(&dir.join(file), &[&left, &right], rate);

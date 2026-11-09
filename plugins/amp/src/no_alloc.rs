@@ -354,6 +354,66 @@ fn test_the_delay_and_the_reverb_allocate_nothing_in_front_of_the_amp() {
     }
 }
 
+/// The drive pedal, the wah and the pitch shifter on both sides of the amp (#268), moved from
+/// one side to the other while they play, with their switches and dials moving, at the rates
+/// that oversample 4 and 2 times
+#[test]
+fn test_the_drive_the_wah_and_the_pitch_shifter_allocate_nothing_on_either_side_of_the_amp() {
+    use crate::chain::AmpSettings;
+    use crate::order::{ChainOrder, Pedal, Zone};
+    use crate::pitch::PitchSettings;
+    use crate::wah::{WahMode, WahSettings};
+    for sample_rate in [44_100.0, 96_000.0, 192_000.0] {
+        let mut chain = AmpChain::new();
+        chain.set_sample_rate(sample_rate);
+        let mut left = vec![0.0f32; host::BLOCKS[0]];
+        let mut right = vec![0.0f32; host::BLOCKS[0]];
+        host::assert_allocates_nothing("Drive, wah and pitch on both sides", || {
+            for block in 0..900 {
+                let len = host::BLOCKS[block % host::BLOCKS.len()];
+                for i in 0..len {
+                    left[i] = (i as f32 * 0.0144).sin() * 0.5;
+                    right[i] = left[i];
+                }
+                let dial = (block % 40) as f32 / 40.0;
+                // All three in front, all three behind, and the three apart, in turn
+                let zones = match block / 100 % 3 {
+                    0 => [Zone::Front; 3],
+                    1 => [Zone::Back; 3],
+                    _ => [Zone::Back, Zone::Front, Zone::Back],
+                };
+                let order = ChainOrder::default()
+                    .moved(Pedal::Drive, zones[0], 0)
+                    .moved(Pedal::Wah, zones[1], 0)
+                    .moved(Pedal::Pitch, zones[2], 0);
+                let settings = AmpSettings {
+                    drive_on: block % 7 != 0,
+                    drive_gain: dial,
+                    drive_tone: 1.0 - dial,
+                    drive_level: dial,
+                    wah: WahSettings {
+                        on: block % 5 != 0,
+                        mode: if block % 3 == 0 { WahMode::Auto } else { WahMode::Pedal },
+                        pedal: dial,
+                        bite: 1.0 - dial,
+                        sens: dial,
+                    },
+                    pitch: PitchSettings {
+                        on: block % 9 != 0,
+                        semitones: (block % 25) as i32 - 12,
+                        blend: dial,
+                        latency_ms: 2.0 + 48.0 * dial,
+                    },
+                    order,
+                    ..AmpSettings::default()
+                };
+                chain.process(&settings, &mut left[..len], Some(&mut right[..len]));
+                chain.process(&settings, &mut left[..len], None);
+            }
+        });
+    }
+}
+
 /// The chain model, as the audio thread meets it (a host may restore a saved state from there,
 /// and every block reads the chain with the dials): the chain read and written while blocks are
 /// taken out, put in and moved, its twelve-pedal view worked out, and the memory of the effects
