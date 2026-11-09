@@ -817,7 +817,7 @@ impl Preset {
     pub fn load(&self, params: &GuitarAmpParams, setter: &ParamSetter) {
         dial_memory::preset_loaded(params, self.amp, self.dials.map(dial));
         dial_memory::second_preset_loaded(params, self.second.amp, self.second.dials.map(dial));
-        params.order.put(self.chain_order());
+        params.chain.put_order(self.chain_order());
         let pitch = PitchSettings::default();
         let edits: Vec<Edit> = [
             Edit::of(&params.amp, self.amp),
@@ -842,7 +842,7 @@ impl Preset {
     pub fn matches(&self, params: &GuitarAmpParams) -> bool {
         params.amp.value() == self.amp
             && params.amp2.value() == self.second.amp
-            && params.order.get() == self.chain_order()
+            && params.chain.order() == self.chain_order()
             && params.pitch_semitones.value() == PitchSettings::default().semitones
             && params.wah_mode.value() == crate::wah::WahSettings::default().mode
             && self.switches(params).into_iter().all(|(param, on)| param.value() == on)
@@ -870,6 +870,12 @@ pub(crate) struct Edit {
 }
 
 impl Edit {
+    /// A parameter that is only known by its pointer, to a normalized value
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn raw(param: ParamPtr, normalized: f32) -> Self {
+        Self { param, normalized }
+    }
+
     pub(crate) fn of<P: Param>(param: &P, value: P::Plain) -> Self {
         Self { param: param.as_ptr(), normalized: param.preview_normalized(value) }
     }
@@ -1120,7 +1126,11 @@ mod tests {
     fn test_a_moved_pedal_marks_the_preset_as_edited() {
         let params = GuitarAmpParams::default();
         assert!(PRESETS[0].matches(&params));
-        params.order.put(ChainOrder::default().moved(Pedal::Reverb, crate::order::Zone::Back, 0));
+        params.chain.put_order(ChainOrder::default().moved(
+            Pedal::Reverb,
+            crate::order::Zone::Back,
+            0,
+        ));
         assert_eq!(PRESETS[0].display_name(&params), "Init*");
     }
 

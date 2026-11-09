@@ -7,6 +7,11 @@ GitHub release.
 
 ### Guitar Amp
 
+- The host's parameter list of the amp now ends with 96 generic ones, Slot 1 On, Slot 1 Knob 1 to
+  Slot 16 Knob 5, which do nothing yet: they are reserved for the effect chain that is coming to
+  the window. Nothing else changes: projects and presets from before open with the same pedals in
+  the same order, and sound exactly as they did.
+
 - Four new amps on the Amp stepper (and the second amp's), after Drøn, each with its own cabinet,
   head and two factory presets: Knald (KN-45), a thick, warm, slightly woolly mid-gain rock amp that
   breaks up from Gain 4, sags and goes fuzzy-warm past Gain 6; Gnist (GN-45), the bright, chimey

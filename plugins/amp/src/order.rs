@@ -7,11 +7,9 @@
 //! where they share the amp's oversampling. The delay and the reverb stay behind the cabinet, where the signal is
 //! stereo. The fuzz, the compressor, the modulation pedals and the EQ go either side.
 //!
-//! The order is not a parameter: a host cannot automate an arrangement. The editor changes
-//! it, it is saved with the project, and the chain reads it with the dials.
-
-use nih_plug::params::persist::PersistentField;
-use std::sync::atomic::{AtomicU64, Ordering};
+//! The order is not a parameter: a host cannot automate an arrangement. It is the twelve-pedal
+//! view of the chain model (`slots::Chain`, which the project saves): the editor changes it
+//! through `StoredChain`, and the chain reads it with the dials.
 
 /// The pedals that can be moved
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -235,34 +233,6 @@ impl ChainOrder {
         let back = self.back().iter().map(|pedal| pedal.id());
         front.chain(std::iter::once(AMP_ID)).chain(back).collect()
     }
-
-    /// The order as one number: four bits per pedal, first to last, then how many of them
-    /// are in front of the amp
-    fn to_bits(self) -> u64 {
-        let pedals =
-            self.pedals.iter().rev().fold(0u64, |bits, pedal| (bits << 4) | pedal.index() as u64);
-        pedals | ((self.front as u64) << (4 * Pedal::ALL.len()))
-    }
-
-    /// The order a number from `to_bits` stands for. `None` for any other number
-    fn from_bits(bits: u64) -> Option<ChainOrder> {
-        let mut pedals = [Pedal::Comp; Pedal::ALL.len()];
-        let mut seen = [false; Pedal::ALL.len()];
-        for (place, slot) in pedals.iter_mut().enumerate() {
-            let index = ((bits >> (4 * place)) & 0xf) as usize;
-            let pedal = *Pedal::ALL.get(index)?;
-            if std::mem::replace(&mut seen[index], true) {
-                return None;
-            }
-            *slot = pedal;
-        }
-        let front = (bits >> (4 * Pedal::ALL.len())) as usize;
-        let order = ChainOrder { pedals, front };
-        let legal = front <= Pedal::ALL.len()
-            && order.front().iter().all(|pedal| pedal.can_be_in(Zone::Front))
-            && order.back().iter().all(|pedal| pedal.can_be_in(Zone::Back));
-        legal.then_some(order)
-    }
 }
 
 /// One of the two rows while an order is put together. Holds no memory of its own: an order
@@ -293,41 +263,6 @@ impl Row {
             self.slots[place] = pedal;
             self.len += 1;
         }
-    }
-}
-
-/// The order as the editor sets it and the audio thread reads it, without either waiting
-/// for the other. A host may restore a saved state from the audio thread, so it is one atomic
-pub struct StoredOrder {
-    bits: AtomicU64,
-}
-
-impl StoredOrder {
-    pub fn new() -> Self {
-        Self { bits: AtomicU64::new(ChainOrder::default().to_bits()) }
-    }
-
-    pub fn get(&self) -> ChainOrder {
-        ChainOrder::from_bits(self.bits.load(Ordering::Relaxed)).unwrap_or_default()
-    }
-
-    pub fn put(&self, order: ChainOrder) {
-        self.bits.store(order.to_bits(), Ordering::Relaxed);
-    }
-}
-
-/// Saved with the project as the list of `ChainOrder::ids`. A project from before the
-/// pedals could be moved has no list and keeps the default
-impl PersistentField<'_, Vec<String>> for StoredOrder {
-    fn set(&self, new_value: Vec<String>) {
-        self.put(ChainOrder::from_ids(new_value.iter().map(String::as_str)));
-    }
-
-    fn map<F, R>(&self, f: F) -> R
-    where
-        F: Fn(&Vec<String>) -> R,
-    {
-        f(&self.get().ids().into_iter().map(String::from).collect())
     }
 }
 
@@ -485,9 +420,8 @@ mod tests {
         }
         assert!(orders.len() > 100);
 
-        // And each of them comes back from its number and from its names as it was
+        // And each of them comes back from its names as it was
         for order in orders {
-            assert_eq!(ChainOrder::from_bits(order.to_bits()), Some(order));
             assert_eq!(ChainOrder::from_ids(order.ids()), order);
         }
     }
@@ -579,33 +513,5 @@ mod tests {
         let all_in_front = ChainOrder::from_ids(Pedal::ALL.map(Pedal::id));
         assert!(is_legal(&all_in_front));
         assert_eq!(all_in_front.back(), [Pedal::Delay, Pedal::Reverb]);
-
-        for bits in [0, u64::MAX, default.to_bits() ^ 1, default.to_bits() | (0xf << 32)] {
-            assert_eq!(ChainOrder::from_bits(bits), None, "{bits:#x}");
-        }
-    }
-
-    #[test]
-    fn test_stored_order_starts_at_the_default_and_survives_saving() {
-        let stored = StoredOrder::new();
-        assert_eq!(stored.get(), ChainOrder::default());
-
-        let order = ChainOrder::default().moved(Pedal::Tremolo, Zone::Front, 0).moved(
-            Pedal::Reverb,
-            Zone::Back,
-            0,
-        );
-        stored.put(order);
-        assert_eq!(stored.get(), order);
-        let saved = stored.map(|ids| ids.clone());
-        assert_eq!(saved[0], "tremolo");
-
-        let restored = StoredOrder::new();
-        restored.set(saved);
-        assert_eq!(restored.get(), order);
-
-        // A number no order has, from a damaged state, reads as the default
-        stored.bits.store(0, Ordering::Relaxed);
-        assert_eq!(stored.get(), ChainOrder::default());
     }
 }

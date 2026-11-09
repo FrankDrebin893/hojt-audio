@@ -306,3 +306,35 @@ fn test_the_wah_allocates_nothing() {
         });
     }
 }
+
+/// The chain model, as the audio thread meets it (a host may restore a saved state from there,
+/// and every block reads the chain with the dials): the chain read and written while blocks are
+/// taken out, put in and moved, its twelve-pedal view worked out, and the memory of the effects
+/// taken out
+#[test]
+fn test_the_chain_model_allocates_nothing() {
+    use crate::order::{ChainOrder, Pedal, Zone};
+    use crate::slots::{Chain, EffectKind, SlotValues, StoredChain, KNOBS};
+    let stored = StoredChain::new();
+    let default = ChainOrder::default();
+    host::assert_allocates_nothing("The chain model", || {
+        for n in 0..3000 {
+            let pedal = Pedal::ALL[n % Pedal::ALL.len()];
+            let zone = if n % 2 == 0 { Zone::Front } else { Zone::Back };
+            stored.put_order(default.moved(pedal, zone, n % 7));
+            let mut chain = stored.get();
+            let kind = EffectKind::ALL[n % EffectKind::ALL.len()];
+            if let Some(block) = chain.blocks().get(n % 5).copied() {
+                chain.remove(block.slot);
+                stored.memory().remember(block.kind, SlotValues { on: true, knobs: [0.5; KNOBS] });
+            }
+            let _ = chain.add(kind, zone, n % 4);
+            let _ = chain.add_amp();
+            let _ = chain.remove_amp(1);
+            stored.put(chain);
+            assert!(stored.order().front().len() + stored.order().back().len() == Pedal::ALL.len());
+            let _ = stored.memory().recall(kind);
+            let _ = Chain::from_order(&default).order();
+        }
+    });
+}
