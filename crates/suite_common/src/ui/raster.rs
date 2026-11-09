@@ -1006,6 +1006,77 @@ pub fn paint_box(painter: &Painter, rect: Rect, radius: f32, edge_height: f32, p
     blit(painter, &texture, rect.expand(margin as f32 / ppp));
 }
 
+/// How wide a long strip's lit surface is made, in points: what the Guitar Amp's strip was
+/// always drawn at. A strip of another width is this one with its middle stretched or squeezed
+/// (`blit_wide`), so that dragging a window's corner never makes a new picture and no picture is
+/// wider than a graphics card's textures (8192 pixels, see `wide_source`)
+pub const WIDE_SOURCE: f32 = 3391.0;
+/// How much of each end of a long strip is kept as it was made: its corners, its bevel
+pub const WIDE_END: f32 = 320.0;
+/// The widest a lit surface is made, in pixels: under the 8192 that a texture may be
+const MAX_SOURCE_PIXELS: f32 = 7600.0;
+
+/// The width, in points, that a long strip's picture is made at with `ppp` pixels to a point:
+/// `WIDE_SOURCE`, or less on a screen so dense that it would not fit in a texture
+pub fn wide_source(ppp: f32) -> f32 {
+    WIDE_SOURCE.min((MAX_SOURCE_PIXELS / ppp).floor())
+}
+
+/// Paints `texture`, made at `wide_source` points wide with `margin_px` pixels round it, over
+/// `rect` (`rect` without the margin) at any width: its two ends as they are made, and the
+/// stretch of the middle between them, which is plain along its length, stretched or squeezed
+/// to fit
+pub(super) fn blit_wide(painter: &Painter, texture: &TextureHandle, rect: Rect, margin_px: f32) {
+    let ppp = painter.ctx().pixels_per_point();
+    let tex_w = texture.size()[0] as f32;
+    let margin = margin_px / ppp;
+    let outer = rect.expand(margin);
+    if rect.width() < 2.0 * WIDE_END {
+        blit(painter, texture, outer);
+        return;
+    }
+    let end_px = WIDE_END * ppp;
+    let uv =
+        |from: f32, to: f32| Rect::from_min_max(pos2(from / tex_w, 0.0), pos2(to / tex_w, 1.0));
+    let (left, right) = (rect.left() + WIDE_END, rect.right() - WIDE_END);
+    let slices = [
+        (outer.left(), left, uv(0.0, margin_px + end_px)),
+        (left, right, uv(margin_px + end_px, tex_w - margin_px - end_px)),
+        (right, outer.right(), uv(tex_w - margin_px - end_px, tex_w)),
+    ];
+    for (from, to, uv) in slices {
+        let dest = Rect::from_min_max(pos2(from, outer.top()), pos2(to, outer.bottom()));
+        painter.image(texture.id(), dest, uv, Color32::WHITE);
+    }
+}
+
+/// `paint_box` for a long strip of any width: one picture, made once at `wide_source` points
+/// wide, with the middle of it stretched to fit
+pub fn paint_box_wide(
+    painter: &Painter,
+    rect: Rect,
+    radius: f32,
+    edge_height: f32,
+    paint: Color32,
+) {
+    let ctx = painter.ctx();
+    let ppp = ctx.pixels_per_point();
+    let width = wide_source(ppp);
+    let key = (
+        "box-wide",
+        width.to_bits(),
+        rect.height().to_bits(),
+        radius.to_bits(),
+        edge_height.to_bits(),
+        paint,
+        ppp.to_bits(),
+    );
+    let texture = cached(ctx, key, || {
+        box_image(Vec2::new(width, rect.height()), radius, edge_height, paint, ppp).0
+    });
+    blit_wide(painter, &texture, rect, device(BOX_SHADOW_MARGIN, ppp).round());
+}
+
 /// A knob's body with the cap `cap`, and its shadow, centred on `center`
 pub fn paint_knob(painter: &Painter, center: Pos2, radius: f32, cap: KnobCap) {
     let ctx = painter.ctx();
@@ -1079,6 +1150,16 @@ pub fn paint_plate(painter: &Painter, rect: Rect, radius: f32, plate: Plate) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn test_a_long_strips_picture_is_never_wider_than_a_texture_may_be() {
+        for ppp in [1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 4.0] {
+            let width = wide_source(ppp);
+            assert!(width * ppp <= 8192.0 - 2.0 * 6.0 * ppp, "{ppp}");
+            assert!(width >= 2.0 * WIDE_END + 1.0, "{ppp}");
+        }
+        assert_eq!(wide_source(1.0), WIDE_SOURCE);
+    }
+
     use super::*;
     use crate::ui::theme::PAINT_TEAL;
     use nih_plug_egui::egui::vec2;

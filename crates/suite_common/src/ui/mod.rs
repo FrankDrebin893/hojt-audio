@@ -51,7 +51,8 @@ pub use widgets::{
     bare_param_knob, beat_lamp, beat_lamp_sized, cents_meter, chrome_button, crossfader,
     drop_panel, drop_panel_with, footswitch, led, led_stepper, level_meter, level_meter_wide,
     lit_level_lamps, menu_stepper, nameplate_stepper, panel_caption, panel_knob, panel_knob_rect,
-    param_knob, param_knob_with, param_switch, print_label, rig_led, rocker, signal_lamp,
-    silk_frame, silk_label, small_footswitch, stepper, type_into, type_on_tape, value_knob,
-    value_switch, Beat, Column, Pick, Picked, Row, Step, Typed, LEVEL_MIN_DB,
+    param_knob, param_knob_as, param_knob_with, param_switch, print_label, rig_led, rocker,
+    scroll_bar, signal_lamp, silk_frame, silk_label, small_footswitch, stepper, type_into,
+    type_on_tape, value_knob, value_switch, Beat, Column, Pick, Picked, Row, Step, Typed,
+    LEVEL_MIN_DB, SCROLL_BAR_THICKNESS,
 };

@@ -318,6 +318,31 @@ impl Chain {
         Some(block)
     }
 
+    /// Move the block on `slot` to be number `place` (0 is first; past the end is last) of
+    /// `zone`. It keeps its slot, and with it the values it holds. A block that is not on the
+    /// chain, or that cannot stand in that zone, leaves the chain as it is
+    pub fn move_block(&mut self, slot: u8, zone: Zone, place: usize) -> Result<(), AddError> {
+        let Some(block) = self.block_on(slot) else {
+            return Ok(());
+        };
+        if !block.kind.can_be_in(zone) {
+            return Err(AddError::WrongZone);
+        }
+        self.remove(slot);
+        let (start, len) = match zone {
+            Zone::Front => (0, self.front),
+            Zone::Back => (self.front, self.len - self.front),
+        };
+        let at = start + place.min(len);
+        self.blocks.copy_within(at..self.len, at + 1);
+        self.blocks[at] = block;
+        self.len += 1;
+        if zone == Zone::Front {
+            self.front += 1;
+        }
+        Ok(())
+    }
+
     /// Add an amp lane, if there is room. Gives its number (the first is 0)
     pub fn add_amp(&mut self) -> Option<usize> {
         (self.amps < MAX_AMPS).then(|| {
@@ -934,6 +959,27 @@ mod tests {
         assert_eq!(chain.amps(), 1);
         assert!(!chain.remove_amp(0));
         assert!(!chain.remove_amp(1));
+    }
+
+    #[test]
+    fn test_a_block_that_is_moved_keeps_its_slot_and_stays_in_a_zone_it_may_have() {
+        let mut chain = Chain::empty();
+        let delay = chain.add(EffectKind::Delay, Zone::Back, 0).unwrap();
+        let second = chain.add(EffectKind::Delay, Zone::Back, 1).unwrap();
+        let comp = chain.add(EffectKind::Comp, Zone::Front, 0).unwrap();
+        let gate = chain.add(EffectKind::Gate, Zone::Front, 1).unwrap();
+        // A second delay is on a slot of its own; moving it across the amps keeps that slot
+        assert!(chain.move_block(second, Zone::Front, 1).is_ok());
+        assert_eq!(chain.front().iter().map(|b| b.slot).collect::<Vec<_>>(), [comp, second, gate]);
+        assert_eq!(chain.back().iter().map(|b| b.slot).collect::<Vec<_>>(), [delay]);
+        assert!(chain.move_block(second, Zone::Back, 9).is_ok());
+        assert_eq!(chain.back().iter().map(|b| b.slot).collect::<Vec<_>>(), [delay, second]);
+        assert!(!Chain::is_home(chain.block_on(second).unwrap()));
+        // The gate stays in front; a block that is not there changes nothing
+        let before = chain;
+        assert_eq!(chain.move_block(gate, Zone::Back, 0), Err(AddError::WrongZone));
+        assert!(chain.move_block(15, Zone::Back, 0).is_ok());
+        assert_eq!(chain, before);
     }
 
     #[test]

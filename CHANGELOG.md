@@ -22,6 +22,12 @@ GitHub release.
   while it is on. The settings plate holds the cabinet files and, in the standalone program, the
   audio device (it was the Audio button). One plate is open at a time, and it closes on a click
   outside it, on Escape, or on its icon.
+- The Guitar Amp's window is one line in signal order that follows its chain: a gate, the
+  effects before the amps, the amps with their cabinets, the effects after, every one at full
+  size. A project from before looks as it did. The window is dragged to any size now (no fixed
+  proportions): the line is scaled to fit down to half size, and a longer line scrolls sideways
+  with the wheel or the bar along the bottom, while the strip stays and stretches with the
+  window. An effect can still be dragged by its name to another place, across the amps too.
 - The window is lower, the pedals and amps keep their size. The On button is gone from the
   window; the host's own bypass still works.
 

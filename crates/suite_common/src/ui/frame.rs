@@ -236,9 +236,12 @@ pub fn slim_print(face: Rect, style: &PedalStyle) -> SlimPrint {
 /// and the logo stand by the right one; the middle is the rig's own. Returns the top face.
 pub fn slim_strip(ui: &Ui, rect: Rect, style: &PedalStyle) -> Rect {
     let painter = ui.painter();
-    let top = painted_box(painter, rect, style.paint, SLIM_RADIUS);
+    // One picture whatever the width (`raster::paint_box_wide`): a window that is dragged
+    // wider or narrower never has a new one made
+    raster::paint_box_wide(painter, rect, SLIM_RADIUS, EDGE_HEIGHT, style.paint);
+    let top = Rect::from_min_max(rect.min, rect.max - vec2(0.0, EDGE_HEIGHT));
     if let Some(art) = style.art {
-        super::artwork::paint_art(painter, top, SLIM_RADIUS, art);
+        super::artwork::paint_art_wide(painter, top, SLIM_RADIUS, art);
     }
     let print = slim_print(top, style);
     for (at, text) in print.jacks.into_iter().zip(style.jacks) {

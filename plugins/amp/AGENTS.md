@@ -97,7 +97,7 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   The ASIO path is untouched by that
 - The exe carries the HØJT badge (`assets/amp.ico`, `assets/amp.rc`, `build.rs`) and
   `give_window_the_icon` in `main.rs` sets it on the window, which the framework makes without one
-- `src/editor.rs` - egui GUI (3411 x 584 board, opened scaled to the screen up to 3411 x 584 or 1876 x 321 on a 1920 x 1080 screen, and resizable from 0.4 to 1.0 by its corner handle): the slim oxblood strip
+- `src/editor.rs` - egui GUI (the signal line in a layer 584 high and as wide as the chain, 3411 for today's twelve pedals; opened scaled to the screen up to 3411 x 584 or 1876 x 321 on a 1920 x 1080 screen, resizable freely from 1301 x 293 by its corner handle, scaled to fit between 0.5 and 1.0 and scrolled sideways below that, `Fit`): the slim oxblood strip
   across the top (64 px) with the input (meter and Input gain), the preset display that opens
   the bank and preset plate, or the tuner display in its place, the metronome, tuner and
   settings icons in the middle, and the output (knob, meter, Clip) with the model and logo at
@@ -106,8 +106,9 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   with the Blend fader); each of the thirteen pedals in its own paint with its own art
 - `src/looks.rs` - What each amp's head looks like: a `Look` (its `HeadStyle` and knob cap) per
   amp, in the order of `Amp::ALL`. The sound stays in `amp/model.rs`
-- `src/board.rs` - The line under the strip in the chain's order: the pedals and the stack,
-  the couplers and patch cables between them, and dragging a pedal to another place
+- `src/board.rs` - The signal line under the strip, from the chain model (`Line`): the gate, the
+  blocks in front of the amps, the stack, the blocks behind, each a `Piece`, the couplers and
+  patch cables between them, and dragging a block by its title to another place (`Chain::move_block`)
 
 Signal flow:
 
@@ -680,14 +681,31 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   letters, numbers or cream triangles in it, and nothing that moves. A new paint goes in
   `PEDAL_PAINTS`, where tests hold it to cream print reading on it and to being clearly apart
   from the others; a new motif is drawn in `art.rs` for the layout of its pedal
-- **Equal pedals:** every pedal of the row is `PEDAL_WIDTH` (180 px) wide (thirteen of them and the stack: the window is 3411 px wide); only the stack has its
-  own width. The gap between neighbours is what is left of the window after the margin at each
-  end (`GAP` in `board.rs`, a test holds it even and every pedal as wide as the next). A pedal
-  with two knobs is either a pair side by side (radius 24) or on a diagonal (`SLIM_LED`,
-  `SLIM_KNOBS`, `SLIM_SWITCH`): the LED where a trio's upper left knob is, the two radius-17
-  knobs upper right and lower left, as far from the middle as a pair's. The narrow motifs
-  (`art.rs`, `NARROW_ART`) stand in the middle of the wider face and their paint runs out to
-  both edges. In a row the LEDs and switches line up
+- **The signal line** (#270, replacing "equal pedals, one row, 3204 px wide"): every block of the
+  chain is a pedal `PEDAL_WIDTH` (180 px) wide and `GAP` (27 px) from the next, in signal order
+  from the left: the gate that is always first, the blocks in front of the amps, the stack
+  (`STACK_WIDTH` wide), the blocks behind the cabinets. The line is as wide as its blocks (3411
+  px for the gate, twelve pedals and the stack, as it always was: a project from before is that
+  line, to the pixel) and is never stretched. A block draws from its own parameters where it
+  stands on its pedal's slot and from its slot's `slot<n>_*` parameters otherwise (`editor::Src`:
+  a slot's knob is told in the terms of the pedal's own parameter, at the same position), each
+  kind with its own paint, art and size (a pair, a trio, a diagonal pair, the EQ's four, the
+  wah's rocker, the delay's Sync); a duplicate looks as the original. A pedal with two knobs is
+  either a pair side by side (radius 24) or on a diagonal (`SLIM_LED`, `SLIM_KNOBS`,
+  `SLIM_SWITCH`): the LED where a trio's upper left knob is, the two radius-17 knobs upper right
+  and lower left, as far from the middle as a pair's. The narrow motifs (`art.rs`, `NARROW_ART`)
+  stand in the middle of the wider face and their paint runs out to both edges. In a row the
+  LEDs and switches line up
+- **The window scales and scrolls the line** (#270, replacing "fixed window size"): the layer is
+  the line's width (not under `STRIP_MIN_WIDTH`, 2600) by 584, and the window's zoom is the one
+  that fits it wide and high, between 0.5 (`MIN_ZOOM`, the least that reads) and 1.0. Where
+  0.5 does not fit the line the window shows part of it and the wheel over the line or the bar
+  along the foot (`ui::scroll_bar`) scrolls it; the strip stays and stretches with the window,
+  its right end and middle following the edges. No proportions are locked on the corner drag.
+  Nothing wider than 8192 px is made: the strip's lit surface is one picture whose middle is
+  stretched (`raster::paint_box_wide`). Tests hold the zoom, the scroll, the strip at its
+  narrowest and widest, and snapshots show the line short, small, large, sixteen blocks and
+  scrolled
 - **The Wah's rocker:** the one control that is neither a knob nor a switch, `ui::rocker` (a
   variant of the crossfader: a tall slot with a ribbed chrome treadle, ticks both sides, the
   heel at the bottom and the toe at the top, drag the cap or the slot, Shift for fine,
@@ -697,7 +715,7 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   and the rocker's caption (Rocker, and Rest while Auto is on) are `silk_label`s; the tape says
   the value as the parameter does. The look was picked out of three on #242 (a treadle in
   perspective, this slider, a face dial)
-- **A board that can be rearranged:** a pedal is moved by dragging it by its title
+- **A line that can be rearranged:** a block is moved by dragging it by its title, across the amps too (the gate and the stack are fixed; a block keeps its slot, and its values with it)
   (`title_grip`); while it is held it is drawn `lifted` and last, the others glide to make
   room, and it lands in the nearest place it may have. No arrows, menus or lists. A pedal
   that cannot be moved has no grip

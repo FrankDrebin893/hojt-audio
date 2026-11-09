@@ -1,339 +1,265 @@
-//! The line under the strip: the pedals and the stack (the head standing on the cabinet)
-//! in the order the signal goes through them, with couplers between the pedals that stand
-//! side by side and patch cables into the head and out of the cabinet. A pedal is moved by
-//! dragging it by its title: the others make room, and it lands in the nearest place it
-//! may have.
+//! The signal line under the strip: every block of the chain at full size in the order the
+//! signal goes through them (the gate, the effects in front of the amps, the stack of the amp
+//! lanes with their cabinets, the effects behind them), with couplers between the blocks that
+//! stand side by side and patch cables into the head and out of the cabinet. A block is moved by
+//! dragging it by its title: the others make room, and it lands in the nearest place it may
+//! have.
 //!
-//! The order itself is `order::ChainOrder`, kept with the parameters and saved with the
-//! project. What lives in the window is only where the pedals are drawn while one is held
-//! or gliding to its place.
+//! The line is the chain model's (`slots::Chain`, kept with the parameters and saved with the
+//! project) and its width follows it: a block keeps its size and the gap between two blocks is
+//! always the same, so a longer chain is a wider line, which the window scales or scrolls
+//! (`editor::Fit`). What lives in the window is only where the blocks are drawn while one is
+//! held or gliding to its place.
 
 use nih_plug_egui::egui::{vec2, Id, Painter, Pos2, Rect, Ui};
 use suite_common::ui::{self, BENCH_MARGIN, PLUG_Y};
 
-use crate::editor::{
-    Jacks, Pedals, DELAY_SLOT, EQ_SLOT, GATE_SLOT, PEDAL_HEIGHT, PEDAL_TOP, PEDAL_WIDTH,
-    PITCH_SLOT, STACK_TOP, WAH_SLOT,
-};
-use crate::order::{self, ChainOrder};
-use crate::slots::StoredChain;
+use crate::editor::{Jacks, Pedals, PEDAL_HEIGHT, PEDAL_TOP, PEDAL_WIDTH, STACK_TOP};
+use crate::order::Zone;
+use crate::slots::{Block, Chain, StoredChain, MAX_SLOTS};
 
-// Thirteen pedals and the stack
-const PEDALS: usize = 14;
 /// The two lanes (a head and its cabinet each) and the plate where they meet
 pub const STACK_WIDTH: f32 = 700.0;
-pub const WINDOW_WIDTH: u32 = 3411;
-/// The space between two neighbours of the row: what is left of the window, after a margin at
-/// each end, thirteen pedals of one width and the stack, shared by the thirteen gaps
-const GAP: f32 =
-    (WINDOW_WIDTH as f32 - 2.0 * BENCH_MARGIN - ((PEDALS - 1) as f32 * PEDAL_WIDTH + STACK_WIDTH))
-        / (PEDALS - 1) as f32;
+/// The space between two neighbours of the line. What it always was: the old row of thirteen
+/// pedals and the stack filled 3411 points with it
+pub const GAP: f32 = 27.0;
 
-// Share of its way to its place that a pedal making room goes in a second, were it to keep its speed
+// Share of its way to its place that a block making room goes in a second, were it to keep its speed
 const GLIDE_PER_SECOND: f32 = 18.0;
 
+/// One piece of the line: the gate that is always first, a block of the chain, or the stack of
+/// amp lanes that the blocks in front of the amps lead into
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Pedal {
+pub(crate) enum Piece {
     Gate,
-    Fuzz,
-    Comp,
-    Drive,
-    Phaser,
+    Block(Block),
     Stack,
-    Chorus,
-    Flanger,
-    Tremolo,
-    Delay,
-    Reverb,
-    Pitch,
-    Eq,
-    Wah,
 }
 
-/// Where in the chain a pedal may be
-#[derive(PartialEq)]
-enum Zone {
-    /// Where it is: the gate first, the stack between the pedals in front of the amp and
-    /// those behind the cabinet
-    Fixed,
-    Either,
-}
+/// What a piece is called while it is drawn and glides: the gate, the stack and one for each
+/// slot, so a block that moves is the same piece after it
+const KEYS: usize = 2 + MAX_SLOTS;
 
-impl Pedal {
-    fn zone(self) -> Zone {
+impl Piece {
+    fn key(self) -> usize {
         match self {
-            Pedal::Gate | Pedal::Stack => Zone::Fixed,
-            Pedal::Drive
-            | Pedal::Pitch
-            | Pedal::Wah
-            | Pedal::Fuzz
-            | Pedal::Delay
-            | Pedal::Reverb
-            | Pedal::Comp
-            | Pedal::Phaser
-            | Pedal::Chorus
-            | Pedal::Flanger
-            | Pedal::Tremolo
-            | Pedal::Eq => Zone::Either,
+            Piece::Gate => 0,
+            Piece::Stack => 1,
+            Piece::Block(block) => 2 + block.slot as usize,
         }
     }
 
-    /// The pedal's number in the editor's list of pedals. None for the stack, which the
-    /// editor draws by itself
-    fn slot(self) -> Option<usize> {
-        Some(match self {
-            Pedal::Gate => GATE_SLOT,
-            Pedal::Drive => 1,
-            Pedal::Stack => return None,
-            Pedal::Delay => DELAY_SLOT,
-            Pedal::Reverb => 3,
-            Pedal::Comp => 4,
-            Pedal::Chorus => 5,
-            Pedal::Phaser => 6,
-            Pedal::Flanger => 7,
-            Pedal::Tremolo => 8,
-            Pedal::Fuzz => 9,
-            Pedal::Pitch => PITCH_SLOT,
-            Pedal::Eq => EQ_SLOT,
-            Pedal::Wah => WAH_SLOT,
-        })
-    }
-
-    fn width(self) -> f32 {
-        match self.slot() {
-            None => STACK_WIDTH,
-            Some(_) => PEDAL_WIDTH,
-        }
-    }
-
-    /// What the chain calls the pedal. None for the two that are no part of its order
-    fn in_chain(self) -> Option<order::Pedal> {
+    pub(crate) fn width(self) -> f32 {
         match self {
-            Pedal::Gate | Pedal::Stack => None,
-            Pedal::Fuzz => Some(order::Pedal::Fuzz),
-            Pedal::Comp => Some(order::Pedal::Comp),
-            Pedal::Drive => Some(order::Pedal::Drive),
-            Pedal::Phaser => Some(order::Pedal::Phaser),
-            Pedal::Chorus => Some(order::Pedal::Chorus),
-            Pedal::Flanger => Some(order::Pedal::Flanger),
-            Pedal::Tremolo => Some(order::Pedal::Tremolo),
-            Pedal::Delay => Some(order::Pedal::Delay),
-            Pedal::Reverb => Some(order::Pedal::Reverb),
-            Pedal::Pitch => Some(order::Pedal::Pitch),
-            Pedal::Eq => Some(order::Pedal::Eq),
-            Pedal::Wah => Some(order::Pedal::Wah),
+            Piece::Stack => STACK_WIDTH,
+            Piece::Gate | Piece::Block(_) => PEDAL_WIDTH,
         }
     }
 
-    /// The pedal of the board that draws what the chain calls `pedal`
-    fn of_chain(pedal: order::Pedal) -> Pedal {
-        match pedal {
-            order::Pedal::Fuzz => Pedal::Fuzz,
-            order::Pedal::Comp => Pedal::Comp,
-            order::Pedal::Drive => Pedal::Drive,
-            order::Pedal::Phaser => Pedal::Phaser,
-            order::Pedal::Chorus => Pedal::Chorus,
-            order::Pedal::Flanger => Pedal::Flanger,
-            order::Pedal::Tremolo => Pedal::Tremolo,
-            order::Pedal::Delay => Pedal::Delay,
-            order::Pedal::Reverb => Pedal::Reverb,
-            order::Pedal::Pitch => Pedal::Pitch,
-            order::Pedal::Eq => Pedal::Eq,
-            order::Pedal::Wah => Pedal::Wah,
-        }
+    /// Only a block of the chain is moved: the gate is always first, and the stack is where the
+    /// amps are
+    fn movable(self) -> bool {
+        matches!(self, Piece::Block(_))
     }
 }
 
-/// The pedals in signal order. The first `front` of them are in front of the amp, and the
-/// stack is the first of the others
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct Order {
-    pedals: [Pedal; PEDALS],
-    front: usize,
+/// The pieces in signal order. The stack is `stack`th of them: the gate and the blocks in front
+/// of the amps come before it, the blocks behind the cabinets after it
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Line {
+    pieces: Vec<Piece>,
+    stack: usize,
 }
 
-impl Default for Order {
-    fn default() -> Self {
-        use Pedal::*;
-        Self {
-            pedals: [
-                Gate, Pitch, Wah, Fuzz, Comp, Drive, Phaser, Stack, Chorus, Flanger, Tremolo, Eq,
-                Delay, Reverb,
-            ],
-            front: 7,
-        }
-    }
-}
-
-impl Order {
-    /// The row the chain's order makes: the gate, the pedals in front of the amp, the
-    /// stack, the pedals behind it
-    fn of_chain(chain: &ChainOrder) -> Order {
-        let front: Vec<Pedal> = chain.front().iter().map(|&p| Pedal::of_chain(p)).collect();
-        let back = chain.back().iter().map(|&pedal| Pedal::of_chain(pedal));
-        let drawn_in_front = front.len();
-        let row = std::iter::once(Pedal::Gate)
-            .chain(front)
-            .chain(std::iter::once(Pedal::Stack))
-            .chain(back);
-        let mut pedals = [Pedal::Gate; PEDALS];
-        for (place, pedal) in pedals.iter_mut().zip(row) {
-            *place = pedal;
-        }
-        Order { pedals, front: drawn_in_front + 1 }
+impl Line {
+    /// The line a chain makes
+    pub(crate) fn of_chain(chain: &Chain) -> Line {
+        let mut pieces = vec![Piece::Gate];
+        pieces.extend(chain.front().iter().map(|&block| Piece::Block(block)));
+        let stack = pieces.len();
+        pieces.push(Piece::Stack);
+        pieces.extend(chain.back().iter().map(|&block| Piece::Block(block)));
+        Line { pieces, stack }
     }
 
-    /// The chain's order for this row
-    fn chain(&self) -> ChainOrder {
-        let ids =
-            self.pedals.iter().enumerate().filter_map(|(place, pedal)| match pedal.in_chain() {
-                Some(pedal) => Some(pedal.id()),
-                None => (place == self.front).then_some(order::AMP_ID),
-            });
-        ChainOrder::from_ids(ids)
+    /// The width of the line's design layer: a margin at each end, every piece and a gap
+    /// between each two
+    pub(crate) fn width(&self) -> f32 {
+        let pieces: f32 = self.pieces.iter().map(|piece| piece.width()).sum();
+        2.0 * BENCH_MARGIN + pieces + GAP * (self.pieces.len() - 1) as f32
     }
 
-    /// The left edge of every pedal and of the stack (by `Pedal as usize`), from the left
-    /// edge of the window
-    fn places(&self) -> [f32; PEDALS] {
-        let mut lefts = [0.0; PEDALS];
+    #[cfg(test)]
+    pub(crate) fn pieces_for_test(&self) -> &[Piece] {
+        &self.pieces
+    }
+
+    /// The left edge of the piece at each place of the line, from the left edge of the layer
+    #[cfg(test)]
+    pub(crate) fn places_for_test(&self) -> Vec<f32> {
+        let lefts = self.places();
+        self.pieces.iter().map(|piece| lefts[piece.key()]).collect()
+    }
+
+    /// The left edge of every piece (by `Piece::key`), from the left edge of the layer
+    fn places(&self) -> [f32; KEYS] {
+        let mut lefts = [0.0; KEYS];
         let mut x = BENCH_MARGIN;
-        for &pedal in &self.pedals {
-            lefts[pedal as usize] = x;
-            x += pedal.width() + GAP;
+        for piece in &self.pieces {
+            lefts[piece.key()] = x;
+            x += piece.width() + GAP;
         }
         lefts
     }
 
-    /// Every order with `pedal` in a place it may have, this one included, and the others
-    /// as they follow each other now. None for a pedal that is fixed
-    fn moves(&self, pedal: Pedal) -> Vec<Order> {
-        let Some(was) = self.pedals.iter().position(|&other| other == pedal) else {
+    /// Where `piece` stands as the chain counts it: its zone and its number in it
+    fn zone_and_place(&self, piece: Piece) -> Option<(Zone, usize)> {
+        let at = self.pieces.iter().position(|&other| other == piece)?;
+        Some(if at < self.stack {
+            (Zone::Front, at - 1)
+        } else {
+            (Zone::Back, at - self.stack - 1)
+        })
+    }
+
+    /// Every line with `piece` in a place it may have, this one included, and the others as
+    /// they follow each other now. None for a piece that is fixed
+    fn moves(&self, piece: Piece) -> Vec<Line> {
+        let (Piece::Block(block), Some(was)) =
+            (piece, self.pieces.iter().position(|&other| other == piece))
+        else {
             return Vec::new();
         };
-        let mut others = self.pedals.to_vec();
+        let mut others = self.pieces.clone();
         others.remove(was);
         // The stack is at this place among the others
-        let front = self.front - usize::from(was < self.front);
+        let stack = self.stack - usize::from(was < self.stack);
 
         let mut found = Vec::new();
         // Never in front of the gate
         for at in 1..=others.len() {
-            let in_front = at <= front;
-            let allowed = match pedal.zone() {
-                Zone::Fixed => false,
-                Zone::Either => true,
-            };
-            if allowed {
-                let mut pedals = self.pedals;
-                pedals[..at].copy_from_slice(&others[..at]);
-                pedals[at] = pedal;
-                pedals[at + 1..].copy_from_slice(&others[at..]);
-                found.push(Order { pedals, front: front + usize::from(in_front) });
+            let in_front = at <= stack;
+            let zone = if in_front { Zone::Front } else { Zone::Back };
+            if block.kind.can_be_in(zone) {
+                let mut pieces = others.clone();
+                pieces.insert(at, piece);
+                found.push(Line { pieces, stack: stack + usize::from(in_front) });
             }
         }
         found
     }
 
-    /// The order `pedal` would land in if it were let go with its left edge at `left`: of
-    /// the places it may have, the one nearest to there
-    fn nearest(&self, pedal: Pedal, left: f32) -> Order {
-        let distance = |order: &Order| (order.places()[pedal as usize] - left).abs();
-        self.moves(pedal)
+    /// The line `piece` would land in if it were let go with its left edge at `left`: of the
+    /// places it may have, the one nearest to there
+    fn nearest(&self, piece: Piece, left: f32) -> Line {
+        let distance = |line: &Line| (line.places()[piece.key()] - left).abs();
+        self.moves(piece)
             .into_iter()
             .min_by(|a, b| distance(a).total_cmp(&distance(b)))
-            .unwrap_or(*self)
+            .unwrap_or_else(|| self.clone())
     }
 }
 
-/// The pedal that is held by its title
+/// The piece that is held by its title
 #[derive(Clone, Copy)]
 struct Held {
-    pedal: Pedal,
-    /// From the pedal's left edge to where the pointer took it
+    piece: Piece,
+    /// From the piece's left edge to where the pointer took it
     grip: f32,
-    /// Its left edge, from the left edge of the window
+    /// Its left edge, from the left edge of the layer
     left: f32,
 }
 
-/// What the window keeps of the board from frame to frame
+/// What the window keeps of the line from frame to frame
 #[derive(Clone)]
 struct Board {
     held: Option<Held>,
-    /// Where every pedal and the stack are drawn now: they glide to their places
-    lefts: [f32; PEDALS],
+    /// Where every piece is drawn now: they glide to their places
+    lefts: [f32; KEYS],
+    /// Which pieces were in the line the last time it was drawn: one that is new stands where it
+    /// belongs at once
+    present: [bool; KEYS],
 }
 
-impl Board {
-    /// Every pedal in its place
-    fn at_rest(order: &Order) -> Self {
-        Self { held: None, lefts: order.places() }
-    }
-}
-
-/// The whole line under the strip, in the order `chain` holds, which a pedal that is dragged
-/// and let go changes. `window` is the window's top left corner; `pedals` draws each pedal
-/// and the stack
+/// The whole line under the strip, in the order `chain` holds, which a block that is dragged and
+/// let go changes. `window` is the layer's top left corner (the line's own, scrolled);
+/// `pedals` draws each piece
 pub fn board(ui: &mut Ui, window: Pos2, pedals: &Pedals, chain: &StoredChain) {
     // Read every frame: a preset or the host may have changed it
-    let order = Order::of_chain(&chain.order());
+    let line = Line::of_chain(&chain.get());
     let id = Id::new("board");
-    let mut board: Board =
-        ui.data(|data| data.get_temp(id)).unwrap_or_else(|| Board::at_rest(&order));
-    let held = board.held.map(|held| held.pedal);
+    let mut board: Board = ui.data(|data| data.get_temp(id)).unwrap_or(Board {
+        held: None,
+        lefts: line.places(),
+        present: [false; KEYS],
+    });
+    let held = board.held.map(|held| held.piece);
+    // A block that is held and was taken out of the chain meanwhile (a preset was loaded) is let go
+    if held.is_some_and(|piece| !line.pieces.contains(&piece)) {
+        board.held = None;
+    }
+    let held = board.held.map(|held| held.piece);
 
-    // The others stand where they would if the held pedal were let go now
-    let shown = board.held.map_or(order, |held| order.nearest(held.pedal, held.left));
+    // The others stand where they would if the held piece were let go now
+    let shown = board.held.map_or_else(|| line.clone(), |held| line.nearest(held.piece, held.left));
     let places = shown.places();
     let step = (ui.input(|input| input.stable_dt) * GLIDE_PER_SECOND).min(1.0);
     let mut gliding = false;
-    for pedal in shown.pedals {
-        if Some(pedal) == held {
+    let mut present = [false; KEYS];
+    for &piece in &shown.pieces {
+        let key = piece.key();
+        present[key] = true;
+        if Some(piece) == held {
             continue;
         }
-        let (at, to) = (&mut board.lefts[pedal as usize], places[pedal as usize]);
-        if (to - *at).abs() < 0.5 {
+        let (at, to) = (&mut board.lefts[key], places[key]);
+        if !board.present[key] || (to - *at).abs() < 0.5 {
             *at = to;
         } else {
             *at += (to - *at) * step;
             gliding = true;
         }
     }
+    board.present = present;
     if gliding {
         ui.ctx().request_repaint();
     }
 
-    // The stack first, so that a pedal carried across it is in front of it. It keeps its
+    // The stack first, so that a piece carried across it is in front of it. It keeps its
     // size while it glides, so nothing of it is drawn anew
-    let jacks = pedals.stack(ui, window + vec2(board.lefts[Pedal::Stack as usize], STACK_TOP));
+    let jacks = pedals.stack(ui, window + vec2(board.lefts[Piece::Stack.key()], STACK_TOP));
 
-    // The held pedal last, so it is above the others and the cables
+    // The held piece last, so it is above the others and the cables
     let in_turn = shown
-        .pedals
-        .into_iter()
-        .filter(|&pedal| pedal != Pedal::Stack && Some(pedal) != held)
+        .pieces
+        .iter()
+        .copied()
+        .filter(|&piece| piece != Piece::Stack && Some(piece) != held)
         .chain(held);
     let mut cabled = false;
-    for pedal in in_turn {
-        if Some(pedal) == held {
+    for piece in in_turn {
+        if Some(piece) == held {
             signal(ui.painter(), window, &shown, &board.lefts, held, jacks);
             cabled = true;
         }
-        let Some(slot) = pedal.slot() else {
-            continue;
-        };
-        let left = board.lefts[pedal as usize];
+        let left = board.lefts[piece.key()];
         let mut rect =
-            Rect::from_min_size(window + vec2(left, PEDAL_TOP), vec2(pedal.width(), PEDAL_HEIGHT));
-        if Some(pedal) == held {
+            Rect::from_min_size(window + vec2(left, PEDAL_TOP), vec2(piece.width(), PEDAL_HEIGHT));
+        if Some(piece) == held {
             rect = ui::lifted(ui.painter(), rect);
         }
-        let face = pedals.pedal(ui, slot, rect);
-        if pedal.zone() == Zone::Fixed {
+        let (face, grip_id) = match piece {
+            Piece::Gate => (pedals.gate(ui, rect), None),
+            Piece::Block(block) => {
+                (pedals.block(ui, block, rect), Some(format!("block-{}", block.slot)))
+            }
+            Piece::Stack => continue,
+        };
+        let Some(grip_id) = grip_id.filter(|_| piece.movable()) else {
             continue;
-        }
+        };
 
-        let grip = ui::title_grip(ui, face, &format!("{pedal:?}"));
+        let grip = ui::title_grip(ui, face, &grip_id);
         if grip.drag_started() {
             // Where the button went down, not where the drag was noticed
             let from_global =
@@ -341,18 +267,24 @@ pub fn board(ui: &mut Ui, window: Pos2, pedals: &Pedals, chain: &StoredChain) {
             let taken = ui
                 .input(|input| input.pointer.press_origin())
                 .map_or(face.center().x, |pos| (from_global * pos).x);
-            board.held = Some(Held { pedal, grip: taken - rect.left(), left });
+            board.held = Some(Held { piece, grip: taken - rect.left(), left });
         }
         if let (Some(held), Some(pointer)) = (&mut board.held, grip.interact_pointer_pos()) {
-            // Not over the gate and not out of the window
+            // Not over the gate and not out of the line
             let leftmost = BENCH_MARGIN + PEDAL_WIDTH + GAP;
-            let rightmost = WINDOW_WIDTH as f32 - BENCH_MARGIN - pedal.width();
+            let rightmost = line.width() - BENCH_MARGIN - piece.width();
             held.left = (pointer.x - window.x - held.grip).clamp(leftmost, rightmost);
-            board.lefts[pedal as usize] = held.left;
+            board.lefts[piece.key()] = held.left;
         }
         if grip.drag_stopped() {
-            if let Some(held) = board.held.take() {
-                chain.put_order(order.nearest(held.pedal, held.left).chain());
+            if let (Some(held), Piece::Block(block)) = (board.held.take(), piece) {
+                let landed = line.nearest(held.piece, held.left);
+                if let Some((zone, place)) = landed.zone_and_place(held.piece) {
+                    let mut moved = chain.get();
+                    if moved.move_block(block.slot, zone, place).is_ok() && moved != chain.get() {
+                        chain.put(moved);
+                    }
+                }
             }
         }
     }
@@ -364,23 +296,23 @@ pub fn board(ui: &mut Ui, window: Pos2, pedals: &Pedals, chain: &StoredChain) {
 }
 
 /// The signal from piece to piece of `shown`, where they are drawn now (`lefts`): a coupler
-/// between two pedals that stand side by side, a patch cable from the last pedal in front
-/// of the amp into the head and one from the cabinet to the first pedal behind it. The
-/// pedal that is held has no couplers, but the cable to it goes where it is carried
+/// between two pieces that stand side by side, a patch cable from the last piece in front
+/// of the amps into the head and one from the cabinet to the first piece behind it. The
+/// piece that is held has no couplers, but the cable to it goes where it is carried
 fn signal(
     painter: &Painter,
     window: Pos2,
-    shown: &Order,
-    lefts: &[f32; PEDALS],
-    held: Option<Pedal>,
+    shown: &Line,
+    lefts: &[f32; KEYS],
+    held: Option<Piece>,
     jacks: Jacks,
 ) {
     let plug_y = window.y + PEDAL_TOP + PLUG_Y;
-    let left_of = |pedal: Pedal| window.x + lefts[pedal as usize];
-    let right_of = |pedal: Pedal| left_of(pedal) + pedal.width();
-    for pair in shown.pedals.windows(2) {
+    let left_of = |piece: Piece| window.x + lefts[piece.key()];
+    let right_of = |piece: Piece| left_of(piece) + piece.width();
+    for pair in shown.pieces.windows(2) {
         let (a, b) = (pair[0], pair[1]);
-        if a == Pedal::Stack || b == Pedal::Stack || held == Some(a) || held == Some(b) {
+        if a == Piece::Stack || b == Piece::Stack || held == Some(a) || held == Some(b) {
             continue;
         }
         // Not while one of them glides past: only once they stand side by side
@@ -389,9 +321,9 @@ fn signal(
             ui::coupler(painter, from, to, plug_y);
         }
     }
-    let before = shown.pedals[shown.front - 1];
+    let before = shown.pieces[shown.stack - 1];
     ui::patch_cable(painter, jacks.input, Pos2::new(right_of(before), plug_y), 1.0);
-    if let Some(&after) = shown.pedals.get(shown.front + 1) {
+    if let Some(&after) = shown.pieces.get(shown.stack + 1) {
         ui::patch_cable(painter, jacks.output, Pos2::new(left_of(after), plug_y), -1.0);
     }
 }
@@ -399,225 +331,214 @@ fn signal(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::order::{ChainOrder, Pedal};
+    use crate::slots::EffectKind;
 
-    const MOVABLE: [Pedal; 12] = [
-        Pedal::Pitch,
-        Pedal::Wah,
-        Pedal::Eq,
-        Pedal::Fuzz,
-        Pedal::Comp,
-        Pedal::Drive,
-        Pedal::Phaser,
-        Pedal::Chorus,
-        Pedal::Flanger,
-        Pedal::Tremolo,
-        Pedal::Delay,
-        Pedal::Reverb,
-    ];
-
-    #[test]
-    fn the_row_fills_the_window() {
-        let order = Order::default();
-        let lefts = order.places();
-        let last = order.pedals[PEDALS - 1];
-        assert_eq!(lefts[last as usize] + last.width() + BENCH_MARGIN, WINDOW_WIDTH as f32);
-        const { assert!(GAP > BENCH_MARGIN && GAP < PEDAL_WIDTH / 4.0) };
-        // Every pedal is as wide as the next
-        for pedal in order.pedals {
-            if pedal != Pedal::Stack {
-                assert_eq!(pedal.width(), PEDAL_WIDTH);
-            }
-        }
-        assert_eq!(lefts[Pedal::Gate as usize], BENCH_MARGIN);
-        // The same gap between every two pieces, the stack among them
-        for pair in order.pedals.windows(2) {
-            assert_eq!(lefts[pair[0] as usize] + pair[0].width() + GAP, lefts[pair[1] as usize]);
-        }
-        assert_eq!(Pedal::Stack.width(), STACK_WIDTH);
+    fn default_line() -> Line {
+        Line::of_chain(&Chain::default())
     }
 
-    #[test]
-    fn no_move_breaks_the_rules() {
-        // Every order that is two moves away from the default one
-        let mut orders = vec![Order::default()];
-        for _ in 0..2 {
-            orders = orders
+    fn blocks(line: &Line) -> Vec<Block> {
+        line.pieces
+            .iter()
+            .filter_map(|piece| if let Piece::Block(block) = piece { Some(*block) } else { None })
+            .collect()
+    }
+
+    /// Every line that is `depth` moves away from `line`
+    fn lines_after(line: &Line, depth: usize) -> Vec<Line> {
+        let mut lines = vec![line.clone()];
+        for _ in 0..depth {
+            lines = lines
                 .iter()
-                .flat_map(|order| MOVABLE.iter().flat_map(|&pedal| order.moves(pedal)))
+                .flat_map(|line| {
+                    blocks(line).into_iter().flat_map(|block| line.moves(Piece::Block(block)))
+                })
                 .collect();
         }
-        assert!(orders.len() > 1000);
-        for order in orders {
-            assert_eq!(order.pedals[0], Pedal::Gate, "{order:?}");
-            assert_eq!(order.pedals[order.front], Pedal::Stack, "{order:?}");
-            for pedal in MOVABLE {
-                assert_eq!(
-                    order.pedals.iter().filter(|&&other| other == pedal).count(),
-                    1,
-                    "{order:?}"
-                );
+        lines
+    }
+
+    /// A chain of sixteen blocks, as many in front of the amps as behind
+    fn full_chain() -> Chain {
+        let mut chain = Chain::empty();
+        for number in 0..16 {
+            let (kind, zone) = if number % 2 == 0 {
+                (EffectKind::Comp, Zone::Front)
+            } else {
+                (EffectKind::Delay, Zone::Back)
+            };
+            chain.add(kind, zone, 99).unwrap();
+        }
+        chain
+    }
+
+    #[test]
+    fn test_the_line_of_a_project_from_before_is_the_old_board_to_the_point() {
+        // The gate, the twelve pedals and the stack filled 3411 points, a gap of 27 between each
+        let line = default_line();
+        assert_eq!(line.pieces.len(), 14);
+        assert_eq!(line.width(), 3411.0);
+        let lefts = line.places();
+        assert_eq!(lefts[Piece::Gate.key()], BENCH_MARGIN);
+        for pair in line.pieces.windows(2) {
+            assert_eq!(lefts[pair[0].key()] + pair[0].width() + GAP, lefts[pair[1].key()]);
+        }
+        let last = *line.pieces.last().unwrap();
+        assert_eq!(lefts[last.key()] + last.width() + BENCH_MARGIN, line.width());
+        // In the order the chain had: the gate, six in front, the stack, six behind
+        assert_eq!(line.pieces[0], Piece::Gate);
+        assert_eq!(line.pieces[line.stack], Piece::Stack);
+        assert_eq!(line.stack, 7);
+        // Every block is as wide as the next
+        assert!(blocks(&line).iter().all(|&block| Piece::Block(block).width() == PEDAL_WIDTH));
+    }
+
+    #[test]
+    fn test_the_line_follows_the_chain_and_a_block_keeps_its_size() {
+        let empty = Line::of_chain(&Chain::empty());
+        assert_eq!(empty.pieces, [Piece::Gate, Piece::Stack]);
+        assert_eq!(empty.width(), 2.0 * BENCH_MARGIN + PEDAL_WIDTH + GAP + STACK_WIDTH);
+        // Each block adds one block and one gap, whichever side it stands on
+        let full = Line::of_chain(&full_chain());
+        assert_eq!(full.pieces.len(), 2 + 16);
+        assert_eq!(full.width(), empty.width() + 16.0 * (PEDAL_WIDTH + GAP));
+        assert_eq!(full.stack, 1 + 8);
+        // Sixteen blocks on sixteen slots: each has a place of its own to glide from
+        let mut keys: Vec<usize> = full.pieces.iter().map(|piece| piece.key()).collect();
+        keys.sort_unstable();
+        keys.dedup();
+        assert_eq!(keys.len(), full.pieces.len());
+        assert!(keys.iter().all(|&key| key < KEYS));
+    }
+
+    #[test]
+    fn test_no_move_breaks_the_rules() {
+        // Every line that is two moves away from the default one
+        let lines = lines_after(&default_line(), 2);
+        assert!(lines.len() > 1000);
+        for line in lines {
+            assert_eq!(line.pieces[0], Piece::Gate, "{line:?}");
+            assert_eq!(line.pieces[line.stack], Piece::Stack, "{line:?}");
+            assert_eq!(line.pieces.iter().filter(|&&piece| piece == Piece::Stack).count(), 1);
+            let mut slots: Vec<u8> = blocks(&line).iter().map(|block| block.slot).collect();
+            slots.sort_unstable();
+            assert_eq!(slots, (0..12).collect::<Vec<u8>>(), "{line:?}");
+        }
+    }
+
+    #[test]
+    fn test_the_line_is_the_chain_and_back_whatever_is_moved() {
+        // Dropping a block where a move puts it makes the chain the line shows, slots and all
+        let chain = Chain::default();
+        for block in blocks(&default_line()) {
+            for line in default_line().moves(Piece::Block(block)) {
+                let (zone, place) = line.zone_and_place(Piece::Block(block)).unwrap();
+                let mut moved = chain;
+                assert!(moved.move_block(block.slot, zone, place).is_ok());
+                assert_eq!(Line::of_chain(&moved), line);
             }
         }
-    }
-
-    #[test]
-    fn the_row_is_the_chains_order_and_back() {
-        // The default row is the default chain, and every row two moves from it comes
-        // back from the chain's order as it was
-        assert_eq!(Order::of_chain(&ChainOrder::default()), Order::default());
-        let mut orders = vec![Order::default()];
-        for _ in 0..2 {
-            orders = orders
-                .iter()
-                .flat_map(|order| MOVABLE.iter().flat_map(|&pedal| order.moves(pedal)))
-                .collect();
+        // And a second move from there, with the twelve-pedal view of the chain still legal
+        for first in lines_after(&default_line(), 1).into_iter().step_by(7) {
+            let mut chain_one = chain;
+            if let Some(block) = blocks(&first).into_iter().next() {
+                let (zone, place) = first.zone_and_place(Piece::Block(block)).unwrap();
+                chain_one.move_block(block.slot, zone, place).unwrap();
+            }
+            for second in lines_after(&Line::of_chain(&chain_one), 1).into_iter().step_by(11) {
+                let mut moved = chain_one;
+                for block in blocks(&second) {
+                    let (zone, place) = second.zone_and_place(Piece::Block(block)).unwrap();
+                    if Line::of_chain(&moved).zone_and_place(Piece::Block(block))
+                        != Some((zone, place))
+                    {
+                        moved.move_block(block.slot, zone, place).unwrap();
+                        break;
+                    }
+                }
+                let order = moved.order();
+                assert_eq!(order.front().len() + order.back().len(), Pedal::ALL.len());
+            }
         }
-        for order in orders {
-            assert_eq!(Order::of_chain(&order.chain()), order, "{order:?}");
+        assert_eq!(Chain::from_order(&ChainOrder::default()), Chain::default());
+    }
+
+    #[test]
+    fn test_a_second_block_of_a_kind_is_a_piece_of_its_own_and_moves_with_its_slot() {
+        let mut chain = Chain::default();
+        let second = chain.add(EffectKind::Delay, Zone::Front, 0).unwrap();
+        assert_ne!(second as usize, Pedal::Delay.index());
+        let line = Line::of_chain(&chain);
+        let own = Piece::Block(chain.block_on(second).unwrap());
+        assert_eq!(line.pieces[1], own);
+        assert_eq!(line.pieces.len(), 15);
+        // Carried across the amps it lands behind them, and is still on its slot
+        let landed = line.nearest(own, line.width());
+        assert_eq!(*landed.pieces.last().unwrap(), own);
+        let (zone, place) = landed.zone_and_place(own).unwrap();
+        assert_eq!(zone, Zone::Back);
+        let mut moved = chain;
+        moved.move_block(second, zone, place).unwrap();
+        assert_eq!(moved.back().last().map(|block| block.slot), Some(second));
+    }
+
+    #[test]
+    fn test_fixed_pieces_have_no_moves() {
+        let line = default_line();
+        assert!(line.moves(Piece::Gate).is_empty());
+        assert!(line.moves(Piece::Stack).is_empty());
+        assert_eq!(line.nearest(Piece::Stack, 0.0), line);
+        assert!(!Piece::Gate.movable() && !Piece::Stack.movable());
+    }
+
+    #[test]
+    fn test_a_gate_block_stays_in_front_of_the_amps() {
+        let mut chain = Chain::default();
+        let slot = chain.add(EffectKind::Gate, Zone::Front, 0).unwrap();
+        let line = Line::of_chain(&chain);
+        let gate = Piece::Block(chain.block_on(slot).unwrap());
+        for moved in line.moves(gate) {
+            assert!(moved.pieces.iter().position(|&p| p == gate) < Some(moved.stack));
         }
-        for pedal in MOVABLE {
-            assert_eq!(pedal.in_chain().map(Pedal::of_chain), Some(pedal));
-        }
+        // As far right as it goes it is last in front, not behind the cabinet
+        let landed = line.nearest(gate, line.width());
+        assert_eq!(landed.pieces[landed.stack - 1], gate);
+    }
+
+    fn pedal_block(pedal: Pedal) -> Piece {
+        Piece::Block(Block { slot: pedal.index() as u8, kind: EffectKind::of_pedal(pedal) })
     }
 
     #[test]
-    fn every_pedal_has_a_place_of_its_own_in_the_editors_list() {
-        let slots: Vec<usize> = Order::default().pedals.iter().filter_map(|p| p.slot()).collect();
-        let mut sorted = slots.clone();
-        sorted.sort_unstable();
-        sorted.dedup();
-        assert_eq!(sorted, (0..PEDALS - 1).collect::<Vec<_>>());
-        // The pitch shifter has three knobs: a wide pedal
-        assert!(!Pedals::is_slim(PITCH_SLOT));
-        assert!(Pedal::Pitch.zone() == Zone::Either);
-        // The wah has a rocker, Bite and Sens: a wide pedal too
-        assert!(!Pedals::is_slim(WAH_SLOT));
-        assert!(Pedal::Wah.zone() == Zone::Either);
-        // The EQ has four, as wide, and stands on either side
-        assert!(!Pedals::is_slim(EQ_SLOT));
-        assert!(Pedal::Eq.zone() == Zone::Either);
-    }
-
-    #[test]
-    fn fixed_pedals_have_no_moves() {
-        assert!(Order::default().moves(Pedal::Gate).is_empty());
-        assert!(Order::default().moves(Pedal::Stack).is_empty());
-        assert_eq!(Order::default().nearest(Pedal::Stack, 0.0), Order::default());
-    }
-
-    #[test]
-    fn a_pedal_lands_in_the_nearest_place_it_may_have() {
-        use Pedal::*;
-        let order = Order::default();
+    fn test_a_block_lands_in_the_nearest_place_it_may_have() {
+        let line = default_line();
+        let places = line.places();
         // Let go where it stands, nothing moves
-        for pedal in MOVABLE {
-            assert_eq!(order.nearest(pedal, order.places()[pedal as usize]), order);
+        for block in blocks(&line) {
+            let piece = Piece::Block(block);
+            assert_eq!(line.nearest(piece, places[piece.key()]), line);
         }
+        let landing = |pedal: Pedal, left: f32| {
+            let landed = line.nearest(pedal_block(pedal), left);
+            (landed.zone_and_place(pedal_block(pedal)).unwrap(), landed.stack)
+        };
         // The chorus across the amp to right behind the gate
-        let moved = order.nearest(Chorus, 0.0);
-        assert_eq!(
-            moved.pedals,
-            [
-                Gate, Chorus, Pitch, Wah, Fuzz, Comp, Drive, Phaser, Stack, Flanger, Tremolo, Eq,
-                Delay, Reverb
-            ]
-        );
-        assert_eq!(moved.front, 8);
+        assert_eq!(landing(Pedal::Chorus, 0.0), ((Zone::Front, 0), 8));
         // The drive as far right as it goes: last behind the cabinet (#268)
-        let moved = order.nearest(Drive, WINDOW_WIDTH as f32);
+        assert_eq!(landing(Pedal::Drive, line.width()), ((Zone::Back, 6), 6));
+        // The reverb as far left as it goes: right behind the gate, in front of the amp
+        assert_eq!(landing(Pedal::Reverb, 0.0), ((Zone::Front, 0), 8));
+        // Just behind the cabinet is still possible
         assert_eq!(
-            moved.pedals,
-            [
-                Gate, Pitch, Wah, Fuzz, Comp, Phaser, Stack, Chorus, Flanger, Tremolo, Eq, Delay,
-                Reverb, Drive
-            ]
+            landing(Pedal::Reverb, places[pedal_block(Pedal::Chorus).key()]).0 .0,
+            Zone::Back
         );
-        assert_eq!(moved.front, 6);
-        // The reverb as far left as it goes: right behind the gate, in front of the amp (#268)
-        let moved = order.nearest(Reverb, 0.0);
-        assert_eq!(
-            moved.pedals,
-            [
-                Gate, Reverb, Pitch, Wah, Fuzz, Comp, Drive, Phaser, Stack, Chorus, Flanger,
-                Tremolo, Eq, Delay
-            ]
-        );
-        assert_eq!(moved.front, 8);
-        // And the reverb just behind the cabinet is still possible
-        let moved = order.nearest(Reverb, order.places()[Pedal::Chorus as usize]);
-        assert_eq!(moved.front, 7);
-        assert_eq!(moved.pedals[8], Reverb);
-        // The phaser to the far end
-        let moved = order.nearest(Phaser, WINDOW_WIDTH as f32);
-        assert_eq!(
-            moved.pedals,
-            [
-                Gate, Pitch, Wah, Fuzz, Comp, Drive, Stack, Chorus, Flanger, Tremolo, Eq, Delay,
-                Reverb, Phaser
-            ]
-        );
-        assert_eq!(moved.front, 6);
-        // The fuzz across the amp to the far end
-        let moved = order.nearest(Fuzz, WINDOW_WIDTH as f32);
-        assert_eq!(
-            moved.pedals,
-            [
-                Gate, Pitch, Wah, Comp, Drive, Phaser, Stack, Chorus, Flanger, Tremolo, Eq, Delay,
-                Reverb, Fuzz
-            ]
-        );
-        assert_eq!(moved.front, 6);
-        // The pitch shifter as far right as it goes: last behind the cabinet (#268)
-        let moved = order.nearest(Pitch, WINDOW_WIDTH as f32);
-        assert_eq!(
-            moved.pedals,
-            [
-                Gate, Wah, Fuzz, Comp, Drive, Phaser, Stack, Chorus, Flanger, Tremolo, Eq, Delay,
-                Reverb, Pitch
-            ]
-        );
-        assert_eq!(moved.front, 6);
-        // The wah the same, and as far left as it goes it is first after the gate
-        let moved = order.nearest(Wah, WINDOW_WIDTH as f32);
-        assert_eq!(
-            moved.pedals,
-            [
-                Gate, Pitch, Fuzz, Comp, Drive, Phaser, Stack, Chorus, Flanger, Tremolo, Eq, Delay,
-                Reverb, Wah
-            ]
-        );
-        assert_eq!(moved.front, 6);
-        let moved = order.nearest(Wah, 0.0);
-        assert_eq!(
-            moved.pedals,
-            [
-                Gate, Wah, Pitch, Fuzz, Comp, Drive, Phaser, Stack, Chorus, Flanger, Tremolo, Eq,
-                Delay, Reverb
-            ]
-        );
-        assert_eq!(moved.front, 7);
-        // The EQ across the amp to right behind the gate: in front of the amp
-        let moved = order.nearest(Eq, 0.0);
-        assert_eq!(
-            moved.pedals,
-            [
-                Gate, Eq, Pitch, Wah, Fuzz, Comp, Drive, Phaser, Stack, Chorus, Flanger, Tremolo,
-                Delay, Reverb
-            ]
-        );
-        assert_eq!(moved.front, 8);
-        // And to the far end: last of all, behind the cabinet
-        let moved = order.nearest(Eq, WINDOW_WIDTH as f32);
-        assert_eq!(
-            moved.pedals,
-            [
-                Gate, Pitch, Wah, Fuzz, Comp, Drive, Phaser, Stack, Chorus, Flanger, Tremolo,
-                Delay, Reverb, Eq
-            ]
-        );
-        assert_eq!(moved.front, 7);
         // Right in front of the amp: the last place before it
-        let moved = order.nearest(Eq, order.places()[Stack as usize]);
-        assert_eq!(moved.pedals[moved.front - 1], Eq);
+        let landed = line.nearest(pedal_block(Pedal::Eq), places[Piece::Stack.key()]);
+        assert_eq!(landed.pieces[landed.stack - 1], pedal_block(Pedal::Eq));
+        // The wah as far left as it goes is first after the gate
+        let landed = line.nearest(pedal_block(Pedal::Wah), 0.0);
+        assert_eq!(landed.pieces[1], pedal_block(Pedal::Wah));
     }
 }
