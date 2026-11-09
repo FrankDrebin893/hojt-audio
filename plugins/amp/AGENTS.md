@@ -36,8 +36,21 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   plugin's algorithm) as a stage in front of the amp, with its switch fade
 - `src/mods/` - `chorus.rs`, `flanger.rs`, `phaser.rs`, `tremolo.rs`, with `lfo.rs` and `line.rs`
   (the modulated delay line of chorus and flanger)
-- `src/order.rs` - `ChainOrder`: which pedals stand in front of the amp and which behind the
-  cabinet, in what order; the rules, and `StoredOrder` (saved as `chain-order`)
+- `src/order.rs` - `ChainOrder`: which of the twelve pedals stand in front of the amp and which
+  behind the cabinet, in what order, and the rules of where each may stand. It is the view of the
+  chain the audio and the board read until #268 makes the audio read slots
+- `src/slots.rs` - The chain model (#252, #266): `Chain` (up to 16 blocks, `EffectKind` and a slot
+  each, in two zones, and the amp lanes, the first of which cannot be removed), `StoredChain`
+  (the chain as the editor sets it and the audio reads it, lock-free, saved as `chain`; also the
+  `Memory` of the values of blocks taken out, by kind), `LegacyOrder` (the older `chain-order`) and
+  the 16 `SlotParams` (`slot<n>_on`, `slot<n>_k1` to `_k5`: K = 5, the delay's knobs). Rules:
+  a block on the slot of its own pedal (`Chain::is_home`: slot n of `Pedal::ALL`) keeps its values
+  in that pedal's parameters, which hosts and old projects know, so automation of them keeps
+  working; any other block (a duplicate, anything on slots 13 to 16) keeps them in its slot's
+  parameters, which the audio reads from #268 on (reserved until then: they do nothing yet). A
+  state with no `chain` (every project and preset from before) opens as the twelve pedals in the
+  order of its `chain-order`; with both, `chain` wins (keys are read in alphabetical order, so
+  `LegacyOrder` skips the `chain-order` that follows a `chain`). Slot ids are frozen
 - `src/dsp/` - `filters.rs` (f64 biquads), `oversample.rs` (minimum-phase IIR half-bands),
   `shaper.rs` (antialiased clippers), `resample.rs` (windowed-sinc resampler for cabinets),
   `pair.rs` (two samples' divisions and square roots as one SSE2 pair), `fft.rs` (radix-2 real
@@ -270,7 +283,7 @@ How it behaves:
   (empty after a factory preset, and after the bank changed); renaming, moving from one bank to
   another, copying and deleting is done in the folder, which a double-click on the Preset
   caption opens — the folder of the bank showing
-- The pedal order (`order.rs`): Gate always first, amp and cabinet one block in the middle.
+- The pedal order (`order.rs`, held by the chain model `slots.rs`): Gate always first, amp and cabinet one block in the middle.
   Drive, Pitch and Wah only in front of the amp; Delay and Reverb only behind the cabinet; Fuzz, Comp,
   Chorus, Phaser, Flanger, Tremolo and EQ on either side. Default: Pitch, Wah, Fuzz, Comp, Drive, Phaser, amp,
   Chorus, Flanger, Tremolo, EQ, Delay, Reverb, which with the new pedals off is the chain as it

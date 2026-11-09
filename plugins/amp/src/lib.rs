@@ -27,6 +27,7 @@ mod pitch;
 mod presets;
 mod reverb;
 mod second;
+mod slots;
 pub mod standalone;
 #[cfg(test)]
 mod test_util;
@@ -48,10 +49,10 @@ use mods::chorus::{self, ChorusSettings};
 use mods::flanger::{self, FlangerSettings};
 use mods::phaser::{self, PhaserSettings};
 use mods::tremolo::{self, TremoloSettings};
-use order::StoredOrder;
 use pitch::{PitchSettings, LATENCY_MS, SEMITONES};
 use reverb::{ReverbSettings, DECAY_MAX_S, DECAY_MIN_S};
 use second::SecondSettings;
+use slots::{SlotParams, StoredChain};
 use suite_common::dsp::NoteValue;
 use wah::{WahMode, WahSettings};
 
@@ -139,10 +140,16 @@ pub struct GuitarAmpParams {
     #[persist = "cabinet2"]
     pub cabinet_second: second::SecondCabinet,
 
-    /// The order the pedals stand in. Not a parameter: an arrangement cannot be automated.
-    /// The editor changes it, and the audio thread reads it with the dials
+    /// The chain: which effect stands on which slot and in what order, in front of the amps
+    /// and behind the cabinets (`slots`). Not a parameter: an arrangement cannot be
+    /// automated. The editor changes it, and the audio thread reads it with the dials
+    #[persist = "chain"]
+    pub chain: StoredChain,
+
+    /// The order of the twelve pedals as a project saved it before the chain: read when a
+    /// state has no `chain`, written as the chain's twelve-pedal view
     #[persist = "chain-order"]
-    pub order: StoredOrder,
+    pub legacy_order: slots::LegacyOrder,
 
     #[id = "bypass"]
     pub bypass: BoolParam,
@@ -413,6 +420,42 @@ pub struct GuitarAmpParams {
     /// Auto mode only: how far the playing opens the pedal
     #[id = "wah_sens"]
     pub wah_sens: FloatParam,
+
+    // The slots of the chain (`slots`): a switch and five knobs each, named alike for the
+    // host. The audio reads them from #268 on; until then they are reserved. Last in the list
+    // so every parameter before them keeps its place for a host that shows them in order
+    #[nested(id_prefix = "slot1", group = "Slot 1")]
+    pub slot1: SlotParams,
+    #[nested(id_prefix = "slot2", group = "Slot 2")]
+    pub slot2: SlotParams,
+    #[nested(id_prefix = "slot3", group = "Slot 3")]
+    pub slot3: SlotParams,
+    #[nested(id_prefix = "slot4", group = "Slot 4")]
+    pub slot4: SlotParams,
+    #[nested(id_prefix = "slot5", group = "Slot 5")]
+    pub slot5: SlotParams,
+    #[nested(id_prefix = "slot6", group = "Slot 6")]
+    pub slot6: SlotParams,
+    #[nested(id_prefix = "slot7", group = "Slot 7")]
+    pub slot7: SlotParams,
+    #[nested(id_prefix = "slot8", group = "Slot 8")]
+    pub slot8: SlotParams,
+    #[nested(id_prefix = "slot9", group = "Slot 9")]
+    pub slot9: SlotParams,
+    #[nested(id_prefix = "slot10", group = "Slot 10")]
+    pub slot10: SlotParams,
+    #[nested(id_prefix = "slot11", group = "Slot 11")]
+    pub slot11: SlotParams,
+    #[nested(id_prefix = "slot12", group = "Slot 12")]
+    pub slot12: SlotParams,
+    #[nested(id_prefix = "slot13", group = "Slot 13")]
+    pub slot13: SlotParams,
+    #[nested(id_prefix = "slot14", group = "Slot 14")]
+    pub slot14: SlotParams,
+    #[nested(id_prefix = "slot15", group = "Slot 15")]
+    pub slot15: SlotParams,
+    #[nested(id_prefix = "slot16", group = "Slot 16")]
+    pub slot16: SlotParams,
 }
 
 impl Default for GuitarAmpPlugin {
@@ -434,13 +477,16 @@ impl Default for GuitarAmpParams {
         // Every default comes from the settings the chain itself starts with, and the
         // ranges from the limits the chain and the effects keep to
         let defaults = AmpSettings::default();
+        let chain = StoredChain::new();
+        let legacy_order = chain.legacy();
         Self {
             editor_state: editor::default_state(),
             preset: std::sync::atomic::AtomicU32::new(0),
             user_preset: std::sync::Mutex::new(String::new()),
             preset_bank: std::sync::Mutex::new(String::new()),
             cabinet: std::sync::Mutex::new(String::new()),
-            order: StoredOrder::new(),
+            chain,
+            legacy_order,
             dial_memory: DialMemory::new([
                 defaults.gain,
                 defaults.bass,
@@ -652,6 +698,23 @@ impl Default for GuitarAmpParams {
             wah_q: dial_param("Wah Bite", defaults.wah.bite),
             wah_mode: EnumParam::new("Wah Mode", defaults.wah.mode),
             wah_sens: dial_param("Wah Sens", defaults.wah.sens),
+
+            slot1: SlotParams::new(1),
+            slot2: SlotParams::new(2),
+            slot3: SlotParams::new(3),
+            slot4: SlotParams::new(4),
+            slot5: SlotParams::new(5),
+            slot6: SlotParams::new(6),
+            slot7: SlotParams::new(7),
+            slot8: SlotParams::new(8),
+            slot9: SlotParams::new(9),
+            slot10: SlotParams::new(10),
+            slot11: SlotParams::new(11),
+            slot12: SlotParams::new(12),
+            slot13: SlotParams::new(13),
+            slot14: SlotParams::new(14),
+            slot15: SlotParams::new(15),
+            slot16: SlotParams::new(16),
         }
     }
 }
@@ -800,7 +863,7 @@ impl GuitarAmpParams {
             },
             out_level: self.out_level.value(),
             tuner_on: self.tuner_on.value(),
-            order: self.order.get(),
+            order: self.chain.order(),
         }
     }
 }
@@ -1463,10 +1526,12 @@ mod tests {
         }
         let ids: Vec<String> =
             GuitarAmpParams::default().param_map().into_iter().map(|(id, _, _)| id).collect();
-        // Only the EQ's five and the wah's five come after it
-        assert_eq!(ids.iter().position(|id| id == "metronome_out"), Some(ids.len() - 11));
+        // Only the EQ's five, the wah's five and the slots' ninety-six come after it
+        let slots = slots::MAX_SLOTS * (1 + slots::KNOBS);
+        assert_eq!(ids.iter().position(|id| id == "metronome_out"), Some(ids.len() - 11 - slots));
+        assert!(ids[ids.len() - slots..].iter().all(|id| id.starts_with("slot")));
         assert_eq!(
-            &ids[ids.len() - 10..],
+            &ids[ids.len() - 10 - slots..ids.len() - slots],
             [
                 "eq_on",
                 "eq_low",

@@ -16,6 +16,7 @@ use crate::editor::{
     PITCH_SLOT, STACK_TOP, WAH_SLOT,
 };
 use crate::order::{self, ChainOrder};
+use crate::slots::StoredChain;
 
 // Thirteen pedals and the stack
 const PEDALS: usize = 14;
@@ -276,9 +277,9 @@ impl Board {
 /// The whole line under the strip, in the order `chain` holds, which a pedal that is dragged
 /// and let go changes. `window` is the window's top left corner; `pedals` draws each pedal
 /// and the stack
-pub fn board(ui: &mut Ui, window: Pos2, pedals: &Pedals, chain: &order::StoredOrder) {
+pub fn board(ui: &mut Ui, window: Pos2, pedals: &Pedals, chain: &StoredChain) {
     // Read every frame: a preset or the host may have changed it
-    let order = Order::of_chain(&chain.get());
+    let order = Order::of_chain(&chain.order());
     let id = Id::new("board");
     let mut board: Board =
         ui.data(|data| data.get_temp(id)).unwrap_or_else(|| Board::at_rest(&order));
@@ -354,7 +355,7 @@ pub fn board(ui: &mut Ui, window: Pos2, pedals: &Pedals, chain: &order::StoredOr
         }
         if grip.drag_stopped() {
             if let Some(held) = board.held.take() {
-                chain.put(order.nearest(held.pedal, held.left).chain());
+                chain.put_order(order.nearest(held.pedal, held.left).chain());
             }
         }
     }

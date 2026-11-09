@@ -1812,7 +1812,7 @@ fn draw(
             cab_loader: shared.cab_loader,
             load_cabinet: shared.load_cabinet,
         };
-        crate::board::board(ui, window, &pedals, &params.order);
+        crate::board::board(ui, window, &pedals, &params.chain);
 
         // The preset list after everything else, in a layer above the window
         presets.menu(ui, origin, view, now);

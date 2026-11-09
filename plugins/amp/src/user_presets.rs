@@ -385,7 +385,7 @@ impl UserPreset {
     pub fn capture(params: &GuitarAmpParams) -> Self {
         Self {
             values: controls(params).iter().map(|&(_, control)| control.plain()).collect(),
-            order: params.order.get(),
+            order: params.chain.order(),
             cabinet: params
                 .cabinet
                 .lock()
@@ -471,7 +471,7 @@ impl UserPreset {
         let amp2 = Amp::from_index(self.value(params, "amp2") as usize);
         let dials2 = SECOND_DIALS.map(|id| second_dial(params, id, self.value(params, id)));
         dial_memory::second_preset_loaded(params, amp2, dials2);
-        params.order.put(self.order);
+        params.chain.put_order(self.order);
         let edits: Vec<Edit> = controls(params)
             .iter()
             .zip(&self.values)
@@ -489,7 +489,7 @@ impl UserPreset {
 
     /// Whether everything the preset holds still stands where it puts it
     pub fn matches(&self, params: &GuitarAmpParams) -> bool {
-        params.order.get() == self.order
+        params.chain.order() == self.order
             && params.cabinet_second.choice() == self.cabinet_second
             && *params.cabinet.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
                 == self.cabinet
@@ -764,10 +764,16 @@ pub(crate) mod tests {
                 Some(&(_, control)) => {
                     assert!(ptr(control) == param, "{id} is written for another parameter");
                 }
-                None => assert!(LEFT_ALONE.contains(&id.as_str()), "{id} is in no preset"),
+                // The slots are reserved until the audio reads them (#268), and a preset holds
+                // the whole chain from #271 on
+                None => assert!(
+                    LEFT_ALONE.contains(&id.as_str()) || id.starts_with("slot"),
+                    "{id} is in no preset"
+                ),
             }
         }
-        assert_eq!(held.len() + LEFT_ALONE.len(), params.param_map().len());
+        let slots = crate::slots::MAX_SLOTS * (1 + crate::slots::KNOBS);
+        assert_eq!(held.len() + LEFT_ALONE.len() + slots, params.param_map().len());
     }
 
     #[test]
@@ -869,7 +875,7 @@ pub(crate) mod tests {
             assert!(*param == ptr(control), "{id} set out of turn");
             assert_eq!(*normalized, control.normalized(plain), "{id}");
         }
-        assert_eq!(params.order.get(), saved.order);
+        assert_eq!(params.chain.order(), saved.order);
         assert_eq!(*params.cabinet.lock().unwrap(), "speaker:test");
         // All of it as one edit, so a host that groups gestures undoes it in one step
         assert!(as_one_edit(&host.told.lock().unwrap()));
@@ -901,9 +907,9 @@ pub(crate) mod tests {
         let now = UserPreset::capture(&params);
         assert_eq!(now, UserPreset::parse(&params, ""));
         assert!(now.matches(&params));
-        params.order.put(UserPreset::parse(&params, SAVED).order);
+        params.chain.put_order(UserPreset::parse(&params, SAVED).order);
         assert!(!now.matches(&params));
-        params.order.put(ChainOrder::default());
+        params.chain.put_order(ChainOrder::default());
         *params.cabinet.lock().unwrap() = "speaker:test".to_owned();
         assert!(!now.matches(&params));
     }
