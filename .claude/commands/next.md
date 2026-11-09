@@ -1,6 +1,6 @@
 ---
 description: Work through every approved backlog issue, one fresh sub-session per issue, until none is left. Use when ready to implement approved backlog issues.
-argument-hint: [issue number]
+argument-hint: [issue number | max=<k>]
 ---
 
 # /next
@@ -14,7 +14,7 @@ builds one itself. Every issue is built by a **sub-session** of its own, started
 work begins from a clear context and not from this conversation.
 
 Unless an issue number was given ($ARGUMENTS), the orchestrator keeps going until the whole
-list is worked through: every approved issue merged, or waiting on an answer from Rasmus.
+list is worked through (within the cap of step 6), waiting for a merge where the next issue needs it: every approved issue merged, or waiting on an answer from Rasmus.
 
 `/next` on its own is the whole job. Nothing else has to be said to start it: it picks, hands
 each issue to a sub-session, reviews the pull request that comes back, turns on auto-merge and
@@ -94,13 +94,30 @@ goes on to the next issue, with no further prompt, until the list is done. Words
      he can do (listen, look, try on a machine, or a milestone that waits on his pick), the issue
      gets `needs:engineer` and a comment saying exactly what, or, when the issue is closed by the
      pull request, a new issue "Check: <what>" labelled `needs:engineer`
-6. **Go on.** Back to step 1 at once: do not wait for the merge. The pull request merges when
-   CI passes, and Auto-fix in its sub-session mends a failure; one it cannot mend is reported
-   like a question. The next sub-session starts from the `main` of that moment; if its issue
-   touches the files of a pull request still open, wait for that one to merge first. Stop
-   when no approved issue is left that is not waiting on Rasmus, or when Rasmus says stop.
-   Then report in a few lines: what was merged or is merging, what waits on which question,
-   and what was left because of its approval.
+6. **Go on.** Back to step 1 at once; the pull request merges when CI passes, and Auto-fix in
+   its sub-session mends a failure (one it cannot mend is reported like a question). One run
+   works through a whole parent: it does not end after one issue.
+   - **Blocked on a merge is not done.** If step 1 finds nothing buildable but an issue is
+     held back only by a `Waits for #<n>` whose issue is still open because its pull request
+     (opened by this run) has not merged, or by the rule below that its files overlap an open
+     pull request, **wait for that merge**: subscribe to the pull request's activity
+     (`subscribe_pr_activity`, or CI completion notifications) and end the turn; the merge
+     event wakes the run. On the merge, `Closes #<n>` has closed the issue (a `Part of` pull
+     request leaves it open: the sweep in step 1 closes it once its last milestone is in); go
+     back to step 1 and take the one that was waiting. Never poll, never merge by hand. A red
+     check that Auto-fix cannot mend, or no merge after 3 hours, is reported like a question
+     and the issues behind it are left for the next run
+   - **Overlap.** If the next issue touches files of a pull request still open, wait for that
+     one to merge first (previous bullet); an issue that touches none of them is started at
+     once, so independent sub-issues do not wait for each other
+   - **Cap.** A run builds at most **6 issues** (a `$ARGUMENTS` of the form `max=<k>` changes
+     it). Count an issue when its sub-session starts. At the cap, or the moment a usage or
+     rate limit is hit, stop cleanly: no new sub-session, let the open pull requests merge on
+     their own, and say in the report what is left; the next run continues from there
+   - **Stop** when no approved issue is left that is not waiting on the engineer, when the cap
+     is reached, or when the engineer says stop. Then report in a few lines: what was merged or
+     is merging, what waits on which question, and what was left because of its approval or
+     the cap
 
 ## The builder
 
