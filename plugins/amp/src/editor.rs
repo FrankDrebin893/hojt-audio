@@ -17,7 +17,7 @@ use suite_common::ui::{
     SLIM_STRIP_HEIGHT, SLIM_SWITCH,
 };
 
-use crate::board::STACK_WIDTH;
+use crate::board::{Line, STACK_WIDTH};
 use crate::cab::MicType;
 use crate::cab_stage::{CabLoader, CabStatus, NO_FILES_SHOWN};
 use crate::dial_memory;
@@ -25,6 +25,7 @@ use crate::lamps::{LampReading, LampView};
 use crate::looks;
 use crate::metronome::{BeatReading, ClickOut, Sound, TapTempo, TimeSignature, BPM_MAX, BPM_MIN};
 use crate::presets::{self, PRESETS};
+use crate::slots::{Block, Chain, EffectKind, SlotParams};
 #[cfg(all(test, target_os = "linux"))]
 use crate::standalone::Prefs;
 use crate::standalone::{self, AudioChoice};
@@ -34,20 +35,28 @@ use crate::user_presets::{self, Bank};
 use crate::wah::WahMode;
 use crate::{Amp, GuitarAmpParams, GuitarAmpPlugin, Task};
 
-const WINDOW_WIDTH: u32 = crate::board::WINDOW_WIDTH;
+/// The width of the line's design layer for the chain a project had before it could be built:
+/// the gate, the twelve pedals and the stack. The strip's places are made at this width and move
+/// with the layer's (`Fit`); the line's own width follows its chain (`board::Line::width`)
+const WINDOW_WIDTH: u32 = 3411;
 const WINDOW_HEIGHT: u32 = (STACK_TOP + HEAD_HEIGHT + PEDAL_HEIGHT + BENCH_MARGIN) as u32;
 
-// The board is drawn in 3411 x 584 points and scaled onto the window. It opens sized to the
-// screen (up to the full 3411 x 584, or 1876 x 321 on a 1920 x 1080 screen), and the corner
-// handle drags between 0.4 and 1.0
-const DEFAULT_ZOOM: f32 = 0.55;
-const MIN_ZOOM: f32 = 0.4;
+// The line is drawn in a layer of its own width and `WINDOW_HEIGHT` high, and the layer is
+// scaled onto the window by a zoom that is what fits (`Fit`), from `MIN_ZOOM` to `MAX_ZOOM`. A
+// line too long to fit at `MIN_ZOOM` is scrolled sideways, with the strip staying where it is.
+// A window opens sized to the screen (up to the full 3411 x 584, or 1876 x 321 on a 1920 x 1080
+// screen) and is dragged by its corner to any size from `MIN_WIDTH` x `MIN_HEIGHT` up
+const MIN_ZOOM: f32 = 0.5;
 const MAX_ZOOM: f32 = 1.0;
+const DEFAULT_ZOOM: f32 = 0.55;
 const DEFAULT_WIDTH: u32 = (WINDOW_WIDTH as f32 * DEFAULT_ZOOM).round() as u32;
-#[cfg(test)]
-const DEFAULT_HEIGHT: u32 = (WINDOW_HEIGHT as f32 * DEFAULT_ZOOM).round() as u32;
-const MIN_WIDTH: u32 = (WINDOW_WIDTH as f32 * MIN_ZOOM).round() as u32;
-const MIN_HEIGHT: u32 = (WINDOW_HEIGHT as f32 * MIN_ZOOM).round() as u32;
+/// The narrowest the strip may be: what the controls on it need to stand clear of each other.
+/// It stretches with the window from there, and so does the layer
+const STRIP_MIN_WIDTH: f32 = 2600.0;
+/// How far the scroll bar stands in from the window's edges
+const SCROLL_INSET: f32 = 40.0;
+const MIN_WIDTH: u32 = (STRIP_MIN_WIDTH * MIN_ZOOM) as u32 + 1;
+const MIN_HEIGHT: u32 = (WINDOW_HEIGHT as f32 * MIN_ZOOM) as u32 + 1;
 const FALLBACK_SCREEN_WIDTH: u32 = 1920;
 const SCREEN_MARGIN: u32 = FALLBACK_SCREEN_WIDTH - DEFAULT_WIDTH;
 const RESIZE_ID: &str = "amp-resize";
@@ -310,14 +319,9 @@ const LANE_ON_SWITCH_DX: f32 = -46.0;
 const CAB_NAME_CHARS: usize = 10;
 const JACK_RADIUS: f32 = 8.0;
 
-// The pedals, all as wide as each other: four with a trio or a pair of knobs side by side and
-// six with two knobs on a diagonal; the pitch shifter is a trio like the first three, and the
-// EQ, last, has four knobs in two rows
-const WIDE_PEDALS: usize = 4;
-const PEDAL_SLOTS: usize = 10;
-pub(crate) const PITCH_SLOT: usize = PEDAL_SLOTS;
-pub(crate) const EQ_SLOT: usize = PEDAL_SLOTS + 1;
-pub(crate) const WAH_SLOT: usize = PEDAL_SLOTS + 2;
+// The blocks of the line, all as wide as each other: the gate, drive, delay and reverb with a trio
+// or a pair of knobs side by side, six with two knobs on a diagonal (`is_slim`); the pitch shifter
+// is a trio, the EQ has four knobs in two rows and the wah the rocker
 
 // On every pedal, from its top centre: the LED under the title, the knobs, the switch at the bottom.
 // Two knobs sit side by side. Three do not fit in a row, so they are smaller and in a triangle,
@@ -353,12 +357,10 @@ const TRIO_KNOBS: [Vec2; 3] = [vec2(-45.0, 71.0), vec2(45.0, 71.0), vec2(0.0, 16
 
 // The Gate pedal has a lamp beside its LED, under the title, that is lit while the gate lets the
 // guitar through. The pedal's LED says that the gate is switched on, like every other
-pub(crate) const GATE_SLOT: usize = 0;
 const GATE_LAMP: Vec2 = vec2(58.0, 71.0);
 
 // While the Delay follows the song's tempo (Sync), its Time knob, the first, picks the note
 // value in the same place, and its tape shows the note
-pub(crate) const DELAY_SLOT: usize = 2;
 // Sync is a small push button right of the Mix knob, where the Gate has its lamp: a stomp
 // switch beside the On switch would run off the face. Its LED above it, its caption above that
 const SYNC_CAPTION: Vec2 = vec2(60.0, 156.0);
@@ -372,15 +374,64 @@ pub(crate) struct Jacks {
     pub(crate) output: Pos2,
 }
 
-/// One pedal of the board: its look, its switch and up to three knobs with their captions
-type Pedal<'a> = (MiniStyle, &'a BoolParam, &'a [(&'a FloatParam, &'a str)]);
+/// Where a block's values are kept: in its pedal's own parameters (the gate that is always
+/// first, and each of the twelve pedals on its own slot: what hosts, old projects and the audio
+/// read as they always did) or in the parameters of the slot it stands on, whose knobs mean what
+/// the same knob of the pedal means, at the same position
+#[derive(Clone, Copy)]
+pub(crate) enum Src<'a> {
+    Own,
+    Slot(&'a SlotParams, u8),
+}
+
+impl Src<'_> {
+    /// What tells this source's widgets from another's of the same kind
+    fn key(self) -> String {
+        match self {
+            Src::Own => "own".to_owned(),
+            Src::Slot(_, slot) => slot.to_string(),
+        }
+    }
+}
 
 /// Title, paint and art of a pedal: each has a paint and a piece of northern weather of its own
 const fn look(title: &'static str, paint: Color32, motif: Motif) -> MiniStyle {
     MiniStyle { title, paint, motif }
 }
 
-/// What the pedals of the board are drawn from
+/// The look of the pedal of `kind`
+fn kind_look(kind: EffectKind) -> MiniStyle {
+    match kind {
+        EffectKind::Gate => look("Gate", theme::PAINT_GRANITE, Motif::Sluice),
+        EffectKind::Drive => look("Drive", theme::PAINT_OCHRE, Motif::Bonfire),
+        EffectKind::Delay => look("Delay", theme::PAINT_PETROL, Motif::Ridges),
+        EffectKind::Reverb => look("Reverb", theme::PAINT_FJORD, Motif::Fjord),
+        EffectKind::Comp => look("Comp", theme::PAINT_MOSS, Motif::Isobars),
+        EffectKind::Chorus => look("Chorus", theme::PAINT_SEA, Motif::Swell),
+        EffectKind::Phaser => look("Phaser", theme::PAINT_VIOLET, Motif::Moons),
+        EffectKind::Flanger => look("Flanger", theme::PAINT_AURORA, Motif::Aurora),
+        EffectKind::Tremolo => look("Tremolo", theme::PAINT_HEATHER, Motif::Rain),
+        EffectKind::Fuzz => look("Fuzz", theme::PAINT_EMBER, Motif::Geyser),
+        EffectKind::Pitch => look("Pitch", theme::PAINT_ORANGE, Motif::Horizon),
+        EffectKind::Eq => look("EQ", theme::PAINT_BARK, Motif::Columns),
+        EffectKind::Wah => look("Wah", theme::PAINT_BRASS, Motif::Foss),
+    }
+}
+
+/// Whether the pedal of `kind` is a slim one: two knobs, one above the other
+pub(crate) fn is_slim(kind: EffectKind) -> bool {
+    matches!(
+        kind,
+        EffectKind::Comp
+            | EffectKind::Chorus
+            | EffectKind::Phaser
+            | EffectKind::Flanger
+            | EffectKind::Tremolo
+            | EffectKind::Fuzz
+    )
+}
+
+/// What the blocks of the line are drawn from
 pub(crate) struct Pedals<'a> {
     params: &'a GuitarAmpParams,
     setter: &'a ParamSetter<'a>,
@@ -391,49 +442,85 @@ pub(crate) struct Pedals<'a> {
 }
 
 impl Pedals<'_> {
-    /// Whether the pedal of `slot` is a slim one: two knobs, one above the other
-    pub(crate) fn is_slim(slot: usize) -> bool {
-        (WIDE_PEDALS..PEDAL_SLOTS).contains(&slot)
+    /// A knob of the block at `src`: its `index`th (counted from 0) knob. `own` is the pedal's
+    /// own parameter for it, which a slot's knob is told in the terms of
+    #[allow(clippy::too_many_arguments)]
+    fn knob<P: Param>(
+        &self,
+        ui: &mut Ui,
+        src: Src,
+        index: usize,
+        own: &P,
+        at: Pos2,
+        radius: f32,
+        caption: &str,
+    ) {
+        match src {
+            Src::Own => {
+                param_knob(ui, self.setter, own, at, radius, caption, None);
+            }
+            Src::Slot(slot, _) => {
+                let knob = slot.knobs()[index];
+                ui::param_knob_as(ui, self.setter, knob, own, at, radius, caption, None);
+            }
+        }
+    }
+
+    /// The switch and lamp of the block at `src`
+    fn on_switch(&self, ui: &mut Ui, src: Src, own: &BoolParam, switch: Pos2, led: Pos2) {
+        let on = match src {
+            Src::Own => own,
+            Src::Slot(slot, _) => &slot.on,
+        };
+        param_switch(ui, self.setter, on, switch, led);
     }
 
     /// The pitch shifter: a trio of knobs, the first of which is a whole number of semitones
     /// and so not a `FloatParam` like the rest of them. Returns its top face
-    fn pitch_pedal(&self, ui: &mut Ui, rect: Rect) -> Rect {
-        let (params, setter) = (self.params, self.setter);
-        let face = ui::mini_pedal(ui, rect, &look("Pitch", theme::PAINT_ORANGE, Motif::Horizon));
+    fn pitch_pedal(&self, ui: &mut Ui, src: Src, rect: Rect) -> Rect {
+        let params = self.params;
+        let face = ui::mini_pedal(ui, rect, &kind_look(EffectKind::Pitch));
         let top = face.center_top();
         let [semitones, blend, tracking] = TRIO_KNOBS;
         let radius = TRIO_RADIUS;
-        param_knob(ui, setter, &params.pitch_semitones, top + semitones, radius, "Semitones", None);
-        param_knob(ui, setter, &params.pitch_blend, top + blend, radius, "Blend", None);
-        param_knob(ui, setter, &params.pitch_latency, top + tracking, radius, "Tracking", None);
-        param_switch(ui, setter, &params.pitch_on, top + PEDAL_SWITCH, top + PEDAL_LED);
+        self.knob(ui, src, 0, &params.pitch_semitones, top + semitones, radius, "Semitones");
+        self.knob(ui, src, 1, &params.pitch_blend, top + blend, radius, "Blend");
+        self.knob(ui, src, 2, &params.pitch_latency, top + tracking, radius, "Tracking");
+        self.on_switch(ui, src, &params.pitch_on, top + PEDAL_SWITCH, top + PEDAL_LED);
         face
     }
 
     /// The EQ: four knobs in two rows. Returns its top face
-    fn eq_pedal(&self, ui: &mut Ui, rect: Rect) -> Rect {
-        let (params, setter) = (self.params, self.setter);
-        let face = ui::mini_pedal(ui, rect, &look("EQ", theme::PAINT_BARK, Motif::Columns));
+    fn eq_pedal(&self, ui: &mut Ui, src: Src, rect: Rect) -> Rect {
+        let params = self.params;
+        let face = ui::mini_pedal(ui, rect, &kind_look(EffectKind::Eq));
         let top = face.center_top();
         let [low, mid, freq, high] = QUAD_KNOBS;
         let radius = QUAD_RADIUS;
-        param_knob(ui, setter, &params.eq_low, top + low, radius, "Low", None);
-        param_knob(ui, setter, &params.eq_mid, top + mid, radius, "Mid", None);
-        param_knob(ui, setter, &params.eq_freq, top + freq, radius, "Freq", None);
-        param_knob(ui, setter, &params.eq_high, top + high, radius, "High", None);
-        param_switch(ui, setter, &params.eq_on, top + PEDAL_SWITCH, top + PEDAL_LED);
+        self.knob(ui, src, 0, &params.eq_low, top + low, radius, "Low");
+        self.knob(ui, src, 1, &params.eq_mid, top + mid, radius, "Mid");
+        self.knob(ui, src, 2, &params.eq_freq, top + freq, radius, "Freq");
+        self.knob(ui, src, 3, &params.eq_high, top + high, radius, "High");
+        self.on_switch(ui, src, &params.eq_on, top + PEDAL_SWITCH, top + PEDAL_LED);
         face
     }
 
     /// The wah: the rocker, Bite and Sens, the Auto button and the switch. Returns its top face
-    fn wah_pedal(&self, ui: &mut Ui, rect: Rect) -> Rect {
+    fn wah_pedal(&self, ui: &mut Ui, src: Src, rect: Rect) -> Rect {
         let (params, setter) = (self.params, self.setter);
-        let face = ui::mini_pedal(ui, rect, &look("Wah", theme::PAINT_BRASS, Motif::Foss));
+        let face = ui::mini_pedal(ui, rect, &kind_look(EffectKind::Wah));
         let top = face.center_top();
-        let auto = params.wah_mode.value() == WahMode::Auto;
+        // A slot's knobs are: the rocker, Bite, the mode and Sens
+        let auto = match src {
+            Src::Own => params.wah_mode.value(),
+            Src::Slot(slot, _) => params.wah_mode.preview_plain(slot.k3.value()),
+        } == WahMode::Auto;
 
-        ui::rocker(ui, setter, &params.wah_pedal, top + ROCKER_TOP, ROCKER_LENGTH, theme::SILK);
+        let (rocker, shown) = match src {
+            Src::Own => (&params.wah_pedal, params.wah_pedal.unmodulated_normalized_value()),
+            Src::Slot(slot, _) => (&slot.k1, slot.k1.unmodulated_normalized_value()),
+        };
+        ui::rocker(ui, setter, rocker, top + ROCKER_TOP, ROCKER_LENGTH, theme::SILK);
         silk_label(ui.painter(), top + ROCKER_TOE, "Toe", ROCKER_END_SIZE);
         silk_label(ui.painter(), top + ROCKER_HEEL, "Heel", ROCKER_END_SIZE);
         // In Auto the dial is where the pedal rests, and says so
@@ -443,49 +530,60 @@ impl Pedals<'_> {
             if auto { "Rest" } else { "Rocker" },
             ROCKER_END_SIZE,
         );
-        let value = params
-            .wah_pedal
-            .normalized_value_to_string(params.wah_pedal.unmodulated_normalized_value(), true);
+        let value = params.wah_pedal.normalized_value_to_string(shown, true);
         ui::widgets::label_tape(ui.painter(), top + ROCKER_TAPE, &value, ROCKER_TAPE_SIZE);
 
         let [bite, sens] = WAH_KNOBS;
-        param_knob(ui, setter, &params.wah_q, top + bite, WAH_KNOB_RADIUS, "Bite", None);
-        param_knob(ui, setter, &params.wah_sens, top + sens, WAH_KNOB_RADIUS, "Sens", None);
+        self.knob(ui, src, 1, &params.wah_q, top + bite, WAH_KNOB_RADIUS, "Bite");
+        self.knob(ui, src, 3, &params.wah_sens, top + sens, WAH_KNOB_RADIUS, "Sens");
 
         // The Auto push button, the Delay's Sync idiom: a lamp above it, the caption under it
         silk_label(ui.painter(), top + AUTO_CAPTION, "Auto", LAMP_CAPTION_SIZE);
         rig_led(ui.painter(), top + AUTO_LED, auto);
-        if chrome_button(ui, top + AUTO_BUTTON, "wah-auto").clicked() {
+        if chrome_button(ui, top + AUTO_BUTTON, &format!("wah-auto-{}", src.key())).clicked() {
             let mode = if auto { WahMode::Pedal } else { WahMode::Auto };
-            setter.begin_set_parameter(&params.wah_mode);
-            setter.set_parameter(&params.wah_mode, mode);
-            setter.end_set_parameter(&params.wah_mode);
+            match src {
+                Src::Own => set(setter, &params.wah_mode, mode),
+                Src::Slot(slot, _) => {
+                    set(setter, &slot.k3, params.wah_mode.preview_normalized(mode))
+                }
+            }
         }
-        param_switch(ui, setter, &params.wah_on, top + PEDAL_SWITCH, top + WAH_LED);
+        self.on_switch(ui, src, &params.wah_on, top + PEDAL_SWITCH, top + WAH_LED);
         face
     }
 
-    /// Draws the pedal of `slot` in `rect`: the wide ones first, as the chain had them
-    /// before there were more, then the slim ones. Returns its top face
-    pub(crate) fn pedal(&self, ui: &mut Ui, slot: usize, rect: Rect) -> Rect {
-        if slot == PITCH_SLOT {
-            return self.pitch_pedal(ui, rect);
-        }
-        if slot == EQ_SLOT {
-            return self.eq_pedal(ui, rect);
-        }
-        if slot == WAH_SLOT {
-            return self.wah_pedal(ui, rect);
-        }
+    /// The gate that is always first, on its own parameters, with the lamp that says it lets the
+    /// guitar through. Returns its top face
+    pub(crate) fn gate(&self, ui: &mut Ui, rect: Rect) -> Rect {
+        let face = self.plain_pedal(ui, Src::Own, EffectKind::Gate, rect);
+        let top = face.center_top();
+        signal_lamp(ui.painter(), top + GATE_LAMP, self.gate_open);
+        silk_label(ui.painter(), top + GATE_LAMP + LAMP_CAPTION, "Open", LAMP_CAPTION_SIZE);
+        face
+    }
+
+    /// Draws the block in `rect`, with its values where its slot keeps them: the pedal's own
+    /// parameters on its own slot, the slot's otherwise. Returns its top face
+    pub(crate) fn block(&self, ui: &mut Ui, block: Block, rect: Rect) -> Rect {
+        let src = if Chain::is_home(block) {
+            Src::Own
+        } else {
+            Src::Slot(self.params.slot(block.slot as usize), block.slot)
+        };
+        self.plain_pedal(ui, src, block.kind, rect)
+    }
+
+    /// The pedals with a pair or a trio of knobs (and the Delay's Sync): the gate, drive,
+    /// delay, reverb, and the slim ones. Returns the top face
+    fn plain_pedal(&self, ui: &mut Ui, src: Src, kind: EffectKind, rect: Rect) -> Rect {
         let (params, setter) = (self.params, self.setter);
-        let pedals: [Pedal; PEDAL_SLOTS] = [
-            (
-                look("Gate", theme::PAINT_GRANITE, Motif::Sluice),
+        let (on, knobs): (&BoolParam, &[(&FloatParam, &str)]) = match kind {
+            EffectKind::Gate => (
                 &params.gate_on,
                 &[(&params.gate_thresh, "Thresh"), (&params.gate_release, "Release")],
             ),
-            (
-                look("Drive", theme::PAINT_OCHRE, Motif::Bonfire),
+            EffectKind::Drive => (
                 &params.drive_on,
                 &[
                     (&params.drive_gain, "Drive"),
@@ -493,8 +591,7 @@ impl Pedals<'_> {
                     (&params.drive_level, "Level"),
                 ],
             ),
-            (
-                look("Delay", theme::PAINT_PETROL, Motif::Ridges),
+            EffectKind::Delay => (
                 &params.delay_on,
                 &[
                     (&params.delay_time, "Time"),
@@ -502,84 +599,79 @@ impl Pedals<'_> {
                     (&params.delay_mix, "Mix"),
                 ],
             ),
-            (
-                look("Reverb", theme::PAINT_FJORD, Motif::Fjord),
-                &params.reverb_on,
-                &[(&params.reverb_decay, "Decay"), (&params.reverb_mix, "Mix")],
-            ),
-            (
-                look("Comp", theme::PAINT_MOSS, Motif::Isobars),
+            EffectKind::Reverb => {
+                (&params.reverb_on, &[(&params.reverb_decay, "Decay"), (&params.reverb_mix, "Mix")])
+            }
+            EffectKind::Comp => (
                 &params.comp_on,
                 &[(&params.comp_sustain, "Sustain"), (&params.comp_level, "Level")],
             ),
-            (
-                look("Chorus", theme::PAINT_SEA, Motif::Swell),
+            EffectKind::Chorus => (
                 &params.chorus_on,
                 &[(&params.chorus_rate, "Rate"), (&params.chorus_depth, "Depth")],
             ),
-            (
-                look("Phaser", theme::PAINT_VIOLET, Motif::Moons),
+            EffectKind::Phaser => (
                 &params.phaser_on,
                 &[(&params.phaser_rate, "Rate"), (&params.phaser_depth, "Depth")],
             ),
-            (
-                look("Flanger", theme::PAINT_AURORA, Motif::Aurora),
+            EffectKind::Flanger => (
                 &params.flanger_on,
                 &[(&params.flanger_rate, "Rate"), (&params.flanger_depth, "Depth")],
             ),
-            (
-                look("Tremolo", theme::PAINT_HEATHER, Motif::Rain),
-                &params.trem_on,
-                &[(&params.trem_rate, "Rate"), (&params.trem_depth, "Depth")],
-            ),
-            (
-                look("Fuzz", theme::PAINT_EMBER, Motif::Geyser),
-                &params.fuzz_on,
-                &[(&params.fuzz_fuzz, "Fuzz"), (&params.fuzz_tone, "Tone")],
-            ),
-        ];
-        let (style, on, knobs) = pedals[slot];
-        if Self::is_slim(slot) {
-            let face = ui::mini_pedal(ui, rect, &style);
-            let top = face.center_top();
-            for (&(param, caption), offset) in knobs.iter().zip(SLIM_KNOBS) {
-                param_knob(ui, setter, param, top + offset, SLIM_KNOB_RADIUS, caption, None);
+            EffectKind::Tremolo => {
+                (&params.trem_on, &[(&params.trem_rate, "Rate"), (&params.trem_depth, "Depth")])
             }
-            param_switch(ui, setter, on, top + SLIM_SWITCH, top + SLIM_LED);
+            EffectKind::Fuzz => {
+                (&params.fuzz_on, &[(&params.fuzz_fuzz, "Fuzz"), (&params.fuzz_tone, "Tone")])
+            }
+            // Pedals of their own kind
+            EffectKind::Pitch => return self.pitch_pedal(ui, src, rect),
+            EffectKind::Eq => return self.eq_pedal(ui, src, rect),
+            EffectKind::Wah => return self.wah_pedal(ui, src, rect),
+        };
+        let face = ui::mini_pedal(ui, rect, &kind_look(kind));
+        let top = face.center_top();
+        if is_slim(kind) {
+            for (index, (&(param, caption), offset)) in knobs.iter().zip(SLIM_KNOBS).enumerate() {
+                self.knob(ui, src, index, param, top + offset, SLIM_KNOB_RADIUS, caption);
+            }
+            self.on_switch(ui, src, on, top + SLIM_SWITCH, top + SLIM_LED);
             return face;
         }
-        let face = ui::mini_pedal(ui, rect, &style);
-        let top = face.center_top();
 
         let (radius, places) = if knobs.len() > PAIR_KNOBS.len() {
             (TRIO_RADIUS, &TRIO_KNOBS[..])
         } else {
             (PAIR_RADIUS, &PAIR_KNOBS[..])
         };
+        // Whether the Delay follows the song's tempo (Sync): its Time knob, the first, then
+        // picks the note value in the same place, and its tape shows the note. A slot's Sync
+        // is its fourth knob, the note its fifth
+        let sync = kind == EffectKind::Delay
+            && match src {
+                Src::Own => params.delay_sync.value(),
+                Src::Slot(slot, _) => params.delay_sync.preview_plain(slot.k4.value()),
+            };
         for (index, (&(param, caption), &offset)) in knobs.iter().zip(places).enumerate() {
-            if slot == DELAY_SLOT && index == 0 && params.delay_sync.value() {
-                param_knob(ui, setter, &params.delay_note, top + offset, radius, caption, None);
+            if sync && index == 0 {
+                self.knob(ui, src, 4, &params.delay_note, top + offset, radius, caption);
             } else {
-                param_knob(ui, setter, param, top + offset, radius, caption, None);
+                self.knob(ui, src, index, param, top + offset, radius, caption);
             }
         }
-        param_switch(ui, setter, on, top + PEDAL_SWITCH, top + PEDAL_LED);
+        self.on_switch(ui, src, on, top + PEDAL_SWITCH, top + PEDAL_LED);
 
-        if slot == DELAY_SLOT {
-            let sync = params.delay_sync.value();
+        if kind == EffectKind::Delay {
             silk_label(ui.painter(), top + SYNC_CAPTION, "Sync", LAMP_CAPTION_SIZE);
             rig_led(ui.painter(), top + SYNC_LED, sync);
-            if chrome_button(ui, top + SYNC_BUTTON, "delay-sync").clicked() {
-                setter.begin_set_parameter(&params.delay_sync);
-                setter.set_parameter(&params.delay_sync, !sync);
-                setter.end_set_parameter(&params.delay_sync);
+            if chrome_button(ui, top + SYNC_BUTTON, &format!("delay-sync-{}", src.key())).clicked()
+            {
+                match src {
+                    Src::Own => set(setter, &params.delay_sync, !sync),
+                    Src::Slot(slot, _) => set(setter, &slot.k4, if sync { 0.0 } else { 1.0 }),
+                }
             }
         }
-        if slot == GATE_SLOT {
-            signal_lamp(ui.painter(), top + GATE_LAMP, self.gate_open);
-            silk_label(ui.painter(), top + GATE_LAMP + LAMP_CAPTION, "Open", LAMP_CAPTION_SIZE);
-        }
-
         face
     }
 
@@ -894,6 +986,8 @@ pub(crate) struct View {
     cab_status: CabStatus,
     /// The metronome's lamp, and the taps on its Tap button
     beat: BeatView,
+    /// How far the line is scrolled sideways, in points of the layer
+    scroll: f32,
 }
 
 /// A plate open under the strip: configuration is a plate that opens from an icon or a display,
@@ -1445,10 +1539,19 @@ pub fn default_state() -> Arc<EguiState> {
 }
 
 /// The window size `(width, height)` that fits inside a screen `screen_width` logical points wide,
-/// keeping the `3411 : 584` proportions and clamping the zoom to `0.4..=1.0`
+/// at the zoom the twelve-pedal line fits at, clamped to `0.4..=1.0`
 fn size_for_screen(screen_width: u32) -> (u32, u32) {
     let available = screen_width.saturating_sub(SCREEN_MARGIN) as f32;
-    window_size(vec2(available, WINDOW_HEIGHT as f32))
+    let zoom = if (available - DEFAULT_WIDTH as f32).abs() < 0.5 {
+        DEFAULT_ZOOM
+    } else {
+        (available / WINDOW_WIDTH as f32).clamp(MIN_ZOOM, MAX_ZOOM)
+    };
+    // Never wider than the screen has room for: a line that does not fit at `MIN_ZOOM` in it is
+    // scrolled
+    let width = (WINDOW_WIDTH as f32 * zoom).round().min(available).max(MIN_WIDTH as f32) as u32;
+    let height = (WINDOW_HEIGHT as f32 * zoom).round().max(MIN_HEIGHT as f32) as u32;
+    (width, height)
 }
 
 /// The primary display's width in pixels (or logical points on macOS), or `None` when no display
@@ -1590,45 +1693,59 @@ impl Editor for ScreenEditor {
     }
 }
 
-/// The zoom (`0.4` to `1.0`) for a window of `width` logical points
-fn zoom_for_width(width: f32) -> f32 {
-    if (width - DEFAULT_WIDTH as f32).abs() < 0.5 {
-        DEFAULT_ZOOM
-    } else {
-        (width / WINDOW_WIDTH as f32).clamp(MIN_ZOOM, MAX_ZOOM)
-    }
+/// What the window shows of the line: the zoom the layer is scaled onto the window by, the
+/// layer's width and how much of it the window shows. The zoom is what fits the whole layer in
+/// the window, wide and high, kept between `MIN_ZOOM` and `MAX_ZOOM`. Where even `MIN_ZOOM` does
+/// not fit the line, the window shows part of it and the player scrolls the rest into view; a
+/// block never shrinks below what `MIN_ZOOM` makes it
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Fit {
+    zoom: f32,
+    /// The layer: the line's width, but never narrower than the strip needs
+    layer: f32,
+    /// How many points of the layer the window shows, at that zoom
+    visible: f32,
 }
 
-/// The window size `(width, height)` for a dragged `desired` size, keeping the board's
-/// `3411 : 584` proportions and clamping the zoom to `0.4..=1.0`
-fn window_size(desired: Vec2) -> (u32, u32) {
-    let zoom = zoom_for_width(desired.x);
-    let width = (WINDOW_WIDTH as f32 * zoom).round().max(MIN_WIDTH as f32) as u32;
-    let height = (WINDOW_HEIGHT as f32 * zoom).round().max(MIN_HEIGHT as f32) as u32;
-    (width, height)
-}
-
-/// Keeps `ResizableWindow`'s corner handle on the `3411 : 584` diagonal within `0.4..=1.0`
-/// and paints its three lines on top of the board
-fn lock_resize_corner(ui: &mut Ui) {
-    let ctx = ui.ctx().clone();
-    let corner_id = Id::new(RESIZE_ID).with("corner");
-    if ctx.is_being_dragged(corner_id) {
-        if let (Some(pointer), Some(origin)) =
-            (ctx.input(|i| i.pointer.interact_pos()), ctx.input(|i| i.pointer.press_origin()))
-        {
-            let start = ctx
-                .data(|d| d.get_temp::<Vec2>(Id::new(RESIZE_ID)))
-                .unwrap_or_else(|| ctx.screen_rect().size());
-            let raw_desired = start + (pointer - origin);
-            let (w, h) = window_size(raw_desired);
-            let locked = vec2(w as f32, h as f32);
-            ctx.set_transform_layer(
-                LayerId::background(),
-                TSTransform::from_translation(raw_desired - locked),
-            );
+impl Fit {
+    /// The fit of a window `window` points large for a line `line_width` wide
+    fn of(window: Vec2, line_width: f32) -> Fit {
+        let layer = line_width.max(STRIP_MIN_WIDTH);
+        // A window's height is a whole number of points, rounded from the zoom that made it: half
+        // a point of leeway keeps the zoom it was made at
+        let high = (window.y + 0.5) / WINDOW_HEIGHT as f32;
+        let mut zoom = (window.x / layer).min(high).clamp(MIN_ZOOM, MAX_ZOOM);
+        // The size the window opens at on a 1920 screen is the default zoom, to the pixel
+        if (zoom - DEFAULT_ZOOM).abs() < 0.001 {
+            zoom = DEFAULT_ZOOM;
         }
+        // A point short of the whole layer, or over it, is the whole layer: a window whose width
+        // was rounded to whole points does not scroll for the sake of the rounding
+        let visible = window.x / zoom;
+        let visible = if (visible - layer).abs() < 0.5 / zoom + 0.5 { layer } else { visible };
+        Fit { zoom, layer, visible }
     }
+
+    /// How far the line can be scrolled: 0 when the window shows all of it
+    fn furthest(&self) -> f32 {
+        (self.layer - self.visible).max(0.0)
+    }
+
+    /// The strip's width: the window's, though never under what its controls need
+    fn strip_width(&self) -> f32 {
+        self.visible.max(STRIP_MIN_WIDTH)
+    }
+
+    /// How far what the strip has at its right end has moved from where it stands at the
+    /// default width, and half of that for what stands in the middle of it
+    fn shift(&self) -> f32 {
+        self.strip_width() - WINDOW_WIDTH as f32
+    }
+}
+
+/// Paints the corner handle's three lines on top of the line. The corner is dragged freely: the
+/// window has no fixed proportions, since a chain that grows is a line that grows
+fn paint_resize_corner(ui: &mut Ui) {
     *ui = ui.new_child(
         UiBuilder::new()
             .max_rect(ui.max_rect())
@@ -1681,6 +1798,7 @@ pub fn create(
             note: None,
             cab_status: CabStatus::Fine,
             beat: BeatView::default(),
+            scroll: 0.0,
         },
         move |egui_ctx, view| {
             ui::install(egui_ctx);
@@ -1712,7 +1830,7 @@ pub fn create(
                 .min_size(vec2(MIN_WIDTH as f32, MIN_HEIGHT as f32))
                 .show(egui_ctx, window_state.as_ref(), |ui| {
                     draw(egui_ctx, setter, &params, view, &shared);
-                    lock_resize_corner(ui);
+                    paint_resize_corner(ui);
                 });
         },
     )
@@ -1746,8 +1864,9 @@ fn draw(
     view: &mut View,
     shared: &Shared,
 ) {
-    let zoom = zoom_for_width(ctx.screen_rect().width());
-    ctx.set_transform_layer(ui::rig_layer(), TSTransform::from_scaling(zoom));
+    let line_width = Line::of_chain(&params.chain.get()).width();
+    let fit = Fit::of(ctx.screen_rect().size(), line_width);
+    ctx.set_transform_layer(ui::rig_layer(), TSTransform::from_scaling(fit.zoom));
     ui::rig(ctx, |ui, window| {
         // The update runs with every frame of the window whether it is painted
         // or not, so this costs two atomic reads per frame, and a repaint only
@@ -1766,9 +1885,12 @@ fn draw(
         let (gate_open, clipping) = view.lamps.shown();
         let [input_db, output_db] = view.lamps.levels();
 
+        // The strip is as wide as the window shows. What stands at its right end and in its
+        // middle moves with that from where it stands at the default width
+        let (right, middle) = (vec2(fit.shift(), 0.0), vec2(fit.shift() / 2.0, 0.0));
         let strip = Rect::from_min_size(
             window + vec2(BENCH_MARGIN, BENCH_MARGIN),
-            vec2(WINDOW_WIDTH as f32 - 2.0 * BENCH_MARGIN, STRIP_HEIGHT),
+            vec2(fit.strip_width() - 2.0 * BENCH_MARGIN, STRIP_HEIGHT),
         );
         ui::slim_strip(ui, strip, &STYLE);
         // What is on the strip is placed from here
@@ -1806,7 +1928,7 @@ fn draw(
         // The input: its meter under its caption, and the gain beside it
         // The output: the knob, the meter under its caption, and the clip lamp
         for (place, level, caption) in
-            [(INPUT_METER, input_db, "Input"), (OUTPUT_METER, output_db, "Output")]
+            [(INPUT_METER, input_db, "Input"), (OUTPUT_METER + right, output_db, "Output")]
         {
             ui::level_meter_wide(ui.painter(), origin + place, METER_WIDTH, level);
             silk_label(
@@ -1817,16 +1939,27 @@ fn draw(
             );
         }
         ui::bare_param_knob(ui, setter, &params.in_gain, origin + INPUT_KNOB, STRIP_KNOB_RADIUS);
-        ui::bare_param_knob(ui, setter, &params.out_level, origin + OUTPUT_KNOB, STRIP_KNOB_RADIUS);
-        signal_lamp(ui.painter(), origin + CLIP_LAMP, clipping);
-        silk_label(ui.painter(), origin + CLIP_LAMP + CLIP_CAPTION, "Clip", METER_CAPTION_SIZE);
+        ui::bare_param_knob(
+            ui,
+            setter,
+            &params.out_level,
+            origin + OUTPUT_KNOB + right,
+            STRIP_KNOB_RADIUS,
+        );
+        signal_lamp(ui.painter(), origin + CLIP_LAMP + right, clipping);
+        silk_label(
+            ui.painter(),
+            origin + CLIP_LAMP + CLIP_CAPTION + right,
+            "Clip",
+            METER_CAPTION_SIZE,
+        );
 
         // The icons, in the middle. The metronome's opens its plate and its switch starts it; the
         // tuner's is its switch, the display above taking its place; the settings have a plate only
         let beat = beat_shown(ui, params, view, shared, now);
         let metronome = ui::icon_switch(
             ui,
-            origin + vec2(METRONOME_X, STRIP_Y),
+            origin + vec2(METRONOME_X, STRIP_Y) + middle,
             ui::Icon::Metronome,
             view.is_open(Plates::Metronome),
             Some(beat),
@@ -1840,7 +1973,7 @@ fn draw(
         }
         let tuner = ui::icon_switch(
             ui,
-            origin + vec2(TUNER_X, STRIP_Y),
+            origin + vec2(TUNER_X, STRIP_Y) + middle,
             ui::Icon::Tuner,
             tuning,
             Some(if tuning { Beat::Regular } else { Beat::Dark }),
@@ -1851,7 +1984,7 @@ fn draw(
         }
         let settings = ui::icon_switch(
             ui,
-            origin + vec2(SETTINGS_X, STRIP_Y),
+            origin + vec2(SETTINGS_X, STRIP_Y) + middle,
             ui::Icon::Settings,
             view.is_open(Plates::Settings),
             None,
@@ -1870,12 +2003,42 @@ fn draw(
             cab_loader: shared.cab_loader,
             load_cabinet: shared.load_cabinet,
         };
-        crate::board::board(ui, window, &pedals, &params.chain);
+
+        // The line, scrolled sideways where the window shows only part of it. The wheel scrolls it
+        // while the pointer is over it and no plate is open, and so does the bar along the foot
+        view.scroll = view.scroll.clamp(0.0, fit.furthest());
+        if fit.furthest() > 0.0 && view.plate.is_none() {
+            let over_line = ui
+                .input(|input| input.pointer.hover_pos())
+                .is_some_and(|at| at.y / fit.zoom > STACK_TOP - BENCH_MARGIN);
+            let wheel = ui.input(|input| input.raw_scroll_delta);
+            if over_line && (wheel.x != 0.0 || wheel.y != 0.0) {
+                // Down and right bring what is further along into view
+                view.scroll =
+                    (view.scroll - (wheel.x + wheel.y) / fit.zoom).clamp(0.0, fit.furthest());
+            }
+        }
+        crate::board::board(ui, window - vec2(view.scroll, 0.0), &pedals, &params.chain);
+        let bottom = ui.max_rect().bottom();
+        let track = Rect::from_min_max(
+            Pos2::new(window.x + SCROLL_INSET, bottom - 1.0 - ui::SCROLL_BAR_THICKNESS),
+            Pos2::new(window.x + fit.visible - SCROLL_INSET, bottom - 1.0),
+        );
+        view.scroll = ui::scroll_bar(ui, "line", track, fit.visible, fit.layer, view.scroll);
 
         // The plates after everything else, each in a layer above the window; one is open at most
         presets.plate(ui, origin, view, now);
-        metronome_plate(ui, setter, params, origin, view, shared, now, metronome.icon.rect);
-        settings_plate(ui, setter, params, origin, view, shared, settings.icon.rect);
+        metronome_plate(
+            ui,
+            setter,
+            params,
+            origin + middle,
+            view,
+            shared,
+            now,
+            metronome.icon.rect,
+        );
+        settings_plate(ui, setter, params, origin + middle, view, shared, settings.icon.rect);
     });
 }
 
@@ -2245,6 +2408,7 @@ mod tests {
             note: None,
             cab_status: CabStatus::Fine,
             beat: BeatView::default(),
+            scroll: 0.0,
         }
     }
 
@@ -2392,6 +2556,278 @@ mod tests {
             view,
         )
         .snapshot("editor_default_zoom");
+    }
+
+    /// A window `width` by `height` points drawing `params`, scrolled `scroll` points, the way
+    /// a window of that size does, with everything else at rest
+    #[cfg(target_os = "linux")]
+    fn line_harness<'a>(
+        width: u32,
+        height: u32,
+        params: &'a GuitarAmpParams,
+        setter: &'a ParamSetter<'a>,
+        scroll: f32,
+    ) -> (Harness<'a>, Rc<RefCell<View>>) {
+        let lamp_reading = LampReading::new();
+        let cab_loader = CabLoader::new(Arc::new(crate::cab_stage::CabStage::new()), 48_000.0);
+        let mut view = fresh_view(params, &lamp_reading);
+        view.scroll = scroll;
+        let view = Rc::new(RefCell::new(view));
+        let harness = harness_at_size(
+            width,
+            height,
+            params,
+            setter,
+            TunerReading::new(),
+            lamp_reading,
+            cab_loader,
+            None,
+            view.clone(),
+        );
+        (harness, view)
+    }
+
+    /// A chain of `kinds` in front of the amps then `kinds` behind them, each on the slot its
+    /// pedal's own parameters are on if that is free, a slot of its own otherwise
+    fn chain_of(front: &[EffectKind], back: &[EffectKind]) -> Chain {
+        let mut chain = Chain::empty();
+        for &kind in front {
+            chain.add(kind, crate::order::Zone::Front, 99).unwrap();
+        }
+        for &kind in back {
+            chain.add(kind, crate::order::Zone::Back, 99).unwrap();
+        }
+        chain
+    }
+
+    /// The chain of the longest line: sixteen blocks, a second of eight of the kinds among them,
+    /// so that half of them keep their values in the parameters of their slot
+    fn sixteen_blocks() -> Chain {
+        use EffectKind::*;
+        chain_of(
+            &[Wah, Pitch, Fuzz, Comp, Comp, Drive, Eq, Phaser],
+            &[Chorus, Chorus, Flanger, Tremolo, Delay, Delay, Reverb, Reverb],
+        )
+    }
+
+    // A short chain, a compressor in front of the amps and a chorus behind them: the line is as
+    // long as its blocks, the strip as wide as the window
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_a_short_chain_looks_as_it_did() {
+        use EffectKind::*;
+        let params = GuitarAmpParams::default();
+        params.chain.put(chain_of(&[Comp], &[Chorus]));
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        line_harness(1430, 321, &params, &setter, 0.0).0.snapshot("line_short");
+        let _ = (Comp, Chorus);
+    }
+
+    // Today's chain in the smallest window: the zoom the line is at when it is the least readable
+    // there is, and the line still all there
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_twelve_pedals_in_the_smallest_window_look_as_they_did() {
+        let params = GuitarAmpParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        line_harness(MIN_WIDTH, MIN_HEIGHT, &params, &setter, 0.0).0.snapshot("line_small");
+    }
+
+    // Today's chain on a large screen: full size, the strip as wide as the window
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_twelve_pedals_in_a_large_window_look_as_they_did() {
+        let params = GuitarAmpParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        line_harness(3840, 640, &params, &setter, 0.0).0.snapshot("line_large");
+    }
+
+    // Sixteen blocks in the window that shows them whole at the least zoom (4239 points at 0.5): the
+    // second of each kind, eight of them, on the parameters of their slots
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_sixteen_blocks_look_as_they_did() {
+        let params = GuitarAmpParams::default();
+        params.chain.put(sixteen_blocks());
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        line_harness(2120, 292, &params, &setter, 0.0).0.snapshot("line_sixteen");
+    }
+
+    // The same sixteen in the smallest window: they do not fit at the zoom it stops at, so the
+    // line is scrolled, here to its start and to its end
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_sixteen_blocks_scroll_in_the_smallest_window() {
+        let params = GuitarAmpParams::default();
+        params.chain.put(sixteen_blocks());
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (width, height) = (MIN_WIDTH, MIN_HEIGHT);
+        line_harness(width, height, &params, &setter, 0.0).0.snapshot("line_scrolled_start");
+        line_harness(width, height, &params, &setter, 1.0e6).0.snapshot("line_scrolled_end");
+    }
+
+    /// The wheel turned over `at`, by `delta` points
+    #[cfg(target_os = "linux")]
+    fn wheel(harness: &mut Harness, at: Pos2, delta: Vec2) {
+        use nih_plug_egui::egui::{Event, Modifiers, MouseWheelUnit};
+        for event in [
+            Event::PointerMoved(at),
+            Event::MouseWheel { unit: MouseWheelUnit::Point, delta, modifiers: Modifiers::NONE },
+        ] {
+            harness.input_mut().events.push(event);
+            harness.run_ok();
+        }
+    }
+
+    // A line that is wider than the window scrolls with the wheel over it, either way the wheel
+    // is turned, and stops at both ends; a window that shows it all has nothing to scroll
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_wheel_scrolls_a_line_that_does_not_fit_and_stops_at_its_ends() {
+        let params = GuitarAmpParams::default();
+        params.chain.put(sixteen_blocks());
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, view) = line_harness(MIN_WIDTH, MIN_HEIGHT, &params, &setter, 0.0);
+        let over_the_line = Pos2::new(300.0, 200.0);
+        wheel(&mut harness, over_the_line, vec2(0.0, -100.0));
+        // 100 points of wheel at 0.5 is 200 points of the layer
+        assert!((view.borrow().scroll - 200.0).abs() < 0.01, "{}", view.borrow().scroll);
+        wheel(&mut harness, over_the_line, vec2(-40.0, 0.0));
+        assert!((view.borrow().scroll - 280.0).abs() < 0.01);
+        wheel(&mut harness, over_the_line, vec2(0.0, 1000.0));
+        assert_eq!(view.borrow().scroll, 0.0);
+        let furthest = Fit::of(vec2(MIN_WIDTH as f32, MIN_HEIGHT as f32), 4239.0).furthest();
+        wheel(&mut harness, over_the_line, vec2(0.0, -100_000.0));
+        assert_eq!(view.borrow().scroll, furthest);
+        // Over the strip the wheel is left alone
+        wheel(&mut harness, Pos2::new(300.0, 10.0), vec2(0.0, 1000.0));
+        assert_eq!(view.borrow().scroll, furthest);
+
+        // The twelve-pedal line in a window that shows it all does not scroll
+        let params = GuitarAmpParams::default();
+        let (mut harness, view) = line_harness(WINDOW_WIDTH, WINDOW_HEIGHT, &params, &setter, 0.0);
+        wheel(&mut harness, over_the_line, vec2(0.0, -500.0));
+        assert_eq!(view.borrow().scroll, 0.0);
+    }
+
+    // A press in the groove of the scroll bar brings its thumb there, and the thumb is dragged
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_scroll_bar_takes_the_line_where_it_is_pressed_and_dragged() {
+        let params = GuitarAmpParams::default();
+        params.chain.put(sixteen_blocks());
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, view) = line_harness(MIN_WIDTH, MIN_HEIGHT, &params, &setter, 0.0);
+        let furthest = Fit::of(vec2(MIN_WIDTH as f32, MIN_HEIGHT as f32), 4239.0).furthest();
+        let bar_y = WINDOW_HEIGHT as f32 * MIN_ZOOM - 2.0;
+        // Pressed at the groove's far end: the line is at its end
+        click(&mut harness, Pos2::new(MIN_WIDTH as f32 - 25.0, bar_y));
+        assert_eq!(view.borrow().scroll, furthest);
+        // At its near end: back at the start
+        click(&mut harness, Pos2::new(25.0, bar_y));
+        assert_eq!(view.borrow().scroll, 0.0);
+    }
+
+    /// The pointer pressed at `from`, carried to `to` and let go there, a frame at each step
+    #[cfg(target_os = "linux")]
+    fn drag(harness: &mut Harness, from: Pos2, to: Pos2) {
+        use nih_plug_egui::egui::{Event, Modifiers, PointerButton};
+        let button = |pos, pressed| Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed,
+            modifiers: Modifiers::NONE,
+        };
+        let middle = from + (to - from) * 0.5;
+        let events = [
+            Event::PointerMoved(from),
+            button(from, true),
+            Event::PointerMoved(from + vec2(4.0, 0.0)),
+            Event::PointerMoved(middle),
+            Event::PointerMoved(to),
+            button(to, false),
+        ];
+        for event in events {
+            harness.input_mut().events.push(event);
+            harness.run_ok();
+        }
+    }
+
+    // A block is dragged by its title to another place in the line and lands there, across the
+    // amps if it is carried across them, with its slot
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_a_block_dragged_by_its_title_lands_in_the_nearest_place() {
+        use crate::order::Zone;
+        let params = GuitarAmpParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, _) = line_harness(WINDOW_WIDTH, WINDOW_HEIGHT, &params, &setter, 0.0);
+        let line = Line::of_chain(&params.chain.get());
+        let title = |at: usize| {
+            let left = line.places_for_test()[at];
+            Pos2::new(left + PEDAL_WIDTH / 2.0, PEDAL_TOP + 30.0)
+        };
+        // The chorus, first behind the amps (nine pieces in), to the far end of the window
+        let chorus = line.pieces_for_test().iter().position(|piece| {
+            matches!(piece, crate::board::Piece::Block(block) if block.kind == EffectKind::Chorus)
+        });
+        let chorus = chorus.unwrap();
+        drag(&mut harness, title(chorus), Pos2::new(WINDOW_WIDTH as f32 - 60.0, PEDAL_TOP + 30.0));
+        for _ in 0..3 {
+            harness.run_ok();
+        }
+        let chain = params.chain.get();
+        assert_eq!(chain.back().last().map(|block| block.kind), Some(EffectKind::Chorus));
+        assert_eq!(chain.back().len(), 6);
+        assert_eq!(chain.front().len(), 6);
+        // It is on its own slot still
+        assert!(chain.blocks().iter().all(|&block| Chain::is_home(block)));
+        // And back across the amps to right behind the gate
+        let line = Line::of_chain(&chain);
+        let last = line.pieces_for_test().len() - 1;
+        drag(
+            &mut harness,
+            title(last),
+            Pos2::new(BENCH_MARGIN + PEDAL_WIDTH + 40.0, PEDAL_TOP + 30.0),
+        );
+        for _ in 0..3 {
+            harness.run_ok();
+        }
+        let chain = params.chain.get();
+        assert_eq!(chain.front().first().map(|block| block.kind), Some(EffectKind::Chorus));
+        assert_eq!(chain.front().len(), 7);
+        let _ = Zone::Front;
+    }
+
+    // Nothing asks for a repaint while nobody touches the window: a drawn line is painted only
+    // when something changes (STYLE.md)
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_a_line_at_rest_asks_for_no_repaint() {
+        let params = GuitarAmpParams::default();
+        params.chain.put(sixteen_blocks());
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, _) = line_harness(MIN_WIDTH, MIN_HEIGHT, &params, &setter, 300.0);
+        for _ in 0..3 {
+            harness.step();
+        }
+        let delays: Vec<_> = harness
+            .output()
+            .viewport_output
+            .values()
+            .map(|viewport| viewport.repaint_delay)
+            .collect();
+        assert!(!delays.is_empty());
+        assert!(delays.iter().all(|delay| *delay == std::time::Duration::MAX), "{delays:?}");
     }
 
     // The second amp on beside the first: Torden and Klar, each through a cabinet of its own
@@ -2613,17 +3049,33 @@ mod tests {
 
     /// The top face of the strip, in window points
     fn strip_face() -> Rect {
+        strip_face_shifted(0.0)
+    }
+
+    /// The top face of a strip `shift` points wider than the default
+    fn strip_face_shifted(shift: f32) -> Rect {
         Rect::from_min_max(
             Pos2::new(BENCH_MARGIN, BENCH_MARGIN),
-            Pos2::new(WINDOW_WIDTH as f32 - BENCH_MARGIN, BENCH_MARGIN + SLIM_STRIP_HEIGHT - 5.0),
+            Pos2::new(
+                WINDOW_WIDTH as f32 + shift - BENCH_MARGIN,
+                BENCH_MARGIN + SLIM_STRIP_HEIGHT - 5.0,
+            ),
         )
+    }
+
+    /// The strips of the widths a window may give it: the narrowest, today's, a very wide one
+    fn strip_shifts() -> [f32; 3] {
+        [STRIP_MIN_WIDTH - WINDOW_WIDTH as f32, 0.0, 2600.0]
     }
 
     /// What stands on the strip, and the room each part takes, in points from the window's top
     /// left corner, from the left to the right of the strip: the print of `ui::slim_strip` (the
     /// jacks with their captions, the model number, the logo) and every control
-    fn strip_parts() -> Vec<(&'static str, Rect)> {
-        let print = ui::slim_print(strip_face(), &STYLE);
+    /// `strip_parts` of a strip `shift` points wider than the default: what is at its right end
+    /// moves with it, and what is in the middle half as far
+    fn strip_parts_shifted(shift: f32) -> Vec<(&'static str, Rect)> {
+        let print = ui::slim_print(strip_face_shifted(shift), &STYLE);
+        let (right, middle) = (vec2(shift, 0.0), vec2(shift / 2.0, 0.0));
         let around = |at: Vec2, half: Vec2| Rect::from_center_size(at.to_pos2(), 2.0 * half);
         let meter = |at: Vec2| {
             around(at, vec2(METER_WIDTH / 2.0, ui::widgets::WIDE_METER_HEIGHT / 2.0 + 2.0))
@@ -2650,14 +3102,14 @@ mod tests {
                 "the preset display",
                 around(vec2(PRESET_X, STRIP_Y), vec2(PRESET_WIDTH / 2.0, LED_HEIGHT / 2.0)),
             ),
-            ("the metronome", icon(METRONOME_X, true)),
-            ("the tuner", icon(TUNER_X, true)),
-            ("the settings", icon(SETTINGS_X, false)),
-            ("the output knob", knob(OUTPUT_KNOB)),
-            ("the output meter", meter(OUTPUT_METER)),
-            ("the output meter's caption", caption(OUTPUT_METER, 62.0)),
-            ("the clip lamp", around(CLIP_LAMP, Vec2::splat(LAMP))),
-            ("the clip lamp's caption", around(CLIP_LAMP + CLIP_CAPTION, vec2(24.0, 7.0))),
+            ("the metronome", icon(METRONOME_X + middle.x, true)),
+            ("the tuner", icon(TUNER_X + middle.x, true)),
+            ("the settings", icon(SETTINGS_X + middle.x, false)),
+            ("the output knob", knob(OUTPUT_KNOB + right)),
+            ("the output meter", meter(OUTPUT_METER + right)),
+            ("the output meter's caption", caption(OUTPUT_METER + right, 62.0)),
+            ("the clip lamp", around(CLIP_LAMP + right, Vec2::splat(LAMP))),
+            ("the clip lamp's caption", around(CLIP_LAMP + CLIP_CAPTION + right, vec2(24.0, 7.0))),
             ("the model number", print.model),
             ("the logo", print.logo),
             ("the output jack", Rect::from_center_size(print.jacks[1], Vec2::splat(16.0))),
@@ -2667,7 +3119,13 @@ mod tests {
 
     #[test]
     fn test_nothing_on_the_strip_overlaps_and_it_reads_from_the_left_to_the_right() {
-        let parts = strip_parts();
+        for shift in strip_shifts() {
+            nothing_overlaps_on_a_strip_wider_by(shift);
+        }
+    }
+
+    fn nothing_overlaps_on_a_strip_wider_by(shift: f32) {
+        let parts = strip_parts_shifted(shift);
         for (index, (name, rect)) in parts.iter().enumerate() {
             for (other, other_rect) in &parts[index + 1..] {
                 assert!(
@@ -2696,16 +3154,26 @@ mod tests {
         for pair in order.windows(2) {
             assert!(at(pair[0]) < at(pair[1]), "{} is not left of {}", pair[0], pair[1]);
         }
+        // Room to spare between the groups, as many points before the icons as after them
+        let room = |from: &str, to: &str| {
+            let find = |name: &str| parts.iter().find(|part| part.0 == name).unwrap().1;
+            find(to).left() - find(from).right()
+        };
+        let (before, after) =
+            (room("the preset display", "the metronome"), room("the settings", "the output knob"));
+        assert!((before - after).abs() < 0.5 && before > 40.0, "{before} {after} at {shift}");
     }
 
     #[test]
     fn test_nothing_on_the_strip_reaches_its_edges_or_the_line_under_it() {
-        let face = strip_face();
-        for (name, rect) in strip_parts() {
-            assert!(
-                face.shrink(2.0).contains_rect(rect),
-                "{name} {rect:?} is not on the strip's face {face:?}"
-            );
+        for shift in strip_shifts() {
+            let face = strip_face_shifted(shift);
+            for (name, rect) in strip_parts_shifted(shift) {
+                assert!(
+                    face.shrink(2.0).contains_rect(rect),
+                    "{name} {rect:?} is not on the strip's face {face:?} wider by {shift}"
+                );
+            }
         }
         // The strip is slim, and the line starts under it, a bench margin away from its box
         assert_eq!(STRIP_HEIGHT, 64.0);
@@ -3397,7 +3865,7 @@ mod tests {
 
     #[test]
     fn test_default_window_scales_with_screen_and_fits_inside_each_screen() {
-        assert_eq!(size_for_screen(1366), (MIN_WIDTH, MIN_HEIGHT));
+        assert_eq!(size_for_screen(1366), (1322, MIN_HEIGHT));
         assert_eq!(size_for_screen(1920), (1876, 321));
         assert_eq!(size_for_screen(2560), (2516, 431));
         assert_eq!(size_for_screen(2752), (2708, 464));
@@ -3425,34 +3893,78 @@ mod tests {
         assert!((MIN_HEIGHT..=WINDOW_HEIGHT).contains(&height));
     }
 
+    /// A window of `width` by `height` points for a line `line` wide
+    fn fit(width: f32, height: f32, line: f32) -> Fit {
+        Fit::of(vec2(width, height), line)
+    }
+
     #[test]
-    fn test_window_size_keeps_proportions_and_clamps_zoom() {
-        let board_aspect = WINDOW_WIDTH as f32 / WINDOW_HEIGHT as f32;
-        for dragged_w in [200.0, 1000.0, 1281.6, 1500.0, 1876.0, 2400.0, 3411.0, 4500.0] {
-            for dragged_h in [100.0, 358.0, 650.0, 1200.0] {
-                let zoom = zoom_for_width(dragged_w);
-                assert!(
-                    (MIN_ZOOM..=MAX_ZOOM).contains(&zoom),
-                    "zoom {zoom} for width {dragged_w} is outside {MIN_ZOOM}..={MAX_ZOOM}"
-                );
-                let (w, h) = window_size(vec2(dragged_w, dragged_h));
-                assert!(
-                    (MIN_WIDTH..=WINDOW_WIDTH).contains(&w),
-                    "width {w} is outside {MIN_WIDTH}..={WINDOW_WIDTH}"
-                );
-                assert!(
-                    (MIN_HEIGHT..=WINDOW_HEIGHT).contains(&h),
-                    "height {h} is outside {MIN_HEIGHT}..={WINDOW_HEIGHT}"
-                );
-                let aspect = w as f32 / h as f32;
-                assert!(
-                    (aspect - board_aspect).abs() < 0.02,
-                    "size {w}x{h} (aspect {aspect}) drifted from {WINDOW_WIDTH}:{WINDOW_HEIGHT} ({board_aspect})"
-                );
+    fn test_the_zoom_fits_the_layer_in_the_window_and_stays_between_its_limits() {
+        let default_line = WINDOW_WIDTH as f32;
+        // The window that opens on a 1920 screen shows the twelve-pedal line whole, at 0.55
+        let opening = fit(1876.0, 321.0, default_line);
+        assert!((opening.zoom - DEFAULT_ZOOM).abs() < 0.001);
+        assert_eq!(opening.furthest(), 0.0);
+        assert_eq!(opening.layer, default_line);
+        // Wider than the line needs: no bigger than full size, the strip as wide as the window
+        let wide = fit(5000.0, 900.0, default_line);
+        assert_eq!(wide.zoom, MAX_ZOOM);
+        assert_eq!(wide.strip_width(), 5000.0);
+        assert_eq!(wide.furthest(), 0.0);
+        // A window as wide as the line wants but too low for it: the height decides
+        let low = fit(3000.0, 400.0, default_line);
+        assert!((low.zoom - 400.0 / WINDOW_HEIGHT as f32).abs() < 0.001);
+        assert!(low.visible > default_line);
+        // Nothing is scaled below the minimum, nor made above the maximum
+        for width in [100.0, 1301.0, 1500.0, 2400.0, 4000.0, 9000.0] {
+            for height in [50.0, 234.0, 584.0, 2000.0] {
+                for line in [default_line / 2.0, default_line, 4239.0, 9000.0] {
+                    let fit = fit(width, height, line);
+                    assert!((MIN_ZOOM..=MAX_ZOOM).contains(&fit.zoom), "{fit:?}");
+                    assert!(fit.strip_width() >= STRIP_MIN_WIDTH);
+                    assert!(fit.layer >= line.min(STRIP_MIN_WIDTH.max(line)));
+                }
             }
         }
-        assert_eq!(window_size(vec2(500.0, 900.0)), (MIN_WIDTH, MIN_HEIGHT));
-        assert_eq!(window_size(vec2(DEFAULT_WIDTH as f32, 100.0)), (DEFAULT_WIDTH, DEFAULT_HEIGHT));
-        assert_eq!(window_size(vec2(5000.0, 200.0)), (WINDOW_WIDTH, WINDOW_HEIGHT));
+    }
+
+    #[test]
+    fn test_a_line_too_long_for_the_minimum_zoom_scrolls_and_shorter_ones_do_not() {
+        // Sixteen blocks and a gate, the stack and the gaps: 4239 points
+        let long = Line::of_chain(&full_chain_of_sixteen()).width();
+        assert_eq!(long, 4239.0);
+        // A window of 2120 shows it whole, at the least zoom there is
+        let fits = fit(2120.0, 292.0, long);
+        assert!((fits.zoom - MIN_ZOOM).abs() < 0.001, "{fits:?}");
+        assert_eq!(fits.furthest(), 0.0, "{fits:?}");
+        // On the window of a 1920 screen it would be under the minimum: scrolled instead, the
+        // blocks no smaller than the minimum makes them
+        let scrolls = fit(1876.0, 321.0, long);
+        assert_eq!(scrolls.zoom, MIN_ZOOM);
+        assert!((scrolls.furthest() - (long - 1876.0 / MIN_ZOOM)).abs() < 0.01);
+        assert!(scrolls.furthest() > 0.0);
+        // Today's twelve-pedal line scrolls only below 1706 points
+        assert_eq!(fit(1706.0, 292.0, 3411.0).furthest(), 0.0);
+        assert!(fit(1500.0, 292.0, 3411.0).furthest() > 0.0);
+        // The strip is what the window shows, never less than its controls need
+        assert!(scrolls.strip_width() >= STRIP_MIN_WIDTH);
+        // The window's smallest size shows a whole strip
+        let smallest = fit(MIN_WIDTH as f32, MIN_HEIGHT as f32, long);
+        assert!(smallest.visible >= STRIP_MIN_WIDTH, "{smallest:?}");
+        // The strip's places are those of the default width where the layer is that wide
+        assert_eq!(fit(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32, 3411.0).shift(), 0.0);
+    }
+
+    fn full_chain_of_sixteen() -> Chain {
+        let mut chain = Chain::empty();
+        for number in 0..16 {
+            let (kind, zone) = if number % 2 == 0 {
+                (EffectKind::Comp, crate::order::Zone::Front)
+            } else {
+                (EffectKind::Delay, crate::order::Zone::Back)
+            };
+            chain.add(kind, zone, 99).unwrap();
+        }
+        chain
     }
 }

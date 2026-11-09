@@ -207,6 +207,28 @@ pub fn param_knob_with<P: Param>(
     response
 }
 
+/// A `param_knob` of `param` whose value is told in the terms of `shown`: the same position,
+/// as `shown`'s range and unit would read it. For a knob that is a plain 0 to 1 stand-in for
+/// another parameter's (a slot of the Guitar Amp's chain holds the knobs of whatever effect
+/// stands on it)
+#[allow(clippy::too_many_arguments)]
+pub fn param_knob_as<P: Param, Q: Param>(
+    ui: &mut Ui,
+    setter: &ParamSetter,
+    param: &P,
+    shown: &Q,
+    center: Pos2,
+    radius: f32,
+    label: &str,
+    scale: Option<[&str; 3]>,
+) -> Response {
+    let (response, normalized) = turn_param(ui, setter, param, center, radius);
+    knob_with(ui.painter(), center, radius, normalized, scale, KnobCap::Fluted, SILK);
+    let value = shown.normalized_value_to_string(normalized, true);
+    knob_caption(ui.painter(), center, radius, label, &value, SILK);
+    response
+}
+
 /// A knob bound to a parameter with no name or value printed round it, for a strip too slim for
 /// them: its scale ticks and the cap only. Dragged like every knob. The name and the value show
 /// as a hint while the pointer rests on it.
@@ -1539,6 +1561,71 @@ pub fn badge(painter: &Painter, right_bottom: Pos2, size: f32) -> Rect {
 
     painter.galley(Pos2::new(x, text_y), jt, SILK);
     plate
+}
+
+/// How thick a `scroll_bar` is drawn, and how much taller than that it can be grabbed
+pub const SCROLL_BAR_THICKNESS: f32 = 9.0;
+pub const SCROLL_BAR_GRAB: f32 = 24.0;
+const SCROLL_THUMB_MIN: f32 = 60.0;
+
+/// A scroll bar lying along `track`, for a line of `total` points of which `visible` are in the
+/// window, scrolled `offset` points from its start: a dark groove with a chrome thumb. Drag the
+/// thumb, or press in the groove to bring the thumb there. It can be grabbed in a rectangle
+/// `SCROLL_BAR_GRAB` high round the groove. Nothing is drawn, and `0.0` is given back, when
+/// everything is visible. Otherwise gives back the offset it now stands at
+pub fn scroll_bar(
+    ui: &mut Ui,
+    id_source: &str,
+    track: Rect,
+    visible: f32,
+    total: f32,
+    offset: f32,
+) -> f32 {
+    let furthest = (total - visible).max(0.0);
+    if furthest <= 0.0 {
+        return 0.0;
+    }
+    let mut offset = offset.clamp(0.0, furthest);
+    let thumb_width = (track.width() * visible / total).clamp(SCROLL_THUMB_MIN, track.width());
+    let travel = (track.width() - thumb_width).max(1.0);
+    let thumb_at = |offset: f32| {
+        let left = track.left() + travel * offset / furthest;
+        Rect::from_min_max(
+            Pos2::new(left, track.top()),
+            Pos2::new(left + thumb_width, track.bottom()),
+        )
+    };
+
+    let grab = Rect::from_center_size(track.center(), vec2(track.width(), SCROLL_BAR_GRAB));
+    let response = ui.interact(grab, Id::new(("scroll_bar", id_source)), Sense::click_and_drag());
+    if response.drag_started() || response.clicked() {
+        // Pressed in the groove beside the thumb: the thumb comes there
+        if let Some(pointer) = response.interact_pointer_pos() {
+            if !thumb_at(offset).contains(pointer) {
+                let left = pointer.x - thumb_width / 2.0 - track.left();
+                offset = (left / travel * furthest).clamp(0.0, furthest);
+            }
+        }
+    }
+    if response.dragged() {
+        offset = (offset + response.drag_delta().x * furthest / travel).clamp(0.0, furthest);
+    }
+
+    let painter = ui.painter();
+    let radius = SCROLL_BAR_THICKNESS / 2.0;
+    painter.rect_filled(track.expand(1.0), radius + 1.0, Color32::from_black_alpha(150));
+    painter.rect_filled(track, radius, TAPE);
+    let thumb = thumb_at(offset);
+    let lit = response.hovered() || response.dragged();
+    painter.rect_filled(thumb.translate(vec2(0.0, 1.0)), radius, SHADOW);
+    painter.rect_filled(thumb, radius, if lit { CHROME_LIGHT } else { CHROME });
+    painter.rect_stroke(
+        thumb,
+        radius,
+        Stroke::new(1.0_f32, Color32::from_black_alpha(110)),
+        StrokeKind::Inside,
+    );
+    offset
 }
 
 #[cfg(test)]

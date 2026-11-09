@@ -6,7 +6,7 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
 
 - `theme.rs` - Colours, the three embedded fonts (`install`), text helpers. One paint colour per plugin,
   one per mini pedal of a rig (`PEDAL_PAINTS`), and `shade` for darker tones of a paint
-- `widgets.rs` - `param_knob` (fluted knob, name, value on label tape; `param_knob_with` for another
+- `widgets.rs` - `param_knob` (fluted knob, name, value on label tape; `param_knob_as` for a knob whose value is told in the terms of another parameter, `scroll_bar` for a line wider than the window; `param_knob_with` for another
   `KnobCap` and print colour), `panel_knob` (a knob on an amp head's panel: name above, value tape under,
   where there is room for one line of controls; `panel_knob_rect` is the room it takes),
   `nameplate_stepper` (a name on a plate with a chrome step button each side),
@@ -37,7 +37,7 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
   with captions under them, model number and logo, no screws) and `mini_pedal` (small enclosure with only a title), each
   mini pedal described by a `MiniStyle`; `coupler` and `patch_cable` carry the signal between them
 - `plate.rs`, `icons.rs` - `plate` (a hardware plate in a layer above the window, closing on a click outside it or escape; the caller owns which is open) and `icon_switch` (a drawing that opens a plate, with a lamp and a chrome switch where the thing can be on or off)
-- `raster.rs` - Per-pixel lit surfaces (signed distance field + one fixed light): `box_image`, `knob_image`
+- `raster.rs` - Per-pixel lit surfaces (signed distance field + one fixed light; `paint_box_wide` for a long strip, one picture whose middle is stretched, never over 8192 px): `box_image`, `knob_image`
   (a `KnobCap`: `Fluted`, the pedals' knob, `ChickenHead`, `CreamChickenHead`, `GoldTop`, `ChromeSkirt`), `screw_image`, and for the
   half stack `tolex_image` (`Tolex`), `grille_image` (`Grille`, cloth or mesh with the speakers behind it) and
   `plate_image` (`Plate`); `paint_*` cache them as textures. To look at them without a window:
@@ -113,10 +113,12 @@ controls, portrait) or `plugins/drums/src/editor.rs` (many controls, landscape) 
   It is print, not the version, and does not change with releases
 - **Jack captions** say what really goes in and out (`In`, `MIDI In`, `Stereo Out`)
 - **Window size:** fixed, sized to the controls. Portrait about 400 wide for up to four controls,
-  landscape about 660 wide for more
+  landscape about 660 wide for more. The one exception is a rig whose line the player builds (the
+  Guitar Amp, #270): its window is dragged to any size, the line is scaled to fit it between the
+  zoom that reads and full size, and scrolled sideways below that
 - **Clean factory paint:** no wear or dirt. Surfaces are lit, not flat: powder-coat flake, bevels, brushed and knurled metal come from `ui/raster.rs`, never from image files
 - **New shared pieces go in `suite_common::ui`,** not in a plugin's editor, so every plugin gets them
-- **Rigs** (a window of several pedals, as the Guitar Amp has): the rules for the strip, the stack, mini pedals, pedal art, equal pedals, a rearrangeable board, signal lamps, presets, file choices and the tuner are in `plugins/amp/AGENTS.md`, "Look: the rig". Read them before drawing a second rig
+- **Rigs** (a window of several pedals, as the Guitar Amp has): the rules for the strip, the stack, mini pedals, pedal art, the signal line (blocks of one width, a scaled and scrolled window), signal lamps, presets, file choices and the tuner are in `plugins/amp/AGENTS.md`, "Look: the rig". Read them before drawing a second rig
 
 After changing an editor, run it standalone (see `AGENTS.md`, Build Commands) and look at it before bundling.
 

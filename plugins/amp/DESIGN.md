@@ -14,8 +14,8 @@ The reasons behind choices that the code alone does not explain. What it does is
 - The strip's print is 13 points or more (7 px at the default zoom 0.55) and its meters are
   lit green, amber (-10, -5 dBFS) and red (0), with the unlit state visible. The strip's knobs
   keep no value readout (`bare_param_knob`; the hover hint and a double click say it). At zoom
-  0.4 the print is about 5 px: the least that reads is the window at 0.55, so the window does
-  not open smaller. The plus on the strip is #272's
+  0.4 the print is about 5 px: the least that reads is the window at 0.55 (it opens there on a
+  1920 screen), and the line is never scaled below 0.5 (#270, below). The plus on the strip is #272's
 - The cabinet looks as the cabinet that plays (#100), but its box keeps one size for all
   twelve looks (a lane's, since #177): the pedals stand beside the stack as tall as it, and
   the cables, the controls and every click stay where they are whatever is picked. A real 1x10 and 4x12 differ in size; here only the speakers behind
@@ -269,11 +269,33 @@ The reasons behind choices that the code alone does not explain. What it does is
   pilot lamp beside them, so the dials are radius 18, and a scale is measured by where its
   ticks end, not by a circle round it (#99)
 - The window's size is persisted under a key of its own (`editor-state-rig12`); it is renamed
-  whenever the default size changes, so a project saved before opens at the new size. The board is
-  drawn in 3411 x 584 points on `ui::rig_layer()` and scaled by a layer transform (`0.4` to `1.0`,
-  opening sized to the screen up to the full `3411 x 584` or `1876 x 321` px on a `1920 x 1080` screen) inside `ResizableWindow` with the `3411 : 584` proportions
-  locked (#227). The slim strip (#267) made it 66 points lower than the 650 it was: the pedals and
-  the stack kept their size
+  whenever the default size changes, so a project saved before opens at the new size. The key
+  is not renamed for #270: a saved size is still a size, and it is clamped to the screen at
+  open. The line is drawn in a layer of its own width on `ui::rig_layer()` (3411 x 584 points for
+  the gate, twelve pedals and the stack of today's chain; each block more is 207 points more)
+  and scaled by a layer transform, the zoom that fits the layer in the window wide and high,
+  kept between 0.5 and 1.0 (#270). Opening is sized to the screen at 0.55 (the full `3411 x 584`
+  or `1876 x 321` on a `1920 x 1080` screen). The corner handle drags to any size from
+  1301 x 293, no proportions locked: a chain that grows is a line that grows. The slim strip
+  (#267) made it 66 points lower than the 650 it was: the pedals and the stack kept their size
+- **The line scales and scrolls (#270).** A block keeps its size and the gap between two is
+  27 points always, so the line is as wide as its blocks (`board::Line::width`) and never
+  stretched to the window. Zoom 0.5 is the least that reads (about 6.5 px for the 13-point
+  captions, 5.5 px for the tapes, as the snapshots of this build show: at 0.4 the tapes and
+  captions are a few pixels high and blur). Under it the window shows part of the line and the wheel over the line,
+  or a bar along the foot, scrolls it sideways: the strip stays where it is and stretches with
+  the window (what is at its right end moves with the edge, the icons stay in the middle, from
+  2600 points up, `STRIP_MIN_WIDTH`). Sixteen blocks are 4239 points: they fit whole in a window
+  2120 wide, and scroll in one on a 1920 screen. The strip's lit surface is one picture of
+  3391 points whose middle is stretched (`raster::paint_box_wide`, `paint_art_wide`), so a drag of
+  the corner makes no new picture and none is wider than a graphics card's 8192-pixel texture
+- **Decisions of #270 the spec left to the build** (recommendation taken, recorded on the issue):
+  the minimum zoom is 0.5 (the alternative was today's 0.4, which the 1366 laptop window shows
+  whole but unreadable); the opening size stays 0.55 on the 12-pedal width, clamped to the
+  screen; the block order can still be changed by dragging a block by its title (the spec amends
+  "a board that can be rearranged" to the line, and #272 adds the bank and the drag from it, so
+  taking the title drag away now would take a capability away until then); the stack draws the
+  two lanes the chain has today, lanes three and four come with their parameters in #269
 - The strip is slim (64 px, #261 direction A "Signal Line"): the controls that were on it all
   at once are behind icons and plates (#258, #259): presets, the metronome and the settings open
   as hardware plates under the strip, one at a time; the Output knob's caption is over its meter

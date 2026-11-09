@@ -135,6 +135,29 @@ pub fn paint_art(painter: &Painter, top: Rect, radius: f32, png_bytes: &'static 
     blit(painter, &texture, top);
 }
 
+/// `paint_art` for a long strip of any width: one picture, made once at `raster::wide_source`
+/// points wide, whose middle is stretched or squeezed to fit (so a picture of grain along the
+/// strip, as the amp's is, is all it can be)
+pub fn paint_art_wide(painter: &Painter, top: Rect, radius: f32, png_bytes: &'static [u8]) {
+    let ctx = painter.ctx();
+    let ppp = ctx.pixels_per_point();
+    let width = super::raster::wide_source(ppp);
+    let key = (
+        "art-wide",
+        png_bytes.as_ptr() as usize,
+        width.to_bits(),
+        top.height().to_bits(),
+        radius.to_bits(),
+        ppp.to_bits(),
+    );
+    let texture = cached(ctx, key, || {
+        let w = (width * ppp).round().max(1.0) as usize;
+        let h = (top.height() * ppp).round().max(1.0) as usize;
+        fit_image(png_bytes, w, h, radius * ppp)
+    });
+    super::raster::blit_wide(painter, &texture, top, 0.0);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
