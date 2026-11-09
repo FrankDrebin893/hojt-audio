@@ -3,6 +3,7 @@ use nih_plug_egui::EguiState;
 use std::sync::Arc;
 
 mod amp;
+mod bank;
 mod board;
 mod cab;
 mod cab_stage;

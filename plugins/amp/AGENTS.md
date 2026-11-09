@@ -118,7 +118,19 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   amp, in the order of `Amp::ALL`. The sound stays in `amp/model.rs`
 - `src/board.rs` - The signal line under the strip, from the chain model (`Line`): the gate, the
   blocks in front of the amps, the stack, the blocks behind, each a `Piece`, the couplers and
-  patch cables between them, and dragging a block by its title to another place (`Chain::move_block`)
+  patch cables between them, and dragging a block by its title to another place (`Chain::move_block`), the plus in each gap (hover) that opens the bank, the dashed place a dragged card opens, the cross on a block's corner that takes it out, and the two dashed sides of an empty chain (#272)
+- `src/bank.rs` - The effects bank (#272): the sheet that rises from the bottom of the window over the line
+  (`ui::sheet`; `Sheet` is held by the editor's `View` as `effects`: one open at most, and opening it closes
+  a plate and the other way round). A card for each of twelve effects (the Gate is the line's first piece and
+  has none) with how many of it are in the chain, any number of times. A click on a card adds it in the gap the
+  bank was opened from (and moves that gap on, so the next card follows it); a card dragged out opens a place in
+  the nearest gap of the line (`Line::drop_target`) and lands there when it is let go over the line, over the
+  sheet it goes back; the cross on a block (`Pedals::take_out`, `StoredChain::take_out`) opens the bank with a
+  note that its settings are kept and an Undo. What plays: the audio plays the pedal on its own slot, so a
+  second block of a kind, or one off its pedal's slot, is drawn, kept and saved but silent until #268's last
+  piece; taking out a pedal on its own slot switches its parameter off (`Chain::order` puts the pedal back, so
+  only its switch keeps it silent) and putting it in again brings the values and the switch back
+  (kept by kind, `Memory`). The plus under the amps (`Chain::add_amp`) shows while the chain has fewer lanes than `MAX_AMPS` (two, four after #269); the stack always draws both lanes, so today it only shows for a chain saved with one, and amp lanes have no cross yet (amp 1 never)
 
 Signal flow:
 

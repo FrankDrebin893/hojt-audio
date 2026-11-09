@@ -14,6 +14,8 @@
 //!   joined by `coupler`s and `patch_cable`s
 //! - `plate`: the hardware plate that opens from an icon or a display, and `icons`: the icon with
 //!   a lamp and a switch that opens one
+//! - `sheet`: the sheet that rises from below, with the plus, the cross and the dashed place of a
+//!   rig's chain
 //! - `snapshot` (feature `snapshot`, tests only): draws an editor off screen into a picture
 
 pub mod amp;
@@ -26,6 +28,7 @@ pub mod icons;
 pub mod led;
 pub mod plate;
 pub mod raster;
+pub mod sheet;
 #[cfg(feature = "snapshot")]
 pub mod snapshot;
 pub mod theme;
@@ -46,6 +49,10 @@ pub use icons::{icon_switch, Icon, IconSwitch};
 pub use led::{led_display, led_width, tuner_display, LED_HEIGHT};
 pub use plate::{plate, Close};
 pub use raster::{Grille, KnobCap, Plate, Tolex};
+pub use sheet::{
+    aside, center_label, cross_button, dashed_frame, dashed_rule, floating, left_label,
+    plus_button, pointer_over, sheet, BRASS, PLUS_RADIUS,
+};
 pub use theme::install;
 pub use widgets::{
     bare_param_knob, beat_lamp, beat_lamp_sized, cents_meter, chrome_button, crossfader,
