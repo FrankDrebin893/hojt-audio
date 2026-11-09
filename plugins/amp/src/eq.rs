@@ -768,8 +768,14 @@ mod tests {
             in_front,
         ));
         for (name, input, amp, gain, eq, order) in jobs {
-            let settings =
-                AmpSettings { amp, gain, eq, order, gate_on: false, ..AmpSettings::default() };
+            let settings = AmpSettings {
+                amp,
+                gain,
+                eq,
+                layout: order.into(),
+                gate_on: false,
+                ..AmpSettings::default()
+            };
             let mut chain = AmpChain::new();
             chain.set_sample_rate(FS);
             let (mut left, mut right) = (input.clone(), input.clone());

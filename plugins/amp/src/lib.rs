@@ -14,9 +14,11 @@ mod drive;
 mod dsp;
 mod editor;
 mod eq;
+mod extras;
 mod fuzz;
 mod gate;
 mod lamps;
+mod layout;
 mod looks;
 mod metronome;
 mod mods;
@@ -44,6 +46,7 @@ use delay::{DelaySettings, FEEDBACK_MAX, TIME_MAX_MS, TIME_MIN_MS};
 use dial_memory::DialMemory;
 use eq::EqSettings;
 use fuzz::FuzzSettings;
+use layout::Layout;
 use metronome::{ClickOut, Metronome, MetronomeSettings, Sound, TimeSignature};
 use mods::chorus::{self, ChorusSettings};
 use mods::flanger::{self, FlangerSettings};
@@ -422,7 +425,8 @@ pub struct GuitarAmpParams {
     pub wah_sens: FloatParam,
 
     // The slots of the chain (`slots`): a switch and five knobs each, named alike for the
-    // host. The audio reads them from #268 on; until then they are reserved. Last in the list
+    // host. The audio reads them for a block that is not on its pedal's own slot (`layout`,
+    // `extras`, #268). Last in the list
     // so every parameter before them keeps its place for a host that shows them in order
     #[nested(id_prefix = "slot1", group = "Slot 1")]
     pub slot1: SlotParams,
@@ -762,6 +766,7 @@ impl GuitarAmpParams {
     /// What the knobs say now, with the song at `tempo_bpm` (`None` where the host gives
     /// no tempo)
     fn settings(&self, tempo_bpm: Option<f64>) -> AmpSettings {
+        let layout = Layout::of(&self.chain.get());
         AmpSettings {
             bypass: self.bypass.value(),
             in_gain_db: self.in_gain.value(),
@@ -863,7 +868,8 @@ impl GuitarAmpParams {
             },
             out_level: self.out_level.value(),
             tuner_on: self.tuner_on.value(),
-            order: self.chain.order(),
+            slots: self.slot_settings(&layout, tempo_bpm),
+            layout,
         }
     }
 }

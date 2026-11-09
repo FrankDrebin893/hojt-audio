@@ -988,7 +988,7 @@ mod tests {
                     rate_hz: tremolo.1,
                     depth: percent(tremolo.2),
                 },
-                order: self.chain_order(),
+                layout: self.chain_order().into(),
                 gate_on: self.gate.0,
                 gate_thresh_db: self.gate.1,
                 gate_release_ms: self.gate.2,

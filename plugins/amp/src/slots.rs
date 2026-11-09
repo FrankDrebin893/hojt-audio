@@ -16,10 +16,15 @@
 //! kind K standing on the slot of that pedal (`Chain::home`) is bound to them, and the audio
 //! reads them as it always did, so a host's automation of them keeps working and nothing is
 //! copied or renamed. Every other block (a second delay, a pedal on the wrong slot, anything
-//! on slots the pedals do not own) keeps its values in the slot parameters; the audio will read
-//! those from #268 on, and until then they are reserved. A project or preset from before
+//! on slots the pedals do not own) keeps its values in the slot parameters, which the audio reads
+//! (`layout`, `extras`, #268). A pedal the chain does not hold is not played, whatever its own
+//! switch says. A project or preset from before
 //! has no `chain` and opens as `Chain::from_order` of its `chain-order`: the same twelve
 //! pedals, in the saved order, with their own on/off state, which stays in their parameters.
+//!
+//! **Instances.** A chain holds at most `MAX_PER_KIND` (2) blocks of a kind: the audio makes the
+//! effects that are not a pedal's own with the chain, that many of each kind (`extras::Pool`),
+//! so that putting a block in allocates nothing on the audio thread.
 //!
 //! **Memory.** Taking a block out keeps its values by effect kind (`Memory`), and putting one
 //! of that kind in again brings them back, on whichever slot it lands.
@@ -29,8 +34,21 @@ use nih_plug::prelude::*;
 use std::sync::atomic::{fence, AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 
+use crate::comp::CompSettings;
+use crate::delay::DelaySettings;
+use crate::eq::EqSettings;
+use crate::extras::BlockSettings;
+use crate::fuzz::FuzzSettings;
+use crate::layout::{Layout, Voice};
+use crate::mods::chorus::ChorusSettings;
+use crate::mods::flanger::FlangerSettings;
+use crate::mods::phaser::PhaserSettings;
+use crate::mods::tremolo::TremoloSettings;
 use crate::order::{ChainOrder, Pedal, Zone, AMP_ID};
+use crate::pitch::PitchSettings;
 use crate::presets::{set_together, Edit};
+use crate::reverb::ReverbSettings;
+use crate::wah::WahSettings;
 use crate::GuitarAmpParams;
 
 /// Effect slots in a chain
@@ -39,6 +57,11 @@ pub const MAX_SLOTS: usize = 16;
 /// Knobs of a slot (`K`): those of the widest pedal, the delay (Time, Feedback, Mix, Sync, Note).
 /// Frozen with the ids `slot<n>_k1` to `slot<n>_k5`
 pub const KNOBS: usize = 5;
+
+/// Blocks of one kind in a chain (#268): the pedal's own on its slot and one more, or two on
+/// other slots. The audio makes the instances of the effects that are not a pedal's own with
+/// the chain, off the audio thread, so there is a number of them to make
+pub const MAX_PER_KIND: usize = 2;
 
 /// Amp lanes. The first is always there; the second is as it is today
 pub const MAX_AMPS: usize = 2;
@@ -102,7 +125,7 @@ impl EffectKind {
     }
 
     /// Position in `ALL`
-    fn index(self) -> usize {
+    pub fn index(self) -> usize {
         self as usize
     }
 
@@ -186,6 +209,8 @@ pub enum AddError {
     Full,
     /// The kind cannot stand in that zone
     WrongZone,
+    /// The chain already has `MAX_PER_KIND` of that kind
+    TooMany,
 }
 
 /// The line: the blocks before the amps and after the cabinets, in order, and how many amp
@@ -236,11 +261,11 @@ impl Chain {
         chain
     }
 
-    /// The twelve-pedal view the audio reads until it reads slots (#268): the pedals of the
-    /// chain in its order. A pedal the chain lacks, or has twice or where it cannot stand,
-    /// goes where `ChainOrder::from_ids` puts it, so this is always a legal order. That puts a
-    /// pedal back that the chain has taken out, so #268, which makes the audio read blocks,
-    /// must replace this view and not rely on it
+    /// The twelve-pedal view the board draws and a project saves for an older build: the
+    /// pedals of the chain in its order. A pedal the chain lacks, or has twice or where it
+    /// cannot stand, goes where `ChainOrder::from_ids` puts it, so this is always a legal
+    /// order. That puts a pedal back that the chain has taken out, so the audio does not read
+    /// this view: it reads `Layout::of`
     pub fn order(&self) -> ChainOrder {
         let front = self.front().iter().filter_map(|block| block.kind.pedal()).map(Pedal::id);
         let back = self.back().iter().filter_map(|block| block.kind.pedal()).map(Pedal::id);
@@ -266,6 +291,11 @@ impl Chain {
         self.amps
     }
 
+    /// How many blocks of `kind` the chain has
+    pub fn count_of(&self, kind: EffectKind) -> usize {
+        self.blocks().iter().filter(|block| block.kind == kind).count()
+    }
+
     pub fn block_on(&self, slot: u8) -> Option<Block> {
         self.blocks().iter().copied().find(|block| block.slot == slot)
     }
@@ -285,6 +315,9 @@ impl Chain {
         }
         if self.len == MAX_SLOTS {
             return Err(AddError::Full);
+        }
+        if self.count_of(kind) >= MAX_PER_KIND {
+            return Err(AddError::TooMany);
         }
         let free = |slot: usize| self.block_on(slot as u8).is_none();
         let slot = kind
@@ -373,8 +406,8 @@ impl Chain {
 
     /// The chain a saved project names. Whatever is wrong with the list is put right and not
     /// refused, since a project has to open: a name this build does not know is skipped, so
-    /// is a slot named twice, a block on the side its kind cannot stand on and any block past
-    /// the sixteenth. A list with no `amp` in it is damaged and gives the default
+    /// is a slot named twice, a block on the side its kind cannot stand on, a third block of a
+    /// kind and any block past the sixteenth. A list with no `amp` in it is damaged and gives the default
     pub fn from_ids<'a>(ids: impl IntoIterator<Item = &'a str>) -> Chain {
         let mut chain = Chain::empty();
         let mut zone = Zone::Front;
@@ -392,7 +425,8 @@ impl Chain {
                 let slot = slot.parse::<usize>().ok().filter(|n| (1..=MAX_SLOTS).contains(n));
                 if let (Some(kind), Some(slot)) = (kind, slot) {
                     let free = !std::mem::replace(&mut taken[slot - 1], true);
-                    if free && kind.can_be_in(zone) && chain.len < MAX_SLOTS {
+                    let room = chain.len < MAX_SLOTS && chain.count_of(kind) < MAX_PER_KIND;
+                    if free && kind.can_be_in(zone) && room {
                         chain.blocks[chain.len] = Block { slot: slot as u8 - 1, kind };
                         chain.len += 1;
                     } else if free {
@@ -442,6 +476,7 @@ impl Chain {
         chain.front = (words[2] & 0xff) as usize;
         chain.amps = ((words[2] >> 8) & 0xff) as usize;
         let legal = chain.front <= chain.len
+            && EffectKind::ALL.iter().all(|&kind| chain.count_of(kind) <= MAX_PER_KIND)
             && (1..=MAX_AMPS).contains(&chain.amps)
             && chain.front().iter().all(|block| block.kind.can_be_in(Zone::Front))
             && chain.back().iter().all(|block| block.kind.can_be_in(Zone::Back));
@@ -832,6 +867,130 @@ impl GuitarAmpParams {
     }
 }
 
+impl GuitarAmpParams {
+    /// What the effects that play from a slot's parameters (`Voice::Slot`) are told, by slot
+    /// (counted from 0), with the song at `tempo_bpm`. Every slot knob is 0.0 to 1.0 and
+    /// means what the same knob of the pedal's own parameters means at that position (the
+    /// parameter's own range, so a value that moves from one to the other, as `Memory` moves
+    /// it, is heard as it was set)
+    pub(crate) fn slot_settings(
+        &self,
+        layout: &Layout,
+        tempo_bpm: Option<f64>,
+    ) -> [BlockSettings; MAX_SLOTS] {
+        let mut settings = [BlockSettings::None; MAX_SLOTS];
+        for voice in layout.voices() {
+            if let Voice::Slot { kind, slot, .. } = *voice {
+                settings[slot as usize] = self.block_settings(kind, slot as usize, tempo_bpm);
+            }
+        }
+        settings
+    }
+
+    /// What a block of `kind` is told from slot `slot` (counted from 0)
+    pub(crate) fn block_settings(
+        &self,
+        kind: EffectKind,
+        slot: usize,
+        tempo_bpm: Option<f64>,
+    ) -> BlockSettings {
+        let params = self.slot(slot);
+        let knobs = params.knobs().map(|knob| knob.value());
+        self.block_settings_from(kind, params.on.value(), knobs, tempo_bpm)
+    }
+
+    /// What a block of `kind` is told from a switch and knobs at these positions (0.0 to 1.0)
+    pub(crate) fn block_settings_from(
+        &self,
+        kind: EffectKind,
+        on: bool,
+        knobs: [f32; KNOBS],
+        tempo_bpm: Option<f64>,
+    ) -> BlockSettings {
+        let [k1, k2, k3, k4, k5] = knobs;
+        let p = self;
+        match kind {
+            EffectKind::Gate => BlockSettings::Gate {
+                on,
+                threshold_db: p.gate_thresh.preview_plain(k1),
+                release_ms: p.gate_release.preview_plain(k2),
+            },
+            EffectKind::Drive => BlockSettings::Drive {
+                on,
+                drive: p.drive_gain.preview_plain(k1),
+                tone: p.drive_tone.preview_plain(k2),
+                level: p.drive_level.preview_plain(k3),
+            },
+            EffectKind::Comp => BlockSettings::Comp(CompSettings {
+                on,
+                sustain: p.comp_sustain.preview_plain(k1),
+                level: p.comp_level.preview_plain(k2),
+            }),
+            EffectKind::Fuzz => BlockSettings::Fuzz(FuzzSettings {
+                on,
+                fuzz: p.fuzz_fuzz.preview_plain(k1),
+                tone: p.fuzz_tone.preview_plain(k2),
+            }),
+            EffectKind::Pitch => BlockSettings::Pitch(PitchSettings {
+                on,
+                semitones: p.pitch_semitones.preview_plain(k1),
+                blend: p.pitch_blend.preview_plain(k2),
+                latency_ms: p.pitch_latency.preview_plain(k3),
+            }),
+            EffectKind::Wah => BlockSettings::Wah(WahSettings {
+                on,
+                mode: p.wah_mode.preview_plain(k3),
+                pedal: p.wah_pedal.preview_plain(k1),
+                bite: p.wah_q.preview_plain(k2),
+                sens: p.wah_sens.preview_plain(k4),
+            }),
+            EffectKind::Eq => BlockSettings::Eq(EqSettings {
+                on,
+                low: p.eq_low.preview_plain(k1),
+                mid: p.eq_mid.preview_plain(k2),
+                freq: p.eq_freq.preview_plain(k3),
+                high: p.eq_high.preview_plain(k4),
+            }),
+            EffectKind::Chorus => BlockSettings::Chorus(ChorusSettings {
+                on,
+                rate_hz: p.chorus_rate.preview_plain(k1),
+                depth: p.chorus_depth.preview_plain(k2),
+            }),
+            EffectKind::Flanger => BlockSettings::Flanger(FlangerSettings {
+                on,
+                rate_hz: p.flanger_rate.preview_plain(k1),
+                depth: p.flanger_depth.preview_plain(k2),
+            }),
+            EffectKind::Phaser => BlockSettings::Phaser(PhaserSettings {
+                on,
+                rate_hz: p.phaser_rate.preview_plain(k1),
+                depth: p.phaser_depth.preview_plain(k2),
+            }),
+            EffectKind::Tremolo => BlockSettings::Tremolo(TremoloSettings {
+                on,
+                rate_hz: p.trem_rate.preview_plain(k1),
+                depth: p.trem_depth.preview_plain(k2),
+            }),
+            EffectKind::Delay => BlockSettings::Delay(DelaySettings {
+                on,
+                time_ms: crate::delay_time_ms(
+                    p.delay_time.preview_plain(k1),
+                    p.delay_sync.preview_plain(k4),
+                    p.delay_note.preview_plain(k5),
+                    tempo_bpm,
+                ),
+                feedback: p.delay_feedback.preview_plain(k2),
+                mix: p.delay_mix.preview_plain(k3),
+            }),
+            EffectKind::Reverb => BlockSettings::Reverb(ReverbSettings {
+                on,
+                decay_s: p.reverb_decay.preview_plain(k1),
+                mix: p.reverb_mix.preview_plain(k2),
+            }),
+        }
+    }
+}
+
 /// Where the values of the blocks are read and written: the parameters (`Live`), or whatever
 /// stands in for them in a test, since a parameter can only be set through the host
 pub trait Values {
@@ -987,7 +1146,8 @@ mod tests {
         let mut chain = Chain::empty();
         for number in 0..MAX_SLOTS {
             let zone = if number % 2 == 0 { Zone::Front } else { Zone::Back };
-            let kind = if number % 2 == 0 { EffectKind::Comp } else { EffectKind::Delay };
+            // Eight kinds, two of each (`MAX_PER_KIND`)
+            let kind = EffectKind::ALL[1 + number / 2];
             let slot = chain.add(kind, zone, 99).unwrap();
             assert!(chain.block_on(slot).is_some());
         }
@@ -996,6 +1156,12 @@ mod tests {
         slots.sort();
         assert_eq!(slots, (0..MAX_SLOTS as u8).collect::<Vec<_>>());
         assert_eq!(chain.add(EffectKind::Comp, Zone::Front, 0), Err(AddError::Full));
+
+        // A third of a kind is refused
+        let mut chain = Chain::empty();
+        assert!(chain.add(EffectKind::Comp, Zone::Front, 0).is_ok());
+        assert!(chain.add(EffectKind::Comp, Zone::Front, 0).is_ok());
+        assert_eq!(chain.add(EffectKind::Comp, Zone::Back, 0), Err(AddError::TooMany));
 
         let mut chain = Chain::empty();
         // Every effect stands on either side (#268); the gate only in front
@@ -1053,8 +1219,10 @@ mod tests {
             assert_eq!(Chain::from_words(words), None, "{words:x?}");
         }
         // More than sixteen are cut at the sixteenth
-        let many: Vec<String> =
-            (0..40).map(|n| format!("eq@{}", n % 16 + 1)).chain(["amp".to_string()]).collect();
+        let many: Vec<String> = (0..40)
+            .map(|n| format!("{}@{}", EffectKind::ALL[1 + n % 8].id(), n % 16 + 1))
+            .chain(["amp".to_string()])
+            .collect();
         assert_eq!(Chain::from_ids(many.iter().map(String::as_str)).blocks().len(), MAX_SLOTS);
     }
 
@@ -1253,5 +1421,97 @@ mod tests {
         assert_eq!(told.len(), 3 * 6);
         assert!(told.iter().any(|&(_, ptr)| ptr == params.delay_sync.as_ptr()));
         assert!(told.iter().all(|&(_, ptr)| ptr != params.reverb_on.as_ptr()));
+    }
+
+    /// What a block is told, as the numbers of its knobs in the order of the slot's
+    fn numbers(told: BlockSettings) -> Vec<f32> {
+        match told {
+            BlockSettings::None => vec![],
+            BlockSettings::Gate { threshold_db, release_ms, .. } => vec![threshold_db, release_ms],
+            BlockSettings::Drive { drive, tone, level, .. } => vec![drive, tone, level],
+            BlockSettings::Comp(s) => vec![s.sustain, s.level],
+            BlockSettings::Fuzz(s) => vec![s.fuzz, s.tone],
+            BlockSettings::Pitch(s) => vec![s.semitones as f32, s.blend, s.latency_ms],
+            BlockSettings::Wah(s) => vec![s.pedal, s.bite, s.mode as usize as f32, s.sens],
+            BlockSettings::Eq(s) => vec![s.low, s.mid, s.freq, s.high],
+            BlockSettings::Chorus(s) => vec![s.rate_hz, s.depth],
+            BlockSettings::Flanger(s) => vec![s.rate_hz, s.depth],
+            BlockSettings::Phaser(s) => vec![s.rate_hz, s.depth],
+            BlockSettings::Tremolo(s) => vec![s.rate_hz, s.depth],
+            BlockSettings::Delay(s) => vec![s.time_ms, s.feedback, s.mix],
+            BlockSettings::Reverb(s) => vec![s.decay_s, s.mix],
+        }
+    }
+
+    /// A slot's knobs mean what the same knobs of the pedal's own parameters do at that
+    /// position, in the same order (a value that moves between the two, as `Memory` moves it, is
+    /// heard as it was set): every kind, each knob at a position of its own
+    #[test]
+    fn test_a_slot_knob_means_what_the_pedals_own_knob_does_at_that_position() {
+        let params = GuitarAmpParams::default();
+        for kind in EffectKind::ALL {
+            let (on, own) = pedal_params(&params, kind);
+            assert!(on != params.slot(0).on.as_ptr());
+            for step in 0..=8usize {
+                let mut knobs = [0.0; KNOBS];
+                for (index, knob) in knobs.iter_mut().enumerate() {
+                    *knob = ((step + 3 * index) % 9) as f32 / 8.0;
+                }
+                let told = params.block_settings_from(kind, true, knobs, None);
+                assert!(told.is_on());
+                let heard = numbers(told);
+                let mut expected: Vec<f32> = own
+                    .iter()
+                    .zip(knobs)
+                    // SAFETY: the pointers are of parameters of `params`
+                    .map(|(ptr, position)| unsafe { ptr.preview_plain(position) })
+                    .collect();
+                // The delay's Sync and Note are no number of its settings
+                expected.truncate(heard.len());
+                assert_eq!(heard, expected, "{kind:?} step {step}");
+            }
+            assert!(!params.block_settings_from(kind, false, [0.5; KNOBS], None).is_on());
+        }
+    }
+
+    /// With Sync on the time is the note's at the song's tempo, as for the pedal
+    #[test]
+    fn test_a_slot_delay_follows_the_tempo_with_sync_on() {
+        let params = GuitarAmpParams::default();
+        let knobs = [0.5, 0.4, 0.3, 1.0, 0.0];
+        let told = |tempo| match params.block_settings_from(EffectKind::Delay, true, knobs, tempo) {
+            BlockSettings::Delay(delay) => delay.time_ms,
+            other => panic!("{other:?}"),
+        };
+        assert_eq!(told(None), told(None));
+        assert!(told(Some(60.0)) != told(Some(120.0)));
+        // Without Sync the tempo does not matter
+        let free = |tempo| match params.block_settings_from(
+            EffectKind::Delay,
+            true,
+            [0.5, 0.4, 0.3, 0.0, 0.0],
+            tempo,
+        ) {
+            BlockSettings::Delay(delay) => delay.time_ms,
+            other => panic!("{other:?}"),
+        };
+        assert_eq!(free(Some(60.0)), free(Some(120.0)));
+    }
+
+    const SPARE: usize = 12;
+
+    /// A slot's values are read for the blocks that stand on them, and for no others
+    #[test]
+    fn test_only_the_slots_of_blocks_off_their_pedal_are_read() {
+        let params = GuitarAmpParams::default();
+        let mut chain = Chain::default();
+        let layout = Layout::of(&chain);
+        assert!(params.slot_settings(&layout, None).iter().all(|s| *s == BlockSettings::None));
+        let slot = chain.add(EffectKind::Reverb, Zone::Back, 0).unwrap();
+        assert_eq!(slot as usize, SPARE, "the first slot that is no pedal's own");
+        let layout = Layout::of(&chain);
+        let told = params.slot_settings(&layout, None);
+        assert!(matches!(told[slot as usize], BlockSettings::Reverb(_)));
+        assert_eq!(told.iter().filter(|s| **s != BlockSettings::None).count(), 1);
     }
 }

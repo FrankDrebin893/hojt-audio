@@ -247,7 +247,8 @@ fn test_the_eq_allocates_nothing() {
                             high: 0.0,
                         },
                     };
-                    let settings = AmpSettings { eq, order, ..AmpSettings::default() };
+                    let settings =
+                        AmpSettings { eq, layout: order.into(), ..AmpSettings::default() };
                     chain.process(&settings, &mut left[..len], Some(&mut right[..len]));
                     chain.process(&settings, &mut left[..len], None);
                 }
@@ -344,7 +345,7 @@ fn test_the_delay_and_the_reverb_allocate_nothing_in_front_of_the_amp() {
                         mix: 1.0 - dial,
                     },
                     reverb: ReverbSettings { on: block % 5 != 0, ..ReverbSettings::default() },
-                    order,
+                    layout: order.into(),
                     ..AmpSettings::default()
                 };
                 chain.process(&settings, &mut left[..len], Some(&mut right[..len]));
@@ -404,7 +405,7 @@ fn test_the_drive_the_wah_and_the_pitch_shifter_allocate_nothing_on_either_side_
                         blend: dial,
                         latency_ms: 2.0 + 48.0 * dial,
                     },
-                    order,
+                    layout: order.into(),
                     ..AmpSettings::default()
                 };
                 chain.process(&settings, &mut left[..len], Some(&mut right[..len]));
@@ -444,4 +445,171 @@ fn test_the_chain_model_allocates_nothing() {
             let _ = Chain::from_order(&default).order();
         }
     });
+}
+
+/// What a block of `kind` is told at dial position `dial` (0.0 to 1.0), switched on or off
+fn block_at(kind: crate::slots::EffectKind, dial: f32, on: bool) -> crate::extras::BlockSettings {
+    use crate::comp::CompSettings;
+    use crate::delay::DelaySettings;
+    use crate::eq::EqSettings;
+    use crate::extras::BlockSettings;
+    use crate::fuzz::FuzzSettings;
+    use crate::mods::chorus::ChorusSettings;
+    use crate::mods::flanger::FlangerSettings;
+    use crate::mods::phaser::PhaserSettings;
+    use crate::mods::tremolo::TremoloSettings;
+    use crate::pitch::PitchSettings;
+    use crate::reverb::ReverbSettings;
+    use crate::slots::EffectKind;
+    use crate::wah::{WahMode, WahSettings};
+    match kind {
+        EffectKind::Gate => BlockSettings::Gate {
+            on,
+            threshold_db: -80.0 + 60.0 * dial,
+            release_ms: 20.0 + 480.0 * dial,
+        },
+        EffectKind::Drive => {
+            BlockSettings::Drive { on, drive: dial, tone: 1.0 - dial, level: dial }
+        }
+        EffectKind::Comp => {
+            BlockSettings::Comp(CompSettings { on, sustain: dial, level: 1.0 - dial })
+        }
+        EffectKind::Fuzz => BlockSettings::Fuzz(FuzzSettings { on, fuzz: dial, tone: 1.0 - dial }),
+        EffectKind::Pitch => BlockSettings::Pitch(PitchSettings {
+            on,
+            semitones: (dial * 24.0) as i32 - 12,
+            blend: dial,
+            latency_ms: 2.0 + 48.0 * dial,
+        }),
+        EffectKind::Wah => BlockSettings::Wah(WahSettings {
+            on,
+            mode: if dial > 0.5 { WahMode::Auto } else { WahMode::Pedal },
+            pedal: dial,
+            bite: 1.0 - dial,
+            sens: dial,
+        }),
+        EffectKind::Eq => BlockSettings::Eq(EqSettings {
+            on,
+            low: dial,
+            mid: 1.0 - dial,
+            freq: dial,
+            high: 1.0 - dial,
+        }),
+        EffectKind::Chorus => {
+            BlockSettings::Chorus(ChorusSettings { on, rate_hz: 0.1 + 5.0 * dial, depth: dial })
+        }
+        EffectKind::Flanger => {
+            BlockSettings::Flanger(FlangerSettings { on, rate_hz: 0.1 + 4.0 * dial, depth: dial })
+        }
+        EffectKind::Phaser => {
+            BlockSettings::Phaser(PhaserSettings { on, rate_hz: 0.1 + 7.0 * dial, depth: dial })
+        }
+        EffectKind::Tremolo => {
+            BlockSettings::Tremolo(TremoloSettings { on, rate_hz: 0.5 + 11.0 * dial, depth: dial })
+        }
+        EffectKind::Delay => BlockSettings::Delay(DelaySettings {
+            on,
+            time_ms: 20.0 + 900.0 * dial,
+            feedback: 0.9 * dial,
+            mix: 1.0 - dial,
+        }),
+        EffectKind::Reverb => {
+            BlockSettings::Reverb(ReverbSettings { on, decay_s: 0.3 + 5.0 * dial, mix: dial })
+        }
+    }
+}
+
+/// Every effect as a block that plays from its slot (#268), alone and as a pair of the same
+/// kind, in front of the amp and behind the cabinet, put in and taken out and moved across the
+/// amp while it plays, its switch and dials moving, at the rates that oversample 4 and 2 times.
+/// The last line holds all sixteen blocks at once
+#[test]
+fn test_effects_on_slots_allocate_nothing() {
+    use crate::chain::AmpSettings;
+    use crate::extras::BlockSettings;
+    use crate::layout::Layout;
+    use crate::slots::{Chain, EffectKind, MAX_SLOTS};
+    let line = |ids: &[&str]| Layout::of(&Chain::from_ids(ids.iter().copied()));
+    // What stands where, for each stretch of blocks: the layout and the kinds on slots 13 to 16
+    let mut stretches: Vec<(Layout, [Option<EffectKind>; 4])> = Vec::new();
+    for kind in EffectKind::ALL {
+        let id = kind.id();
+        let (a, b) = (format!("{id}@13"), format!("{id}@14"));
+        let lines: [Vec<&str>; 4] = [
+            vec!["amps=1", &a, "amp"],
+            vec!["amps=1", "amp", &a],
+            vec!["amps=1", &a, "amp", &b],
+            vec!["amps=1", &b, "amp", &a],
+        ];
+        for ids in lines {
+            let layout = line(&ids);
+            if layout.voices().is_empty() {
+                continue;
+            }
+            let mut kinds = [None; 4];
+            kinds[0] = Some(kind);
+            kinds[1] = Some(kind);
+            stretches.push((layout, kinds));
+        }
+    }
+    // Everything at once: the twelve pedals and four more
+    stretches.push((
+        line(&[
+            "amps=1",
+            "gate@13",
+            "pitch@10",
+            "wah@12",
+            "fuzz@9",
+            "comp@1",
+            "drive@2",
+            "phaser@4",
+            "amp",
+            "chorus@3",
+            "flanger@5",
+            "tremolo@6",
+            "eq@11",
+            "delay@7",
+            "reverb@8",
+            "delay@14",
+            "reverb@15",
+            "wah@16",
+        ]),
+        [
+            Some(EffectKind::Gate),
+            Some(EffectKind::Delay),
+            Some(EffectKind::Reverb),
+            Some(EffectKind::Wah),
+        ],
+    ));
+    for sample_rate in [44_100.0, 96_000.0, 192_000.0] {
+        let mut chain = AmpChain::new();
+        chain.set_sample_rate(sample_rate);
+        let mut left = vec![0.0f32; host::BLOCKS[0]];
+        let mut right = vec![0.0f32; host::BLOCKS[0]];
+        host::assert_allocates_nothing("Effects on slots", || {
+            for block in 0..stretches.len() * 24 {
+                let len = host::BLOCKS[block % host::BLOCKS.len()];
+                for i in 0..len {
+                    left[i] = (i as f32 * 0.0144).sin() * 0.5;
+                    right[i] = left[i];
+                }
+                let dial = (block % 40) as f32 / 40.0;
+                let (layout, kinds) = &stretches[block / 24];
+                let mut slots = [BlockSettings::None; MAX_SLOTS];
+                for (n, kind) in kinds.iter().enumerate() {
+                    if let Some(kind) = *kind {
+                        slots[12 + n] = block_at(kind, dial, block % (7 + n) != 0);
+                    }
+                }
+                let settings = AmpSettings {
+                    delay: crate::delay::DelaySettings { on: block % 5 != 0, ..Default::default() },
+                    layout: *layout,
+                    slots,
+                    ..AmpSettings::default()
+                };
+                chain.process(&settings, &mut left[..len], Some(&mut right[..len]));
+                chain.process(&settings, &mut left[..len], None);
+            }
+        });
+    }
 }
