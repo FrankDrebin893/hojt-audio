@@ -254,6 +254,9 @@ impl Plugin for ShimmerPadPlugin {
                     NoteEvent::MidiCC { cc, .. } if cc == control_change::ALL_SOUND_OFF => {
                         self.pad.reset()
                     }
+                    NoteEvent::MidiCC { cc, value, .. } if cc == control_change::MODULATION_MSB => {
+                        self.pad.set_wheel(value)
+                    }
                     _ => {}
                 }
 

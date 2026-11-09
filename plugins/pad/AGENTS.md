@@ -18,6 +18,12 @@ How it behaves:
 - Shimmer reads the hall's tail back an octave up and feeds it into the hall again
 - The two footswitches fade their effect in and out in 20 ms; off is the same as the knob at 0
 - All notes off lets go of every key; all sound off stops voices and tails at once
+- The mod wheel (CC 1, any channel; `set_wheel`, not a parameter, so no id) opens the filter by
+  up to two octaves (`WHEEL_OCTAVES`, the cutoff times `2^(2 * wheel)`, still held under 0.4 times
+  the rate) and lifts the shimmer level by up to 0.3 (`WHEEL_SHIMMER`, never past the knob's own
+  top of 0.6). The Shimmer switch stays the master: off, the wheel adds none. The wheel is followed
+  over about 30 ms, one step per control tick, so a fast move does not zipper. At 0 the sound is
+  bit-for-bit what it was; the knobs do not move on screen. Reset keeps the wheel where it is
 
 | Parameter (id) | Range | Default | Description |
 |----------------|-------|---------|-------------|
