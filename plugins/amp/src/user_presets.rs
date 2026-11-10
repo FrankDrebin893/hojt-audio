@@ -14,16 +14,28 @@
 //!
 //! A file holds what a factory preset holds, and also the microphone and the cabinet:
 //! every parameter except Bypass, the Tuner switch, Input and Output, then the order of the
-//! pedals and the cabinet choice. One line each, `id = value`, by the frozen parameter ids:
+//! pedals, the whole chain and the cabinet choice. One line each, `id = value`, by the frozen
+//! parameter ids:
 //!
 //! ```text
 //! amp = torden
 //! gain = 0.55
 //! gate_on = on
 //! order = pitch fuzz comp drive phaser amp chorus flanger tremolo eq delay reverb
+//! chain = amps=2 pitch@1 fuzz@3 amp chorus@7 delay@12 delay@13 reverb@13
+//! slot13 = 1:0.5,0.3,0.4,0,0
 //! cabinet = speaker:4x12-mid
 //! cabinet2 = speaker:1x12-open
 //! ```
+//!
+//! The `chain` line is the chain as a project saves it (`Chain::ids`: the amp lanes, each block
+//! as `kind@slot` and `amp` between the two zones), and loading a preset replaces the whole
+//! chain with it (#271). A block that stands on its own pedal's slot keeps its values in that
+//! pedal's parameters, which the lines above hold; any other block (a second delay, a pedal on
+//! another slot) has its values in a `slot<n> = <on>:<k1>,..,<k5>` line, in the form a project
+//! saves them as. The `order` line is the same chain seen as the twelve pedals, for a build
+//! from before there was a chain; a file with no `chain` line is that, and loads as the twelve
+//! pedals in that order.
 //!
 //! Knobs are written as their parameters store them, switches `on` or `off`, and choices by
 //! their ids. Reading forgives: a line it does not understand is skipped, and what a file
@@ -38,6 +50,7 @@ use crate::cab::MicType;
 use crate::dial_memory;
 use crate::order::ChainOrder;
 use crate::presets::{self, Edit, MATCH_TOLERANCE};
+use crate::slots::{Block, Chain, Live, SlotValues, MAX_SLOTS};
 use crate::user_cab;
 use crate::wah::WahMode;
 use crate::{Amp, GuitarAmpParams};
@@ -51,6 +64,9 @@ pub const EXTENSION: &str = "preset";
 
 // The keys of the lines that are not parameters
 const ORDER_KEY: &str = "order";
+const CHAIN_KEY: &str = "chain";
+// Then the number of the slot, 1 to 16
+const SLOT_KEY: &str = "slot";
 const CABINET_KEY: &str = "cabinet";
 const SECOND_CABINET_KEY: &str = "cabinet2";
 const HEADER: &str = "# Hojt Guitar Amp preset";
@@ -363,7 +379,11 @@ fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 68] {
 pub struct UserPreset {
     /// In the order of `controls`, as the parameters store them
     values: Vec<f32>,
-    order: ChainOrder,
+    /// The whole line (#271): a file from before the chain is the twelve pedals in its `order`
+    chain: Chain,
+    /// The values of every block of `chain` that is not on its own pedal's slot, by slot
+    /// (counted from 0)
+    slots: Vec<(u8, SlotValues)>,
     /// What `GuitarAmpParams::cabinet` holds: empty for the amp's own
     cabinet: String,
     /// What `GuitarAmpParams::cabinet_second` holds: empty for the second amp's own
@@ -373,9 +393,16 @@ pub struct UserPreset {
 impl UserPreset {
     /// The sound as it stands now
     pub fn capture(params: &GuitarAmpParams) -> Self {
+        let chain = params.chain.get();
         Self {
             values: controls(params).iter().map(|&(_, control)| control.plain()).collect(),
-            order: params.chain.order(),
+            chain,
+            slots: chain
+                .blocks()
+                .iter()
+                .filter(|&&block| !Chain::is_home(block))
+                .map(|&block| (block.slot, params.values_of(block)))
+                .collect(),
             cabinet: params
                 .cabinet
                 .lock()
@@ -389,11 +416,15 @@ impl UserPreset {
     pub fn parse(params: &GuitarAmpParams, text: &str) -> Self {
         let mut preset = Self {
             values: controls(params).iter().map(|&(_, control)| control.default_plain()).collect(),
-            order: ChainOrder::default(),
+            chain: Chain::default(),
+            slots: Vec::new(),
             cabinet: String::new(),
             cabinet_second: String::new(),
         };
         let controls = controls(params);
+        let mut order = ChainOrder::default();
+        let mut chain = None;
+        let mut slot_lines: [Option<SlotValues>; MAX_SLOTS] = [None; MAX_SLOTS];
         for line in text.lines() {
             let line = line.trim();
             if line.starts_with('#') {
@@ -404,7 +435,14 @@ impl UserPreset {
             };
             let (key, value) = (key.trim(), value.trim());
             if key == ORDER_KEY {
-                preset.order = ChainOrder::from_ids(value.split_whitespace());
+                order = ChainOrder::from_ids(value.split_whitespace());
+            } else if key == CHAIN_KEY {
+                chain = Some(Chain::from_ids(value.split_whitespace()));
+            } else if let Some(number) = key.strip_prefix(SLOT_KEY) {
+                let slot = number.parse::<usize>().ok().filter(|n| (1..=MAX_SLOTS).contains(n));
+                if let (Some(slot), Some(values)) = (slot, SlotValues::from_text(value)) {
+                    slot_lines[slot - 1] = Some(values);
+                }
             } else if key == CABINET_KEY {
                 // A file is only ever named, never reached by a path
                 if value.is_empty()
@@ -431,6 +469,19 @@ impl UserPreset {
                 }
             }
         }
+        // A file without a `chain` is from before there was one: the twelve pedals in its order
+        preset.chain = chain.unwrap_or_else(|| Chain::from_order(&order));
+        // What a block that is not on its own pedal's slot has no line for starts as a slot does
+        preset.slots = preset
+            .chain
+            .blocks()
+            .iter()
+            .filter(|&&block| !Chain::is_home(block))
+            .map(|&block| {
+                let values = slot_lines[block.slot as usize].unwrap_or(SlotValues::DEFAULT);
+                (block.slot, tidy(block, values))
+            })
+            .collect();
         preset
     }
 
@@ -440,7 +491,11 @@ impl UserPreset {
         for (&(id, control), &plain) in controls(params).iter().zip(&self.values) {
             text.push_str(&format!("{id} = {}\n", control.write(plain)));
         }
-        text.push_str(&format!("{ORDER_KEY} = {}\n", self.order.ids().join(" ")));
+        text.push_str(&format!("{ORDER_KEY} = {}\n", self.chain.order().ids().join(" ")));
+        text.push_str(&format!("{CHAIN_KEY} = {}\n", self.chain.ids().join(" ")));
+        for (slot, values) in &self.slots {
+            text.push_str(&format!("{SLOT_KEY}{} = {}\n", slot + 1, values.to_text()));
+        }
         text.push_str(&format!("{CABINET_KEY} = {}\n", self.cabinet));
         text.push_str(&format!("{SECOND_CABINET_KEY} = {}\n", self.cabinet_second));
         text
@@ -461,12 +516,19 @@ impl UserPreset {
         let amp2 = Amp::from_index(self.value(params, "amp2") as usize);
         let dials2 = SECOND_DIALS.map(|id| second_dial(params, id, self.value(params, id)));
         dial_memory::second_preset_loaded(params, amp2, dials2);
-        params.chain.put_order(self.order);
-        let edits: Vec<Edit> = controls(params)
+        // The whole chain is the preset's; what it takes out is kept by kind, read before any
+        // value is set
+        params.chain.replace(&Live { params, setter }, self.chain);
+        let mut edits: Vec<Edit> = controls(params)
             .iter()
             .zip(&self.values)
             .map(|(&(_, control), &plain)| control.edit(plain))
             .collect();
+        for &(slot, values) in &self.slots {
+            if let Some(block) = self.chain.block_on(slot) {
+                edits.extend(params.edits_of(block, values));
+            }
+        }
         presets::set_together(setter, &edits);
         params.cabinet_second.set_choice(&self.cabinet_second);
         let mut cabinet = params.cabinet.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -477,9 +539,27 @@ impl UserPreset {
         true
     }
 
+    // Whether a block that has no pedal's parameters stands as the preset has it: the switch and the
+    // knobs its kind uses
+    fn slot_stands(&self, params: &GuitarAmpParams, block: Block, values: SlotValues) -> bool {
+        let now = params.values_of(block);
+        now.on == values.on
+            && now
+                .knobs
+                .iter()
+                .zip(values.knobs)
+                .take(block.kind.knob_count())
+                .all(|(now, wanted)| (now - wanted).abs() <= MATCH_TOLERANCE)
+    }
+
     /// Whether everything the preset holds still stands where it puts it
     pub fn matches(&self, params: &GuitarAmpParams) -> bool {
-        params.chain.order() == self.order
+        params.chain.get() == self.chain
+            && self.slots.iter().all(|&(slot, values)| {
+                self.chain
+                    .block_on(slot)
+                    .is_some_and(|block| self.slot_stands(params, block, values))
+            })
             && params.cabinet_second.choice() == self.cabinet_second
             && *params.cabinet.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
                 == self.cabinet
@@ -488,6 +568,15 @@ impl UserPreset {
                     <= MATCH_TOLERANCE
             })
     }
+}
+
+// What a block holds, with the knobs its kind does not use at 0, where the parameters read them
+// (`GuitarAmpParams::values_of`): so a sound that is saved and read is the one that was captured
+fn tidy(block: Block, mut values: SlotValues) -> SlotValues {
+    for knob in values.knobs.iter_mut().skip(block.kind.knob_count()) {
+        *knob = 0.0;
+    }
+    values
 }
 
 /// A dial's value as `dial_memory` keeps it: what the parameter stores, kept on its range
@@ -634,6 +723,7 @@ pub fn display_name(file: &str, max_chars: usize) -> String {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::order::Zone;
     use crate::presets::PRESETS;
     use crate::user_cab::tests::test_dir;
     use std::sync::Mutex;
@@ -751,16 +841,16 @@ pub(crate) mod tests {
         assert_eq!(saved.value(&params, "delay_on"), 1.0);
         assert_eq!(saved.value(&params, "cab_mic_type"), MicType::Ribbon.to_index() as f32);
         // Saved before there was a fuzz and a wah: they stand where the default has them
-        assert_eq!(saved.order.ids()[..3], ["pitch", "wah", "fuzz"]);
+        assert_eq!(saved.chain.order().ids()[..3], ["pitch", "wah", "fuzz"]);
         assert_eq!(saved.cabinet, "speaker:test");
 
         let text = saved.to_text(&params);
         for line in ["amp = torden", "gain = 0.73", "delay_on = on", "cab_mic_type = ribbon"] {
             assert!(text.lines().any(|each| each == line), "{line} is not in\n{text}");
         }
-        // Every parameter is written out, also those at their defaults, and the pedal order and
+        // Every parameter is written out, also those at their defaults, and the pedal order, the chain and
         // the two cabinets after them
-        assert_eq!(text.lines().filter(|line| line.contains(" = ")).count(), 71);
+        assert_eq!(text.lines().filter(|line| line.contains(" = ")).count(), 72);
         assert_eq!(UserPreset::parse(&params, &text), saved);
     }
 
@@ -841,7 +931,7 @@ pub(crate) mod tests {
             assert!(*param == ptr(control), "{id} set out of turn");
             assert_eq!(*normalized, control.normalized(plain), "{id}");
         }
-        assert_eq!(params.chain.order(), saved.order);
+        assert_eq!(params.chain.order(), saved.chain.order());
         assert_eq!(*params.cabinet.lock().unwrap(), "speaker:test");
         // All of it as one edit, so a host that groups gestures undoes it in one step
         assert!(as_one_edit(&host.told.lock().unwrap()));
@@ -873,7 +963,7 @@ pub(crate) mod tests {
         let now = UserPreset::capture(&params);
         assert_eq!(now, UserPreset::parse(&params, ""));
         assert!(now.matches(&params));
-        params.chain.put_order(UserPreset::parse(&params, SAVED).order);
+        params.chain.put_order(UserPreset::parse(&params, SAVED).chain.order());
         assert!(!now.matches(&params));
         params.chain.put_order(ChainOrder::default());
         *params.cabinet.lock().unwrap() = "speaker:test".to_owned();
@@ -926,7 +1016,7 @@ pub(crate) mod tests {
             assert_eq!(read.value(&params, id), defaults.value(&params, id), "{id}");
         }
         assert_eq!(read.cabinet, "");
-        assert_eq!(read.order, ChainOrder::default());
+        assert_eq!(read.chain, Chain::default());
         // An empty file is every default, which is the first factory preset
         assert!(PRESETS[0].matches(&params));
         assert!(defaults.matches(&params));
@@ -1072,6 +1162,161 @@ pub(crate) mod tests {
         assert_eq!(bank.get(1).map(|(file, _)| file), Some("b.preset"));
         assert_eq!(display_name("Tåge 2.preset", 13), "TÅGE 2");
         assert_eq!(Bank::read(&params, None).files.len(), 0);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // #271: a chain of the player's own. Two amps, five blocks: a compressor, a gate on a slot of
+    // its own, a chorus, the delay on its pedal's slot and a second delay on another
+    const RIG: [&str; 7] =
+        ["amps=2", "comp@1", "gate@13", "amp", "chorus@3", "delay@7", "delay@14"];
+
+    // The file of a player who built it and moved the knobs of the two blocks that stand on slots
+    // of their own
+    fn rig_file() -> String {
+        format!(
+            "{SAVED}order = comp drive amp\nchain = {}\nslot13 = 1:0.2,0.8,0,0,0\n\
+             slot14 = 0:0.3,0.4,0.5,0.6,0.7\n",
+            RIG.join(" ")
+        )
+    }
+
+    /// What the host was asked to set, by parameter
+    fn asked(host: &Host) -> Vec<(ParamPtr, f32)> {
+        host.set.lock().unwrap().clone()
+    }
+
+    #[test]
+    fn test_a_saved_chain_reads_back_and_is_written_again_as_it_was() {
+        let params = GuitarAmpParams::default();
+        let preset = UserPreset::parse(&params, &rig_file());
+        assert_eq!(preset.chain, Chain::from_ids(RIG));
+        assert_eq!(preset.chain.amps(), 2);
+        assert_eq!(preset.chain.blocks().len(), 5);
+        // The gate and the second delay stand on slots of their own and have a line each; the
+        // others are in the lines of their pedals
+        let gate = SlotValues { on: true, knobs: [0.2, 0.8, 0.0, 0.0, 0.0] };
+        let delay = SlotValues { on: false, knobs: [0.3, 0.4, 0.5, 0.6, 0.7] };
+        assert_eq!(preset.slots, [(12, gate), (13, delay)]);
+
+        let text = preset.to_text(&params);
+        let lines: Vec<&str> = text.lines().collect();
+        assert!(lines.contains(&"chain = amps=2 comp@1 gate@13 amp chorus@3 delay@7 delay@14"));
+        assert!(lines.contains(&"slot13 = 1:0.2,0.8,0,0,0"));
+        assert!(lines.contains(&"slot14 = 0:0.3,0.4,0.5,0.6,0.7"));
+        assert_eq!(lines.iter().filter(|line| line.starts_with("slot")).count(), 2);
+        // The twelve-pedal view is still there, for a build from before the chain
+        assert!(lines.iter().any(|line| line.starts_with("order = ")));
+        assert_eq!(UserPreset::parse(&params, &text), preset);
+    }
+
+    #[test]
+    fn test_a_chain_is_loaded_as_the_whole_chain_with_every_knob_of_its_blocks() {
+        let params = GuitarAmpParams::default();
+        // The player's line is something else when the preset is loaded
+        params.chain.put(Chain::from_ids(["amps=1", "amp", "reverb@8"]));
+        let preset = UserPreset::parse(&params, &rig_file());
+        let host = Host::default();
+        preset.load(&params, &ParamSetter::new(&host));
+        assert_eq!(params.chain.get(), Chain::from_ids(RIG));
+        let told = host.told.lock().unwrap();
+        assert!(crate::user_presets::tests::as_one_edit(&told));
+        let set = asked(&host);
+        let value_of = |ptr: ParamPtr| set.iter().find(|(each, _)| *each == ptr).map(|&(_, v)| v);
+        // The gate (on slot 13) is on with its two knobs; the second delay is off with five
+        assert_eq!(value_of(params.slot13.on.as_ptr()), Some(1.0));
+        assert_eq!(value_of(params.slot13.k1.as_ptr()), Some(0.2));
+        assert_eq!(value_of(params.slot13.k2.as_ptr()), Some(0.8));
+        assert_eq!(value_of(params.slot13.k3.as_ptr()), None);
+        assert_eq!(value_of(params.slot14.on.as_ptr()), Some(0.0));
+        assert_eq!(value_of(params.slot14.k5.as_ptr()), Some(0.7));
+        // Nothing is set for a slot that no block of the chain stands on
+        assert_eq!(value_of(params.slot15.on.as_ptr()), None);
+        assert_eq!(value_of(params.slot3.k1.as_ptr()), None);
+        // The pedals' own lines are set as they always were
+        assert!(value_of(params.delay_time.as_ptr()).is_some());
+        drop(told);
+
+        // And loading it again, after another, is the same load: the dials come back as they were
+        let again = Host::default();
+        params.chain.put(Chain::default());
+        preset.load(&params, &ParamSetter::new(&again));
+        assert_eq!(params.chain.get(), Chain::from_ids(RIG));
+        assert_eq!(asked(&again), set);
+    }
+
+    #[test]
+    fn test_a_chain_as_it_stands_matches_until_a_block_or_a_slot_moves() {
+        let params = GuitarAmpParams::default();
+        params.chain.put(Chain::from_ids(RIG));
+        let now = UserPreset::capture(&params);
+        assert_eq!(now.chain, Chain::from_ids(RIG));
+        assert_eq!(now.slots.len(), 2);
+        assert!(now.matches(&params));
+        // Written and read, it is the same sound
+        assert_eq!(UserPreset::parse(&params, &now.to_text(&params)), now);
+        // A block moved, one taken out, an amp lane gone: each an edit
+        let mut other = Chain::from_ids(RIG);
+        other.move_block(2, Zone::Front, 0).unwrap();
+        params.chain.put(other);
+        assert!(!now.matches(&params));
+        params.chain.put(Chain::from_ids([
+            "amps=1", "comp@1", "gate@13", "amp", "chorus@3", "delay@7", "delay@14",
+        ]));
+        assert!(!now.matches(&params));
+        // What a preset has in a slot that is not the one the chain has is not a match either
+        params.chain.put(Chain::from_ids(RIG));
+        let mut moved = now.clone();
+        moved.slots[0].1.knobs[0] += 0.2;
+        assert!(!moved.matches(&params));
+        moved.slots[0].1.on = !moved.slots[0].1.on;
+        assert!(!moved.matches(&params));
+    }
+
+    #[test]
+    fn test_a_file_from_before_the_chain_loads_as_the_twelve_pedals_in_its_order() {
+        let params = GuitarAmpParams::default();
+        params.chain.put(Chain::from_ids(RIG));
+        let old = UserPreset::parse(&params, SAVED);
+        assert!(old.slots.is_empty());
+        let order = old.chain.order();
+        assert_eq!(old.chain, Chain::from_order(&order));
+        old.load(&params, &ParamSetter::new(&Host::default()));
+        assert_eq!(params.chain.get(), Chain::from_order(&order));
+        // Written now, it has the chain line and no slot line, and reads back the same
+        let text = old.to_text(&params);
+        assert!(text.lines().any(|line| line.starts_with("chain = amps=2 ")));
+        assert!(!text.lines().any(|line| line.starts_with("slot")));
+        assert_eq!(UserPreset::parse(&params, &text), old);
+        // A file with both lines goes by the chain; a damaged chain line is the default chain,
+        // and a slot line for a block on its pedal's slot, or past the sixteenth, is no line
+        let both = UserPreset::parse(&params, &format!("{SAVED}chain = amps=1 comp@1 amp\n"));
+        assert_eq!(both.chain.blocks().len(), 1);
+        let damaged = UserPreset::parse(&params, &format!("{SAVED}chain = nonsense\n"));
+        assert_eq!(damaged.chain, Chain::default());
+        let stray = UserPreset::parse(
+            &params,
+            "chain = amps=1 comp@1 amp\nslot1 = 1:0,0,0,0,0\nslot17 = 1:0,0,0,0,0\nslot9 = x\n",
+        );
+        assert!(stray.slots.is_empty());
+    }
+
+    #[test]
+    fn test_a_chain_is_saved_in_a_file_with_spaces_in_its_name_and_loaded_from_it() {
+        let dir = test_dir("user-presets-chain");
+        let params = GuitarAmpParams::default();
+        params.chain.put(Chain::from_ids(RIG));
+        let file = named_file_name("Big Mud Rig", &[]).unwrap();
+        assert_eq!(file, "Big Mud Rig.preset");
+        save(&params, &dir, &file).unwrap();
+        let bank = Bank::read(&params, Some(&dir));
+        assert_eq!(bank.files, ["Big Mud Rig.preset"]);
+        let read = bank.find(&file).unwrap();
+        assert_eq!(*read, UserPreset::capture(&params));
+        // Another instance of the plugin takes the line from the file
+        let other = GuitarAmpParams::default();
+        read.load(&other, &ParamSetter::new(&Host::default()));
+        assert_eq!(other.chain.get(), Chain::from_ids(RIG));
+        assert!(read.matches(&other));
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

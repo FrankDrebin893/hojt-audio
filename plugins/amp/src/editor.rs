@@ -4000,17 +4000,9 @@ mod tests {
         assert_eq!(fit(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32, 3411.0).shift(), 0.0);
     }
 
+    // Sixteen blocks, eight on each side, with no more than `MAX_PER_KIND` of a kind
     fn full_chain_of_sixteen() -> Chain {
-        let mut chain = Chain::empty();
-        for number in 0..16 {
-            let (kind, zone) = if number % 2 == 0 {
-                (EffectKind::Comp, crate::order::Zone::Front)
-            } else {
-                (EffectKind::Delay, crate::order::Zone::Back)
-            };
-            chain.add(kind, zone, 99).unwrap();
-        }
-        chain
+        sixteen_blocks()
     }
 
     // The effects bank (#272): the plus in a gap, the sheet that rises, the card dragged into a

@@ -681,18 +681,28 @@ mod tests {
         lines
     }
 
-    /// A chain of sixteen blocks, as many in front of the amps as behind
+    /// A chain of sixteen blocks, as many in front of the amps as behind, with no more than
+    /// `MAX_PER_KIND` of a kind
     fn full_chain() -> Chain {
-        let mut chain = Chain::empty();
-        for number in 0..16 {
-            let (kind, zone) = if number % 2 == 0 {
-                (EffectKind::Comp, Zone::Front)
-            } else {
-                (EffectKind::Delay, Zone::Back)
-            };
-            chain.add(kind, zone, 99).unwrap();
-        }
-        chain
+        Chain::from_ids([
+            "wah@12",
+            "pitch@10",
+            "fuzz@9",
+            "comp@1",
+            "comp@13",
+            "drive@2",
+            "eq@11",
+            "phaser@4",
+            "amp",
+            "chorus@3",
+            "chorus@14",
+            "flanger@5",
+            "tremolo@6",
+            "delay@7",
+            "delay@15",
+            "reverb@8",
+            "reverb@16",
+        ])
     }
 
     #[test]

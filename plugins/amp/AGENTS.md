@@ -273,12 +273,28 @@ How it behaves:
 - `lib.rs` takes every parameter default and range from `AmpSettings::default` and the limits in
   the DSP modules; a test pins the values
 - A preset holds everything except Bypass, Input and Output, so every preset must fit at
-  Output 0 dB (a test checks peak and level of each). It holds the pedal order too. New
-  presets go at the end: a project remembers its preset by its number
+  Output 0 dB (a test checks peak and level of each). It holds the chain too (#271, decision
+  #260): loading a preset replaces the whole chain (blocks, order, amp lanes), saving writes it.
+  A factory preset is the twelve pedals on their own slots in its order (`Preset::chain`, which
+  plays as `ChainOrder` did: the preset test holds the layout and the settings to what they were), so
+  every factory preset and every file from before loads as it did. What a load takes out is kept
+  by effect kind in the chain's `Memory` (`StoredChain::replace`: a kind the new chain lacks, the
+  first block of it in the line, read before any value is set; a kind that stays has its values
+  replaced, which is not taking it out), and per amp by `dial_memory`, so the player can come
+  back to it by putting the effect in again or picking the amp. New presets go at the end: a
+  project remembers its preset by its number
 - The player's own presets (`user_presets.rs`) are `.preset` text files in
   `Documents/Hojt Audio/Presets` (or the folder in `HOJT_PRESETS_DIR`), one `id = value` line
-  per parameter by its frozen id, then `order` and `cabinet`. They hold what a factory preset
-  holds and the microphone and cabinet too. A file is read forgivingly: unknown lines are
+  per parameter by its frozen id, then `order`, `chain`, a `slot<n>` line for each block of the
+  chain that is not on its own pedal's slot, and `cabinet`. They hold what a factory preset
+  holds and the microphone and cabinet too. `chain` is `Chain::ids` (the project's form: `amps=2`,
+  `kind@slot` for each block, `amp` between the zones); a block on its pedal's slot has its values
+  in that pedal's lines, any other (a second delay, a gate) in `slot<n> = <on>:<k1>,..,<k5>`
+  (`SlotValues::to_text`, knobs a kind does not use at 0), and a block with no line starts as a
+  slot does (off, knobs at the middle). `order` stays as the twelve-pedal view for a build from
+  before the chain. A file with no `chain` line is the twelve pedals in its `order`, with the
+  amp lanes of a project from before. The preset shows as edited when the chain, a block's
+  switch or a knob of a block off its pedal's slot has moved A file is read forgivingly: unknown lines are
   skipped and what it does not name gets its default. A test holds every parameter to being
   in a preset or left alone with Bypass, Input, Output and the Tuner
 - Every preset is in a bank, and the Bank display on the strip says which one is showing:
