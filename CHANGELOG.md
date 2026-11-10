@@ -52,6 +52,14 @@ GitHub release.
   any effect that is not on its own pedal's place) can be added, set and saved, but is silent until
   the amp plays every effect on the line.
 
+- A Guitar Amp preset is the whole chain now. Save writes the effects on the line, their order,
+  the amps and every knob of them into the preset file (a new `chain` line, and a line for each
+  effect that is not on its own pedal's place), and loading a preset replaces the whole line with
+  it. The settings of an effect the load takes out are kept, so putting that effect in again
+  brings them back, and the amp the load leaves remembers its dials as before. The preset name
+  shows its star once the line itself has changed. Every factory preset and every preset you saved
+  before loads and sounds exactly as it did, as twelve pedals in its order.
+
 - The Delay and the Reverb can be dragged in front of the amp too, like the Fuzz and the Comp:
   the amp plays the repeats and the tail, which is a different sound from the same effect behind
   the cabinet. In front they are one channel; behind the cabinet they are stereo and sound exactly

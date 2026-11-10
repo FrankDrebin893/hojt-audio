@@ -4087,25 +4087,9 @@ mod tests {
         assert_eq!(fit(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32, 3411.0).shift(), 0.0);
     }
 
+    // Sixteen blocks, eight on each side, with no more than `MAX_PER_KIND` of a kind
     fn full_chain_of_sixteen() -> Chain {
-        // Two of each of eight kinds: a chain holds no more of one kind than that (#268)
-        let kinds = [
-            EffectKind::Comp,
-            EffectKind::Drive,
-            EffectKind::Fuzz,
-            EffectKind::Eq,
-            EffectKind::Chorus,
-            EffectKind::Phaser,
-            EffectKind::Delay,
-            EffectKind::Reverb,
-        ];
-        let mut chain = Chain::empty();
-        for number in 0..16 {
-            let zone =
-                if number % 2 == 0 { crate::order::Zone::Front } else { crate::order::Zone::Back };
-            chain.add(kinds[number % kinds.len()], zone, 99).unwrap();
-        }
-        chain
+        sixteen_blocks()
     }
 
     // The effects bank (#272): the plus in a gap, the sheet that rises, the card dragged into a

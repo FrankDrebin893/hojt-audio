@@ -707,26 +707,28 @@ mod tests {
         lines
     }
 
-    /// A chain of sixteen blocks, as many in front of the amps as behind
+    /// A chain of sixteen blocks, as many in front of the amps as behind, with no more than
+    /// `MAX_PER_KIND` of a kind
     fn full_chain() -> Chain {
-        // Two of each of eight kinds: a chain holds no more of one kind than that (#268)
-        let kinds = [
-            EffectKind::Comp,
-            EffectKind::Drive,
-            EffectKind::Fuzz,
-            EffectKind::Eq,
-            EffectKind::Chorus,
-            EffectKind::Phaser,
-            EffectKind::Delay,
-            EffectKind::Reverb,
-        ];
-        let mut chain = Chain::empty();
-        for number in 0..16 {
-            let zone =
-                if number % 2 == 0 { crate::order::Zone::Front } else { crate::order::Zone::Back };
-            chain.add(kinds[number % kinds.len()], zone, 99).unwrap();
-        }
-        chain
+        Chain::from_ids([
+            "wah@12",
+            "pitch@10",
+            "fuzz@9",
+            "comp@1",
+            "comp@13",
+            "drive@2",
+            "eq@11",
+            "phaser@4",
+            "amp",
+            "chorus@3",
+            "chorus@14",
+            "flanger@5",
+            "tremolo@6",
+            "delay@7",
+            "delay@15",
+            "reverb@8",
+            "reverb@16",
+        ])
     }
 
     #[test]
