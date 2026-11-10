@@ -13,7 +13,7 @@ GitHub release.
   on the plate replaces the Blend fader: the amps that play are balanced by their levels, so the rig
   stays about as loud as you move them. Every project and preset from before sounds exactly as it did (its Blend
   becomes the levels of amp 1 and 2). Each amp costs processing: four amps at Gain 10 take about
-  8 % of a core at 48 kHz, 10 % at 96 kHz and 23 % at 192 kHz, so a slow computer wants a larger
+  8 to 9 % of a core at 48 kHz, 10 to 12 % at 96 kHz and 22 to 27 % at 192 kHz, so a slow computer wants a larger
   buffer or fewer amps.
 - The standalone program no longer stops with a buffer-size error when it plays through WASAPI.
 - The strip across the top of the Guitar Amp is slim now, and shows only what you need all the time: the

@@ -621,7 +621,7 @@ cargo test -p amp --release render_mods -- --ignored
   has what the others do not take, so a fading-in amp takes its share from it. Each amp is heard at
   its share raised to a power: `BLEND_LAW` 0.6 for two amps, as before, and `CROWD_LAW` more for each
   amp played beyond the second (3 or 4 amps are more alike than 2 and add up more; the loudness
-  report chose 0.05). All levels at the bottom is all equal, not silence
+  report chose 0.1: at 0.05 a trio of Brøl, Glød and Sång peaked over the safety clip's knee). All levels at the bottom is all equal, not silence
 - **Blend stays an id** (`amp_blend`) but is not heard: `filter_state` moves a state without levels
   into them as 1 - Blend and Blend, and a preset (factory or file) the same, so Blend 0 is amp 1
   alone and Blend 1 amp 2 alone, to the bit, and the two-amp law is exactly the old one (1 - Blend and
@@ -631,16 +631,18 @@ cargo test -p amp --release render_mods -- --ignored
 - **Law:** the old two-amp findings still hold (linear dipped 2.8 LU for Torden + Klar, equal power
   put Brøl + Glød over the safety clip's knee). `blend_report` prints the pairs across Blend and
   `level_report` (`cargo test -p amp --release level_report -- --ignored --nocapture`) every set of
-  two, three and four amps at equal levels: two amps -15.3 to -11.8 LUFS, three -14.5 to -11.2, four
-  -14.0 to -11.4, the highest peak -1.3 dBFS (under the knee). A test holds a selection of them to 2
-  LU of -13 LUFS and under the knee
+  two, three and four amps at equal levels: two amps -15.3 to -11.8 LUFS, three -15.0 to -11.7, four
+  -15.2 to -12.6; the highest peak is -1.7 dBFS for pairs and trios (over the knee at -2.5: Glød + Gnist,
+  as it was before) and -2.6 for four. A test holds a selection of them to 2 LU of -13 LUFS and under
+  the knee
 - **Switching an amp** (on or off, or its model) clicks no more than switching amp 2 did; tuner and
   bypass act on the whole rig. Dial memory: `amp2-dials`, `amp3-dials`, `amp4-dials` keep each
   lane's dials per amp, as `amp-dials` does for amp 1
 - **Cost** (`stage_report`, Torden Gain 10 and everything on, the others at Gain 10 at equal
-  levels: Klar, then Brøl, then Glød; `whole, n` is n amps on): see the table below. One amp 3.8 % of
-  a core at 48 kHz, two 4.3 %, three 6.3 %, four 8.0 % (limit 8 %), 96 kHz 4.1 / 5.6 / 8.0 / 10.2 %,
-  192 kHz 8.9 / 12.3 / 18.5 / 22.7 %. The run-to-run spread is about a point
+  levels: Klar, then Brøl, then Glød; `whole, n` is n amps on): see the table below. One amp 3.1 to 3.8 %
+  of a core at 48 kHz, two 4.3 to 5.1 %, three 6.2 to 7.2 %, four 7.8 to 9.0 % (limit 8 %: at it, the
+  runs of one machine straddle it), 96 kHz 4.0 / 5.5-6.6 / 7.8-9.3 / 9.8-11.8 %, 192 kHz 8.5-8.9 /
+  12.0-14.6 / 17.6-21.2 / 22.5-26.7 %. The run-to-run spread is a point or more
 - **Editor:** the stack draws the lanes the chain holds, two to a column (a second column for amps 3
   and 4, `board::stack_width`), with a Levels frame on the plate (one knob for each lane, no
   value printed: it shows as a hint) where the Blend fader was. Needs a look from somebody: the

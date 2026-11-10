@@ -29,7 +29,7 @@ pub const LANES: usize = 4;
 /// What the power rises by for each amp beyond the second that is fully played: three or four
 /// amps are more alike than two (and add up more), so each one's share is lowered a little more.
 /// Held by `blend_report` to the levels of the pairs and the trios and quartets
-pub const CROWD_LAW: f32 = 0.05;
+pub const CROWD_LAW: f32 = 0.1;
 
 /// What the second amp's switch, choice and dials say, 0.0 to 1.0 like the first amp's
 #[derive(Clone, Copy, Debug, PartialEq)]
