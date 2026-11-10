@@ -24,9 +24,10 @@ use crate::dial_memory;
 use crate::lamps::{LampReading, LampView};
 use crate::looks;
 use crate::metronome::{BeatReading, ClickOut, Sound, TapTempo, TimeSignature, BPM_MAX, BPM_MIN};
+use crate::order::Zone;
 use crate::presets::{self, PRESETS};
 use crate::second::LANES;
-use crate::slots::{Block, Chain, EffectKind, SlotParams};
+use crate::slots::{Block, Chain, EffectKind, Live, SlotParams};
 #[cfg(all(test, target_os = "linux"))]
 use crate::standalone::Prefs;
 use crate::standalone::{self, AudioChoice};
@@ -263,6 +264,8 @@ const DIALS: [&str; 6] = ["Gain", "Bass", "Mid", "Treble", "Presence", "Master"]
 // one output jack. Positions are from the stack's top left corner
 const LANE_GAP: f32 = 18.0;
 const LANE_HEIGHT: f32 = (HEAD_HEIGHT + PEDAL_HEIGHT - LANE_GAP) / 2.0;
+/// The stack's height: both lanes and the gap between them
+pub(crate) const STACK_HEIGHT: f32 = HEAD_HEIGHT + PEDAL_HEIGHT;
 const LANE_HEAD_WIDTH: f32 = 420.0;
 const LANE_CAB_WIDTH: f32 = 120.0;
 const LANE_CAB_GAP: f32 = 6.0;
@@ -398,7 +401,7 @@ const fn look(title: &'static str, paint: Color32, motif: Motif) -> MiniStyle {
 }
 
 /// The look of the pedal of `kind`
-fn kind_look(kind: EffectKind) -> MiniStyle {
+pub(crate) fn kind_look(kind: EffectKind) -> MiniStyle {
     match kind {
         EffectKind::Gate => look("Gate", theme::PAINT_GRANITE, Motif::Sluice),
         EffectKind::Drive => look("Drive", theme::PAINT_OCHRE, Motif::Bonfire),
@@ -570,6 +573,24 @@ impl Pedals<'_> {
             Src::Slot(self.params.slot(block.slot as usize), block.slot)
         };
         self.plain_pedal(ui, src, block.kind, rect)
+    }
+
+    /// The chain as it stands
+    pub(crate) fn chain(&self) -> Chain {
+        self.params.chain.get()
+    }
+
+    /// Takes the block on `slot` out of the chain, keeping its settings (`StoredChain::take_out`)
+    pub(crate) fn take_out(&self, slot: u8) -> Option<Block> {
+        let live = Live { params: self.params, setter: self.setter };
+        self.params.chain.take_out(&live, slot)
+    }
+
+    /// Puts a block of `kind` into the chain as number `place` of `zone`, with the settings the
+    /// last one of its kind had when it was taken out. None when the chain is full
+    pub(crate) fn put_in(&self, kind: EffectKind, zone: Zone, place: usize) -> Option<Block> {
+        let live = Live { params: self.params, setter: self.setter };
+        self.params.chain.put_in(&live, kind, zone, place).ok()
     }
 
     /// The pedals with a pair or a trio of knobs (and the Delay's Sync): the gate, drive,
@@ -1017,6 +1038,9 @@ pub(crate) struct View {
     beat: BeatView,
     /// How far the line is scrolled sideways, in points of the layer
     scroll: f32,
+    /// The effects bank, rising from below the line while it is open. One surface is open at a
+    /// time, a plate or the sheet
+    effects: Option<crate::bank::Sheet>,
 }
 
 /// A plate open under the strip: configuration is a plate that opens from an icon or a display,
@@ -1076,6 +1100,7 @@ impl View {
         self.close_plate(host);
         if !was_open {
             self.plate = Some(open());
+            self.effects = None;
         }
     }
 }
@@ -1828,6 +1853,7 @@ pub fn create(
             cab_status: CabStatus::Fine,
             beat: BeatView::default(),
             scroll: 0.0,
+            effects: None,
         },
         move |egui_ctx, view| {
             ui::install(egui_ctx);
@@ -2037,9 +2063,13 @@ fn draw(
         // while the pointer is over it and no plate is open, and so does the bar along the foot
         view.scroll = view.scroll.clamp(0.0, fit.furthest());
         if fit.furthest() > 0.0 && view.plate.is_none() {
-            let over_line = ui
-                .input(|input| input.pointer.hover_pos())
-                .is_some_and(|at| at.y / fit.zoom > STACK_TOP - BENCH_MARGIN);
+            // Not over the sheet of the bank, which stands on the line's lower part
+            let sheet_top = view.effects.as_ref().map_or(f32::MAX, |bank| {
+                bank.top(ui.max_rect().bottom() - window.y, now) + window.y
+            });
+            let over_line = ui.input(|input| input.pointer.hover_pos()).is_some_and(|at| {
+                at.y / fit.zoom > STACK_TOP - BENCH_MARGIN && at.y / fit.zoom < sheet_top
+            });
             let wheel = ui.input(|input| input.raw_scroll_delta);
             if over_line && (wheel.x != 0.0 || wheel.y != 0.0) {
                 // Down and right bring what is further along into view
@@ -2047,7 +2077,19 @@ fn draw(
                     (view.scroll - (wheel.x + wheel.y) / fit.zoom).clamp(0.0, fit.furthest());
             }
         }
-        crate::board::board(ui, window - vec2(view.scroll, 0.0), &pedals, &params.chain);
+        crate::board::board(
+            ui,
+            window - vec2(view.scroll, 0.0),
+            &pedals,
+            &params.chain,
+            &mut view.effects,
+            view.scroll,
+            now,
+        );
+        // Opening the bank closes the plate that was open
+        if view.effects.as_ref().is_some_and(|bank| bank.fresh) && view.plate.is_some() {
+            view.close_plate(host);
+        }
         let bottom = ui.max_rect().bottom();
         let track = Rect::from_min_max(
             Pos2::new(window.x + SCROLL_INSET, bottom - 1.0 - ui::SCROLL_BAR_THICKNESS),
@@ -2055,7 +2097,9 @@ fn draw(
         );
         view.scroll = ui::scroll_bar(ui, "line", track, fit.visible, fit.layer, view.scroll);
 
-        // The plates after everything else, each in a layer above the window; one is open at most
+        // The bank and the plates after everything else, each in a layer above the window; one is
+        // open at most
+        crate::bank::show(ui, window, fit.visible, &pedals, &mut view.effects, view.scroll, now);
         presets.plate(ui, origin, view, now);
         metronome_plate(
             ui,
@@ -2438,6 +2482,7 @@ mod tests {
             cab_status: CabStatus::Fine,
             beat: BeatView::default(),
             scroll: 0.0,
+            effects: None,
         }
     }
 
@@ -4061,5 +4106,511 @@ mod tests {
             chain.add(kinds[number % kinds.len()], zone, 99).unwrap();
         }
         chain
+    }
+
+    // The effects bank (#272): the plus in a gap, the sheet that rises, the card dragged into a
+    // gap, the cross on a block, the empty chain and the full one
+
+    /// The pointer moved to `at` (window points at full size), and a frame drawn
+    #[cfg(target_os = "linux")]
+    fn hover(harness: &mut Harness, at: Pos2) {
+        use nih_plug_egui::egui::Event;
+        harness.input_mut().events.push(Event::PointerMoved(at));
+        harness.run_ok();
+        harness.run_ok();
+    }
+
+    /// The button pressed at `at`, the pointer carried to `to`, and not let go
+    #[cfg(target_os = "linux")]
+    fn carry(harness: &mut Harness, from: Pos2, to: Pos2) {
+        use nih_plug_egui::egui::{Event, Modifiers, PointerButton};
+        let press = Event::PointerButton {
+            pos: from,
+            button: PointerButton::Primary,
+            pressed: true,
+            modifiers: Modifiers::NONE,
+        };
+        for event in [
+            Event::PointerMoved(from),
+            press,
+            Event::PointerMoved(from + vec2(6.0, -6.0)),
+            Event::PointerMoved(from + (to - from) * 0.5),
+            Event::PointerMoved(to),
+        ] {
+            harness.input_mut().events.push(event);
+            harness.run_ok();
+        }
+        harness.run_ok();
+    }
+
+    /// The button let go at `at`
+    #[cfg(target_os = "linux")]
+    fn release(harness: &mut Harness, at: Pos2) {
+        use nih_plug_egui::egui::{Event, Modifiers, PointerButton};
+        harness.input_mut().events.push(Event::PointerButton {
+            pos: at,
+            button: PointerButton::Primary,
+            pressed: false,
+            modifiers: Modifiers::NONE,
+        });
+        harness.run_ok();
+        harness.run_ok();
+    }
+
+    #[cfg(target_os = "linux")]
+    fn press_escape(harness: &mut Harness) {
+        use nih_plug_egui::egui::{Event, Key, Modifiers};
+        harness.input_mut().events.push(Event::Key {
+            key: Key::Escape,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: Modifiers::NONE,
+        });
+        harness.run_ok();
+    }
+
+    /// The bank open from `from`, risen: as it is a moment after a plus was clicked
+    #[cfg(target_os = "linux")]
+    fn risen(view: &Rc<RefCell<View>>, from: (crate::order::Zone, usize)) {
+        let mut sheet = crate::bank::Sheet::opened(from, -10.0, None);
+        sheet.fresh = false;
+        view.borrow_mut().effects = Some(sheet);
+    }
+
+    /// The effects most of the bank's frames are made with: seven of the twelve, the rest not in
+    /// the chain
+    fn half_chain() -> Chain {
+        use EffectKind::*;
+        chain_of(&[Fuzz, Comp, Drive, Phaser], &[Chorus, Delay, Reverb])
+    }
+
+    /// Where the plus of gap `place` of `zone` stands, in window points at full size
+    fn gap_plus(chain: &Chain, zone: crate::order::Zone, place: usize) -> Pos2 {
+        let gap = Line::of_chain(chain)
+            .gaps()
+            .into_iter()
+            .find(|gap| gap.zone == zone && gap.place == place)
+            .unwrap();
+        Pos2::new(gap.x, PEDAL_TOP + ui::PLUG_Y)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn bank_harness<'a>(
+        params: &'a GuitarAmpParams,
+        setter: &'a ParamSetter<'a>,
+    ) -> (Harness<'a>, Rc<RefCell<View>>) {
+        line_harness(WINDOW_WIDTH, WINDOW_HEIGHT, params, setter, 0.0)
+    }
+
+    // The pointer over a gap shows its plus and where it would add; a click on the plus raises the
+    // bank, which stays open for that gap
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_a_gap_shows_its_plus_under_the_pointer_and_the_plus_opens_the_bank() {
+        use crate::order::Zone;
+        let params = GuitarAmpParams::default();
+        params.chain.put(half_chain());
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, view) = bank_harness(&params, &setter);
+        // Between the drive and the phaser
+        let plus = gap_plus(&params.chain.get(), Zone::Front, 3);
+        hover(&mut harness, plus + vec2(0.0, -40.0));
+        harness.snapshot("bank_hover_gap");
+        assert!(view.borrow().effects.is_none());
+        click(&mut harness, plus);
+        let opened = view.borrow().effects.clone().expect("the plus opens the bank");
+        assert_eq!(opened.from, (Zone::Front, 3));
+        // The click that opened it did not close it again
+        harness.run_ok();
+        assert!(view.borrow().effects.is_some());
+        // It stays where the pointer left; the gap it adds to keeps its plus
+        hover(&mut harness, Pos2::new(300.0, 100.0));
+        assert!(view.borrow().effects.is_some());
+    }
+
+    // The pointer over a block outlines it and shows the cross on its corner
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_a_block_under_the_pointer_shows_its_cross() {
+        let params = GuitarAmpParams::default();
+        params.chain.put(half_chain());
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, _) = bank_harness(&params, &setter);
+        let line = Line::of_chain(&params.chain.get());
+        // The comp, second of the pieces in front of the amps
+        let comp = line.places_for_test()[2];
+        hover(&mut harness, Pos2::new(comp + PEDAL_WIDTH / 2.0, PEDAL_TOP + 120.0));
+        harness.snapshot("bank_hover_block");
+    }
+
+    // The cross takes the block out with its settings kept, raises the bank with the note, and
+    // Undo puts it back where it stood
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_cross_takes_a_block_out_and_undo_puts_it_back() {
+        use crate::order::Zone;
+        let params = GuitarAmpParams::default();
+        params.chain.put(half_chain());
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, view) = bank_harness(&params, &setter);
+        let line = Line::of_chain(&params.chain.get());
+        let comp = line.places_for_test()[2];
+        let corner = Pos2::new(comp + PEDAL_WIDTH - 24.0, PEDAL_TOP + 24.0);
+        hover(&mut harness, Pos2::new(comp + PEDAL_WIDTH / 2.0, PEDAL_TOP + 120.0));
+        click(&mut harness, corner);
+        let chain = params.chain.get();
+        assert_eq!(chain.blocks().len(), 6);
+        assert!(!chain.blocks().iter().any(|block| block.kind == EffectKind::Comp));
+        let kept = view.borrow().effects.as_ref().and_then(|sheet| sheet.kept);
+        assert_eq!(
+            kept,
+            Some(crate::bank::Kept { kind: EffectKind::Comp, zone: Zone::Front, place: 1 })
+        );
+        // Risen: the sheet and its note in a picture
+        view.borrow_mut().effects.as_mut().unwrap().since = -10.0;
+        view.borrow_mut().effects.as_mut().unwrap().fresh = false;
+        hover(&mut harness, Pos2::new(1600.0, 60.0));
+        harness.snapshot("bank_taken_out");
+
+        // Undo, on the note's right
+        let sheet = crate::bank::risen_rect(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32);
+        click(&mut harness, crate::bank::undo_rect(sheet).center());
+        let chain = params.chain.get();
+        assert_eq!(chain.blocks().len(), 7);
+        assert_eq!(chain.front()[1].kind, EffectKind::Comp);
+        assert!(view.borrow().effects.as_ref().is_some_and(|sheet| sheet.kept.is_none()));
+    }
+
+    // The sheet covers what is under it: the layer under the pointer is the sheet's, a click on
+    // its empty metal reaches nothing below, and a click on a card adds that effect where the
+    // bank was opened from
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_sheet_covers_the_line_and_a_click_on_a_card_adds_the_effect() {
+        use crate::order::Zone;
+        use nih_plug_egui::egui::Order;
+        let params = GuitarAmpParams::default();
+        params.chain.put(half_chain());
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, view) = bank_harness(&params, &setter);
+        risen(&view, (Zone::Front, 3));
+        harness.run_ok();
+        harness.run_ok();
+        harness.snapshot("bank_open");
+        let top = WINDOW_HEIGHT as f32 - crate::bank::SHEET_HEIGHT;
+        let order_at =
+            |harness: &Harness, at: Pos2| harness.ctx.layer_id_at(at).map(|layer| layer.order);
+        assert_eq!(order_at(&harness, Pos2::new(400.0, top + 100.0)), Some(Order::Foreground));
+        // The foot switch of a pedal is under the sheet
+        assert_eq!(
+            order_at(&harness, Pos2::new(400.0, PEDAL_TOP + 273.0)),
+            Some(Order::Foreground)
+        );
+        assert_ne!(order_at(&harness, Pos2::new(400.0, top - 40.0)), Some(Order::Foreground));
+        // A click on the bare metal between the two rows of cards, over a foot switch
+        click(&mut harness, Pos2::new(400.0, top + 52.0 + 64.0 + 4.0));
+        assert!(view.borrow().effects.is_some(), "a click on the sheet leaves it open");
+        assert_eq!(params.chain.get().blocks().len(), 7);
+
+        // The first card is the pitch shifter: not in the chain, so it takes the slot of its own
+        let sheet = crate::bank::risen_rect(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32);
+        click(&mut harness, crate::bank::card_rect(sheet, 0).center());
+        let chain = params.chain.get();
+        assert_eq!(chain.blocks().len(), 8);
+        assert_eq!(chain.front()[3].kind, EffectKind::Pitch);
+        assert!(Chain::is_home(chain.front()[3]));
+        // The gap it adds to moves on past it, so the next card follows it
+        assert_eq!(view.borrow().effects.as_ref().map(|sheet| sheet.from), Some((Zone::Front, 4)));
+    }
+
+    // A card dragged out of the sheet opens a place in the nearest gap and lands there when it is
+    // let go over the line; let go over the sheet it lands nowhere
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_a_card_dragged_into_a_gap_opens_a_place_and_lands_there() {
+        use crate::order::Zone;
+        let params = GuitarAmpParams::default();
+        params.chain.put(half_chain());
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, view) = bank_harness(&params, &setter);
+        risen(&view, (Zone::Front, 3));
+        harness.run_ok();
+        let sheet = crate::bank::risen_rect(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32);
+        // The flanger: second row, third card
+        let flanger = crate::bank::card_rect(sheet, 8).center();
+        let target = Pos2::new(gap_plus(&params.chain.get(), Zone::Front, 2).x, PEDAL_TOP + 40.0);
+        carry(&mut harness, flanger, target);
+        harness.snapshot("bank_dragging");
+        let dragged = view.borrow().effects.as_ref().and_then(|sheet| sheet.drag);
+        assert!(dragged.is_some_and(|drag| drag.kind != EffectKind::Gate));
+        release(&mut harness, target);
+        for _ in 0..4 {
+            harness.run_ok();
+        }
+        let chain = params.chain.get();
+        assert_eq!(chain.blocks().len(), 8, "{:?}", chain.blocks());
+        assert!(view.borrow().effects.as_ref().is_some_and(|sheet| sheet.drag.is_none()));
+        let kinds: Vec<_> = chain.front().iter().map(|block| block.kind).collect();
+        assert_eq!(kinds.len(), 5);
+        assert_eq!(kinds[2], dragged.unwrap().kind);
+
+        // Let go over the sheet: nothing is added
+        carry(&mut harness, flanger, flanger + vec2(300.0, 20.0));
+        release(&mut harness, flanger + vec2(300.0, 20.0));
+        assert_eq!(params.chain.get().blocks().len(), 8);
+    }
+
+    // Escape, a click outside and the sheet's handle close it; a plate takes its place and the
+    // other way round, so one is open at a time; typed text does not close it
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_sheet_closes_on_escape_a_click_outside_and_its_handle() {
+        use crate::order::Zone;
+        let params = GuitarAmpParams::default();
+        params.chain.put(half_chain());
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, view) = bank_harness(&params, &setter);
+        let top = WINDOW_HEIGHT as f32 - crate::bank::SHEET_HEIGHT;
+
+        risen(&view, (Zone::Front, 3));
+        harness.run_ok();
+        type_text(&mut harness, "abc");
+        assert!(view.borrow().effects.is_some());
+        press_escape(&mut harness);
+        assert!(view.borrow().effects.is_none());
+
+        risen(&view, (Zone::Front, 3));
+        harness.run_ok();
+        click(&mut harness, Pos2::new(1500.0, 40.0));
+        assert!(view.borrow().effects.is_none());
+
+        risen(&view, (Zone::Front, 3));
+        harness.run_ok();
+        click(&mut harness, Pos2::new(WINDOW_WIDTH as f32 / 2.0, top + 11.0));
+        assert!(view.borrow().effects.is_none());
+
+        // The sheet's own Close
+        risen(&view, (Zone::Front, 3));
+        harness.run_ok();
+        click(
+            &mut harness,
+            crate::bank::close_rect(crate::bank::risen_rect(
+                WINDOW_WIDTH as f32,
+                WINDOW_HEIGHT as f32,
+            ))
+            .center(),
+        );
+        assert!(view.borrow().effects.is_none());
+
+        // Opening a plate takes the sheet down
+        risen(&view, (Zone::Front, 3));
+        harness.run_ok();
+        click(&mut harness, Pos2::new(SETTINGS_X, STRIP_Y));
+        assert!(view.borrow().effects.is_none());
+        assert!(view.borrow().is_open(Plates::Settings));
+        // And the sheet takes the plate down
+        let plus = gap_plus(&params.chain.get(), Zone::Front, 3);
+        hover(&mut harness, plus + vec2(0.0, -40.0));
+        click(&mut harness, plus);
+        assert!(view.borrow().effects.is_some());
+        assert!(view.borrow().plate.is_none());
+    }
+
+    // The bank is a sheet with no text field: typed text is neither taken nor does it close the
+    // sheet, and the place text does go (the preset name) still takes it once the sheet is down
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_typed_text_still_works_with_the_bank_in_the_window() {
+        use crate::order::Zone;
+        with_presets_in("editor-typing-with-the-bank", |_| {
+            let params = GuitarAmpParams::default();
+            params.chain.put(half_chain());
+            let host = NoHost;
+            let setter = ParamSetter::new(&host);
+            let (mut harness, view) = bank_harness(&params, &setter);
+            risen(&view, (Zone::Front, 3));
+            harness.run_ok();
+            type_text(&mut harness, "Big Mud");
+            assert!(view.borrow().effects.is_some(), "typing does not close the sheet");
+            assert!(!harness.ctx.wants_keyboard_input(), "the sheet takes no keyboard focus");
+            assert_eq!(params.chain.get().blocks().len(), 7);
+            // A plate opens under its icon, takes the sheet down, and then takes the typing
+            click(&mut harness, Pos2::new(PRESET_X, STRIP_Y));
+            assert!(view.borrow().effects.is_none());
+            assert!(view.borrow().is_open(Plates::Presets));
+            view.borrow_mut().saving = Some(String::new());
+            type_text(&mut harness, "Big");
+            type_text(&mut harness, " ");
+            type_text(&mut harness, "Mud");
+            assert_eq!(view.borrow().saving.as_deref(), Some("Big Mud"));
+        });
+    }
+
+    // The pointer over the amps shows the plus that adds one while the chain has fewer lanes than
+    // the engine has (here one of four; with four of four nothing is offered, and amp 1 has no cross)
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_amps_show_a_plus_while_the_engine_has_room_for_another() {
+        let params = GuitarAmpParams::default();
+        params.chain.put(half_chain());
+        assert_eq!(params.chain.get().amps(), 1);
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, _) = bank_harness(&params, &setter);
+        let line = Line::of_chain(&params.chain.get());
+        let stack = line.places_for_test()[5];
+        let over_amp = Pos2::new(stack + 200.0, STACK_TOP + 100.0);
+        hover(&mut harness, over_amp);
+        harness.snapshot("bank_hover_amp");
+        // Its plus, near the stack's foot: one lane more for each click, up to four
+        let plus_at = |amps: usize| {
+            Pos2::new(stack + stack_width(amps) / 2.0 - 80.0, STACK_TOP + STACK_HEIGHT - 18.0)
+        };
+        for amps in 1..crate::slots::MAX_AMPS {
+            hover(&mut harness, over_amp);
+            click(&mut harness, plus_at(amps));
+            assert_eq!(params.chain.get().amps(), amps + 1);
+        }
+        // Four of four: the pointer over the amps offers nothing
+        hover(&mut harness, over_amp);
+        click(&mut harness, plus_at(crate::slots::MAX_AMPS));
+        assert_eq!(params.chain.get().amps(), crate::slots::MAX_AMPS);
+        let mut chain = params.chain.get();
+        assert!(!chain.remove_amp(0), "amp 1 cannot be taken out");
+    }
+
+    // The line at rest with a chain of seven, the bank down
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_line_at_rest_with_the_bank_down_looks_as_it_did() {
+        let params = GuitarAmpParams::default();
+        params.chain.put(half_chain());
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        bank_harness(&params, &setter).0.snapshot("bank_rest");
+    }
+
+    // The print on a card reads as well as on the pedal it stands for
+    #[test]
+    fn test_the_print_on_every_card_reads_as_well_as_on_a_pedal() {
+        for kind in crate::bank::CARDS {
+            let ground = crate::bank::card_ground(kind);
+            let read = theme::contrast(theme::SILK, ground);
+            assert!(read >= theme::least_contrast(), "{kind:?}: {read}");
+        }
+    }
+
+    // A chain with no blocks is a dashed place on each side of the amps, each with a plus; a
+    // card dropped on one lands there
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_an_empty_chain_invites_the_first_effect() {
+        use crate::order::Zone;
+        let params = GuitarAmpParams::default();
+        params.chain.put(Chain::empty());
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, view) = bank_harness(&params, &setter);
+        harness.snapshot("bank_empty");
+        let line = Line::of_chain(&params.chain.get());
+        let slots: Vec<_> = line.gaps().into_iter().filter(|gap| gap.slot).collect();
+        assert_eq!(slots.len(), 2);
+        // The plus of the first
+        click(&mut harness, Pos2::new(slots[0].x, PEDAL_TOP + PEDAL_HEIGHT / 2.0 - 40.0));
+        assert_eq!(view.borrow().effects.as_ref().map(|sheet| sheet.from), Some((Zone::Front, 0)));
+        view.borrow_mut().effects.as_mut().unwrap().fresh = false;
+        harness.run_ok();
+        // A card clicked lands in front of the amps
+        view.borrow_mut().effects.as_mut().unwrap().since = -10.0;
+        harness.run_ok();
+        // The fuzz, fourth card
+        let sheet = crate::bank::risen_rect(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32);
+        click(&mut harness, crate::bank::card_rect(sheet, 3).center());
+        let chain = params.chain.get();
+        assert_eq!(chain.blocks().len(), 1);
+        assert_eq!(chain.front().len(), 1);
+        assert_eq!(chain.front()[0].kind, EffectKind::Fuzz);
+    }
+
+    // Sixteen blocks: the plus is not offered, and the line says why
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_sixteen_blocks_offer_no_plus_and_say_why() {
+        let params = GuitarAmpParams::default();
+        params.chain.put(sixteen_blocks());
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, view) = line_harness(2120, 292, &params, &setter, 0.0);
+        let plus = gap_plus(&params.chain.get(), crate::order::Zone::Front, 3) * MIN_ZOOM;
+        hover(&mut harness, plus + vec2(0.0, -20.0));
+        harness.snapshot("bank_full");
+        click(&mut harness, plus);
+        assert!(view.borrow().effects.is_none());
+    }
+
+    // An open sheet, a gap with its plus and a window at rest ask for no repaint: the sheet's
+    // rise is the only thing that moves, and it is over once it has risen
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_an_open_sheet_at_rest_asks_for_no_repaint() {
+        use crate::order::Zone;
+        let params = GuitarAmpParams::default();
+        params.chain.put(half_chain());
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, view) = bank_harness(&params, &setter);
+        risen(&view, (Zone::Front, 3));
+        // Past the sheet's own fade in
+        for _ in 0..20 {
+            harness.step();
+        }
+        let delays: Vec<_> = harness
+            .output()
+            .viewport_output
+            .values()
+            .map(|viewport| viewport.repaint_delay)
+            .collect();
+        assert!(!delays.is_empty());
+        assert!(delays.iter().all(|delay| *delay == std::time::Duration::MAX), "{delays:?}");
+    }
+
+    // The line the chain makes and the gaps it has: one after the gate, one after each block,
+    // one on either side of the stack's neighbours, one at the end; a card lands in the nearest
+    #[test]
+    fn test_the_gaps_of_a_line_and_the_one_a_card_lands_in() {
+        use crate::order::Zone;
+        let chain = half_chain();
+        let line = Line::of_chain(&chain);
+        let gaps = line.gaps();
+        // gate + 4 blocks in front, the stack, 3 blocks behind: eight pieces, a gap after each
+        assert_eq!(gaps.len(), 9);
+        assert_eq!((gaps[0].zone, gaps[0].place), (Zone::Front, 0));
+        assert_eq!((gaps[4].zone, gaps[4].place), (Zone::Front, 4));
+        assert_eq!((gaps[5].zone, gaps[5].place), (Zone::Back, 0));
+        assert_eq!((gaps[8].zone, gaps[8].place), (Zone::Back, 3));
+        for pair in gaps.windows(2) {
+            assert!(pair[0].x < pair[1].x);
+        }
+        let nearest =
+            |x: f32| line.drop_target(EffectKind::Delay, x).map(|gap| (gap.zone, gap.place));
+        assert_eq!(nearest(gaps[2].x + 5.0), Some((Zone::Front, 2)));
+        assert_eq!(nearest(-100.0), Some((Zone::Front, 0)));
+        assert_eq!(nearest(1.0e6), Some((Zone::Back, 3)));
+        // The last gap stays inside the layer
+        assert!(gaps[8].x + suite_common::ui::PLUS_RADIUS < line.width());
+        // An empty chain has a place on each side of the amps and no other gap
+        let empty = Line::of_chain(&Chain::empty());
+        let slots = empty.gaps();
+        assert_eq!(slots.len(), 2);
+        assert!(slots.iter().all(|gap| gap.slot && gap.place == 0));
+        assert_eq!(slots[0].zone, Zone::Front);
+        assert_eq!(slots[1].zone, Zone::Back);
     }
 }
