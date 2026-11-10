@@ -311,9 +311,9 @@ The reasons behind choices that the code alone does not explain. What it does is
   has no card (it is the line's first piece and cannot go), where frames 5 to 7 show one; an empty
   chain keeps the gate before the dashed place where frame 8 shows none. The "ADD HERE" caption is
   above the pedals, where there is room, not under them. The plus that adds an amp (frame 2) shows under the amps while the chain has fewer lanes than
-  the engine has (`MAX_AMPS`, two until #269): the stack still draws both lanes, so a chain with
+  the engine has (`MAX_AMPS`, two: the chain is limited to two amps, #269): the stack still draws both lanes, so a chain with
   both has no amp to add and nothing shows; no lane has a cross yet (amp 1 never will), taking one
-  out waits for #269
+  out is not planned, since a chain of two keeps both lanes (the chain is limited to two amps)
 - The gate's `OPEN` lamp is its own small lamp: a half-lit pedal LED was built and rejected
   because at 30 % the lens is about the colour of the paint
 - Rigs use `rig_led` (black socket, darker unlit lens): a plain unlit `led` disappears on dark paint
