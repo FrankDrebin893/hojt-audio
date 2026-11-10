@@ -52,9 +52,11 @@ detail lives. Each detail is next to what it governs.
   installs, upgrades and uninstalls it on the runner before anything is published
 - `scripts/` - Build, install, check, page and release tools; see `scripts/README.md`
 - `.agents/skills/` - The agent's skills (`/issue`, `/spec`, `/next`, `/groom`, `/release`, `/page`,
-  `/design`, `/wayfinder`, `/scout`, `/specwriter`, `/release-prep`, `/release-review`, `/feedback`, and the piano viz's `/piano-release` and `/piano-readme`).
+  `/design`, `/wayfinder`, `/scout`, `/specwriter`, `/release-prep`, `/release-review`, `/feedback`, `/retrospective`, and the piano viz's `/piano-release` and `/piano-readme`).
   `.claude/commands/` mirrors them for Claude Code (`xtask/tests/skills_mirror.rs` holds it);
   `.claude/settings.json` has the hooks
+- `.agents/learnings.md` and `.agents/retrospectives.md` - What Rasmus said about results (`/feedback`) and what each Builder
+  pull request taught (`/retrospective`, run by every `/next` builder once its pull request is open); skills read both
 - `.github/workflows/` - `ci.yml` (tests), `release.yml` (the plugins, on `vX.Y.Z`), `piano.yml` (builds
   the piano viz when `piano/` changes, releases it on `piano-vX.Y.Z`), `pages.yml`, `approval-guard.yml`, `sound.yml`
   (what a plugin's reports say changed against `main`), `weekly.yml` (a weekly run that only files
