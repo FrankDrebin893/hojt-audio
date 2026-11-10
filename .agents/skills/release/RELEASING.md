@@ -19,6 +19,8 @@ out; the HØJT name and logo are kept out of it (`NOTICE.md`).
 
 - The zips are named `<BundleName>-<windows|macos|linux>.zip`, without a version: the page
   links to `releases/latest/download/<name>`, so these names never change
+- A release also carries `HojtDSP-Setup.exe` (the Windows installer, built by `release.yml`, tested on
+  the runner by `installer/test-installer.ps1`) and `SHA256SUMS.txt` of every asset. Both names are versionless
 - To see the zips without releasing, run the Release workflow by hand (Actions tab) and take
   them from the run's artifacts
 - `Cargo.lock` is committed so a release is built from the crates that were tested
