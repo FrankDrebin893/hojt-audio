@@ -1219,9 +1219,12 @@ impl Plugin for GuitarAmpPlugin {
         state.params.remove(TUNER_ID);
         let levels = ["amp1_level", "amp2_level", "amp3_level", "amp4_level"];
         if !levels.iter().any(|id| state.params.contains_key(*id)) {
-            let blend = match state.params.get("amp_blend") {
-                Some(nih_plug::wrapper::state::ParamValue::F32(blend)) => blend.clamp(0.0, 1.0),
-                _ => AmpSettings::default().levels[1],
+            use nih_plug::wrapper::state::ParamValue;
+            let stored = state.params.get("amp_blend");
+            let blend = if let Some(ParamValue::F32(blend)) = stored {
+                blend.clamp(0.0, 1.0)
+            } else {
+                AmpSettings::default().levels[1]
             };
             state.params.insert(
                 "amp1_level".to_owned(),
@@ -1856,6 +1859,23 @@ mod tests {
         assert!(!state.params.contains_key("delay_sync"));
         assert!(!state.params.contains_key("delay_note"));
         assert!(!GuitarAmpParams::default().delay_sync.default_plain_value());
+    }
+
+    #[test]
+    fn test_a_state_from_before_the_levels_moves_its_blend_into_them() {
+        use nih_plug::wrapper::state::ParamValue;
+        let mut state = PluginState {
+            version: "0.2.0".to_owned(),
+            params: [("amp_blend".to_owned(), ParamValue::F32(0.3))].into_iter().collect(),
+            fields: Default::default(),
+        };
+        GuitarAmpPlugin::filter_state(&mut state);
+        assert!(matches!(state.params["amp1_level"], ParamValue::F32(level) if level == 1.0 - 0.3));
+        assert!(matches!(state.params["amp2_level"], ParamValue::F32(level) if level == 0.3));
+        // A state that has levels keeps them
+        state.params.insert("amp2_level".to_owned(), ParamValue::F32(0.9));
+        GuitarAmpPlugin::filter_state(&mut state);
+        assert!(matches!(state.params["amp2_level"], ParamValue::F32(level) if level == 0.9));
     }
 
     #[test]
