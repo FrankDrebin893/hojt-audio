@@ -631,7 +631,7 @@ cargo test -p amp --release render_mods -- --ignored
   player's file (`cabinet`); the others' are their own amp's or a built-in one (`cabinet2`,
   `cabinet3`, `cabinet4`, persisted, and in a user preset file; never a file, which keeps the cabinet
   loader single). Mic, Resonance, Mic Type and the Cab switch act on all
-- **Levels, not Blend** (#269): `amp1_level` to `amp4_level` (0.0 to 1.0) balance the amps that play.
+- **Levels, not Blend** (#269): `amp1_level` to `amp4_level` (stored 0.0 to 1.0, shown 0.0 to 10.0 like every dial, default 5.0 for all four: the old Blend default of 5.0 was `AmpSettings::default().blend` = 0.5) balance the amps that play.
   `second::Mix` turns them into gains: a level is a share, so the shares of the amps that play add
   up to 1 (an amp that is off takes none, and a lone amp is heard at 1 whatever its level says); amp 1
   has what the others do not take, so a fading-in amp takes its share from it. Each amp is heard at
@@ -647,18 +647,23 @@ cargo test -p amp --release render_mods -- --ignored
 - **Law:** the old two-amp findings still hold (linear dipped 2.8 LU for Torden + Klar, equal power
   put Brøl + Glød over the safety clip's knee). `blend_report` prints the pairs across Blend and
   `level_report` (`cargo test -p amp --release level_report -- --ignored --nocapture`) every set of
-  two, three and four amps at equal levels: two amps -15.3 to -11.8 LUFS, three -15.0 to -11.7, four
-  -15.2 to -12.6; the highest peak is -1.7 dBFS for pairs and trios (over the knee at -2.5: Glød + Gnist,
-  as it was before) and -2.6 for four. A test holds a selection of them to 2 LU of -13 LUFS and under
-  the knee
+  two, three and four of the ten amps at equal levels (final `CROWD_LAW` = 0.1): two amps -15.3 to
+  -11.8 LUFS, three -15.0 to -11.7, four -15.2 to -12.6. **Not every combination is under the knee:**
+  the spec asks for every combination under the safety clip's knee (0.75, -2.5 dBFS), but the highest
+  peaks are -1.7 dBFS for pairs and trios (some sets, for example Glød + Gnist, are over it, exactly as
+  the old two-amp law already was for them: the pairs are kept to the bit) and -2.6 for four. A test
+  holds a selection of sets (the five pairs of `blend_report`, three trios, four quartets) to 2 LU of
+  -13 LUFS and under the knee. Whether the sets over the knee are acceptable is a question for the
+  engineer (asked on #269). An earlier try at 0.05 put a trio of Brøl, Glød and Sang over the knee
 - **Switching an amp** (on or off, or its model) clicks no more than switching amp 2 did; tuner and
   bypass act on the whole rig. Dial memory: `amp2-dials`, `amp3-dials`, `amp4-dials` keep each
   lane's dials per amp, as `amp-dials` does for amp 1
 - **Cost** (`stage_report`, Torden Gain 10 and everything on, the others at Gain 10 at equal
-  levels: Klar, then Brøl, then Glød; `whole, n` is n amps on): see the table below. One amp 3.1 to 3.8 %
-  of a core at 48 kHz, two 4.3 to 5.1 %, three 6.2 to 7.2 %, four 7.8 to 9.0 % (limit 8 %: at it, the
-  runs of one machine straddle it), 96 kHz 4.0 / 5.5-6.6 / 7.8-9.3 / 9.8-11.8 %, 192 kHz 8.5-8.9 /
-  12.0-14.6 / 17.6-21.2 / 22.5-26.7 %. The run-to-run spread is a point or more
+  levels: Klar, then Brøl, then Glød; `whole, n` is n amps on; the ranges are three runs on a
+  busy machine, the spread between runs is a point or more): 48 kHz one to four amps 3.1-3.8 /
+  4.3-5.1 / 6.2-7.2 / 7.8-9.0 % of a core (limit 8 %: four amps are at it), 96 kHz 4.0 / 5.5-6.6 /
+  7.8-9.3 / 9.8-11.8 %, 192 kHz 8.5-8.9 / 12.0-14.6 / 17.6-21.2 / 22.5-26.7 %. The spec asks to
+  stop and ask if 48 kHz goes over 8 %: asked on #269, the numbers are a measurement and not a decision
 - **Editor:** the stack draws the lanes the chain holds, two to a column (a second column for amps 3
   and 4, `board::stack_width`), with a Levels frame on the plate (one knob for each lane, no
   value printed: it shows as a hint) where the Blend fader was. Needs a look from somebody: the

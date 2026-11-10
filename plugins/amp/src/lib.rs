@@ -1862,6 +1862,27 @@ mod tests {
     }
 
     #[test]
+    fn test_the_blend_of_a_state_from_before_becomes_exact_levels_that_sum_to_one() {
+        use nih_plug::wrapper::state::ParamValue;
+        // The default Blend was 0.5 (`AmpSettings::default().blend` before the levels)
+        assert_eq!(AmpSettings::default().levels[..2], [0.5, 0.5]);
+        for blend in [0.0f32, 0.1, 0.37, 0.5, 0.9, 1.0] {
+            let mut state = PluginState {
+                version: "0.2.0".to_owned(),
+                params: [("amp_blend".to_owned(), ParamValue::F32(blend))].into_iter().collect(),
+                fields: Default::default(),
+            };
+            GuitarAmpPlugin::filter_state(&mut state);
+            let ParamValue::F32(first) = state.params["amp1_level"] else { panic!() };
+            let ParamValue::F32(second) = state.params["amp2_level"] else { panic!() };
+            assert_eq!((first, second), (1.0 - blend, blend), "Blend {blend}");
+            // The two shares of the old law are exactly the old ones: the sum is exactly 1
+            assert_eq!(first + second, 1.0, "Blend {blend}");
+            assert_eq!(second / (first + second), blend, "Blend {blend}");
+        }
+    }
+
+    #[test]
     fn test_a_state_from_before_the_levels_moves_its_blend_into_them() {
         use nih_plug::wrapper::state::ParamValue;
         let mut state = PluginState {

@@ -929,13 +929,64 @@ pub(crate) mod tests {
         assert_eq!(saved.value(&params, "amp2_on"), 0.0);
         assert_eq!(saved.value(&params, "amp2"), Amp::Klar.to_index() as f32);
         assert_eq!(saved.value(&params, "amp_blend"), 0.5);
-        // Loading it switches the second amp off
+        // No third and fourth amp either: off, and the levels are its Blend's
+        for id in ["amp3_on", "amp4_on"] {
+            assert_eq!(saved.value(&params, id), 0.0, "{id}");
+        }
+        assert_eq!(saved.value(&params, "amp1_level"), 0.5);
+        assert_eq!(saved.value(&params, "amp2_level"), 0.5);
+        // Loading it switches the second amp off, and the third and fourth
+
         let host = Host::default();
         saved.load(&params, &ParamSetter::new(&host));
         let set = host.set.lock().unwrap();
         assert!(set
             .iter()
             .any(|(param, normalized)| *param == params.amp2_on.as_ptr() && *normalized == 0.0));
+        for on in [&params.amp3_on, &params.amp4_on] {
+            assert!(set
+                .iter()
+                .any(|(param, normalized)| *param == on.as_ptr() && *normalized == 0.0));
+        }
+    }
+
+    #[test]
+    fn test_an_amp_lane_the_chain_does_not_hold_is_not_played() {
+        // The three switches stand on, as a project that had them on would give
+        let params = GuitarAmpParams {
+            amp2_on: BoolParam::new("Amp 2", true),
+            amp3_on: BoolParam::new("Amp 3", true),
+            amp4_on: BoolParam::new("Amp 4", true),
+            ..Default::default()
+        };
+        let with_lanes = |lanes: usize| {
+            let mut chain = crate::slots::Chain::empty();
+            while chain.amps() < lanes {
+                chain.add_amp();
+            }
+            params.chain.put(chain);
+            let settings = params.settings(None);
+            [settings.second.on, settings.more[0].on, settings.more[1].on]
+        };
+        assert_eq!(with_lanes(1), [false, false, false]);
+        assert_eq!(with_lanes(2), [true, false, false]);
+        assert_eq!(with_lanes(3), [true, true, false]);
+        assert_eq!(with_lanes(4), [true, true, true]);
+    }
+
+    #[test]
+    fn test_a_file_with_a_blend_and_no_levels_gets_the_levels_of_its_blend() {
+        let params = GuitarAmpParams::default();
+        for blend in [0.0f32, 0.1, 0.37, 0.9, 1.0] {
+            let saved = UserPreset::parse(&params, &format!("amp2_on = on\namp_blend = {blend}\n"));
+            assert_eq!(saved.value(&params, "amp1_level"), 1.0 - blend);
+            assert_eq!(saved.value(&params, "amp2_level"), blend);
+        }
+        // A file that names levels keeps them
+        let named =
+            UserPreset::parse(&params, "amp_blend = 0.2\namp1_level = 0.9\namp2_level = 0.3\n");
+        assert_eq!(named.value(&params, "amp1_level"), 0.9);
+        assert_eq!(named.value(&params, "amp2_level"), 0.3);
     }
 
     #[test]
