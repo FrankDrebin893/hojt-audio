@@ -71,7 +71,9 @@ fn test_every_component_has_files_and_every_file_a_component() {
             );
         }
     }
-    for line in script.lines().filter(|line| line.contains("PluginDir")) {
+    for line in
+        script.lines().filter(|line| line.starts_with("Source:") && line.contains("PluginDir"))
+    {
         let used = line.split("Components: ").nth(1).and_then(|rest| rest.split(';').next());
         assert!(
             used.is_some_and(|used| components.contains(&used)),
