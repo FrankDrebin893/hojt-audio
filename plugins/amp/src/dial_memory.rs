@@ -145,13 +145,18 @@ pub fn switch_second_amp(params: &GuitarAmpParams, setter: &ParamSetter, to: Amp
 /// A preset with the second amp set to `amp` and its dials at `dials` is about to be
 /// loaded: the second amp remembers as `preset_loaded` does for the first
 pub fn second_preset_loaded(params: &GuitarAmpParams, amp: Amp, dials: AmpDials) {
-    let from = params.amp2.value();
+    extra_preset_loaded(params, 0, amp, dials);
+}
+
+/// The same for the amp beside the first at `lane`: 0 is the second amp, 1 the third, 2 the
+/// fourth, each with its own memory
+pub fn extra_preset_loaded(params: &GuitarAmpParams, lane: usize, amp: Amp, dials: AmpDials) {
+    let own = params.extra_amp(lane);
+    let from = own.amp.value();
     if from != amp {
-        params
-            .dial_memory_second
-            .leave(from, params.amp2_dials().map(|dial| dial.unmodulated_plain_value()));
+        own.memory.leave(from, own.dials.map(|dial| dial.unmodulated_plain_value()));
     }
-    params.dial_memory_second.leave(amp, dials);
+    own.memory.leave(amp, dials);
 }
 
 #[cfg(test)]

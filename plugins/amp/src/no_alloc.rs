@@ -42,7 +42,7 @@ fn test_every_preset_allocates_nothing() {
 #[test]
 fn test_the_second_amp_allocates_nothing() {
     use crate::chain::AmpSettings;
-    use crate::second::SecondSettings;
+    use crate::second::{second_only, SecondSettings};
     use crate::Amp;
     let mut chain = AmpChain::new();
     chain.set_sample_rate(host::SAMPLE_RATE);
@@ -50,18 +50,18 @@ fn test_the_second_amp_allocates_nothing() {
     let mut right = vec![0.0f32; host::BLOCKS[0]];
     let second = |on: bool, amp: Amp| AmpSettings {
         amp: Amp::Torden,
-        second: SecondSettings { on, amp, ..SecondSettings::default() },
+        extra: second_only(SecondSettings { on, amp, ..SecondSettings::default() }),
         blend: 0.4,
         ..AmpSettings::default()
     };
     // The same with a built-in cabinet for the second amp, switched while it plays
     let second_through = |on: bool, speaker: usize| AmpSettings {
         amp: Amp::Torden,
-        second: SecondSettings {
+        extra: second_only(SecondSettings {
             on,
             speaker: Some(speaker % crate::amp::model::SPEAKERS.len()),
             ..SecondSettings::default()
-        },
+        }),
         blend: 0.4,
         ..AmpSettings::default()
     };
@@ -83,6 +83,44 @@ fn test_the_second_amp_allocates_nothing() {
                     amp: Amp::ALL[block % Amp::ALL.len()],
                     ..second(true, Amp::ALL[(block + 2) % Amp::ALL.len()])
                 },
+            };
+            chain.process(&settings, &mut left[..len], Some(&mut right[..len]));
+            chain.process(&settings, &mut left[..len], None);
+        }
+    });
+}
+
+/// The third and the fourth amp (#269): each off, on, switched on and off in the middle of a
+/// block, its amp and its built-in cabinet switched while it plays, with the levels moving
+#[test]
+fn test_the_third_and_fourth_amp_allocate_nothing() {
+    use crate::chain::AmpSettings;
+    use crate::second::SecondSettings;
+    use crate::Amp;
+    let mut chain = AmpChain::new();
+    chain.set_sample_rate(host::SAMPLE_RATE);
+    let mut left = vec![0.0f32; host::BLOCKS[0]];
+    let mut right = vec![0.0f32; host::BLOCKS[0]];
+    host::assert_allocates_nothing("Four amps", || {
+        for block in 0..400 {
+            let len = host::BLOCKS[block % host::BLOCKS.len()];
+            for i in 0..len {
+                left[i] = (i as f32 * 0.0144).sin() * 0.5;
+                right[i] = left[i];
+            }
+            let amp = |lane: usize| SecondSettings {
+                on: !(block / (7 + lane * 3)).is_multiple_of(3),
+                amp: Amp::ALL[(block / (11 + lane)) % Amp::ALL.len()],
+                speaker: (block % 2 == 0)
+                    .then_some((block / 9 + lane) % crate::amp::model::SPEAKERS.len()),
+                ..SecondSettings::default()
+            };
+            let settings = AmpSettings {
+                amp: Amp::ALL[(block / 13) % Amp::ALL.len()],
+                extra: [amp(0), amp(1), amp(2)],
+                levels: [1.0, 0.3 + (block % 7) as f32 / 10.0, (block % 5) as f32 / 4.0, 0.8],
+                blend: (block % 11) as f32 / 10.0,
+                ..AmpSettings::default()
             };
             chain.process(&settings, &mut left[..len], Some(&mut right[..len]));
             chain.process(&settings, &mut left[..len], None);

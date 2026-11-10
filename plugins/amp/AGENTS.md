@@ -71,9 +71,11 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   `Documents/Hojt Audio/Presets` (or `HOJT_PRESETS_DIR`), and the banks they are kept in,
   which are the factory presets, that folder itself and the folders the player made in it:
   read, written, listed and stepped through
-- `src/second.rs` - The second amp (#177): `Second` (its preamp, tone stack, power amp and
-  cabinet, its dial smoothing, its switch and amp-switch fades), `SecondSettings`, `Timing` and
-  `BLEND_LAW`. `chain.rs` runs it and mixes it in
+- `src/second.rs` - The amps beside the first, the second (#177) and the third and fourth (#269),
+  all `Second` (its preamp, tone stack, power amp and cabinet, its dial smoothing, its switch and
+  amp-switch fades), `SecondSettings`, `Timing`, `Mix` (the law that turns the levels and the
+  Blend into gains), `BLEND_LAW` and `EXTRA_LAW`. `chain.rs` runs them (`AmpChain::extra`) and
+  mixes them in
 - `src/dial_memory.rs` - Each amp's six dial positions, kept by the editor and saved with the
   project (`amp-dials` for the first amp, `amp2-dials` for the second)
 - `src/lamps.rs` - Gate-open and clip lamps and the input and output level meters: what the
@@ -468,7 +470,11 @@ How it behaves:
 | Amp 2 (`amp2_on`) | on / off | off | The second amp, beside the first behind the same front pedals. Off, it is not run at all |
 | Amp 2 Model (`amp2`) | the same six, same variant ids as `amp` | Klar | The second amp's own choice |
 | Amp 2 Gain, Bass, Mid, Treble, Presence, Master (`amp2_gain`, `amp2_bass`, `amp2_mid`, `amp2_treble`, `amp2_presence`, `amp2_master`) | 0.0-10.0 | 5.0 | The second amp's dials |
-| Amp Blend (`amp_blend`) | 0.0-10.0 | 5.0 | 0 is the first amp alone, 10 the second alone. Not heard while Amp 2 is off |
+| Amp Blend (`amp_blend`) | 0.0-10.0 | 5.0 | 0 is the first amp alone, 10 the second alone. Not heard while Amp 2 is off. Kept as it was; the levels go on top of it |
+| Amp 3, Amp 4 (`amp3_on`, `amp4_on`) | on / off | off | The third and fourth amp (#269), as amp 2. Off, not run at all |
+| Amp 3 Model, Amp 4 Model (`amp3`, `amp4`) | the same six, same variant ids as `amp` | Klar | Their own choices |
+| Amp 3 and Amp 4 Gain, Bass, Mid, Treble, Presence, Master (`amp3_gain` ... `amp3_master`, `amp4_gain` ... `amp4_master`) | 0.0-10.0 | 5.0 | Their dials |
+| Amp 1 to Amp 4 Level (`amp1_level` to `amp4_level`) | 0.0-10.0 | 10.0 | The weight of each amp in the mix (see "Level law" below) |
 | EQ (`eq_on`) | on / off | off | EQ pedal, either side of the amp |
 | EQ Low, Mid, High (`eq_low`, `eq_mid`, `eq_high`) | 0.0-10.0 | 5.0 | -12 to +12 dB, 5 is flat: Low and High shelves at 100 Hz and 4 kHz, Mid a bell |
 | EQ Freq (`eq_freq`) | 0.0-10.0 | 5.0 | The centre of Mid, 200 Hz to 5 kHz on a log scale (5 is 1 kHz) |
@@ -619,9 +625,41 @@ cargo test -p amp --release render_mods -- --ignored
   `blend_report` (`cargo test -p amp --release blend_report -- --ignored --nocapture`) prints
   the loudness of five pairs at five Blends and holds the law to it: every pair at 0.5 within 2
   LU of -13 LUFS, Torden + Klar within 1 LU across 0.2 to 0.8, every pair under the knee
+- **Amps 3 and 4** (#269) are the same `Second` with the same stages and constants, each with its
+  own switch, model, six dials, cabinet (`cabinet3`, `cabinet4`: its own amp's or a built-in
+  one, never a file), dial memory (`amp3-dials`, `amp4-dials`) and preset lines. They are run
+  while on or fading out and cost nothing otherwise; an amp that is off adds nothing to the mix,
+  and nothing of it is heard, to the bit (`test_amps_three_and_four_off_...`). Factory presets
+  switch them off and put the levels at 10. The editor still draws two lanes and the plus adds
+  up to `MAX_AMPS` (2): lanes 3 and 4 and the level controls are not drawn yet, the host's
+  parameter list reaches them
+- **Level law** (#269): each amp has a weight, its level times a share of the Blend: the first
+  amp `level1 * (1 - blend)`, the second `level2 * blend`, the third and fourth `level * 0.5`
+  (`NEUTRAL_BLEND`, the Blend's middle). What an amp adds is its share of the total weight of
+  the amps that are in, to the power `BLEND_LAW + EXTRA_LAW * crowd`, `crowd` being the part of
+  the weight the third and fourth amp hold (0 with them out, so a pair is exactly the old law;
+  0.5 with four equal amps). The first amp has what is left, so it is exactly 1 with no other
+  amp on. An amp fades in over a switch's time; its weight counts in the total as a straight
+  line and its share goes with the eased fade, so Blend 1 with amp 2 switched on is a crossfade
+  as it was. A level counts against the others, not on its own: one amp alone is the same at
+  any level (Output is the rig's level). Levels at 10 (the default, and what an old project and
+  every factory preset has) leave the Blend as the only balance between the first two, so
+  Blend 0 is amp 1 alone and Blend 1 amp 2 alone, to the bit, and every factory preset at
+  Blend 0, 0.3, 0.5 and 1 renders to the bit as before (checked against `main` by a hash of
+  the renders). Without the extra term, four equal amps were 2.8 LU louder than a pair and up
+  to -0.6 dBFS at the chords' peak; with `EXTRA_LAW` 0.3 every group of two to four amps at
+  equal levels is within -15.3 and -11.7 LUFS (the pairs with Klar, which were 2 LU under
+  before, are the low end) and under -1.7 dBFS. `group_report`
+  (`cargo test -p amp --release group_report -- --ignored --nocapture`) prints all 2 to 4
+  of the ten amps; `test_every_group_of_amps_at_equal_levels_...` holds the five pairs and every
+  three and four of the first six to 2 LU of -13 LUFS and under the safety clip's knee
 - **Switching amp 2** (on or off, or its model) clicks no more than switching amp 1; tuner and
   bypass act on the whole rig. Dial memory: `amp2-dials` keeps amp 2's dials per amp, as
   `amp-dials` does for amp 1
+- **Cost of four amps** (#269, `stage_report`, `whole, 3` and `whole, 4`: Klar, Torden and Brøl
+  at Gain 10 beside the first): 9.5 % and 12.5 % at 48 kHz, 12.0 % and 15.1 % at 96 kHz, 25.7 % and
+  33.7 % at 192 kHz, on a machine where one amp reads 4.6 % and two 6.4 % at 48 kHz.
+  Each amp at Gain 10 costs about 3 % at 48 kHz, so four are over the 8 % limit (asked on the issue)
 - **Cost** (`stage_report`, Torden Gain 10 and everything on, plus Klar at Gain 10 at Blend 0.5
   as amp 2, measured in #203; `whole, 2` is both amps on): `whole` 3.0 to 3.5 % of a core at
   48 kHz, both amps on 4.0 to 5.1 % at 48 kHz, 6.2 to 6.5 % at 96 kHz and 14.2 % at 192 kHz,

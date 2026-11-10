@@ -4003,11 +4003,10 @@ mod tests {
     fn full_chain_of_sixteen() -> Chain {
         let mut chain = Chain::empty();
         for number in 0..16 {
-            let (kind, zone) = if number % 2 == 0 {
-                (EffectKind::Comp, crate::order::Zone::Front)
-            } else {
-                (EffectKind::Delay, crate::order::Zone::Back)
-            };
+            // Eight kinds, two of each
+            let kind = EffectKind::ALL[1 + number / 2];
+            let zone =
+                if number % 2 == 0 { crate::order::Zone::Front } else { crate::order::Zone::Back };
             chain.add(kind, zone, 99).unwrap();
         }
         chain

@@ -52,7 +52,8 @@ pub const EXTENSION: &str = "preset";
 // The keys of the lines that are not parameters
 const ORDER_KEY: &str = "order";
 const CABINET_KEY: &str = "cabinet";
-const SECOND_CABINET_KEY: &str = "cabinet2";
+// The cabinets of the amps beside the first: the second, third and fourth
+const EXTRA_CABINET_KEYS: [&str; 3] = ["cabinet2", "cabinet3", "cabinet4"];
 const HEADER: &str = "# Hojt Guitar Amp preset";
 
 /// Where the presets are: `FOLDER_ENV` if set, else `Hojt Audio/Presets` in Documents.
@@ -279,7 +280,7 @@ fn enum_index<T: Enum>(id: &str) -> Option<usize> {
 
 /// Every parameter a preset holds, by its id: all of them but `LEFT_ALONE`. The amp comes
 /// first, so the host hears it change before its dials do
-fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 68] {
+fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 88] {
     use Control::{Knob, Mic, Note, Switch, Wah, Whole};
     [
         ("amp", Control::Amp(&params.amp)),
@@ -338,6 +339,28 @@ fn controls(params: &GuitarAmpParams) -> [(&'static str, Control<'_>); 68] {
         ("amp2_presence", Knob(&params.amp2_presence)),
         ("amp2_master", Knob(&params.amp2_master)),
         ("amp_blend", Knob(&params.amp_blend)),
+        // The third and the fourth amp and the levels (#269): a file from before names none of
+        // these, and loads with them off and the levels at 10
+        ("amp3_on", Switch(&params.amp3_on)),
+        ("amp3", Control::Amp(&params.amp3)),
+        ("amp3_gain", Knob(&params.amp3_gain)),
+        ("amp3_bass", Knob(&params.amp3_bass)),
+        ("amp3_mid", Knob(&params.amp3_mid)),
+        ("amp3_treble", Knob(&params.amp3_treble)),
+        ("amp3_presence", Knob(&params.amp3_presence)),
+        ("amp3_master", Knob(&params.amp3_master)),
+        ("amp4_on", Switch(&params.amp4_on)),
+        ("amp4", Control::Amp(&params.amp4)),
+        ("amp4_gain", Knob(&params.amp4_gain)),
+        ("amp4_bass", Knob(&params.amp4_bass)),
+        ("amp4_mid", Knob(&params.amp4_mid)),
+        ("amp4_treble", Knob(&params.amp4_treble)),
+        ("amp4_presence", Knob(&params.amp4_presence)),
+        ("amp4_master", Knob(&params.amp4_master)),
+        ("amp1_level", Knob(&params.amp1_level)),
+        ("amp2_level", Knob(&params.amp2_level)),
+        ("amp3_level", Knob(&params.amp3_level)),
+        ("amp4_level", Knob(&params.amp4_level)),
         // The pitch shifter: a file saved before it names none of these, and loads with it off
         ("pitch_on", Switch(&params.pitch_on)),
         ("pitch_semitones", Whole(&params.pitch_semitones)),
@@ -366,8 +389,9 @@ pub struct UserPreset {
     order: ChainOrder,
     /// What `GuitarAmpParams::cabinet` holds: empty for the amp's own
     cabinet: String,
-    /// What `GuitarAmpParams::cabinet_second` holds: empty for the second amp's own
-    cabinet_second: String,
+    /// What the cabinets of the second, third and fourth amp hold
+    /// (`GuitarAmpParams::cabinet_second` and the like): empty for the amp's own
+    cabinet_extra: [String; 3],
 }
 
 impl UserPreset {
@@ -381,7 +405,7 @@ impl UserPreset {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .clone(),
-            cabinet_second: params.cabinet_second.choice(),
+            cabinet_extra: [0, 1, 2].map(|lane| params.extra_amp(lane).cabinet.choice()),
         }
     }
 
@@ -391,7 +415,7 @@ impl UserPreset {
             values: controls(params).iter().map(|&(_, control)| control.default_plain()).collect(),
             order: ChainOrder::default(),
             cabinet: String::new(),
-            cabinet_second: String::new(),
+            cabinet_extra: [String::new(), String::new(), String::new()],
         };
         let controls = controls(params);
         for line in text.lines() {
@@ -413,17 +437,17 @@ impl UserPreset {
                 {
                     value.clone_into(&mut preset.cabinet);
                 }
-            } else if key == SECOND_CABINET_KEY {
-                // Only a built-in cabinet: the second amp never plays a file
+            } else if let Some(lane) = EXTRA_CABINET_KEYS.iter().position(|&each| each == key) {
+                // Only a built-in cabinet: an amp beside the first never plays a file
                 // that this build has: an id it does not know is the amp's own, as it is
                 // when loaded, so the preset does not look edited once it is
                 let known = value
                     .strip_prefix("speaker:")
                     .is_some_and(|id| crate::amp::model::speaker_index(id).is_some());
                 if value.is_empty() || known {
-                    value.clone_into(&mut preset.cabinet_second);
+                    value.clone_into(&mut preset.cabinet_extra[lane]);
                 } else if user_cab::is_speaker_choice(value) {
-                    preset.cabinet_second.clear();
+                    preset.cabinet_extra[lane].clear();
                 }
             } else if let Some(index) = controls.iter().position(|&(id, _)| id == key) {
                 if let Some(plain) = controls[index].1.read(value) {
@@ -442,7 +466,9 @@ impl UserPreset {
         }
         text.push_str(&format!("{ORDER_KEY} = {}\n", self.order.ids().join(" ")));
         text.push_str(&format!("{CABINET_KEY} = {}\n", self.cabinet));
-        text.push_str(&format!("{SECOND_CABINET_KEY} = {}\n", self.cabinet_second));
+        for (key, cabinet) in EXTRA_CABINET_KEYS.iter().zip(&self.cabinet_extra) {
+            text.push_str(&format!("{key} = {cabinet}\n"));
+        }
         text
     }
 
@@ -458,9 +484,16 @@ impl UserPreset {
         let dials = ["gain", "bass", "mid", "treble", "presence", "master"]
             .map(|id| params_dial(params, id, self.value(params, id)));
         dial_memory::preset_loaded(params, amp, dials);
-        let amp2 = Amp::from_index(self.value(params, "amp2") as usize);
-        let dials2 = SECOND_DIALS.map(|id| second_dial(params, id, self.value(params, id)));
-        dial_memory::second_preset_loaded(params, amp2, dials2);
+        for lane in 0..3 {
+            let own = params.extra_amp(lane);
+            let amp = Amp::from_index(self.value(params, EXTRA_AMP_IDS[lane]) as usize);
+            let dials = EXTRA_DIALS[lane].map(|id| {
+                let index = EXTRA_DIALS[lane].iter().position(|&each| each == id).unwrap_or(0);
+                let dial = own.dials[index];
+                dial.preview_plain(dial.preview_normalized(self.value(params, id)))
+            });
+            dial_memory::extra_preset_loaded(params, lane, amp, dials);
+        }
         params.chain.put_order(self.order);
         let edits: Vec<Edit> = controls(params)
             .iter()
@@ -468,7 +501,9 @@ impl UserPreset {
             .map(|(&(_, control), &plain)| control.edit(plain))
             .collect();
         presets::set_together(setter, &edits);
-        params.cabinet_second.set_choice(&self.cabinet_second);
+        for (lane, choice) in self.cabinet_extra.iter().enumerate() {
+            params.extra_amp(lane).cabinet.set_choice(choice);
+        }
         let mut cabinet = params.cabinet.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if *cabinet == self.cabinet {
             return false;
@@ -480,7 +515,8 @@ impl UserPreset {
     /// Whether everything the preset holds still stands where it puts it
     pub fn matches(&self, params: &GuitarAmpParams) -> bool {
         params.chain.order() == self.order
-            && params.cabinet_second.choice() == self.cabinet_second
+            && (0..3)
+                .all(|lane| params.extra_amp(lane).cabinet.choice() == self.cabinet_extra[lane])
             && *params.cabinet.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
                 == self.cabinet
             && controls(params).iter().zip(&self.values).all(|(&(_, control), &plain)| {
@@ -499,15 +535,14 @@ fn params_dial(params: &GuitarAmpParams, id: &str, plain: f32) -> f32 {
     dial.preview_plain(dial.preview_normalized(plain))
 }
 
-// The ids of the second amp's six dials, in the order they stand on the head
-const SECOND_DIALS: [&str; 6] =
-    ["amp2_gain", "amp2_bass", "amp2_mid", "amp2_treble", "amp2_presence", "amp2_master"];
-
-/// The same for a dial of the second amp
-fn second_dial(params: &GuitarAmpParams, id: &str, plain: f32) -> f32 {
-    let dial = params.amp2_dials()[SECOND_DIALS.iter().position(|&each| each == id).unwrap_or(0)];
-    dial.preview_plain(dial.preview_normalized(plain))
-}
+// The ids of the model and of the six dials of the amps beside the first, in the order they
+// stand on the head: the second, third and fourth
+const EXTRA_AMP_IDS: [&str; 3] = ["amp2", "amp3", "amp4"];
+const EXTRA_DIALS: [[&str; 6]; 3] = [
+    ["amp2_gain", "amp2_bass", "amp2_mid", "amp2_treble", "amp2_presence", "amp2_master"],
+    ["amp3_gain", "amp3_bass", "amp3_mid", "amp3_treble", "amp3_presence", "amp3_master"],
+    ["amp4_gain", "amp4_bass", "amp4_mid", "amp4_treble", "amp4_presence", "amp4_master"],
+];
 
 /// The presets in the folder as they were when it was last looked at, by file name
 #[derive(Default)]
@@ -760,8 +795,48 @@ pub(crate) mod tests {
         }
         // Every parameter is written out, also those at their defaults, and the pedal order and
         // the two cabinets after them
-        assert_eq!(text.lines().filter(|line| line.contains(" = ")).count(), 71);
+        assert_eq!(text.lines().filter(|line| line.contains(" = ")).count(), 93);
         assert_eq!(UserPreset::parse(&params, &text), saved);
+    }
+
+    #[test]
+    fn test_the_third_and_fourth_amp_and_the_levels_are_written_and_read_back() {
+        let params = GuitarAmpParams::default();
+        // A file from before names none of them: off, and every level at 10
+        let old = UserPreset::parse(&params, "amp = torden\n");
+        for id in ["amp3_on", "amp4_on"] {
+            assert_eq!(old.value(&params, id), 0.0);
+        }
+        for id in ["amp1_level", "amp2_level", "amp3_level", "amp4_level"] {
+            assert_eq!(old.value(&params, id), 1.0, "{id}");
+        }
+        let saved = UserPreset::parse(
+            &params,
+            "amp3_on = on\namp3 = sang\namp3_gain = 0.31\namp4_on = on\namp4 = dron\n\
+             amp4_master = 0.62\namp3_level = 0.4\namp1_level = 0.9\n\
+             cabinet3 = speaker:4x12-heavy\ncabinet4 = speaker:1x15-deep\n",
+        );
+        assert_eq!(saved.value(&params, "amp3_on"), 1.0);
+        assert_eq!(saved.value(&params, "amp3"), Amp::Sang.to_index() as f32);
+        let text = saved.to_text(&params);
+        for line in [
+            "amp3_on = on",
+            "amp3 = sang",
+            "amp4 = dron",
+            "cabinet3 = speaker:4x12-heavy",
+            "cabinet4 = speaker:1x15-deep",
+        ] {
+            assert!(text.lines().any(|each| each == line), "{line} is not in\n{text}");
+        }
+        assert_eq!(UserPreset::parse(&params, &text), saved);
+        // Loading sets them in the same edit, with each amp's own memory and cabinet
+        let host = Host::default();
+        saved.load(&params, &ParamSetter::new(&host));
+        assert_eq!(params.dial_memory_third.enter(Amp::Sang)[0], 0.31);
+        assert_eq!(params.dial_memory_fourth.enter(Amp::Dron)[5], 0.62);
+        assert_eq!(params.cabinet_third.choice(), "speaker:4x12-heavy");
+        assert_eq!(params.cabinet_fourth.choice(), "speaker:1x15-deep");
+        assert_eq!(params.cabinet_second.choice(), "");
     }
 
     #[test]
@@ -814,12 +889,12 @@ pub(crate) mod tests {
         // and its cabinet: a built-in one, and never a file
         assert_eq!(params.cabinet_second.choice(), "speaker:4x12-heavy");
         let file = UserPreset::parse(&params, "cabinet2 = Alpha.wav\n");
-        assert_eq!(file.cabinet_second, "");
+        assert_eq!(file.cabinet_extra[0], "");
         file.load(&params, &ParamSetter::new(&host));
         assert_eq!(params.cabinet_second.get(), None);
         // an id this build does not have is the amp's own, so it matches once loaded
         let unknown = UserPreset::parse(&params, "cabinet2 = speaker:9x99-nothing\n");
-        assert_eq!(unknown.cabinet_second, "");
+        assert_eq!(unknown.cabinet_extra[0], "");
         unknown.load(&params, &ParamSetter::new(&host));
         assert!(unknown.matches(&params));
     }

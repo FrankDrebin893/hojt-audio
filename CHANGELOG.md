@@ -7,6 +7,13 @@ GitHub release.
 
 ### Guitar Amp
 
+- The Guitar Amp can play up to four amps at once now: Amp 3 and Amp 4 are there beside Amp 2, each
+  with its own switch, model, six dials and cabinet, and each costs nothing while it is off. There
+  is a Level for each amp (Amp 1 Level to Amp 4 Level) that sets how much of the mix it has. Four amps
+  are about as loud as one or two, and they take more of the processor: the numbers are in the amp's
+  notes. The editor does not show the third and fourth amp or the levels yet; they are in the host's
+  list of parameters, and in the preset files. Old projects, presets and the factory presets sound
+  exactly as before.
 - The standalone program no longer stops with a buffer-size error when it plays through WASAPI.
 - The strip across the top of the Guitar Amp is slim now, and shows only what you need all the time: the
   input meter with the Input gain beside it, the preset name, and the output knob with its meter and

@@ -712,7 +712,7 @@ pub fn index_or_first(stored: u32) -> usize {
 
 impl Preset {
     /// Every continuous parameter the preset holds, with the value it gets
-    fn knobs<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a FloatParam, f32); 46] {
+    fn knobs<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a FloatParam, f32); 50] {
         let [gain, bass, mid, treble, presence, master] = self.dials;
         let (_, gate_thresh_db, gate_release_ms) = self.gate;
         let (_, [drive_gain, drive_tone, drive_level]) = self.drive;
@@ -764,6 +764,12 @@ impl Preset {
             (&params.amp2_presence, dial(presence2)),
             (&params.amp2_master, dial(master2)),
             (&params.amp_blend, dial(self.second.blend)),
+            // No factory preset sets a level: each stands at 10, where the Blend is all there
+            // is between the first two (#269)
+            (&params.amp1_level, 1.0),
+            (&params.amp2_level, 1.0),
+            (&params.amp3_level, 1.0),
+            (&params.amp4_level, 1.0),
             // No factory preset uses the pitch shifter: it is switched off, where it starts
             (&params.pitch_blend, pitch.blend),
             (&params.pitch_latency, pitch.latency_ms),
@@ -780,9 +786,12 @@ impl Preset {
     }
 
     /// Every switch the preset holds, with the position it gets
-    fn switches<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a BoolParam, bool); 16] {
+    fn switches<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a BoolParam, bool); 18] {
         [
             (&params.amp2_on, self.second.on),
+            // Nor the third and the fourth amp: off
+            (&params.amp3_on, false),
+            (&params.amp4_on, false),
             (&params.gate_on, self.gate.0),
             (&params.fuzz_on, self.fuzz.0),
             (&params.comp_on, self.comp.0),
@@ -954,17 +963,21 @@ mod tests {
             let [chorus, phaser, flanger, tremolo] = self.mods;
             let [gain2, bass2, mid2, treble2, presence2, master2] = self.second.dials.map(dial);
             AmpSettings {
-                second: SecondSettings {
-                    on: self.second.on,
-                    amp: self.second.amp,
-                    speaker: None,
-                    gain: gain2,
-                    bass: bass2,
-                    mid: mid2,
-                    treble: treble2,
-                    presence: presence2,
-                    master: master2,
-                },
+                extra: [
+                    SecondSettings {
+                        on: self.second.on,
+                        amp: self.second.amp,
+                        speaker: None,
+                        gain: gain2,
+                        bass: bass2,
+                        mid: mid2,
+                        treble: treble2,
+                        presence: presence2,
+                        master: master2,
+                    },
+                    SecondSettings::default(),
+                    SecondSettings::default(),
+                ],
                 blend: dial(self.second.blend),
                 fuzz: FuzzSettings { on: self.fuzz.0, fuzz, tone: fuzz_tone },
                 comp: CompSettings { on: self.comp.0, sustain: comp_sustain, level: comp_level },

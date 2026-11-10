@@ -1,8 +1,12 @@
-//! The second amp: a copy of the signal after the front pedals goes through its own preamp,
-//! tone stack, power amp and built-in cabinet, and the chain mixes it with the first amp
-//! behind the cabinets (`chain.rs`). The stages are the same ones the first amp uses, set up
-//! with the same `AmpModel` constants. With the second amp off none of this runs and the
-//! chain is the single amp it was.
+//! The amps beside the first: a copy of the signal after the front pedals goes through its
+//! own preamp, tone stack, power amp and built-in cabinet, and the chain mixes it with the
+//! first amp behind the cabinets (`chain.rs`). The second amp (#177) and the third and fourth
+//! (#269) are the same `Second`, with the same stages the first amp uses, set up with the same
+//! `AmpModel` constants. With one off none of this runs for it, its output is not added, and
+//! the chain is as it was without it.
+//!
+//! The mix is `Mix`: a weight for each amp (its level, the Blend between the first two) and
+//! the law that turns the weights into gains.
 
 use crate::amp::model::{speaker_index, Amp, CabModel, SPEAKERS};
 use crate::amp::poweramp::PowerAmp;
@@ -22,6 +26,21 @@ use std::sync::atomic::{AtomicU32, Ordering};
 /// clip's knee. This is between the two, and `blend_report` holds it to both. Exactly 1 and
 /// 0 at the ends of the dial
 pub const BLEND_LAW: f32 = 0.6;
+
+/// How much the law's power grows with the share of the weight the third and fourth amp hold
+/// (`Mix::law`): each amp added to a pair is a little more of the same guitar, which sums
+/// louder than the pair's 2.4 dB, so the power goes from `BLEND_LAW` at none of it to
+/// `BLEND_LAW + EXTRA_LAW / 2` when the two hold half the mix. Exactly `BLEND_LAW` with the
+/// third and fourth amp out, so the pair is as it was. `group_report` holds it
+pub const EXTRA_LAW: f32 = 0.3;
+
+/// The amps beside the first one: the second, third and fourth
+pub const EXTRA_AMPS: usize = 3;
+
+/// What the Blend dial leaves the third and fourth amp's weight at: the Blend is a crossfade of
+/// the first two, 0.5 in the middle where each has half of it, and the amps it does not touch
+/// have the same half, so equal levels are equal shares whatever the number of amps
+pub const NEUTRAL_BLEND: f32 = 0.5;
 
 /// What the second amp's switch, choice and dials say, 0.0 to 1.0 like the first amp's
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -96,8 +115,9 @@ pub struct Second {
     // The dials the stages are at, and where they are going
     pub dials: [f32; 6],
     pub target: [f32; 6],
-    // The Blend dial: the share of the second amp in the mix, 0.0 to 1.0
-    pub blend: Ramp,
+    // The weight of this amp in the mix, before the others are counted in: its level times
+    // its Blend (`Mix`)
+    pub weight: Ramp,
     // Level of the second amp in steps, `fade_len` when switched on, 0 when off: it fades in
     // and out in the time of an amp switch
     pub on_fade: u32,
@@ -107,10 +127,6 @@ pub struct Second {
     pub cabinet_busy: usize,
     // The stages are at rest and not being run: they start from there
     pub at_rest: bool,
-    // The blend the shares were last worked out for, and the shares of the first and the
-    // second amp
-    shares_for: f32,
-    shares: [f32; 2],
     tone_applied: [f32; 3],
     presence_applied: f32,
     cab_applied: [f32; 2],
@@ -134,13 +150,11 @@ impl Second {
             voicing: CabVoicing::new(),
             dials: defaults.dials(),
             target: defaults.dials(),
-            blend: Ramp::new(0.5),
+            weight: Ramp::new(NEUTRAL_BLEND),
             on_fade: 0,
             amp_fade: 1,
             cabinet_busy: 0,
             at_rest: true,
-            shares_for: 0.0,
-            shares: [1.0, 0.0],
             tone_applied: [f32::NAN; 3],
             presence_applied: f32::NAN,
             cab_applied: [f32::NAN; 2],
@@ -285,18 +299,9 @@ impl Second {
         }
     }
 
-    /// The gains of the first and the second amp for a Blend of `weight`
-    pub fn gains(&mut self, weight: f32) -> [f32; 2] {
-        if weight != self.shares_for {
-            self.shares_for = weight;
-            self.shares = [(1.0 - weight).powf(BLEND_LAW), weight.powf(BLEND_LAW)];
-        }
-        self.shares
-    }
-
-    /// The share of this amp in the mix for the next sample: the Blend dial, times the
-    /// level it is faded in to
-    pub fn weight(&mut self, fade_len: u32) -> f32 {
+    /// Where this amp is in being heard, 0.0 to 1.0 in a straight line: 1.0 once it is faded
+    /// in. Steps one sample on towards where its switch is
+    fn presence(&mut self, fade_len: u32) -> f32 {
         if self.wanted_on {
             if self.on_fade < fade_len {
                 self.on_fade += 1;
@@ -304,8 +309,84 @@ impl Second {
         } else {
             self.on_fade = self.on_fade.saturating_sub(1);
         }
-        self.blend.next() * eased(self.on_fade, fade_len)
+        self.on_fade as f32 / fade_len as f32
     }
+}
+
+/// The mix of the amps: the gain each has, from the weights they stand at
+///
+/// The weight of an amp is its level, times the Blend for the first two (`1 - blend` and `blend`)
+/// and times `NEUTRAL_BLEND` for the others. What an amp adds is its share of what is heard:
+/// its weight over the total of the amps that are in (`gains`), to the power of `BLEND_LAW`.
+/// The first amp has what is left, so it is exactly 1 with no other amp in and the mix is
+/// the single amp it was; at Blend 0 the second amp's weight is 0 and the first amp's share
+/// 1, and the other way round at Blend 1, to the bit. An amp fades in over a switch's time
+/// (`Second::on_fade`): its weight counts in the total as it does, a straight line, while its
+/// share goes with the eased fade
+pub struct Mix {
+    // The first amp's weight, as the others have theirs in `Second::weight`
+    pub first: Ramp,
+    inputs: [f32; 7],
+    gains: [f32; 4],
+}
+
+impl Mix {
+    pub fn new() -> Self {
+        Self { first: Ramp::new(NEUTRAL_BLEND), inputs: [f32::NAN; 7], gains: [1.0, 0.0, 0.0, 0.0] }
+    }
+
+    /// The gains of the four amps for the next sample. The amps' weights and fades step on
+    pub fn gains(&mut self, extra: &mut [Second; EXTRA_AMPS], fade_len: u32) -> [f32; 4] {
+        let first = self.first.next();
+        let mut weights = [0.0f32; EXTRA_AMPS];
+        let mut presences = [0.0f32; EXTRA_AMPS];
+        for ((amp, weight), presence) in extra.iter_mut().zip(&mut weights).zip(&mut presences) {
+            *weight = amp.weight.next();
+            *presence = amp.presence(fade_len);
+        }
+        let inputs =
+            [first, weights[0], weights[1], weights[2], presences[0], presences[1], presences[2]];
+        if inputs != self.inputs {
+            self.inputs = inputs;
+            self.gains = Self::law(first, weights, presences);
+        }
+        self.gains
+    }
+
+    /// The law on its own: the gains of the first amp and of the others for their weights and
+    /// how far each is faded in, 0.0 to 1.0
+    pub fn law(first: f32, weights: [f32; EXTRA_AMPS], presences: [f32; EXTRA_AMPS]) -> [f32; 4] {
+        let total = first
+            + weights[0] * presences[0]
+            + weights[1] * presences[1]
+            + weights[2] * presences[2];
+        if total <= f32::EPSILON {
+            return [1.0, 0.0, 0.0, 0.0];
+        }
+        let mut shares = [0.0f32; EXTRA_AMPS];
+        for ((share, &weight), &presence) in shares.iter_mut().zip(&weights).zip(&presences) {
+            if presence > 0.0 {
+                *share = weight * eased_share(presence) / total;
+            }
+        }
+        let rest = (((1.0 - shares[0]) - shares[1]) - shares[2]).max(0.0);
+        // The part of the weight the third and fourth amp hold
+        let crowd = ((weights[1] * presences[1] + weights[2] * presences[2]) / total).min(1.0);
+        let law = BLEND_LAW + EXTRA_LAW * crowd;
+        [rest.powf(law), shares[0].powf(law), shares[1].powf(law), shares[2].powf(law)]
+    }
+}
+
+impl Default for Mix {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// A fade of `presence` (0.0 to 1.0, a straight line) as the share it gets: eased at both
+/// ends, as the fade of an amp switch is
+fn eased_share(presence: f32) -> f32 {
+    presence * presence * (3.0 - 2.0 * presence)
 }
 
 /// The built-in cabinet the second amp plays through, kept by the editor and saved with the
@@ -372,4 +453,10 @@ impl PersistentField<'_, String> for SecondCabinet {
 fn eased(position: u32, len: u32) -> f32 {
     let position = position as f32 / len as f32;
     position * position * (3.0 - 2.0 * position)
+}
+
+/// The amps beside the first with only the second one as given, for tests
+#[cfg(test)]
+pub fn second_only(second: SecondSettings) -> [SecondSettings; EXTRA_AMPS] {
+    [second, SecondSettings::default(), SecondSettings::default()]
 }
