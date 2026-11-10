@@ -47,6 +47,9 @@ detail lives. Each detail is next to what it governs.
   The old address, https://hojte.net/hojt-audio-piano-viz/, is served by the old repository.
   `site-sources/` - what is played in a sound example when it is our own playing; not published.
   `site-design/DESIGN.md` - the site's look: its tokens, named rules, voice and references; not published
+- `installer/` - The Windows installer (`hojt-dsp.iss`, Inno Setup) and its test (`test-installer.ps1`);
+  `scripts/build-installer.sh` builds `HojtDSP-Setup.exe` in the Windows job of `release.yml`, which
+  installs, upgrades and uninstalls it on the runner before anything is published
 - `scripts/` - Build, install, check, page and release tools; see `scripts/README.md`
 - `.agents/skills/` - The agent's skills (`/issue`, `/spec`, `/next`, `/groom`, `/release`, `/page`,
   `/design`, `/wayfinder`, `/scout`, `/specwriter`, `/release-prep`, `/release-review`, `/feedback`, and the piano viz's `/piano-release` and `/piano-readme`).
@@ -245,6 +248,9 @@ The page's sound and look (`site/audio/`, `site/img/`) change only in a release 
 The weekly `/release-prep` prepares that pull request when a release is due, with auto-merge off; merging
 it and tagging `v<version>` stay with Rasmus. `/release-review` looks at how each release did, 7 and 28 days
 after it, on the issue "Release reviews", and files what it learns as `from:review` ideas.
+
+A release carries, besides the per-plugin zips, `HojtDSP-Setup.exe` (Windows, versionless name) and one
+`SHA256SUMS.txt` of every asset (`scripts/checksums.sh`).
 
 The piano viz releases on its own, with `/piano-release`: a tag `piano-v<version>` on `main`, which
 `piano.yml` builds and publishes. Its releases are never marked latest, since the plugins' page links

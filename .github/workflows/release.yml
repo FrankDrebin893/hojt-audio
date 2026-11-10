@@ -1,8 +1,9 @@
 name: Release
 
 # A tag vX.Y.Z builds the plugins for the three systems and publishes them as a GitHub release.
-# Run by hand, or from a pull request that touches the packaging, it only builds: the zips are
-# then under the run's artifacts.
+# Run by hand, or from a pull request that touches the packaging or the installer, it only builds:
+# the zips and the Windows installer are then under the run's artifacts, and the installer has been
+# installed, upgraded and uninstalled on the runner.
 on:
   push:
     tags: ["v*"]
@@ -11,6 +12,9 @@ on:
     paths:
       - .github/workflows/release.yml
       - scripts/package.sh
+      - scripts/build-installer.sh
+      - scripts/checksums.sh
+      - installer/**
 
 env:
   CARGO_TERM_COLOR: always
@@ -63,10 +67,36 @@ jobs:
         shell: bash
         run: bash scripts/package.sh ${{ matrix.name }}
 
+      # The Windows installer, from the bundles just built. Unsigned: to sign, set
+      # HOJT_SIGN_COMMAND (a command that signs the file it is given last) in this step's env
+      - name: Build the installer
+        if: runner.os == 'Windows'
+        shell: bash
+        run: bash scripts/build-installer.sh
+
+      # Installs it silently to temp folders, upgrades it over an older build, uninstalls it, and
+      # fails if a file is wrong or left behind. The previous release's zips are the older build
+      - name: Test the installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Continue'
+          New-Item -ItemType Directory -Force prev | Out-Null
+          gh release download --repo $env:GITHUB_REPOSITORY --pattern '*-windows.zip' --dir prev --clobber
+          if ($LASTEXITCODE -ne 0) { Write-Host 'No previous release to upgrade from: the test makes up an older build' }
+          $ErrorActionPreference = 'Stop'
+          $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.*)"$' | Select-Object -First 1).Matches[0].Groups[1].Value
+          & installer/test-installer.ps1 -Installer dist/HojtDSP-Setup.exe -BundleDir target/bundled -Version $version -PreviousZipDir prev
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - uses: actions/upload-artifact@v4
         with:
           name: plugins-${{ matrix.name }}
-          path: dist/*.zip
+          path: |
+            dist/*.zip
+            dist/*.exe
           if-no-files-found: error
 
   publish:
@@ -101,11 +131,15 @@ jobs:
             exit 1
           fi
 
+      # One SHA256SUMS.txt for every file of the release (the zips and the installer)
+      - name: Checksums
+        run: bash scripts/checksums.sh dist
+
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -l dist
-          gh release create "$GITHUB_REF_NAME" dist/*.zip \
+          gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.exe dist/SHA256SUMS.txt \
             --title "HØJT DSP ${GITHUB_REF_NAME#v}" \
             --notes-file notes.md
