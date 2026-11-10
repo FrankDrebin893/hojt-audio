@@ -143,6 +143,19 @@ pub struct GuitarAmpParams {
     #[persist = "cabinet2"]
     pub cabinet_second: second::SecondCabinet,
 
+    /// The third and fourth amp's dial memory and cabinet, as the second's (#269)
+    #[persist = "amp3-dials"]
+    pub dial_memory_third: DialMemory,
+
+    #[persist = "amp4-dials"]
+    pub dial_memory_fourth: DialMemory,
+
+    #[persist = "cabinet3"]
+    pub cabinet_third: second::SecondCabinet,
+
+    #[persist = "cabinet4"]
+    pub cabinet_fourth: second::SecondCabinet,
+
     /// The chain: which effect stands on which slot and in what order, in front of the amps
     /// and behind the cabinets (`slots`). Not a parameter: an arrangement cannot be
     /// automated. The editor changes it, and the audio thread reads it with the dials
@@ -250,9 +263,77 @@ pub struct GuitarAmpParams {
     #[id = "amp2_master"]
     pub amp2_master: FloatParam,
 
-    /// 0.0 is the first amp alone, 1.0 the second alone
+    /// 0.0 is the first amp alone, 1.0 the second alone. Not heard any more: the levels
+    /// (`amp1_level` to `amp4_level`) are, and a project from before is moved into them. The id
+    /// stays, for the projects that hold it
     #[id = "amp_blend"]
     pub amp_blend: FloatParam,
+
+    // The third amp, as the second (#269)
+    #[id = "amp3_on"]
+    pub amp3_on: BoolParam,
+
+    #[id = "amp3"]
+    pub amp3: EnumParam<Amp>,
+
+    #[id = "amp3_gain"]
+    pub amp3_gain: FloatParam,
+
+    #[id = "amp3_bass"]
+    pub amp3_bass: FloatParam,
+
+    #[id = "amp3_mid"]
+    pub amp3_mid: FloatParam,
+
+    #[id = "amp3_treble"]
+    pub amp3_treble: FloatParam,
+
+    #[id = "amp3_presence"]
+    pub amp3_presence: FloatParam,
+
+    #[id = "amp3_master"]
+    pub amp3_master: FloatParam,
+
+    // The fourth amp, as the second (#269)
+    #[id = "amp4_on"]
+    pub amp4_on: BoolParam,
+
+    #[id = "amp4"]
+    pub amp4: EnumParam<Amp>,
+
+    #[id = "amp4_gain"]
+    pub amp4_gain: FloatParam,
+
+    #[id = "amp4_bass"]
+    pub amp4_bass: FloatParam,
+
+    #[id = "amp4_mid"]
+    pub amp4_mid: FloatParam,
+
+    #[id = "amp4_treble"]
+    pub amp4_treble: FloatParam,
+
+    #[id = "amp4_presence"]
+    pub amp4_presence: FloatParam,
+
+    #[id = "amp4_master"]
+    pub amp4_master: FloatParam,
+
+    /// The level of each amp, 0.0 to 1.0: the amps that play are balanced by their levels
+    /// (`second::Mix`), and the level of an amp that plays alone is not heard. They take the
+    /// place of `amp_blend` for the sound, which a project from before is moved into them as
+    /// 1 - Blend and Blend (`filter_state`)
+    #[id = "amp1_level"]
+    pub amp1_level: FloatParam,
+
+    #[id = "amp2_level"]
+    pub amp2_level: FloatParam,
+
+    #[id = "amp3_level"]
+    pub amp3_level: FloatParam,
+
+    #[id = "amp4_level"]
+    pub amp4_level: FloatParam,
 
     // Modulation pedals
     #[id = "chorus_on"]
@@ -501,6 +582,10 @@ impl Default for GuitarAmpParams {
             ]),
             dial_memory_second: DialMemory::new(defaults.second.dials()),
             cabinet_second: second::SecondCabinet::new(),
+            dial_memory_third: DialMemory::new(defaults.more[0].dials()),
+            dial_memory_fourth: DialMemory::new(defaults.more[1].dials()),
+            cabinet_third: second::SecondCabinet::new(),
+            cabinet_fourth: second::SecondCabinet::new(),
 
             bypass: BoolParam::new("Bypass", defaults.bypass).make_bypass(),
 
@@ -561,7 +646,27 @@ impl Default for GuitarAmpParams {
             amp2_treble: dial_param("Amp 2 Treble", defaults.second.treble),
             amp2_presence: dial_param("Amp 2 Presence", defaults.second.presence),
             amp2_master: dial_param("Amp 2 Master", defaults.second.master),
-            amp_blend: dial_param("Amp Blend", defaults.blend),
+            amp_blend: dial_param("Amp Blend", 0.5),
+            amp3_on: BoolParam::new("Amp 3", defaults.more[0].on),
+            amp3: EnumParam::new("Amp 3 Model", defaults.more[0].amp),
+            amp3_gain: dial_param("Amp 3 Gain", defaults.more[0].gain),
+            amp3_bass: dial_param("Amp 3 Bass", defaults.more[0].bass),
+            amp3_mid: dial_param("Amp 3 Mid", defaults.more[0].mid),
+            amp3_treble: dial_param("Amp 3 Treble", defaults.more[0].treble),
+            amp3_presence: dial_param("Amp 3 Presence", defaults.more[0].presence),
+            amp3_master: dial_param("Amp 3 Master", defaults.more[0].master),
+            amp4_on: BoolParam::new("Amp 4", defaults.more[1].on),
+            amp4: EnumParam::new("Amp 4 Model", defaults.more[1].amp),
+            amp4_gain: dial_param("Amp 4 Gain", defaults.more[1].gain),
+            amp4_bass: dial_param("Amp 4 Bass", defaults.more[1].bass),
+            amp4_mid: dial_param("Amp 4 Mid", defaults.more[1].mid),
+            amp4_treble: dial_param("Amp 4 Treble", defaults.more[1].treble),
+            amp4_presence: dial_param("Amp 4 Presence", defaults.more[1].presence),
+            amp4_master: dial_param("Amp 4 Master", defaults.more[1].master),
+            amp1_level: dial_param("Amp 1 Level", defaults.levels[0]),
+            amp2_level: dial_param("Amp 2 Level", defaults.levels[1]),
+            amp3_level: dial_param("Amp 3 Level", defaults.levels[2]),
+            amp4_level: dial_param("Amp 4 Level", defaults.levels[3]),
 
             chorus_on: BoolParam::new("Chorus", defaults.chorus.on),
             chorus_rate: rate_param(
@@ -723,6 +828,16 @@ impl Default for GuitarAmpParams {
     }
 }
 
+/// An amp lane other than the first, as the parameters hold it (`GuitarAmpParams::lane`)
+pub struct Lane<'a> {
+    pub on: &'a BoolParam,
+    pub amp: &'a EnumParam<Amp>,
+    pub dials: [&'a FloatParam; 6],
+    pub level: &'a FloatParam,
+    pub memory: &'a DialMemory,
+    pub cabinet: &'a second::SecondCabinet,
+}
+
 impl GuitarAmpParams {
     /// The amp's own six dials, in the order they stand on the head
     pub fn amp_dials(&self) -> [&FloatParam; 6] {
@@ -738,6 +853,66 @@ impl GuitarAmpParams {
             &self.amp2_treble,
             &self.amp2_presence,
             &self.amp2_master,
+        ]
+    }
+
+    /// What an amp lane other than the first has of its own: its switch, choice, dials, level, dial
+    /// memory and cabinet. `lane` is 1 for the second amp to 3 for the fourth
+    pub fn lane(&self, lane: usize) -> Lane<'_> {
+        match lane {
+            1 => Lane {
+                on: &self.amp2_on,
+                amp: &self.amp2,
+                dials: self.amp2_dials(),
+                level: &self.amp2_level,
+                memory: &self.dial_memory_second,
+                cabinet: &self.cabinet_second,
+            },
+            2 => Lane {
+                on: &self.amp3_on,
+                amp: &self.amp3,
+                dials: self.amp3_dials(),
+                level: &self.amp3_level,
+                memory: &self.dial_memory_third,
+                cabinet: &self.cabinet_third,
+            },
+            _ => Lane {
+                on: &self.amp4_on,
+                amp: &self.amp4,
+                dials: self.amp4_dials(),
+                level: &self.amp4_level,
+                memory: &self.dial_memory_fourth,
+                cabinet: &self.cabinet_fourth,
+            },
+        }
+    }
+
+    /// The level of every amp, in the order of the lanes
+    pub fn levels(&self) -> [&FloatParam; second::LANES] {
+        [&self.amp1_level, &self.amp2_level, &self.amp3_level, &self.amp4_level]
+    }
+
+    /// The third amp's six dials, in the order they stand on the head
+    pub fn amp3_dials(&self) -> [&FloatParam; 6] {
+        [
+            &self.amp3_gain,
+            &self.amp3_bass,
+            &self.amp3_mid,
+            &self.amp3_treble,
+            &self.amp3_presence,
+            &self.amp3_master,
+        ]
+    }
+
+    /// The fourth amp's six dials, in the order they stand on the head
+    pub fn amp4_dials(&self) -> [&FloatParam; 6] {
+        [
+            &self.amp4_gain,
+            &self.amp4_bass,
+            &self.amp4_mid,
+            &self.amp4_treble,
+            &self.amp4_presence,
+            &self.amp4_master,
         ]
     }
 
@@ -766,7 +941,10 @@ impl GuitarAmpParams {
     /// What the knobs say now, with the song at `tempo_bpm` (`None` where the host gives
     /// no tempo)
     fn settings(&self, tempo_bpm: Option<f64>) -> AmpSettings {
-        let layout = Layout::of(&self.chain.get());
+        let chain = self.chain.get();
+        // An amp lane that the chain does not hold is not played, whatever its switch says
+        let lanes = chain.amps();
+        let layout = Layout::of(&chain);
         AmpSettings {
             bypass: self.bypass.value(),
             in_gain_db: self.in_gain.value(),
@@ -815,7 +993,7 @@ impl GuitarAmpParams {
             presence: self.presence.value(),
             master: self.master.value(),
             second: SecondSettings {
-                on: self.amp2_on.value(),
+                on: self.amp2_on.value() && lanes > 1,
                 amp: self.amp2.value(),
                 speaker: self.cabinet_second.get(),
                 gain: self.amp2_gain.value(),
@@ -825,7 +1003,36 @@ impl GuitarAmpParams {
                 presence: self.amp2_presence.value(),
                 master: self.amp2_master.value(),
             },
-            blend: self.amp_blend.value(),
+            more: [
+                SecondSettings {
+                    on: self.amp3_on.value() && lanes > 2,
+                    amp: self.amp3.value(),
+                    speaker: self.cabinet_third.get(),
+                    gain: self.amp3_gain.value(),
+                    bass: self.amp3_bass.value(),
+                    mid: self.amp3_mid.value(),
+                    treble: self.amp3_treble.value(),
+                    presence: self.amp3_presence.value(),
+                    master: self.amp3_master.value(),
+                },
+                SecondSettings {
+                    on: self.amp4_on.value() && lanes > 3,
+                    amp: self.amp4.value(),
+                    speaker: self.cabinet_fourth.get(),
+                    gain: self.amp4_gain.value(),
+                    bass: self.amp4_bass.value(),
+                    mid: self.amp4_mid.value(),
+                    treble: self.amp4_treble.value(),
+                    presence: self.amp4_presence.value(),
+                    master: self.amp4_master.value(),
+                },
+            ],
+            levels: [
+                self.amp1_level.value(),
+                self.amp2_level.value(),
+                self.amp3_level.value(),
+                self.amp4_level.value(),
+            ],
             chorus: ChorusSettings {
                 on: self.chorus_on.value(),
                 rate_hz: self.chorus_rate.value(),
@@ -1003,8 +1210,26 @@ impl Plugin for GuitarAmpPlugin {
     /// The tuner is a parameter, so hosts store it, but a project does not open muted
     /// because it was saved while tuning: the switch stays as it is when a state is loaded,
     /// which is off in a plugin that was just created
+    ///
+    /// A state from before the levels (#269) names none of them: its Blend becomes the levels
+    /// of the first two amps, 1 - Blend and Blend, so that Blend 0 is the first amp alone and
+    /// Blend 1 the second alone as it was, to the bit
     fn filter_state(state: &mut PluginState) {
         state.params.remove(TUNER_ID);
+        let levels = ["amp1_level", "amp2_level", "amp3_level", "amp4_level"];
+        if !levels.iter().any(|id| state.params.contains_key(*id)) {
+            let blend = match state.params.get("amp_blend") {
+                Some(nih_plug::wrapper::state::ParamValue::F32(blend)) => blend.clamp(0.0, 1.0),
+                _ => AmpSettings::default().levels[1],
+            };
+            state.params.insert(
+                "amp1_level".to_owned(),
+                nih_plug::wrapper::state::ParamValue::F32(1.0 - blend),
+            );
+            state
+                .params
+                .insert("amp2_level".to_owned(), nih_plug::wrapper::state::ParamValue::F32(blend));
+        }
     }
 
     fn process(

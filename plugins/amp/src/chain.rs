@@ -26,7 +26,7 @@ use crate::pitch::{Pitch, PitchSettings};
 use crate::reverb::{Reverb, ReverbSettings};
 #[cfg(test)]
 use crate::second::BLEND_LAW;
-use crate::second::{Second, SecondSettings, Timing};
+use crate::second::{Mix, Second, SecondSettings, Timing, LANES};
 use crate::slots::{EffectKind, MAX_SLOTS};
 use crate::tuner::{Tuner, TunerReading};
 use crate::wah::{Wah, WahSettings};
@@ -132,10 +132,15 @@ pub struct AmpSettings {
     pub master: f32,
 
     /// The second amp, which plays beside the first one behind the same front pedals and
-    /// through its own cabinet, and the share of it in the mix: 0.0 is the first amp alone,
-    /// 1.0 the second alone. With the second amp off the blend is not heard
+    /// through its own cabinet, and the third and fourth beside them the same way
+    /// (`more`)
     pub second: SecondSettings,
-    pub blend: f32,
+    pub more: [SecondSettings; LANES - 2],
+    /// The level of each amp, 0.0 to 1.0: the amps that play are balanced by their levels
+    /// (`second::Mix`). 1.0 and 0.0 for the first two is the first amp alone, 0.0 and 1.0 the
+    /// second alone. An amp that is off takes no share, so a level of the only amp is not
+    /// heard
+    pub levels: [f32; LANES],
 
     /// The modulation pedals. They smooth their own settings
     pub chorus: ChorusSettings,
@@ -196,7 +201,8 @@ impl Default for AmpSettings {
             presence: 0.5,
             master: 0.5,
             second: SecondSettings::default(),
-            blend: 0.5,
+            more: [SecondSettings::default(); LANES - 2],
+            levels: [0.5; LANES],
             chorus: ChorusSettings::default(),
             phaser: PhaserSettings::default(),
             flanger: FlangerSettings::default(),
@@ -334,8 +340,11 @@ pub struct AmpChain {
     tone: ToneStack,
     power: PowerAmp,
     cabinet: Cabinet,
-    // The second amp with its own cabinet, run only while it is switched on
-    second: Second,
+    // The other amps, each with its own cabinet, run only while it is switched on: the
+    // second, third and fourth
+    others: [Second; LANES - 1],
+    // The level of each amp, and the law that mixes them
+    mix: Mix,
     // Every cabinet designed here, when the sample rate is set: the amps' own in the order
     // of `Amp::ALL`, then the built-in ones of `SPEAKERS` (`cab_ir_index`)
     cab_irs: Vec<CabIr>,
@@ -451,7 +460,8 @@ impl AmpChain {
             tone: ToneStack::new(),
             power: PowerAmp::new(),
             cabinet: Cabinet::new(),
-            second: Second::new(),
+            others: std::array::from_fn(|_| Second::new()),
+            mix: Mix::new(),
             cab_irs: Vec::new(),
             cab_stage: Arc::new(CabStage::new()),
             playing: Playing::Own,
@@ -543,14 +553,15 @@ impl AmpChain {
         // the stage again for this one. Until then the amp plays through its own
         self.cabinet.set_ir(&self.cab_irs[self.amp.index()]);
         self.playing = Playing::Own;
-        self.second.set_sample_rate(
-            sample_rate,
-            self.factor,
-            &self.cab_irs[self.second.ir_index()],
-        );
+        for other in &mut self.others {
+            other.set_sample_rate(sample_rate, self.factor, &self.cab_irs[other.ir_index()]);
+        }
 
         self.configure_amp();
-        self.second.configure(self.oversampled_rate());
+        let oversampled = self.oversampled_rate();
+        for other in &mut self.others {
+            other.configure(oversampled);
+        }
         self.reset();
     }
 
@@ -694,8 +705,10 @@ impl AmpChain {
         self.back_drive.set_on(self.drive_on && zone == Some(Zone::Back));
         self.preamp.set_driven(driven, steps);
         self.power.set_driven(driven, steps);
-        self.second.preamp.set_driven(driven, steps);
-        self.second.power.set_driven(driven, steps);
+        for other in &mut self.others {
+            other.preamp.set_driven(driven, steps);
+            other.power.set_driven(driven, steps);
+        }
         if snap {
             self.drive.snap();
             self.back_drive.snap();
@@ -773,45 +786,46 @@ impl AmpChain {
         self.apply_dials(true);
     }
 
-    /// The second amp's counterpart of `follow_amp`, and puts its stages to rest once it is
-    /// switched off and has faded out. Does not allocate. Its cabinet is its own amp's or a
-    /// built-in one, never a file
-    fn follow_second(&mut self) {
-        if !self.second.runs() && !self.second.at_rest {
-            self.second.reset_stages();
-            self.second.amp_fade = self.amp_fade_len;
-            self.second.cabinet_busy = 0;
+    /// The other amps' counterpart of `follow_amp` (`lane` 0 is the second amp), and puts
+    /// their stages to rest once they are switched off and have faded out. Does not allocate.
+    /// Their cabinets are their own amp's or a built-in one, never a file
+    fn follow_other(&mut self, lane: usize) {
+        let other = &mut self.others[lane];
+        if !other.runs() && !other.at_rest {
+            other.reset_stages();
+            other.amp_fade = self.amp_fade_len;
+            other.cabinet_busy = 0;
         }
-        if !self.second.switching() {
+        if !other.switching() {
             return;
         }
-        // Nothing of the second amp is heard before the first block, while bypassed and
-        // while it is faded out
-        let unheard = !self.primed || self.wet == 0.0 || self.second.on_fade == 0;
-        let silent = self.second.amp_fade == 0 && self.second.cabinet_busy == 0;
+        // Nothing of the amp is heard before the first block, while bypassed and while it is
+        // faded out
+        let unheard = !self.primed || self.wet == 0.0 || other.on_fade == 0;
+        let silent = other.amp_fade == 0 && other.cabinet_busy == 0;
         if !unheard && !silent {
             return;
         }
 
-        self.second.amp = self.second.wanted_amp;
-        self.second.speaker = self.second.wanted_speaker;
-        let ir = &self.cab_irs[self.second.ir_index()];
+        other.amp = other.wanted_amp;
+        other.speaker = other.wanted_speaker;
+        let ir = &self.cab_irs[other.ir_index()];
         if unheard {
-            self.second.cabinet.set_ir(ir);
-            self.second.amp_fade = self.amp_fade_len;
+            other.cabinet.set_ir(ir);
+            other.amp_fade = self.amp_fade_len;
         } else {
-            debug_assert!(!self.second.cabinet.is_swapping());
-            self.second.cabinet.swap_ir(ir);
-            self.second.cabinet_busy = self.second.cabinet.swap_len();
+            debug_assert!(!other.cabinet.is_swapping());
+            other.cabinet.swap_ir(ir);
+            other.cabinet_busy = other.cabinet.swap_len();
         }
-        self.second.configure(self.oversampled_rate());
-        self.second.reset_amp_stages();
-        if self.second.runs() {
+        other.configure(self.sample_rate * self.factor as f32);
+        other.reset_amp_stages();
+        if other.runs() {
             // The new amp starts where the dials are going, not on the way there from where
             // the old amp had them. Nothing of it is heard at this sample
-            self.second.dials = self.second.target;
-            self.second.at_rest = false;
-            self.apply_second_dials(true);
+            other.dials = other.target;
+            other.at_rest = false;
+            self.apply_other_dials(lane, true);
         }
     }
 
@@ -941,10 +955,12 @@ impl AmpChain {
         self.reset_amp_stages();
         self.cabinet.reset();
         self.cab_voicing.reset();
-        self.second.reset_stages();
-        self.second.on_fade = 0;
-        self.second.amp_fade = self.amp_fade_len;
-        self.second.cabinet_busy = 0;
+        for other in &mut self.others {
+            other.reset_stages();
+            other.on_fade = 0;
+            other.amp_fade = self.amp_fade_len;
+            other.cabinet_busy = 0;
+        }
         self.dc.reset();
         // An idle effect has nothing left to be heard already. Clearing its lines would
         // only cost time, and this is also called on the audio thread, when Bypass has faded
@@ -1003,9 +1019,10 @@ impl AmpChain {
         mut right: Option<&mut [f32]>,
     ) {
         self.wanted_amp = settings.amp;
-        self.second.wanted_amp = settings.second.amp;
-        self.second.wanted_speaker =
-            settings.second.speaker.filter(|&speaker| speaker < SPEAKERS.len());
+        for (other, wanted) in self.others.iter_mut().zip(Self::others_of(settings)) {
+            other.wanted_amp = wanted.amp;
+            other.wanted_speaker = wanted.speaker.filter(|&speaker| speaker < SPEAKERS.len());
+        }
         self.mic_type = settings.mic_type;
         let wet_target = if settings.bypass { 0.0 } else { 1.0 };
         if !self.primed {
@@ -1018,7 +1035,9 @@ impl AmpChain {
             self.follow_amp();
             self.follow_order();
             self.follow_cabinet();
-            self.follow_second();
+            for lane in 0..self.others.len() {
+                self.follow_other(lane);
+            }
             if self.until_tick == 0 {
                 self.read_dials(settings);
                 self.until_tick = CHUNK;
@@ -1033,15 +1052,17 @@ impl AmpChain {
                     len = len.min(wait);
                 }
             }
-            if self.second.switching() && self.second.on_fade > 0 {
-                // And likewise for the second amp, while it is heard
-                let wait = if self.second.amp_fade > 0 {
-                    self.second.amp_fade as usize
-                } else {
-                    self.second.cabinet_busy
-                };
-                if wait > 0 {
-                    len = len.min(wait);
+            for other in &self.others {
+                if other.switching() && other.on_fade > 0 {
+                    // And likewise for the other amps, while they are heard
+                    let wait = if other.amp_fade > 0 {
+                        other.amp_fade as usize
+                    } else {
+                        other.cabinet_busy
+                    };
+                    if wait > 0 {
+                        len = len.min(wait);
+                    }
                 }
             }
             if self.wanted_layout != self.layout && self.order_fade > 0 {
@@ -1052,7 +1073,9 @@ impl AmpChain {
             let right_chunk = right.as_deref_mut().map(|right| &mut right[start..end]);
             self.process_chunk(wet_target, &mut left[start..end], right_chunk);
             self.cabinet_busy = self.cabinet_busy.saturating_sub(len);
-            self.second.cabinet_busy = self.second.cabinet_busy.saturating_sub(len);
+            for other in &mut self.others {
+                other.cabinet_busy = other.cabinet_busy.saturating_sub(len);
+            }
             self.until_tick -= len;
             start = end;
         }
@@ -1139,43 +1162,58 @@ impl AmpChain {
         }
         self.apply_dials(jump);
         self.tell_pool(jump);
-        self.read_second(settings, jump);
+        self.read_others(settings, jump);
         self.primed = true;
     }
 
-    /// Reads the second amp's switch, dials and the Blend dial with the others. It is only
-    /// worked on while it is heard: switched on, or fading out
-    fn read_second(&mut self, settings: &AmpSettings, jump: bool) {
-        self.second.wanted_on = settings.second.on;
-        self.second.target = settings.second.dials();
-        let blend = settings.blend.clamp(0.0, 1.0);
-        self.second.blend.set_target(blend, CHUNK as u32);
-        if jump {
-            // Nothing is heard of it while bypassed, or before the first block
-            self.second.on_fade = if self.second.wanted_on { self.amp_fade_len } else { 0 };
-        }
-        // The stages follow the first amp's drive pedal like the first amp's own
-        let driven = self.driven();
-        self.second.preamp.set_driven(driven, self.drive.fade_steps());
-        self.second.power.set_driven(driven, self.drive.fade_steps());
-        if !self.second.runs() {
-            self.second.dials = self.second.target;
-            self.second.blend.snap();
-            return;
-        }
-        // Coming from rest the dials start where they are going
-        let starting = self.second.at_rest;
-        if jump || starting {
-            self.second.dials = self.second.target;
-            self.second.blend.snap();
-        } else {
-            self.second.approach(self.dial_coeff, DIAL_SETTLED);
-        }
-        self.second.at_rest = false;
-        self.apply_second_dials(jump || starting);
+    /// The settings of the second, third and fourth amp
+    fn others_of(settings: &AmpSettings) -> [&SecondSettings; LANES - 1] {
+        [&settings.second, &settings.more[0], &settings.more[1]]
     }
 
-    fn apply_second_dials(&mut self, snap: bool) {
+    /// Reads the other amps' switches and dials and the level dials with the others. An
+    /// amp is only worked on while it is heard: switched on, or fading out
+    fn read_others(&mut self, settings: &AmpSettings, jump: bool) {
+        let driven = self.driven();
+        let fade_steps = self.drive.fade_steps();
+        let mut playing = false;
+        // An amp coming from rest finds the levels where they are going
+        let mut snap_mix = false;
+        for lane in 0..self.others.len() {
+            let wanted = Self::others_of(settings)[lane];
+            let other = &mut self.others[lane];
+            other.wanted_on = wanted.on;
+            other.target = wanted.dials();
+            if jump {
+                // Nothing is heard of it while bypassed, or before the first block
+                other.on_fade = if other.wanted_on { self.amp_fade_len } else { 0 };
+            }
+            // The stages follow the first amp's drive pedal like the first amp's own
+            other.preamp.set_driven(driven, fade_steps);
+            other.power.set_driven(driven, fade_steps);
+            if !other.runs() {
+                other.dials = other.target;
+                continue;
+            }
+            playing = true;
+            // Coming from rest the dials start where they are going
+            let starting = other.at_rest;
+            snap_mix |= starting;
+            if jump || starting {
+                other.dials = other.target;
+            } else {
+                other.approach(self.dial_coeff, DIAL_SETTLED);
+            }
+            other.at_rest = false;
+            self.apply_other_dials(lane, jump || starting);
+        }
+        self.mix.set_targets(settings.levels, CHUNK as u32);
+        if !playing || jump || snap_mix {
+            self.mix.snap();
+        }
+    }
+
+    fn apply_other_dials(&mut self, lane: usize, snap: bool) {
         let cab_dials = [self.dials.cab_mic, self.dials.cab_res];
         let timing = Timing {
             oversampled_rate: self.oversampled_rate(),
@@ -1183,7 +1221,7 @@ impl AmpChain {
             oversampled_chunk: self.oversampled_chunk(),
             chunk: CHUNK as u32,
         };
-        self.second.apply_dials(snap, timing, cab_dials, self.mic_type);
+        self.others[lane].apply_dials(snap, timing, cab_dials, self.mic_type);
     }
 
     /// Passes the amp's own dials on to its stages and its cabinet, as the amp they are set
@@ -1395,11 +1433,11 @@ impl AmpChain {
                 }
             }
         }
-        // The second amp hears what the first one hears
-        let second_runs = self.second.runs();
-        let mut second_high = [0.0f32; OVERSAMPLED_CHUNK];
-        if second_runs {
-            second_high[..high.len()].copy_from_slice(high);
+        // The other amps hear what the first one hears
+        let mut other_high = [[0.0f32; OVERSAMPLED_CHUNK]; LANES - 1];
+        let runs = self.others.each_ref().map(|other| other.runs());
+        for (copy, _) in other_high.iter_mut().zip(&runs).filter(|(_, &runs)| runs) {
+            copy[..high.len()].copy_from_slice(high);
         }
         self.preamp.process(high);
         self.tone.process(high);
@@ -1415,28 +1453,42 @@ impl AmpChain {
             &mut signal[..len],
         );
 
-        // The second amp plays beside the first one, from the same pedals, and is mixed in
-        // behind the cabinets, so both reach what follows on time. The Blend law is between
-        // linear and equal power (`second::BLEND_LAW`). At Blend 0 and 1 one share is exactly
-        // 1 and the other 0
-        if second_runs {
-            let high_second = &mut second_high[..len * self.factor];
-            self.second.preamp.process(high_second);
-            self.second.tone.process(high_second);
-            self.second.power.process(high_second);
-            let mut second_signal = [0.0f32; CHUNK];
-            self.second.down.downsample(high_second, &mut second_signal[..len]);
-            self.second.fade_amp(&mut second_signal[..len], self.amp_fade_len);
-            Self::run_cabinet(
-                &mut self.second.cabinet,
-                &mut self.second.voicing,
-                shares.as_ref(),
-                &mut second_signal[..len],
-            );
-            for (sample, &second) in signal[..len].iter_mut().zip(&second_signal) {
-                let weight = self.second.weight(self.amp_fade_len);
-                let [first_gain, second_gain] = self.second.gains(weight);
-                *sample = *sample * first_gain + second * second_gain;
+        // The other amps play beside the first one, from the same pedals, and are mixed in
+        // behind the cabinets, so all reach what follows on time. The law is `second::Mix`'s:
+        // with two amps at Blend 0 and 1 one share is exactly 1 and the other 0
+        if runs.iter().any(|&runs| runs) {
+            let mut heard = [[0.0f32; CHUNK]; LANES - 1];
+            for lane in 0..self.others.len() {
+                if !runs[lane] {
+                    continue;
+                }
+                let other = &mut self.others[lane];
+                let high_other = &mut other_high[lane][..len * self.factor];
+                other.preamp.process(high_other);
+                other.tone.process(high_other);
+                other.power.process(high_other);
+                let signal_other = &mut heard[lane][..len];
+                other.down.downsample(high_other, signal_other);
+                other.fade_amp(signal_other, self.amp_fade_len);
+                Self::run_cabinet(
+                    &mut other.cabinet,
+                    &mut other.voicing,
+                    shares.as_ref(),
+                    signal_other,
+                );
+            }
+            for index in 0..len {
+                let fades = std::array::from_fn(|lane| {
+                    runs[lane].then(|| self.others[lane].fade_step(self.amp_fade_len))
+                });
+                let gains = self.mix.next(fades);
+                let mut mixed = signal[index] * gains[0];
+                for lane in 0..self.others.len() {
+                    if runs[lane] {
+                        mixed += heard[lane][index] * gains[lane + 1];
+                    }
+                }
+                signal[index] = mixed;
             }
         }
 
@@ -1764,7 +1816,9 @@ mod tests {
         layout
             .extend(chain.cab_irs.iter().map(|ir| (ir.taps.as_ptr() as usize, ir.taps.capacity())));
         layout.extend(chain.cabinet.buffers());
-        layout.extend(chain.second.cabinet.buffers());
+        for other in &chain.others {
+            layout.extend(other.cabinet.buffers());
+        }
         layout.extend(chain.cab_stage.buffer());
         layout.extend(chain.pitch.buffers());
         for pitch in &chain.back_pitch {
@@ -6105,6 +6159,37 @@ mod tests {
                     }
                 }
             }
+            // Two amps (#269): Klar beside each amp at three Blends, and the second switched on
+            // and off while the first plays. The Blend is levels now, and these lines are the same
+            // as the ones that the Blend dial gave
+            for amp in Amp::ALL {
+                for (case, blend) in
+                    [("blend 0.3", 0.3), ("blend 0.5", 0.5), ("blend 0.8", 0.8), ("switched", 0.4)]
+                {
+                    let alone = with_amp(amp, 0.7);
+                    let both = dual(alone, Amp::Klar, blend);
+                    let mut chain = new_chain(sample_rate);
+                    let (mut left, mut right) = (recording.to_vec(), recording.to_vec());
+                    let blocks = left.len() / BLOCK;
+                    for (index, (left, right)) in
+                        left.chunks_mut(BLOCK).zip(right.chunks_mut(BLOCK)).enumerate()
+                    {
+                        let settings = if case != "switched"
+                            || (blocks / 3..2 * blocks / 3).contains(&index)
+                        {
+                            &both
+                        } else {
+                            &alone
+                        };
+                        chain.process(settings, left, Some(right));
+                    }
+                    println!(
+                        "print {sample_rate:>6} {:<7} + Klar {case:<10} {:016x}",
+                        amp.model().name,
+                        fingerprint(&[&left, &right])
+                    );
+                }
+            }
         }
     }
 
@@ -7421,6 +7506,48 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
         println!("Wrote renders to {}", dir.display());
     }
 
+    /// Combinations of one to four amps (#269), for listening: a guitar through the amps at equal
+    /// levels, each combination first, then the same four with the levels moved, as WAV files in
+    /// target/renders (amp_four_*.wav)
+    ///   cargo test -p amp --release render_amps -- --ignored
+    #[test]
+    #[ignore]
+    fn render_amps() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/renders");
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut phrase = at_rms_db(&guitar_di(SAMPLE_RATE), REFERENCE_DI_DB);
+        phrase.extend(vec![0.0; 24_000]);
+        let rate = SAMPLE_RATE as u32;
+        let sets: [(&str, &[Amp], [f32; 4]); 8] = [
+            ("1_torden_alone", &[Amp::Torden], [0.5; 4]),
+            ("2_torden_klar", &[Amp::Torden, Amp::Klar], [0.5; 4]),
+            ("3_torden_klar_sang", &[Amp::Torden, Amp::Klar, Amp::Sang], [0.5; 4]),
+            ("4_torden_klar_sang_dron", &[Amp::Torden, Amp::Klar, Amp::Sang, Amp::Dron], [0.5; 4]),
+            ("4_brol_glod_dron_knald", &[Amp::Brol, Amp::Glod, Amp::Dron, Amp::Knald], [0.5; 4]),
+            ("4_klar_gnist_skarp_hvas", &[Amp::Klar, Amp::Gnist, Amp::Skarp, Amp::Hvas], [0.5; 4]),
+            (
+                "4_torden_klar_sang_dron_levels_1_0_3_0_6_0_2",
+                &[Amp::Torden, Amp::Klar, Amp::Sang, Amp::Dron],
+                [1.0, 0.3, 0.6, 0.2],
+            ),
+            (
+                "4_torden_klar_sang_dron_levels_0_2_1_0_0_3_0_6",
+                &[Amp::Torden, Amp::Klar, Amp::Sang, Amp::Dron],
+                [0.2, 1.0, 0.3, 0.6],
+            ),
+        ];
+        for (name, set, levels) in sets {
+            let settings = if set.len() == 1 { levelled(set[0]) } else { quartet(set, levels) };
+            let (left, right) = run_stereo(&settings, &phrase, SAMPLE_RATE);
+            crate::test_util::write_wav(
+                &dir.join(format!("amp_four_{name}.wav")),
+                &[&left, &right],
+                rate,
+            );
+        }
+        println!("Wrote renders to {}", dir.display());
+    }
+
     /// Median time to process one stereo block, in microseconds
     fn block_time_stereo_us(chain: &mut AmpChain, settings: &AmpSettings, input: &[f32]) -> f64 {
         let (mut left, mut right) = (input.to_vec(), input.to_vec());
@@ -7488,22 +7615,34 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
             }
             println!();
         }
-        // The second amp on beside it: Klar at Gain 10, Blend 0.5
-        let dual_settings =
-            dual_dials(dual(profile_settings, Amp::Klar, 0.5), [1.0, 0.5, 0.5, 0.5, 0.5, 0.5]);
-        print!("{:<10}", "whole, 2");
-        for (sample_rate, _, _) in &profile {
-            let chords = power_chords(*sample_rate, 2.0);
-            let mut chain = new_chain(*sample_rate);
-            run_stereo_blocks(&mut chain, &dual_settings, &chords, BLOCK);
-            let ns = (0..3)
-                .map(|_| block_time_stereo_us(&mut chain, &dual_settings, &chords))
-                .fold(f64::MAX, f64::min)
-                * 1000.0
-                / BLOCK as f64;
-            print!("{:>8.1} ns{:>6.2} %", ns, share(ns, *sample_rate));
+        // The other amps on beside it, each at Gain 10 and its dials in the middle: Klar, then
+        // Brøl and Glød (#269), at equal levels
+        for (count, name) in [(2, "whole, 2"), (3, "whole, 3"), (4, "whole, 4")] {
+            let lane =
+                |amp: Amp| SecondSettings { on: true, amp, gain: 1.0, ..SecondSettings::default() };
+            let many = AmpSettings {
+                second: lane(Amp::Klar),
+                more: [
+                    if count > 2 { lane(Amp::Brol) } else { SecondSettings::default() },
+                    if count > 3 { lane(Amp::Glod) } else { SecondSettings::default() },
+                ],
+                levels: [0.5; 4],
+                ..profile_settings
+            };
+            print!("{name:<10}");
+            for (sample_rate, _, _) in &profile {
+                let chords = power_chords(*sample_rate, 2.0);
+                let mut chain = new_chain(*sample_rate);
+                run_stereo_blocks(&mut chain, &many, &chords, BLOCK);
+                let ns = (0..3)
+                    .map(|_| block_time_stereo_us(&mut chain, &many, &chords))
+                    .fold(f64::MAX, f64::min)
+                    * 1000.0
+                    / BLOCK as f64;
+                print!("{:>8.1} ns{:>6.2} %", ns, share(ns, *sample_rate));
+            }
+            println!("   ({count} amps on beside each other)");
         }
-        println!("   (the second amp on beside the first)");
     }
 
     /// A guitar through `amp` at `gain` and one of the built-in cabinets
@@ -7759,7 +7898,7 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
     fn dual(base: AmpSettings, second: Amp, blend: f32) -> AmpSettings {
         AmpSettings {
             second: SecondSettings { on: true, amp: second, ..SecondSettings::default() },
-            blend,
+            levels: blend_levels(blend),
             ..base
         }
     }
@@ -7825,7 +7964,7 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
                         bass: 0.1,
                         ..SecondSettings::default()
                     },
-                    blend: 0.93,
+                    levels: blend_levels(0.93),
                     ..plain
                 };
                 assert!(run_stereo(&moved, &input, rate) == reference, "{amp:?} at {rate}");
@@ -7840,9 +7979,9 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
         let on = dual(busy(Amp::Torden, 0.7), Amp::Klar, 0.5);
         let off = AmpSettings { second: SecondSettings { on: false, ..on.second }, ..on };
         run_blocks(&mut chain, &on, &input, BLOCK);
-        assert!(chain.second.runs());
+        assert!(chain.others[0].runs());
         run_blocks(&mut chain, &off, &input, BLOCK);
-        assert!(!chain.second.runs() && chain.second.at_rest);
+        assert!(!chain.others[0].runs() && chain.others[0].at_rest);
     }
 
     #[test]
@@ -7866,7 +8005,7 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
                     run_stereo(&both, &input, rate) == run_stereo(&first_alone, &input, rate),
                     "{first:?} + {second:?} at blend 0, {rate} Hz"
                 );
-                let only_second = AmpSettings { blend: 1.0, ..both };
+                let only_second = AmpSettings { levels: blend_levels(1.0), ..both };
                 assert!(
                     run_stereo(&only_second, &input, rate)
                         == run_stereo(&second_alone(&only_second), &input, rate),
@@ -7889,7 +8028,7 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
                 speaker,
                 ..dual(busy(Amp::Torden, 0.7), Amp::Klar, blend).second
             },
-            blend,
+            levels: blend_levels(blend),
             ..busy(Amp::Torden, 0.7)
         };
         for rate in RATES {
@@ -7903,7 +8042,7 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
                 "blend 0, {rate} Hz"
             );
             // The first amp's cabinet picked on the stage plays the second amp the same way
-            let second_only = AmpSettings { blend: 1.0, ..with(Some(heavy), 1.0) };
+            let second_only = AmpSettings { levels: blend_levels(1.0), ..with(Some(heavy), 1.0) };
             let mut chain = new_chain(rate);
             chain.cab_stage().offer_speaker(heavy, rate);
             let reference =
@@ -8207,6 +8346,214 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
         let blends = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8];
         let (heard, _) = blend_loudness(Amp::Torden, Amp::Klar, &blends);
         println!("Torden + Klar, Blend 0.2 to 0.8 in steps of 0.1: {heard:.1?}");
+    }
+
+    /// The single amp that the amp of `lane` (1 is the second) plays alone
+    fn lane_alone(settings: &AmpSettings, lane: usize) -> AmpSettings {
+        let other = if lane == 1 { settings.second } else { settings.more[lane - 2] };
+        let [gain, bass, mid, treble, presence, master] = other.dials();
+        AmpSettings {
+            amp: other.amp,
+            gain,
+            bass,
+            mid,
+            treble,
+            presence,
+            master,
+            second: SecondSettings::default(),
+            more: [SecondSettings::default(); 2],
+            ..*settings
+        }
+    }
+
+    #[test]
+    fn test_each_of_the_other_amps_alone_is_that_amp_to_the_bit() {
+        // The level of the others at 0 and its own at 1: the rest of the mix is gone, and the
+        // amp is what the single amp it is would be
+        let input = power_chords(SAMPLE_RATE, 0.6);
+        for rate in RATES {
+            let set = [Amp::Torden, Amp::Klar, Amp::Sang, Amp::Dron];
+            let q = quartet(&set, [0.5; 4]);
+            let mixed = AmpSettings { second: q.second, more: q.more, ..busy(set[0], 0.7) };
+            for lane in 1..4 {
+                let mut levels = [0.0; 4];
+                levels[lane] = 1.0;
+                let only = AmpSettings { levels, ..mixed };
+                assert!(
+                    run_stereo(&only, &input, rate)
+                        == run_stereo(&lane_alone(&only, lane), &input, rate),
+                    "amp {} alone, {rate} Hz",
+                    lane + 1
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_the_third_and_fourth_amp_off_leave_nothing_of_themselves_in_the_sound() {
+        // Whatever their amp, dials, cabinet and level say, an amp that is off changes not a
+        // bit: its stages are not run, and it takes no share of the mix
+        let input = power_chords(SAMPLE_RATE, 0.6);
+        for rate in RATES {
+            let plain = dual(busy(Amp::Torden, 0.7), Amp::Klar, 0.4);
+            let reference = run_stereo(&plain, &input, rate);
+            let off = |amp: Amp, speaker: usize| SecondSettings {
+                on: false,
+                amp,
+                speaker: Some(speaker),
+                gain: 1.0,
+                bass: 0.1,
+                mid: 0.9,
+                treble: 0.2,
+                presence: 0.8,
+                master: 0.3,
+            };
+            let moved = AmpSettings {
+                more: [off(Amp::Brol, 3), off(Amp::Sang, 5)],
+                levels: [plain.levels[0], plain.levels[1], 0.93, 0.07],
+                ..plain
+            };
+            assert!(run_stereo(&moved, &input, rate) == reference, "{rate} Hz");
+        }
+    }
+
+    #[test]
+    fn test_switching_the_third_and_fourth_amp_does_not_click_more_than_the_second_does() {
+        let input = power_chords(SAMPLE_RATE, 2.0);
+        let at = 300 * BLOCK;
+        for (first, second) in DUAL_PAIRS {
+            let pedals = busy(first, 0.6);
+            let two = dual(pedals, second, 0.5);
+            let limit = from_rest(second).max(1.35);
+            let lane = |amp: Amp| SecondSettings { on: true, amp, ..SecondSettings::default() };
+            let three = AmpSettings { more: [lane(Amp::Brol), SecondSettings::default()], ..two };
+            let four = AmpSettings { more: [lane(Amp::Brol), lane(Amp::Sang)], ..two };
+            for (before, after, name) in [
+                (&two, &three, "third on"),
+                (&three, &two, "third off"),
+                (&three, &four, "fourth on"),
+                (&four, &three, "fourth off"),
+            ] {
+                let ratio = click_of(before, after, &input, at);
+                assert!(ratio < limit, "{first:?} + {second:?}, {name}: {ratio} times its own");
+            }
+        }
+    }
+
+    /// The amps of `set` played together, the first as the first amp and the others as the
+    /// second, third and fourth, each as `levelled` has it, at `levels` (the first four
+    /// of them)
+    fn quartet(set: &[Amp], levels: [f32; 4]) -> AmpSettings {
+        let other = |index: usize| {
+            let amp = set[index];
+            let master = levelled(amp).master;
+            SecondSettings { on: true, amp, master, ..SecondSettings::default() }
+        };
+        AmpSettings {
+            second: other(1),
+            more: [
+                if set.len() > 2 { other(2) } else { SecondSettings::default() },
+                if set.len() > 3 { other(3) } else { SecondSettings::default() },
+            ],
+            levels,
+            ..levelled(set[0])
+        }
+    }
+
+    /// Every set of two, three and four of the amps, in the order of `Amp::ALL`
+    fn amp_sets(len: usize) -> Vec<Vec<Amp>> {
+        let all = Amp::ALL;
+        let mut sets = Vec::new();
+        for mask in 0u32..(1 << all.len()) {
+            if mask.count_ones() as usize == len {
+                sets.push(
+                    (0..all.len()).filter(|&at| mask >> at & 1 == 1).map(|at| all[at]).collect(),
+                );
+            }
+        }
+        sets
+    }
+
+    /// How loud `set` is heard at equal levels with the guitar at the reference level, in
+    /// LUFS, and the peak of the chords
+    fn equal_loudness(set: &[Amp]) -> (f32, f32) {
+        let recording = at_rms_db(&guitar_di(SAMPLE_RATE), REFERENCE_DI_DB);
+        let chords = at_rms_db(&power_chords(SAMPLE_RATE, 2.0), REFERENCE_DI_DB);
+        let settings = quartet(set, [0.5; 4]);
+        (
+            loudness_lufs(&[&run(&settings, &recording, SAMPLE_RATE)], SAMPLE_RATE),
+            peak(&run(&settings, &chords, SAMPLE_RATE)),
+        )
+    }
+
+    /// The sets the test measures: the pairs of the blend, and trios and quartets of heavy,
+    /// clean and in between (`level_report` measures them all)
+    fn some_amp_sets() -> Vec<Vec<Amp>> {
+        let mut sets: Vec<Vec<Amp>> = BLEND_PAIRS.iter().map(|&(a, b)| vec![a, b]).collect();
+        sets.extend([
+            vec![Amp::Torden, Amp::Klar, Amp::Glod],
+            vec![Amp::Brol, Amp::Glod, Amp::Sang],
+            vec![Amp::Dron, Amp::Sang, Amp::Klar],
+            vec![Amp::Torden, Amp::Klar, Amp::Glod, Amp::Sang],
+            vec![Amp::Brol, Amp::Glod, Amp::Dron, Amp::Klar],
+            vec![Amp::Torden, Amp::Brol, Amp::Glod, Amp::Dron],
+            vec![Amp::Klar, Amp::Sang, Amp::Dron, Amp::Knald],
+        ]);
+        sets
+    }
+
+    #[test]
+    fn test_every_combination_of_amps_at_equal_levels_is_level_and_under_the_safety_clip() {
+        {
+            for set in some_amp_sets() {
+                let (heard, top) = equal_loudness(&set);
+                assert!(
+                    (heard + 13.0).abs() < 2.0,
+                    "{set:?} at equal levels is at {heard:.1} LUFS"
+                );
+                assert!(
+                    top < OUTPUT_CLIP_KNEE,
+                    "{set:?} peaks at {top}, over the safety clip's knee"
+                );
+            }
+        }
+    }
+
+    /// Loudness of every set of two, three and four amps at equal levels, as `blend_report`
+    /// does for the pairs across Blend:
+    /// cargo test -p amp --release level_report -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn level_report() {
+        println!(
+            "\nLoudness in LUFS of the left channel at equal levels, guitar recorded at {REFERENCE_DI_DB} dBFS RMS"
+        );
+        println!("(one amp alone: {:.1})", {
+            let recording = at_rms_db(&guitar_di(SAMPLE_RATE), REFERENCE_DI_DB);
+            let singles: Vec<f32> = Amp::ALL
+                .iter()
+                .map(|&amp| {
+                    loudness_lufs(&[&run(&levelled(amp), &recording, SAMPLE_RATE)], SAMPLE_RATE)
+                })
+                .collect();
+            singles.iter().sum::<f32>() / singles.len() as f32
+        });
+        for len in 2..=4 {
+            let mut all = Vec::new();
+            for set in amp_sets(len) {
+                let (heard, top) = equal_loudness(&set);
+                all.push((heard, top));
+                println!(
+                    "{len} amps  {:<40} {heard:>7.1}   peak {:>6.1} dBFS",
+                    format!("{set:?}"),
+                    to_db(top)
+                );
+            }
+            let (lo, hi) =
+                all.iter().fold((f32::MAX, f32::MIN), |(lo, hi), &(l, _)| (lo.min(l), hi.max(l)));
+            let top = all.iter().fold(0.0f32, |top, &(_, p)| top.max(p));
+            println!("{len} amps: {lo:.1} to {hi:.1} LUFS, highest peak {:.1} dBFS\n", to_db(top));
+        }
     }
 
     /// The preamp's total gain in dB with the Gain dial at `gain` (0.0 to 1.0): the gains of

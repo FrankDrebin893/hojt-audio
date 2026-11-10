@@ -7,6 +7,14 @@ GitHub release.
 
 ### Guitar Amp
 
+- Up to four amps. The third and fourth amp are as the second: their own model, six dials, On
+  switch, cabinet (the amp's own or a built-in one) and a memory of each amp's dials. The window draws
+  the amps the chain holds, a second column for the third and fourth. A Level knob for each amp
+  on the plate replaces the Blend fader: the amps that play are balanced by their levels, so the rig
+  stays about as loud as you move them. Every project and preset from before sounds exactly as it did (its Blend
+  becomes the levels of amp 1 and 2). Each amp costs processing: four amps at Gain 10 take about
+  8 % of a core at 48 kHz, 10 % at 96 kHz and 23 % at 192 kHz, so a slow computer wants a larger
+  buffer or fewer amps.
 - The standalone program no longer stops with a buffer-size error when it plays through WASAPI.
 - The strip across the top of the Guitar Amp is slim now, and shows only what you need all the time: the
   input meter with the Input gain beside it, the preset name, and the output knob with its meter and

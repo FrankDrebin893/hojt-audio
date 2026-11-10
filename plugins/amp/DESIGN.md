@@ -251,6 +251,14 @@ The reasons behind choices that the code alone does not explain. What it does is
   cable that leaves is the plate's. Mic and Res are radius 15, the lane dials' size, not the 19 of a
   secondary row in a frame: the plate is 148 px wide and two 19s with their ticks do not fit
   inside a frame. All four screws are on, as `mounted_plate` puts them
+- **Four amps (#269).** The stack draws the lanes the chain holds: two to a column, a second column
+  of two for amps 3 and 4 (the stack is 636 points wider then, `board::stack_width`), and the black plate at the
+  right end. The plate's top frame is Levels, not Blend: a bare knob for each lane, in two rows
+  (a fader's cap is 40 points wide and four do not fit in the plate; the value shows as a hint), and
+  an amp that is off keeps its knob. Built without a three-direction explore (the spec fixed the
+  elements, not the arrangement), so the cables between the columns are a first drawing that
+  needs somebody's eye: each head's input is linked to the one above, the first column to the
+  second under the heads, and the first column's cabinets to the plate across the second column
 - Amp 1 has no switch and Amp 2 has On and a lamp: the first amp is always in the signal (its
   lamp is always lit, the rig's one exception to a footswitch per path), and Amp 2 with its
   switch is what Blend balances it against

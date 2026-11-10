@@ -23,6 +23,14 @@ use std::sync::atomic::{AtomicU32, Ordering};
 /// 0 at the ends of the dial
 pub const BLEND_LAW: f32 = 0.6;
 
+/// Amp lanes: the first and up to three more (`slots::MAX_AMPS`)
+pub const LANES: usize = 4;
+
+/// What the power rises by for each amp beyond the second that is fully played: three or four
+/// amps are more alike than two (and add up more), so each one's share is lowered a little more.
+/// Held by `blend_report` to the levels of the pairs and the trios and quartets
+pub const CROWD_LAW: f32 = 0.05;
+
 /// What the second amp's switch, choice and dials say, 0.0 to 1.0 like the first amp's
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SecondSettings {
@@ -96,8 +104,6 @@ pub struct Second {
     // The dials the stages are at, and where they are going
     pub dials: [f32; 6],
     pub target: [f32; 6],
-    // The Blend dial: the share of the second amp in the mix, 0.0 to 1.0
-    pub blend: Ramp,
     // Level of the second amp in steps, `fade_len` when switched on, 0 when off: it fades in
     // and out in the time of an amp switch
     pub on_fade: u32,
@@ -107,10 +113,6 @@ pub struct Second {
     pub cabinet_busy: usize,
     // The stages are at rest and not being run: they start from there
     pub at_rest: bool,
-    // The blend the shares were last worked out for, and the shares of the first and the
-    // second amp
-    shares_for: f32,
-    shares: [f32; 2],
     tone_applied: [f32; 3],
     presence_applied: f32,
     cab_applied: [f32; 2],
@@ -134,13 +136,10 @@ impl Second {
             voicing: CabVoicing::new(),
             dials: defaults.dials(),
             target: defaults.dials(),
-            blend: Ramp::new(0.5),
             on_fade: 0,
             amp_fade: 1,
             cabinet_busy: 0,
             at_rest: true,
-            shares_for: 0.0,
-            shares: [1.0, 0.0],
             tone_applied: [f32::NAN; 3],
             presence_applied: f32::NAN,
             cab_applied: [f32::NAN; 2],
@@ -285,18 +284,9 @@ impl Second {
         }
     }
 
-    /// The gains of the first and the second amp for a Blend of `weight`
-    pub fn gains(&mut self, weight: f32) -> [f32; 2] {
-        if weight != self.shares_for {
-            self.shares_for = weight;
-            self.shares = [(1.0 - weight).powf(BLEND_LAW), weight.powf(BLEND_LAW)];
-        }
-        self.shares
-    }
-
-    /// The share of this amp in the mix for the next sample: the Blend dial, times the
-    /// level it is faded in to
-    pub fn weight(&mut self, fade_len: u32) -> f32 {
+    /// How far this amp is faded in for the next sample, 0.0 to 1.0: it fades in and out in
+    /// the time of an amp switch, and steps one sample on each call
+    pub fn fade_step(&mut self, fade_len: u32) -> f32 {
         if self.wanted_on {
             if self.on_fade < fade_len {
                 self.on_fade += 1;
@@ -304,7 +294,96 @@ impl Second {
         } else {
             self.on_fade = self.on_fade.saturating_sub(1);
         }
-        self.blend.next() * eased(self.on_fade, fade_len)
+        eased(self.on_fade, fade_len)
+    }
+}
+
+/// The level dials of the amps, and the law that turns them into what each amp is heard at.
+///
+/// A level is a share: the amps that play are balanced by their levels, so the sum of the
+/// shares is 1 and the rig is as loud with one level moved as with another. Amp 1 has the
+/// share that the others do not take (a fading amp takes its share from it as it fades in), and
+/// each amp is heard at its share raised to a power: `BLEND_LAW` while two amps play, and a little
+/// more for each amp beyond the second (`CROWD_LAW`), since four amps are more alike than two
+/// and add up more
+pub struct Mix {
+    levels: [Ramp; LANES],
+    // What the gains were last worked out for (the shares of amps 2 to 4 and the power),
+    // and the gains of amps 1 to 4
+    gains_for: [f32; 4],
+    gains: [f32; LANES],
+}
+
+impl Mix {
+    pub fn new() -> Self {
+        Self {
+            levels: [Ramp::new(0.5), Ramp::new(0.5), Ramp::new(0.5), Ramp::new(0.5)],
+            gains_for: [f32::NAN; 4],
+            gains: [1.0, 0.0, 0.0, 0.0],
+        }
+    }
+
+    /// Where the level dials are going (0.0 to 1.0, amps 1 to 4), reached in `steps`
+    pub fn set_targets(&mut self, levels: [f32; LANES], steps: u32) {
+        for (ramp, level) in self.levels.iter_mut().zip(levels) {
+            ramp.set_target(level.clamp(0.0, 1.0), steps);
+        }
+    }
+
+    /// The dials stand where they are going
+    pub fn snap(&mut self) {
+        for ramp in &mut self.levels {
+            ramp.snap();
+        }
+    }
+
+    /// The gains of amps 1 to 4 for the next sample, with `fades` how far amps 2 to 4 are
+    /// faded in (`None` for one that is not played at all). An amp that is not played has gain
+    /// 0 and takes no share
+    pub fn next(&mut self, fades: [Option<f32>; LANES - 1]) -> [f32; LANES] {
+        let mut levels = self.levels.each_mut().map(|ramp| ramp.next());
+        let mut total = levels[0];
+        for (level, fade) in levels[1..].iter().zip(fades) {
+            if fade.is_some() {
+                total += level;
+            }
+        }
+        if total < 1.0e-6 {
+            // Every level at the bottom is all of them equal, not silence
+            levels = [1.0; LANES];
+            total = 1.0 + fades.iter().flatten().count() as f32;
+        }
+        let mut shares = [0.0f32; LANES - 1];
+        let mut taken = 0.0f32;
+        let mut crowd = 0.0f32;
+        for (index, fade) in fades.iter().enumerate() {
+            if let Some(fade) = fade {
+                shares[index] = levels[index + 1] / total * fade;
+                taken += shares[index];
+                if index > 0 {
+                    crowd += fade;
+                }
+            }
+        }
+        let power = BLEND_LAW + CROWD_LAW * crowd;
+        let state = [shares[0], shares[1], shares[2], power];
+        if state != self.gains_for {
+            self.gains_for = state;
+            let first = (1.0 - taken).max(0.0);
+            self.gains = [
+                first.powf(power),
+                shares[0].powf(power),
+                shares[1].powf(power),
+                shares[2].powf(power),
+            ];
+        }
+        self.gains
+    }
+}
+
+impl Default for Mix {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

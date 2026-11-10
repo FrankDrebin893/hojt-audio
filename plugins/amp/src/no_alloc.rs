@@ -51,7 +51,7 @@ fn test_the_second_amp_allocates_nothing() {
     let second = |on: bool, amp: Amp| AmpSettings {
         amp: Amp::Torden,
         second: SecondSettings { on, amp, ..SecondSettings::default() },
-        blend: 0.4,
+        levels: crate::test_util::blend_levels(0.4),
         ..AmpSettings::default()
     };
     // The same with a built-in cabinet for the second amp, switched while it plays
@@ -62,7 +62,7 @@ fn test_the_second_amp_allocates_nothing() {
             speaker: Some(speaker % crate::amp::model::SPEAKERS.len()),
             ..SecondSettings::default()
         },
-        blend: 0.4,
+        levels: crate::test_util::blend_levels(0.4),
         ..AmpSettings::default()
     };
     host::assert_allocates_nothing("The second amp", || {
@@ -88,6 +88,63 @@ fn test_the_second_amp_allocates_nothing() {
             chain.process(&settings, &mut left[..len], None);
         }
     });
+}
+
+/// Up to four amps: the third and fourth switched on and off in the middle of a block, their
+/// amps and cabinets switched while they play, and the levels turned, at the rates that
+/// oversample 4, 2 and 1 times
+#[test]
+fn test_four_amps_allocate_nothing() {
+    use crate::chain::AmpSettings;
+    use crate::second::SecondSettings;
+    use crate::Amp;
+    for sample_rate in [44_100.0, 96_000.0, 192_000.0] {
+        let mut chain = AmpChain::new();
+        chain.set_sample_rate(sample_rate);
+        let mut left = vec![0.0f32; host::BLOCKS[0]];
+        let mut right = vec![0.0f32; host::BLOCKS[0]];
+        let lane = |on: bool, amp: Amp, speaker: Option<usize>| SecondSettings {
+            on,
+            amp,
+            speaker: speaker.map(|speaker| speaker % crate::amp::model::SPEAKERS.len()),
+            ..SecondSettings::default()
+        };
+        host::assert_allocates_nothing("Four amps", || {
+            for block in 0..400 {
+                let len = host::BLOCKS[block % host::BLOCKS.len()];
+                for i in 0..len {
+                    left[i] = (i as f32 * 0.0144).sin() * 0.5;
+                    right[i] = left[i];
+                }
+                let phase = block / 20 % 5;
+                let settings = AmpSettings {
+                    amp: Amp::ALL[block / 7 % Amp::ALL.len()],
+                    second: lane(phase != 0, Amp::ALL[block / 5 % Amp::ALL.len()], None),
+                    more: [
+                        lane(
+                            phase >= 2 && block % 3 != 0,
+                            Amp::ALL[(block / 3 + 2) % Amp::ALL.len()],
+                            (phase == 3).then_some(block / 4),
+                        ),
+                        lane(
+                            phase >= 3 && block % 4 != 0,
+                            Amp::ALL[(block / 2 + 4) % Amp::ALL.len()],
+                            (phase == 4).then_some(block / 6),
+                        ),
+                    ],
+                    levels: [
+                        0.2 + (block % 7) as f32 / 10.0,
+                        (block % 5) as f32 / 4.0,
+                        (block % 3) as f32 / 2.0,
+                        (block % 11) as f32 / 10.0,
+                    ],
+                    ..AmpSettings::default()
+                };
+                chain.process(&settings, &mut left[..len], Some(&mut right[..len]));
+                chain.process(&settings, &mut left[..len], None);
+            }
+        });
+    }
 }
 
 /// The pitch shifter pedal: off, on at each shift, switched on and off in the middle of a block

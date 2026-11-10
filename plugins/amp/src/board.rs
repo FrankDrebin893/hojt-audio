@@ -20,6 +20,19 @@ use crate::slots::{Block, Chain, StoredChain, MAX_SLOTS};
 
 /// The two lanes (a head and its cabinet each) and the plate where they meet
 pub const STACK_WIDTH: f32 = 700.0;
+/// What a second column of two lanes (the third and fourth amp) adds to the stack: a lane's head and
+/// cabinet, and the gap before it that the cable between the columns' input jacks loops in
+pub const STACK_COLUMN: f32 = 546.0 + 90.0;
+
+/// The width of the stack for a chain of `amps` amp lanes: two lanes stand one above the other, so
+/// three and four make a second column beside the first
+pub fn stack_width(amps: usize) -> f32 {
+    if amps > 2 {
+        STACK_WIDTH + STACK_COLUMN
+    } else {
+        STACK_WIDTH
+    }
+}
 /// The space between two neighbours of the line. What it always was: the old row of thirteen
 /// pedals and the stack filled 3411 points with it
 pub const GAP: f32 = 27.0;
@@ -49,6 +62,8 @@ impl Piece {
         }
     }
 
+    /// Its width, with the stack as wide as two amp lanes make it: `Line::width_of` has it for
+    /// the chain's own
     pub(crate) fn width(self) -> f32 {
         match self {
             Piece::Stack => STACK_WIDTH,
@@ -69,6 +84,8 @@ impl Piece {
 pub(crate) struct Line {
     pieces: Vec<Piece>,
     stack: usize,
+    /// The amp lanes in the stack
+    amps: usize,
 }
 
 impl Line {
@@ -79,13 +96,21 @@ impl Line {
         let stack = pieces.len();
         pieces.push(Piece::Stack);
         pieces.extend(chain.back().iter().map(|&block| Piece::Block(block)));
-        Line { pieces, stack }
+        Line { pieces, stack, amps: chain.amps() }
+    }
+
+    /// The width of `piece` in this line
+    pub(crate) fn width_of(&self, piece: Piece) -> f32 {
+        match piece {
+            Piece::Stack => stack_width(self.amps),
+            other => other.width(),
+        }
     }
 
     /// The width of the line's design layer: a margin at each end, every piece and a gap
     /// between each two
     pub(crate) fn width(&self) -> f32 {
-        let pieces: f32 = self.pieces.iter().map(|piece| piece.width()).sum();
+        let pieces: f32 = self.pieces.iter().map(|&piece| self.width_of(piece)).sum();
         2.0 * BENCH_MARGIN + pieces + GAP * (self.pieces.len() - 1) as f32
     }
 
@@ -107,7 +132,7 @@ impl Line {
         let mut x = BENCH_MARGIN;
         for piece in &self.pieces {
             lefts[piece.key()] = x;
-            x += piece.width() + GAP;
+            x += self.width_of(*piece) + GAP;
         }
         lefts
     }
@@ -143,7 +168,7 @@ impl Line {
             if block.kind.can_be_in(zone) {
                 let mut pieces = others.clone();
                 pieces.insert(at, piece);
-                found.push(Line { pieces, stack: stack + usize::from(in_front) });
+                found.push(Line { pieces, stack: stack + usize::from(in_front), amps: self.amps });
             }
         }
         found
@@ -227,7 +252,8 @@ pub fn board(ui: &mut Ui, window: Pos2, pedals: &Pedals, chain: &StoredChain) {
 
     // The stack first, so that a piece carried across it is in front of it. It keeps its
     // size while it glides, so nothing of it is drawn anew
-    let jacks = pedals.stack(ui, window + vec2(board.lefts[Piece::Stack.key()], STACK_TOP));
+    let jacks =
+        pedals.stack(ui, window + vec2(board.lefts[Piece::Stack.key()], STACK_TOP), line.amps);
 
     // The held piece last, so it is above the others and the cables
     let in_turn = shown
@@ -361,14 +387,22 @@ mod tests {
 
     /// A chain of sixteen blocks, as many in front of the amps as behind
     fn full_chain() -> Chain {
+        // Two of each of eight kinds: a chain holds no more of one kind than that (#268)
+        let kinds = [
+            EffectKind::Comp,
+            EffectKind::Drive,
+            EffectKind::Fuzz,
+            EffectKind::Eq,
+            EffectKind::Chorus,
+            EffectKind::Phaser,
+            EffectKind::Delay,
+            EffectKind::Reverb,
+        ];
         let mut chain = Chain::empty();
         for number in 0..16 {
-            let (kind, zone) = if number % 2 == 0 {
-                (EffectKind::Comp, Zone::Front)
-            } else {
-                (EffectKind::Delay, Zone::Back)
-            };
-            chain.add(kind, zone, 99).unwrap();
+            let zone =
+                if number % 2 == 0 { crate::order::Zone::Front } else { crate::order::Zone::Back };
+            chain.add(kinds[number % kinds.len()], zone, 99).unwrap();
         }
         chain
     }
@@ -382,10 +416,10 @@ mod tests {
         let lefts = line.places();
         assert_eq!(lefts[Piece::Gate.key()], BENCH_MARGIN);
         for pair in line.pieces.windows(2) {
-            assert_eq!(lefts[pair[0].key()] + pair[0].width() + GAP, lefts[pair[1].key()]);
+            assert_eq!(lefts[pair[0].key()] + line.width_of(pair[0]) + GAP, lefts[pair[1].key()]);
         }
         let last = *line.pieces.last().unwrap();
-        assert_eq!(lefts[last.key()] + last.width() + BENCH_MARGIN, line.width());
+        assert_eq!(lefts[last.key()] + line.width_of(last) + BENCH_MARGIN, line.width());
         // In the order the chain had: the gate, six in front, the stack, six behind
         assert_eq!(line.pieces[0], Piece::Gate);
         assert_eq!(line.pieces[line.stack], Piece::Stack);

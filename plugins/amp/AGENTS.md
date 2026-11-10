@@ -71,7 +71,7 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   `Documents/Hojt Audio/Presets` (or `HOJT_PRESETS_DIR`), and the banks they are kept in,
   which are the factory presets, that folder itself and the folders the player made in it:
   read, written, listed and stepped through
-- `src/second.rs` - The second amp (#177): `Second` (its preamp, tone stack, power amp and
+- `src/second.rs` - The other amps (#177, #269): `Mix` (the levels and their law), `Second` (its preamp, tone stack, power amp and
   cabinet, its dial smoothing, its switch and amp-switch fades), `SecondSettings`, `Timing` and
   `BLEND_LAW`. `chain.rs` runs it and mixes it in
 - `src/dial_memory.rs` - Each amp's six dial positions, kept by the editor and saved with the
@@ -456,7 +456,10 @@ How it behaves:
 | Amp 2 (`amp2_on`) | on / off | off | The second amp, beside the first behind the same front pedals. Off, it is not run at all |
 | Amp 2 Model (`amp2`) | the same six, same variant ids as `amp` | Klar | The second amp's own choice |
 | Amp 2 Gain, Bass, Mid, Treble, Presence, Master (`amp2_gain`, `amp2_bass`, `amp2_mid`, `amp2_treble`, `amp2_presence`, `amp2_master`) | 0.0-10.0 | 5.0 | The second amp's dials |
-| Amp Blend (`amp_blend`) | 0.0-10.0 | 5.0 | 0 is the first amp alone, 10 the second alone. Not heard while Amp 2 is off |
+| Amp Blend (`amp_blend`) | 0.0-10.0 | 5.0 | Not heard since #269: a state without levels is moved into them (`amp1_level` = 1 - Blend, `amp2_level` = Blend). Kept as an id |
+| Amp 3 / Amp 4 (`amp3_on`, `amp4_on`) | on / off | off | The third and fourth amp, as Amp 2. Off, not run at all |
+| Amp 3 / 4 Model (`amp3`, `amp4`), their dials (`amp3_gain` ... `amp4_master`) | as Amp 2's | Klar, 5.0 | Their own choices and dials |
+| Amp 1 to 4 Level (`amp1_level` to `amp4_level`) | 0.0-10.0 | 5.0 | The share of each amp that plays in the mix (`second::Mix`); a lone amp is heard at full whatever its level |
 | EQ (`eq_on`) | on / off | off | EQ pedal, either side of the amp |
 | EQ Low, Mid, High (`eq_low`, `eq_mid`, `eq_high`) | 0.0-10.0 | 5.0 | -12 to +12 dB, 5 is flat: Low and High shelves at 100 Hz and 4 kHz, Mid a bell |
 | EQ Freq (`eq_freq`) | 0.0-10.0 | 5.0 | The centre of Mid, 200 Hz to 5 kHz on a log scale (5 is 1 kHz) |
@@ -579,45 +582,60 @@ cargo test -p amp --release render_comp -- --ignored
 cargo test -p amp --release render_mods -- --ignored
 ```
 
-## Two amps
+## Amps (up to four)
 
-- **Where it splits** (#177): after the front pedals, so both amps hear the same gate, drive and
+- **Where it splits** (#177): after the front pedals, so every amp hears the same gate, drive and
   the rest, and the pedals behind the cabinet work on the mix. Each amp is a lane of its own: a
   preamp, tone stack, power amp and cabinet, run in the same oversampled region on a copy of the
-  signal. The mix is behind the two cabinets and in front of the DC blocker, so both reach the
-  back pedals in phase (one oversampler, one cabinet latency). `ChainOrder` does not know about
-  it: the stack is still one place in the order
-- **Amp 1 is always in the signal** (it has no switch). Amp 2 has `amp2_on`. With it off its
-  stages are not run, the output is bit-identical to the single amp it was, it costs nothing,
-  and every factory preset (except "Tung og Klar") and every project from before opens with it off
-- **The second slot uses the same stages and the same `AmpModel` constants** as the first (no
-  `match amp` in the DSP, `tests/rules.rs`). It has its own dial smoothing and its own
-  amp-switch fade (4.5 ms, switching at silence), and its model and dials are read into
-  `AmpSettings::second`. `finer_when_driven` and `driven_sag` apply to both
+  signal. The mix is behind the cabinets and in front of the DC blocker, so all reach the back
+  pedals in phase (one oversampler, one cabinet latency). The stack is still one place in the line
+- **Amp 1 is always in the signal** (it has no switch). Amps 2, 3 and 4 have `amp2_on`, `amp3_on`,
+  `amp4_on`. With one off its stages are not run, the output is bit-identical to it not being
+  there, it costs nothing, and every factory preset (except "Tung og Klar") and every project from
+  before opens with amps 3 and 4 off (and 2, but for that preset). A lane the chain does not hold
+  (`Chain::amps()`, 2 for a project from before, up to `MAX_AMPS` = 4) is not played, whatever its
+  switch says (#269)
+- **Every lane uses the same stages and the same `AmpModel` constants** (no `match amp` in the DSP,
+  `tests/rules.rs`). Each has its own dial smoothing and its own amp-switch fade (4.5 ms, switching
+  at silence); its model and dials are read into `AmpSettings::second` and `AmpSettings::more`
+  (amps 3 and 4). `finer_when_driven` and `driven_sag` apply to all
 - **Cabinets:** each amp plays through its own. Amp 1's is the amp's own, a built-in one or the
-  player's file (`cabinet`); amp 2's is its own amp's or a built-in one (`cabinet2`, persisted,
-  and in a user preset file; never a file, which keeps the cabinet loader single). Mic,
-  Resonance, Mic Type and the Cab switch act on both
-- **Blend law:** the first amp's share is `(1 - blend)^0.6` and the second's `blend^0.6`
-  (`second::BLEND_LAW`), exactly 1 and 0 at the ends, so Blend 0 equals amp 1 alone and Blend 1
-  amp 2 alone, to the bit (the other path still runs). Linear dipped 2.8 LU in the middle for
-  Torden + Klar (a heavy and a clean amp are largely not the same signal, so their powers add);
-  equal power (0.5) is flat for them but bulges 3 dB for two similar amps and put Brøl + Glød
-  over the safety clip's knee. Two identical amps therefore add up to +2.4 dB at the middle.
-  `blend_report` (`cargo test -p amp --release blend_report -- --ignored --nocapture`) prints
-  the loudness of five pairs at five Blends and holds the law to it: every pair at 0.5 within 2
-  LU of -13 LUFS, Torden + Klar within 1 LU across 0.2 to 0.8, every pair under the knee
-- **Switching amp 2** (on or off, or its model) clicks no more than switching amp 1; tuner and
-  bypass act on the whole rig. Dial memory: `amp2-dials` keeps amp 2's dials per amp, as
-  `amp-dials` does for amp 1
-- **Cost** (`stage_report`, Torden Gain 10 and everything on, plus Klar at Gain 10 at Blend 0.5
-  as amp 2, measured in #203; `whole, 2` is both amps on): `whole` 3.0 to 3.5 % of a core at
-  48 kHz, both amps on 4.0 to 5.1 % at 48 kHz, 6.2 to 6.5 % at 96 kHz and 14.2 % at 192 kHz,
-  within the 8 % limit at 48 kHz. The spec's estimate for amp 2 alone was 2.8 % at 48 kHz; the
-  run-to-run spread is as large as the difference
-- **Not done, on purpose:** phase invert on amp 2, stereo (amp 1 left, amp 2 right), separate
-  effect routing per amp (a split in front of the pedals). The first two only if a report or
-  a listen shows a need; the third is a future issue
+  player's file (`cabinet`); the others' are their own amp's or a built-in one (`cabinet2`,
+  `cabinet3`, `cabinet4`, persisted, and in a user preset file; never a file, which keeps the cabinet
+  loader single). Mic, Resonance, Mic Type and the Cab switch act on all
+- **Levels, not Blend** (#269): `amp1_level` to `amp4_level` (0.0 to 1.0) balance the amps that play.
+  `second::Mix` turns them into gains: a level is a share, so the shares of the amps that play add
+  up to 1 (an amp that is off takes none, and a lone amp is heard at 1 whatever its level says); amp 1
+  has what the others do not take, so a fading-in amp takes its share from it. Each amp is heard at
+  its share raised to a power: `BLEND_LAW` 0.6 for two amps, as before, and `CROWD_LAW` more for each
+  amp played beyond the second (3 or 4 amps are more alike than 2 and add up more; the loudness
+  report chose 0.05). All levels at the bottom is all equal, not silence
+- **Blend stays an id** (`amp_blend`) but is not heard: `filter_state` moves a state without levels
+  into them as 1 - Blend and Blend, and a preset (factory or file) the same, so Blend 0 is amp 1
+  alone and Blend 1 amp 2 alone, to the bit, and the two-amp law is exactly the old one (1 - Blend and
+  Blend sum to exactly 1, so the shares are the old ones). `fingerprint_report` before and after,
+  with Klar beside every amp at three Blends and the second switched on and off while playing:
+  all 680 lines identical
+- **Law:** the old two-amp findings still hold (linear dipped 2.8 LU for Torden + Klar, equal power
+  put Brøl + Glød over the safety clip's knee). `blend_report` prints the pairs across Blend and
+  `level_report` (`cargo test -p amp --release level_report -- --ignored --nocapture`) every set of
+  two, three and four amps at equal levels: two amps -15.3 to -11.8 LUFS, three -14.5 to -11.2, four
+  -14.0 to -11.4, the highest peak -1.3 dBFS (under the knee). A test holds a selection of them to 2
+  LU of -13 LUFS and under the knee
+- **Switching an amp** (on or off, or its model) clicks no more than switching amp 2 did; tuner and
+  bypass act on the whole rig. Dial memory: `amp2-dials`, `amp3-dials`, `amp4-dials` keep each
+  lane's dials per amp, as `amp-dials` does for amp 1
+- **Cost** (`stage_report`, Torden Gain 10 and everything on, the others at Gain 10 at equal
+  levels: Klar, then Brøl, then Glød; `whole, n` is n amps on): see the table below. One amp 3.8 % of
+  a core at 48 kHz, two 4.3 %, three 6.3 %, four 8.0 % (limit 8 %), 96 kHz 4.1 / 5.6 / 8.0 / 10.2 %,
+  192 kHz 8.9 / 12.3 / 18.5 / 22.7 %. The run-to-run spread is about a point
+- **Editor:** the stack draws the lanes the chain holds, two to a column (a second column for amps 3
+  and 4, `board::stack_width`), with a Levels frame on the plate (one knob for each lane, no
+  value printed: it shows as a hint) where the Blend fader was. Needs a look from somebody: the
+  cables between the columns are a first drawing
+- **Not done, on purpose:** phase invert, stereo (amp 1 left, amp 2 right), separate effect routing
+  per amp (a split in front of the pedals). The first two only if a report or a listen shows a
+  need; the third is a future issue
 
 ## Look: the rig
 

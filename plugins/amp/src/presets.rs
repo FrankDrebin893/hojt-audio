@@ -14,7 +14,8 @@ use nih_plug::prelude::*;
 use crate::dial_memory;
 use crate::order::ChainOrder;
 use crate::pitch::PitchSettings;
-use crate::{Amp, GuitarAmpParams};
+use crate::second::SecondSettings;
+use crate::{Amp, AmpSettings, GuitarAmpParams};
 
 /// Shown behind the name once a knob no longer stands where the preset put it
 pub const EDITED_MARK: char = '*';
@@ -712,7 +713,7 @@ pub fn index_or_first(stored: u32) -> usize {
 
 impl Preset {
     /// Every continuous parameter the preset holds, with the value it gets
-    fn knobs<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a FloatParam, f32); 46] {
+    fn knobs<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a FloatParam, f32); 62] {
         let [gain, bass, mid, treble, presence, master] = self.dials;
         let (_, gate_thresh_db, gate_release_ms) = self.gate;
         let (_, [drive_gain, drive_tone, drive_level]) = self.drive;
@@ -764,6 +765,25 @@ impl Preset {
             (&params.amp2_presence, dial(presence2)),
             (&params.amp2_master, dial(master2)),
             (&params.amp_blend, dial(self.second.blend)),
+            // The levels of the first two amps are the Blend the preset holds, as a project
+            // from before is moved into them: 1 - Blend and Blend. A preset names no third
+            // and fourth amp: off, with the dials and the levels where they start
+            (&params.amp1_level, 1.0 - dial(self.second.blend)),
+            (&params.amp2_level, dial(self.second.blend)),
+            (&params.amp3_level, AmpSettings::default().levels[2]),
+            (&params.amp4_level, AmpSettings::default().levels[3]),
+            (&params.amp3_gain, dial(NO_SECOND.dials[0])),
+            (&params.amp3_bass, dial(NO_SECOND.dials[1])),
+            (&params.amp3_mid, dial(NO_SECOND.dials[2])),
+            (&params.amp3_treble, dial(NO_SECOND.dials[3])),
+            (&params.amp3_presence, dial(NO_SECOND.dials[4])),
+            (&params.amp3_master, dial(NO_SECOND.dials[5])),
+            (&params.amp4_gain, dial(NO_SECOND.dials[0])),
+            (&params.amp4_bass, dial(NO_SECOND.dials[1])),
+            (&params.amp4_mid, dial(NO_SECOND.dials[2])),
+            (&params.amp4_treble, dial(NO_SECOND.dials[3])),
+            (&params.amp4_presence, dial(NO_SECOND.dials[4])),
+            (&params.amp4_master, dial(NO_SECOND.dials[5])),
             // No factory preset uses the pitch shifter: it is switched off, where it starts
             (&params.pitch_blend, pitch.blend),
             (&params.pitch_latency, pitch.latency_ms),
@@ -780,9 +800,11 @@ impl Preset {
     }
 
     /// Every switch the preset holds, with the position it gets
-    fn switches<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a BoolParam, bool); 16] {
+    fn switches<'a>(&self, params: &'a GuitarAmpParams) -> [(&'a BoolParam, bool); 18] {
         [
             (&params.amp2_on, self.second.on),
+            (&params.amp3_on, false),
+            (&params.amp4_on, false),
             (&params.gate_on, self.gate.0),
             (&params.fuzz_on, self.fuzz.0),
             (&params.comp_on, self.comp.0),
@@ -817,11 +839,21 @@ impl Preset {
     pub fn load(&self, params: &GuitarAmpParams, setter: &ParamSetter) {
         dial_memory::preset_loaded(params, self.amp, self.dials.map(dial));
         dial_memory::second_preset_loaded(params, self.second.amp, self.second.dials.map(dial));
+        for lane in [2, 3] {
+            dial_memory::other_preset_loaded(
+                params,
+                lane,
+                SecondSettings::default().amp,
+                NO_SECOND.dials.map(dial),
+            );
+        }
         params.chain.put_order(self.chain_order());
         let pitch = PitchSettings::default();
         let edits: Vec<Edit> = [
             Edit::of(&params.amp, self.amp),
             Edit::of(&params.amp2, self.second.amp),
+            Edit::of(&params.amp3, SecondSettings::default().amp),
+            Edit::of(&params.amp4, SecondSettings::default().amp),
             Edit::of(&params.pitch_semitones, pitch.semitones),
             Edit::of(&params.wah_mode, crate::wah::WahSettings::default().mode),
         ]
@@ -842,6 +874,8 @@ impl Preset {
     pub fn matches(&self, params: &GuitarAmpParams) -> bool {
         params.amp.value() == self.amp
             && params.amp2.value() == self.second.amp
+            && params.amp3.value() == SecondSettings::default().amp
+            && params.amp4.value() == SecondSettings::default().amp
             && params.chain.order() == self.chain_order()
             && params.pitch_semitones.value() == PitchSettings::default().semitones
             && params.wah_mode.value() == crate::wah::WahSettings::default().mode
@@ -912,9 +946,9 @@ mod tests {
             preset.load(&params, &ParamSetter::new(&host));
             let told = host.told.lock().unwrap();
             assert!(as_one_edit(&told), "{}", preset.name);
-            // The two amps, the pitch shifter's semitones, the wah's mode, the switches and every
+            // The four amps, the pitch shifter's semitones, the wah's mode, the switches and every
             // knob: each begun, set and ended once
-            let held = 4 + preset.switches(&params).len() + preset.knobs(&params).len();
+            let held = 6 + preset.switches(&params).len() + preset.knobs(&params).len();
             assert_eq!(told.len(), 3 * held, "{}", preset.name);
             assert!(told[0].1 == params.amp.as_ptr(), "{} begins with the amp", preset.name);
         }
@@ -935,7 +969,6 @@ mod tests {
     use crate::mods::tremolo::TremoloSettings;
     use crate::order::Pedal;
     use crate::reverb::ReverbSettings;
-    use crate::second::SecondSettings;
     use crate::test_util::*;
 
     const SAMPLE_RATE: f32 = 48_000.0;
@@ -965,7 +998,12 @@ mod tests {
                     presence: presence2,
                     master: master2,
                 },
-                blend: dial(self.second.blend),
+                levels: [
+                    1.0 - dial(self.second.blend),
+                    dial(self.second.blend),
+                    AmpSettings::default().levels[2],
+                    AmpSettings::default().levels[3],
+                ],
                 fuzz: FuzzSettings { on: self.fuzz.0, fuzz, tone: fuzz_tone },
                 comp: CompSettings { on: self.comp.0, sustain: comp_sustain, level: comp_level },
                 chorus: ChorusSettings {

@@ -964,3 +964,9 @@ mod loudness_tests {
         );
     }
 }
+
+/// The levels of the first two amps that a Blend of `blend` stands for, as a project from before
+/// is moved into them (1 - Blend and Blend), and the other two at their default
+pub fn blend_levels(blend: f32) -> [f32; 4] {
+    [1.0 - blend, blend, 0.5, 0.5]
+}

@@ -119,39 +119,48 @@ pub fn preset_loaded(params: &GuitarAmpParams, amp: Amp, dials: AmpDials) {
     params.dial_memory.leave(amp, dials);
 }
 
-/// The same for the second amp's selector: its own memory (`amp2-dials`), its own choice
-/// and six dials, as one edit of seven changes. The head's second nameplate calls it
-/// (milestone 2 of #177); until then the host's parameter list is the way to the second amp
-#[cfg_attr(not(test), allow(dead_code))]
-pub fn switch_second_amp(params: &GuitarAmpParams, setter: &ParamSetter, to: Amp) {
-    let from = params.amp2.value();
+/// The same for the selector of an amp lane other than the first (`lane` 1 is the second amp):
+/// its own memory (`amp2-dials`, `amp3-dials`, `amp4-dials`), its own choice and six dials,
+/// as one edit of seven changes. The lane's nameplate calls it
+pub fn switch_other_amp(params: &GuitarAmpParams, setter: &ParamSetter, lane: usize, to: Amp) {
+    let lane = params.lane(lane);
+    let from = lane.amp.value();
     if from == to {
         return;
     }
-    let dials = params.amp2_dials();
-    params.dial_memory_second.leave(from, dials.map(|dial| dial.unmodulated_plain_value()));
+    lane.memory.leave(from, lane.dials.map(|dial| dial.unmodulated_plain_value()));
 
-    let edits: Vec<Edit> = std::iter::once(Edit::of(&params.amp2, to))
+    let edits: Vec<Edit> = std::iter::once(Edit::of(lane.amp, to))
         .chain(
-            dials
+            lane.dials
                 .into_iter()
-                .zip(params.dial_memory_second.enter(to))
+                .zip(lane.memory.enter(to))
                 .map(|(dial, value)| Edit::of(dial, value)),
         )
         .collect();
     presets::set_together(setter, &edits);
 }
 
-/// A preset with the second amp set to `amp` and its dials at `dials` is about to be
-/// loaded: the second amp remembers as `preset_loaded` does for the first
-pub fn second_preset_loaded(params: &GuitarAmpParams, amp: Amp, dials: AmpDials) {
-    let from = params.amp2.value();
+/// The second amp's selector (`switch_other_amp`)
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn switch_second_amp(params: &GuitarAmpParams, setter: &ParamSetter, to: Amp) {
+    switch_other_amp(params, setter, 1, to);
+}
+
+/// A preset with the amp of `lane` set to `amp` and its dials at `dials` is about to be
+/// loaded: the lane remembers as `preset_loaded` does for the first amp
+pub fn other_preset_loaded(params: &GuitarAmpParams, lane: usize, amp: Amp, dials: AmpDials) {
+    let lane = params.lane(lane);
+    let from = lane.amp.value();
     if from != amp {
-        params
-            .dial_memory_second
-            .leave(from, params.amp2_dials().map(|dial| dial.unmodulated_plain_value()));
+        lane.memory.leave(from, lane.dials.map(|dial| dial.unmodulated_plain_value()));
     }
-    params.dial_memory_second.leave(amp, dials);
+    lane.memory.leave(amp, dials);
+}
+
+/// The second amp's (`other_preset_loaded`)
+pub fn second_preset_loaded(params: &GuitarAmpParams, amp: Amp, dials: AmpDials) {
+    other_preset_loaded(params, 1, amp, dials);
 }
 
 #[cfg(test)]

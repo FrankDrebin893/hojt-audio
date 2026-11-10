@@ -63,8 +63,13 @@ pub const KNOBS: usize = 5;
 /// the chain, off the audio thread, so there is a number of them to make
 pub const MAX_PER_KIND: usize = 2;
 
-/// Amp lanes. The first is always there; the second is as it is today
-pub const MAX_AMPS: usize = 2;
+/// Amp lanes. The first is always there; the second is as it was before there was a chain, the
+/// third and fourth came with #269
+pub const MAX_AMPS: usize = 4;
+
+/// The lanes of a project or a preset from before there was a chain: the first amp and the
+/// second, which is off until its switch says so
+pub const OLD_AMPS: usize = 2;
 
 /// What a slot can hold
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -251,7 +256,7 @@ impl Chain {
     /// lanes of today
     pub fn from_order(order: &ChainOrder) -> Chain {
         let mut chain = Chain::empty();
-        chain.amps = MAX_AMPS;
+        chain.amps = OLD_AMPS;
         for (place, &pedal) in order.front().iter().chain(order.back()).enumerate() {
             chain.blocks[place] =
                 Block { slot: pedal.index() as u8, kind: EffectKind::of_pedal(pedal) };
@@ -1077,7 +1082,7 @@ mod tests {
         let chain = Chain::default();
         assert_eq!(chain.order(), ChainOrder::default());
         assert_eq!(chain.blocks().len(), Pedal::ALL.len());
-        assert_eq!(chain.amps(), MAX_AMPS);
+        assert_eq!(chain.amps(), OLD_AMPS);
         use EffectKind::*;
         assert_eq!(kinds(chain.front()), [Pitch, Wah, Fuzz, Comp, Drive, Phaser]);
         assert_eq!(kinds(chain.back()), [Chorus, Flanger, Tremolo, Eq, Delay, Reverb]);
@@ -1111,9 +1116,14 @@ mod tests {
         assert_eq!(chain.amps(), 1);
         assert!(!chain.remove_amp(0));
         assert_eq!(chain.add_amp(), Some(1));
+        assert_eq!(chain.add_amp(), Some(2));
+        assert_eq!(chain.add_amp(), Some(3));
         assert_eq!(chain.add_amp(), None);
+        assert_eq!(chain.amps(), MAX_AMPS);
         assert!(!chain.remove_amp(0));
         assert!(!chain.remove_amp(5));
+        assert!(chain.remove_amp(3));
+        assert!(chain.remove_amp(2));
         assert!(chain.remove_amp(1));
         assert_eq!(chain.amps(), 1);
         assert!(!chain.remove_amp(0));
