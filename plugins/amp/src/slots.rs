@@ -492,12 +492,17 @@ pub struct SlotValues {
 }
 
 impl SlotValues {
-    fn to_text(self) -> String {
+    /// What a slot holds before anything sets it: off, every knob at the middle
+    pub const DEFAULT: SlotValues = SlotValues { on: false, knobs: [0.5; KNOBS] };
+
+    /// As a preset file writes it: `<0 or 1>:<knob>,<knob>,...`
+    pub(crate) fn to_text(self) -> String {
         let knobs: Vec<String> = self.knobs.iter().map(|knob| knob.to_string()).collect();
         format!("{}:{}", u8::from(self.on), knobs.join(","))
     }
 
-    fn from_text(text: &str) -> Option<SlotValues> {
+    /// `None` for text that is not that
+    pub(crate) fn from_text(text: &str) -> Option<SlotValues> {
         let (on, knobs) = text.split_once(':')?;
         let on = match on {
             "0" => false,
@@ -1004,12 +1009,12 @@ pub struct Live<'a> {
     pub setter: &'a ParamSetter<'a>,
 }
 
-impl Values for Live<'_> {
-    /// What the block holds now. A kind's unused knobs read 0
-    fn read(&self, block: Block) -> SlotValues {
-        let (on, knobs) = self.params.params_of(block);
+impl GuitarAmpParams {
+    /// What the block holds now, as the parameters store it. A kind's unused knobs read 0
+    pub(crate) fn values_of(&self, block: Block) -> SlotValues {
+        let (on, knobs) = self.params_of(block);
         let mut values = SlotValues { on: false, knobs: [0.0; KNOBS] };
-        // SAFETY: the pointers are of parameters of `params`, which outlive this call
+        // SAFETY: the pointers are of parameters of `self`
         unsafe {
             values.on = on.unmodulated_normalized_value() > 0.5;
             for (value, knob) in values.knobs.iter_mut().zip(knobs) {
@@ -1019,17 +1024,46 @@ impl Values for Live<'_> {
         values
     }
 
-    fn write(&self, block: Block, values: SlotValues) {
-        let (on, knobs) = self.params.params_of(block);
+    /// The edits that give the block `values`: its switch and the knobs its kind uses
+    pub(crate) fn edits_of(&self, block: Block, values: SlotValues) -> Vec<Edit> {
+        let (on, knobs) = self.params_of(block);
         let on_value = if values.on { 1.0 } else { 0.0 };
-        let edits: Vec<Edit> = std::iter::once(Edit::raw(on, on_value))
+        std::iter::once(Edit::raw(on, on_value))
             .chain(knobs.into_iter().zip(values.knobs).map(|(knob, value)| Edit::raw(knob, value)))
-            .collect();
-        set_together(self.setter, &edits);
+            .collect()
+    }
+}
+
+impl Values for Live<'_> {
+    /// What the block holds now. A kind's unused knobs read 0
+    fn read(&self, block: Block) -> SlotValues {
+        self.params.values_of(block)
+    }
+
+    fn write(&self, block: Block, values: SlotValues) {
+        set_together(self.setter, &self.params.edits_of(block, values));
     }
 }
 
 impl StoredChain {
+    /// Make `chain` the whole chain, as loading a preset does (#271, decision #260). What the
+    /// old chain holds of a kind that the new one lacks is kept by kind, as taking its block
+    /// out keeps it (the first block of that kind in the line, read before any value is set),
+    /// so putting the kind in again brings it back. A kind that stays has its values replaced
+    /// by the preset's, which is not taking anything out. Nothing is written to the values
+    pub fn replace(&self, values: &impl Values, chain: Chain) {
+        let old = self.get();
+        for kind in EffectKind::ALL {
+            if chain.count_of(kind) > 0 {
+                continue;
+            }
+            if let Some(block) = old.blocks().iter().copied().find(|block| block.kind == kind) {
+                self.memory().remember(kind, values.read(block));
+            }
+        }
+        self.put(chain);
+    }
+
     /// Take the block on `slot` out of the chain, keeping its values by kind. A block on its
     /// pedal's own parameters (`Chain::is_home`) is switched off too: the audio reads the twelve
     /// pedals through `Chain::order`, which puts back a pedal the chain lacks, so only its switch
@@ -1394,6 +1428,46 @@ mod tests {
         assert_eq!(chain.get().back()[3], back);
         // What a block of another kind left is not what a block of this one gets
         assert_eq!(chain.memory().recall(EffectKind::Wah), None);
+    }
+
+    #[test]
+    fn test_replacing_the_chain_keeps_the_kinds_it_takes_out_and_only_those() {
+        let (chain, store) = (StoredChain::new(), Store::default());
+        let (comp, delay) = (
+            block(EffectKind::Comp, Pedal::Comp.index() as u8),
+            block(EffectKind::Delay, Pedal::Delay.index() as u8),
+        );
+        // A chain of the player's: a gate on a slot of its own, the comp, two delays
+        let mine = Chain::from_ids(["amps=2", "gate@13", "comp@1", "amp", "delay@7", "delay@14"]);
+        chain.put(mine);
+        let gate = block(EffectKind::Gate, 12);
+        let second = block(EffectKind::Delay, 13);
+        let values = |at: f32| SlotValues { on: at > 0.5, knobs: [at, at / 2.0, 0.1, 0.2, 0.3] };
+        for (block, at) in [(gate, 0.9), (comp, 0.3), (delay, 0.6), (second, 0.8)] {
+            store.write(block, values(at));
+        }
+        // A preset that keeps the comp and has neither the gate nor a delay
+        let theirs = Chain::from_ids(["amps=1", "comp@1", "amp", "reverb@8"]);
+        chain.replace(&store, theirs);
+        assert_eq!(chain.get(), theirs);
+        let memory = chain.memory();
+        assert_eq!(memory.recall(EffectKind::Gate), Some(values(0.9)));
+        // Of two delays the first in the line is kept
+        assert_eq!(memory.recall(EffectKind::Delay), Some(values(0.6)));
+        // A kind that stays is not taken out, and a kind that was not there is not kept
+        assert_eq!(memory.recall(EffectKind::Comp), None);
+        assert_eq!(memory.recall(EffectKind::Reverb), None);
+        // The values themselves are not touched by the replace
+        assert_eq!(store.read(comp), values(0.3));
+        // Back again: the gate and the delay come with what they had
+        let put = chain.put_in(&store, EffectKind::Gate, Zone::Front, 0).unwrap();
+        assert_eq!(store.read(put), values(0.9));
+        let put = chain.put_in(&store, EffectKind::Delay, Zone::Back, 0).unwrap();
+        assert_eq!(store.read(put), values(0.6));
+        // Replacing with the chain that is there takes nothing out
+        let again = StoredChain::new();
+        again.replace(&store, Chain::default());
+        assert!(EffectKind::ALL.iter().all(|&kind| again.memory().recall(kind).is_none()));
     }
 
     #[test]

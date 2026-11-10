@@ -3,8 +3,8 @@
 //!
 //! A preset holds every parameter except four: Bypass, the Tuner switch, and Input and
 //! Output, which are the player's gain staging for their guitar and their mix. They stay
-//! where they are when a preset is loaded. It also holds the order the pedals stand in,
-//! which is not a parameter.
+//! where they are when a preset is loaded. It also holds the chain, which is not a parameter:
+//! the twelve pedals in the order they stand in (#271: converted into slots on load).
 //!
 //! Values are written as the knobs show them: dials 0.0 to 10.0, dB, ms, s and percent.
 //! `dial` and `percent` turn them into what the parameters store.
@@ -14,6 +14,7 @@ use nih_plug::prelude::*;
 use crate::dial_memory;
 use crate::order::ChainOrder;
 use crate::pitch::PitchSettings;
+use crate::slots::{Chain, Live};
 use crate::{Amp, GuitarAmpParams};
 
 /// Shown behind the name once a knob no longer stands where the preset put it
@@ -817,7 +818,7 @@ impl Preset {
     pub fn load(&self, params: &GuitarAmpParams, setter: &ParamSetter) {
         dial_memory::preset_loaded(params, self.amp, self.dials.map(dial));
         dial_memory::second_preset_loaded(params, self.second.amp, self.second.dials.map(dial));
-        params.chain.put_order(self.chain_order());
+        params.chain.replace(&Live { params, setter }, self.chain());
         let pitch = PitchSettings::default();
         let edits: Vec<Edit> = [
             Edit::of(&params.amp, self.amp),
@@ -837,12 +838,20 @@ impl Preset {
         ChainOrder::from_ids(self.order.iter().copied())
     }
 
+    /// The chain the preset makes (#271): the twelve pedals, each on its own slot, in its
+    /// order, and the amp lanes of a project from before. A factory preset is converted into
+    /// slots on load, and loading it replaces the whole chain, so one the player built is
+    /// gone from the line and kept by kind (`StoredChain::replace`)
+    pub fn chain(&self) -> Chain {
+        Chain::from_order(&self.chain_order())
+    }
+
     /// Whether every parameter the preset holds still stands where the preset puts it, and
     /// the pedals in its order
     pub fn matches(&self, params: &GuitarAmpParams) -> bool {
         params.amp.value() == self.amp
             && params.amp2.value() == self.second.amp
-            && params.chain.order() == self.chain_order()
+            && params.chain.get() == self.chain()
             && params.pitch_semitones.value() == PitchSettings::default().semitones
             && params.wah_mode.value() == crate::wah::WahSettings::default().mode
             && self.switches(params).into_iter().all(|(param, on)| param.value() == on)
@@ -917,6 +926,30 @@ mod tests {
             let held = 4 + preset.switches(&params).len() + preset.knobs(&params).len();
             assert_eq!(told.len(), 3 * held, "{}", preset.name);
             assert!(told[0].1 == params.amp.as_ptr(), "{} begins with the amp", preset.name);
+        }
+    }
+
+    // #271: a factory preset is converted into slots on load, and plays as it always did
+    #[test]
+    fn test_every_factory_preset_converted_into_slots_plays_as_before() {
+        use crate::layout::Layout;
+        let params = GuitarAmpParams::default();
+        for preset in &PRESETS {
+            let chain = preset.chain();
+            // Twelve blocks, each on its own pedal's slot, in the preset's order
+            assert_eq!(chain.blocks().len(), Pedal::ALL.len(), "{}", preset.name);
+            assert!(chain.blocks().iter().all(|&block| Chain::is_home(block)), "{}", preset.name);
+            assert_eq!(chain.order(), preset.chain_order(), "{}", preset.name);
+            // The audio is told what it was told before: the same line, so the same sound to the bit
+            assert_eq!(Layout::of(&chain), Layout::from(preset.chain_order()), "{}", preset.name);
+            let settings = AmpSettings { layout: Layout::of(&chain), ..preset.settings() };
+            assert_eq!(settings, preset.settings(), "{}", preset.name);
+            // Loaded over a chain of the player's, it is the whole chain, and the gate and
+            // the duplicates the player had are kept by kind
+            params.chain.put(Chain::from_ids(["amps=1", "gate@13", "amp", "delay@14"]));
+            preset.load(&params, &ParamSetter::new(&crate::user_presets::tests::Host::default()));
+            assert_eq!(params.chain.get(), chain, "{}", preset.name);
+            assert!(params.chain.memory().recall(crate::slots::EffectKind::Gate).is_some());
         }
     }
 
