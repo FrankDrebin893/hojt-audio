@@ -42,8 +42,10 @@ done
 stage="$dist/installer-stage"
 rm -rf "$stage"
 mkdir -p "$stage"
-sed 's/$/\r/' "$root/LICENSE" > "$stage/LICENSE"
-sed 's/$/\r/' "$root/NOTICE.md" > "$stage/NOTICE.md"
+# and a UTF-8 byte order mark, or Inno reads the HØJT and Højte in them as ANSI
+for f in LICENSE NOTICE.md; do
+  { printf '\xEF\xBB\xBF'; sed 's/$/\r/' "$root/$f"; } > "$stage/$f"
+done
 
 # Git Bash turns arguments that look like paths (/D...) into Windows paths unless told not to
 export MSYS2_ARG_CONV_EXCL='*'
@@ -51,7 +53,7 @@ winpath() { if command -v cygpath > /dev/null; then cygpath -w "$1"; else echo "
 
 args=(
   "/DAppVersion=$version"
-  "/DNumericVersion=$numeric"
+  "/DNumericVersion=$numeric.0"
   "/DBundleDir=$(winpath "$bundled")"
   "/DOutDir=$(winpath "$dist")"
   "/DStageDir=$(winpath "$stage")"

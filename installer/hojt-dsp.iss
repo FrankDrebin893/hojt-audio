@@ -8,6 +8,7 @@
 ; Setup takes one parameter of its own, for the tests of the pull-request path (release.yml):
 ;   /PLUGINROOT=<folder>   puts VST3 and CLAP under <folder>\VST3 and <folder>\CLAP instead of
 ;                          Common Files, and leaves the machine's plugin folders alone
+; NumericVersion is the four-part x.y.z.0 of the file properties.
 ; Every bundle in bundler.toml has its lines below (xtask/tests/installer.rs holds that).
 
 #ifndef AppVersion
@@ -19,12 +20,12 @@
 #ifndef OutDir
   #define OutDir "..\dist"
 #endif
-; LICENSE and NOTICE.md with Windows line endings, for the wizard's pages (build-installer.sh)
+; LICENSE and NOTICE.md with Windows line endings and a UTF-8 byte order mark, for the wizard's pages (build-installer.sh)
 #ifndef StageDir
   #define StageDir ".."
 #endif
 #ifndef NumericVersion
-  #define NumericVersion AppVersion
+  #define NumericVersion AppVersion + ".0"
 #endif
 
 [Setup]

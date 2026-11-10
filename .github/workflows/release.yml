@@ -72,6 +72,8 @@ jobs:
       - name: Build the installer
         if: runner.os == 'Windows'
         shell: bash
+        # env:
+        #   HOJT_SIGN_COMMAND: <a command that signs the file it is given last>
         run: bash scripts/build-installer.sh
 
       # Installs it silently to temp folders, upgrades it over an older build, uninstalls it, and
