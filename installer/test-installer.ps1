@@ -57,7 +57,7 @@ function Install([string]$app, [string]$pluginRoot, [string]$tag, [string[]]$ext
 # The uninstaller starts a copy of itself and returns at once: wait until the work is done
 function Uninstall([string]$app, [string]$tag) {
     $unins = Join-Path $app 'unins000.exe'
-    if (-not (Test-Path $unins)) { Fail "$tag: no uninstaller at $unins"; return }
+    if (-not (Test-Path $unins)) { Fail "${tag}: no uninstaller at $unins"; return }
     $log = Join-Path $work "$tag-uninstall.log"
     $p = Start-Process -FilePath $unins -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$log`"") -Wait -PassThru
     if ($p.ExitCode -ne 0) { Fail "the uninstaller ($tag) exited with $($p.ExitCode)" }
@@ -66,8 +66,8 @@ function Uninstall([string]$app, [string]$tag) {
         if ((Get-Date) -gt $deadline) { break }
         Start-Sleep -Milliseconds 500
     }
-    if (Test-Path $app) { Fail "$tag: $app is still there after the uninstall" }
-    if (Test-Path $UninstallKey) { Fail "$tag: the uninstall entry is still in the registry" }
+    if (Test-Path $app) { Fail "${tag}: $app is still there after the uninstall" }
+    if (Test-Path $UninstallKey) { Fail "${tag}: the uninstall entry is still in the registry" }
 }
 
 # Every file of the bundles named (VST3 and CLAP) is in the plugin root and is the build's
@@ -78,14 +78,14 @@ function Assert-Bundles([string]$pluginRoot, [string[]]$only, [string]$tag) {
         foreach ($file in Get-ChildItem -LiteralPath $vst3 -Recurse -File) {
             $relative = $file.FullName.Substring($vst3.Length).TrimStart('\')
             $target = Join-Path (Join-Path $pluginRoot "VST3\$name.vst3") $relative
-            if (-not (Test-Path -LiteralPath $target)) { Fail "$tag: $name.vst3\$relative was not installed" }
-            elseif ((Hash $file.FullName) -ne (Hash $target)) { Fail "$tag: $name.vst3\$relative differs from the build" }
+            if (-not (Test-Path -LiteralPath $target)) { Fail "${tag}: $name.vst3\$relative was not installed" }
+            elseif ((Hash $file.FullName) -ne (Hash $target)) { Fail "${tag}: $name.vst3\$relative differs from the build" }
             $count++
         }
-        if ($count -eq 0) { Fail "$tag: the build has no files for $name.vst3" }
+        if ($count -eq 0) { Fail "${tag}: the build has no files for $name.vst3" }
         $clap = Join-Path $pluginRoot "CLAP\$name.clap"
-        if (-not (Test-Path -LiteralPath $clap)) { Fail "$tag: $name.clap was not installed" }
-        elseif ((Hash (Join-Path $BundleDir "$name.clap")) -ne (Hash $clap)) { Fail "$tag: $name.clap differs from the build" }
+        if (-not (Test-Path -LiteralPath $clap)) { Fail "${tag}: $name.clap was not installed" }
+        elseif ((Hash (Join-Path $BundleDir "$name.clap")) -ne (Hash $clap)) { Fail "${tag}: $name.clap differs from the build" }
     }
 }
 
@@ -94,16 +94,16 @@ function Assert-Clean([string]$pluginRoot, [string]$tag) {
     if (-not (Test-Path $pluginRoot)) { return }
     $left = @(Get-ChildItem -LiteralPath $pluginRoot -Recurse -File)
     if ($left.Count -gt 0) {
-        Fail "$tag: the uninstall left $($left.Count) file(s): $(($left | Select-Object -First 5 | ForEach-Object { $_.FullName }) -join ', ')"
+        Fail "${tag}: the uninstall left $($left.Count) file(s): $(($left | Select-Object -First 5 | ForEach-Object { $_.FullName }) -join ', ')"
     }
 }
 
 function Assert-Registered([string]$app, [string]$tag) {
     $entry = Get-ItemProperty -Path $UninstallKey -ErrorAction SilentlyContinue
-    if (-not $entry) { Fail "$tag: the installer registered nothing in the uninstall list"; return }
-    if ($entry.DisplayVersion -ne $Version) { Fail "$tag: registered version is '$($entry.DisplayVersion)', Cargo.toml says '$Version'" }
+    if (-not $entry) { Fail "${tag}: the installer registered nothing in the uninstall list"; return }
+    if ($entry.DisplayVersion -ne $Version) { Fail "${tag}: registered version is '$($entry.DisplayVersion)', Cargo.toml says '$Version'" }
     foreach ($f in @('unins000.exe', 'LICENSE', 'NOTICE.md')) {
-        if (-not (Test-Path (Join-Path $app $f))) { Fail "$tag: $f is not in the app folder" }
+        if (-not (Test-Path (Join-Path $app $f))) { Fail "${tag}: $f is not in the app folder" }
     }
 }
 
