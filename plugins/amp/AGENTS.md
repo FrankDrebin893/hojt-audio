@@ -188,8 +188,8 @@ How it behaves:
   leaves it, and `reset` leaves it too (a host that stops and starts does not take a performance away,
   and the loop runs on its own sample count, not the host's transport). A loop is counted in samples; the
   recorded start is faded in and its end out over 5 ms, so the seam is silent and there is no click.
-  Empty it costs three atomic reads a block (0.02 us a block of 64; playing 0.55 us, overdubbing 0.64 us,
-  under 0.05 % of a core: `cargo test -p amp --release looper_report -- --ignored --nocapture`) and
+  Empty it costs three atomic reads a block (the looper alone, not the amp: 0.02 us a block of 64; playing 0.55 us,
+  overdubbing 0.64 us, under 0.05 % of a core; the amp's own `amp_report` is unchanged: `cargo test -p amp --release looper_report -- --ignored --nocapture`) and
   leaves the sound bit-identical (`lib.rs` tests).
   Closing rounds the length to whole bars of the metronome where it is on (`Metronome::bar_samples`,
   from the host's tempo too), at least one, cut to the buffer; the rest of a bar rounded up is

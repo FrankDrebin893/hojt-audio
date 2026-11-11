@@ -1573,13 +1573,33 @@ mod tests {
 
     #[test]
     fn test_the_loop_is_in_the_sound_and_the_click_is_not_in_the_loop() {
-        // 90 bpm, a bar of 2.667 s: nothing to round to here, the metronome is on and its
-        // bar is what the loop closes on
-        let mut amp = clicking(true, ClickOut::Mixed);
-        let (with_loop, _) = play_driven(&mut amp, 340, false, PluginApi::Vst3, pressed);
-        let (plain, _) = play(&mut clicking(true, ClickOut::Mixed), 340, false);
-        assert_ne!(with_loop, plain);
-        assert!(with_loop.iter().all(|s| s.abs() <= 1.0));
+        // Record the same playing with the click on and with it off: the chain is the same,
+        // so the loops must be bit for bit the same. A looper that sat after the click would
+        // have the click in its loop
+        let record = |click: bool| {
+            let mut amp = clicking(click, ClickOut::Mixed);
+            let (heard, _) = play_driven(&mut amp, 60, false, PluginApi::Vst3, |block, amp| {
+                if block == 2 || block == 40 {
+                    amp.looper.control().press();
+                }
+            });
+            (amp, heard)
+        };
+        let (with_click, heard_with) = record(true);
+        let (without_click, heard_without) = record(false);
+        // The click is on the output while the loop is playing (it is not just inaudible)
+        assert_ne!(heard_with, heard_without, "the click must be heard");
+        let (left_with, right_with) = with_click.looper.recorded();
+        let (left_without, right_without) = without_click.looper.recorded();
+        assert!(left_with.len() >= 480 * 30);
+        assert!(left_with.iter().any(|s| s.abs() > 0.01), "something was recorded");
+        // Bar rounding aside (the click's metronome knows a bar), what was played is the same
+        let played = 480 * 38;
+        assert_eq!(left_with[..played], left_without[..played]);
+        assert_eq!(right_with[..played], right_without[..played]);
+        // And the loop is in the sound: with it playing, the output is not the plain amp's
+        let (plain, _) = play(&mut clicking(false, ClickOut::Mixed), 60, false);
+        assert_ne!(heard_without, plain);
     }
 
     #[test]

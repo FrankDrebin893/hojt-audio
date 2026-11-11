@@ -148,13 +148,22 @@ impl Default for Looper {
 }
 
 impl Looper {
+    /// A looper with no buffer yet: `set_sample_rate` (the plugin's `initialize`) allocates it,
+    /// and until then a press does nothing
     pub fn new() -> Self {
-        Self::with_seconds(MAX_SECONDS)
+        Self::unallocated(MAX_SECONDS)
     }
 
-    /// A looper that holds at most `seconds` (a shorter one for tests)
+    /// A looper at 48 kHz that holds at most `seconds` (a shorter one for tests)
+    #[cfg(test)]
     pub fn with_seconds(seconds: f32) -> Self {
-        let mut looper = Self {
+        let mut looper = Self::unallocated(seconds);
+        looper.set_sample_rate(48_000.0);
+        looper
+    }
+
+    fn unallocated(seconds: f32) -> Self {
+        Self {
             control: Arc::new(LooperControl::default()),
             sample_rate: 0.0,
             seconds,
@@ -169,9 +178,7 @@ impl Looper {
             clearing: false,
             level: 1.0,
             level_coef: 1.0,
-        };
-        looper.set_sample_rate(48_000.0);
-        looper
+        }
     }
 
     pub fn control(&self) -> Arc<LooperControl> {
@@ -218,6 +225,12 @@ impl Looper {
         self.dub_gain = 0.0;
         self.clearing = false;
         self.publish();
+    }
+
+    /// What has been recorded, for the tests that look inside the loop
+    #[cfg(test)]
+    pub(crate) fn recorded(&self) -> (&[f32], &[f32]) {
+        (&self.left[..self.len], &self.right[..self.len])
     }
 
     /// True while there is nothing to hear or to count
@@ -279,6 +292,7 @@ impl Looper {
                 break;
             }
             match self.state {
+                State::Empty if self.capacity() == 0 => {}
                 State::Empty => {
                     self.state = State::Recording;
                     self.len = 0;
@@ -660,6 +674,7 @@ mod tests {
     #[ignore]
     fn looper_report() {
         let mut looper = Looper::new();
+        looper.set_sample_rate(48_000.0);
         let control = looper.control();
         let settings = LooperSettings::default();
         let (mut left, mut right) = (vec![0.1f32; 64], vec![0.1f32; 64]);
