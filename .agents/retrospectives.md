@@ -6,6 +6,9 @@ found, what made the build hard, and what came back as feedback after a merge. A
 appears twice becomes a rule in `.agents/learnings.md` (**Builds**). Read by the builder and by
 `/retrospective`; no entry names a person.
 
+Entries up to 2026-11-11 are below. From 2026-11-12 each entry is a file of its own in
+`.agents/retrospectives/` (`<date>-<issue>.md`), so two pull requests never edit the same lines.
+
 ## Patterns seen
 
 (none yet)

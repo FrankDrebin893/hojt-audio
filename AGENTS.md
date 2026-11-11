@@ -55,7 +55,7 @@ detail lives. Each detail is next to what it governs.
   `/design`, `/wayfinder`, `/scout`, `/specwriter`, `/release-prep`, `/release-review`, `/feedback`, `/retrospective`, and the piano viz's `/piano-release` and `/piano-readme`).
   `.claude/commands/` mirrors them for Claude Code (`xtask/tests/skills_mirror.rs` holds it);
   `.claude/settings.json` has the hooks
-- `.agents/learnings.md` and `.agents/retrospectives.md` - What Rasmus said about results (`/feedback`) and what each Builder
+- `.agents/learnings.md`, `.agents/retrospectives.md` and `.agents/retrospectives/` - What Rasmus said about results (`/feedback`) and what each Builder
   pull request taught (`/retrospective`, run by every `/next` builder once its pull request is open); skills read both
 - `.github/workflows/` - `ci.yml` (tests), `release.yml` (the plugins, on `vX.Y.Z`), `piano.yml` (builds
   the piano viz when `piano/` changes, releases it on `piano-vX.Y.Z`), `pages.yml`, `approval-guard.yml`, `sound.yml`
