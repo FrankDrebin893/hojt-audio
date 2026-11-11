@@ -470,8 +470,12 @@ mod tests {
         server.join().unwrap();
         assert!(h.take_fresh());
         assert!(!h.take_fresh());
-        // The callback may have been registered after the result: on_result calls it then
-        assert!(woken.load(Ordering::SeqCst) || h.notice().is_some());
+        // The check's thread sets `fresh` and then calls the callback: wait for the call
+        let t = Instant::now();
+        while !woken.load(Ordering::SeqCst) && t.elapsed() < Duration::from_secs(10) {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(woken.load(Ordering::SeqCst));
         let s = lock(&st);
         assert_eq!((s.last_check, s.latest.as_str()), (1_000_000, "99.0.0"));
         drop(s);
@@ -489,7 +493,7 @@ mod tests {
         lock(&st).latest = "0.0.1".into();
         let h = UpdateCheck::start_with(st.clone(), &url, TIMEOUT, 2_000_000);
         server.join().unwrap();
-        std::thread::sleep(Duration::from_millis(200));
+        std::thread::sleep(Duration::from_millis(1000));
         assert!(!h.take_fresh());
         let s = lock(&st);
         assert_eq!(s.last_check, 2_000_000, "the try is noted");
