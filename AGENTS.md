@@ -58,8 +58,9 @@ detail lives. Each detail is next to what it governs.
 - `.agents/matt-pocock-skills/` - Provenance of the vendored [Matt Pocock skills](https://github.com/mattpocock/skills)
   in `.agents/skills/` (version, what is installed and what is not, how to update); `docs/agents/` is their
   per-repo setup (issue tracker, domain docs)
-- `.agents/learnings.md`, `.agents/retrospectives.md` and `.agents/retrospectives/` - What Rasmus said about results (`/feedback`) and what each Builder
-  pull request taught (`/retrospective`, run by every `/next` builder once its pull request is open); skills read both
+- `.agents/learnings.md` and `.agents/retrospectives.md` - What Rasmus said about results (`/feedback`) and what each Builder
+  pull request taught (`/retrospective`, run by every `/next` builder once its pull request is open); skills read both.
+  Since 2026-11-12 a retro is an issue (`from:retro`), not an entry in the log
 - `.github/workflows/` - `ci.yml` (tests), `release.yml` (the plugins, on `vX.Y.Z`), `piano.yml` (builds
   the piano viz when `piano/` changes, releases it on `piano-vX.Y.Z`), `pages.yml`, `approval-guard.yml`, `sound.yml`
   (what a plugin's reports say changed against `main`), `weekly.yml` (a weekly run that only files

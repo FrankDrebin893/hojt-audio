@@ -24,7 +24,7 @@ has a skill for each of these jobs, and the Pocock versions would bypass it:
 | `triage` | `/groom`, `/specwriter` (state labels, not triage labels) |
 | `implement`, `implement-spec`, `pr` | `/next` (one sub-session per issue, a reviewer, the PR template and attribution) |
 | `wayfinder` | `/wayfinder`, an earlier adaptation (maps are `wayfinder:map` issues, `Map:` not `Parent:`) |
-| `retro` | `/retrospective`: its improvement categories are step 2 "Environment"; the log, the rules in `.agents/learnings.md` and the shipping are ours |
+| `retro` | `/retrospective`: its improvement categories are step 2 "Environment"; the retro issue, the rules in `.agents/learnings.md` and the shipping are ours |
 | `ask-matt`, `wizard` | they route to and scaffold the skills above, so they would point at skills that are not here |
 | `in-progress/`, `misc/` | not part of the promoted set |
 
