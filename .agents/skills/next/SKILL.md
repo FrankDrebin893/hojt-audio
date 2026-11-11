@@ -84,7 +84,7 @@ goes on to the next issue, with no further prompt, until the list is done. Words
    (`gh pr diff <pr>`) and the pull request's state (`gh pr view <pr>`; CI from the app's
    report, never a polling loop), and check the same four things as "The reviewer" below,
    and that: the pull request says `Closes #<n>` (or `Part of #<n>` for a milestone, see "The
-   builder", 5), names no person, carries the reviewer's `Verdict: accept`, has a `Retrospective:` line and its entry in `.agents/retrospectives.md`, and the issue is
+   builder", 5), names no person, carries the reviewer's `Verdict: accept`, has a `Retrospective:` line (a retro issue, or "nothing to add"), and the issue is
    `state:review` (a milestone leaves the state as it is). Say what you found in a short comment
    on the pull request (`gh pr comment`, naming no person).
    - **Revise**: send the findings to the sub-session (it fixes, runs its gates, pushes), then
@@ -168,9 +168,8 @@ What every sub-session is asked to do, for issue `<n>`:
    by whoever closes the last one.
 6. **Retrospective.** With the pull request open, run `/retrospective <pr> <n>`
    (`.agents/skills/retrospective/SKILL.md`): it looks at this build, the reviewer's and bots'
-   findings, earlier retros and late feedback on merged pull requests, records what it finds in
-   `.agents/retrospectives.md` (and a rule in `.agents/learnings.md` when something recurs), and
-   pushes that to this branch. It changes nothing else, and its result is one line in the
+   findings, earlier retros and late feedback on merged pull requests, files what it finds as a retro
+   issue (and a rule in `.agents/learnings.md` when something recurs, pushed to this branch). It changes nothing else, and its result is one line in the
    pull request's description
 7. **Auto-fix.** Leave auto-merge to the orchestrator, which turns it on after its own review.
    - For Claude Code sessions: bind the pull request to the session (`ccd_pr` `get_status`,

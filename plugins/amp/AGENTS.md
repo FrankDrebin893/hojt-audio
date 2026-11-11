@@ -82,6 +82,8 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   with the editor), `Note`
 - `src/metronome.rs` - Metronome: the click on a clock of its own or the host's (`Metronome`,
   `MetronomeSettings`), its three sounds, `BeatReading` (what the editor's lamp reads) and `TapTempo`
+- `src/looper.rs` - Looper (#280): records the finished sound, plays it back and overdubs (`Looper`,
+  `LooperSettings`, `LooperControl`, `State`). Milestone 1 of 3: the audio and its commands; no plate yet
 - `src/standalone.rs` - The standalone program's settings (`Prefs`, saved as
   `amp-standalone.json` in the system's settings folder or `HOJT_CONFIG_DIR`), the `Host` trait
   `main.rs` implements with cpal to list devices and restart, and the Audio panel's choices. The
@@ -178,6 +180,28 @@ How it behaves:
   awake (`KeepAlive`) while on, and while Metro and Sync are both on (the tuner not muting it) even with the host stopped (a host
   may otherwise stop calling a plugin that is waiting for the song). A click still ringing is cut
   when a synced host stops. The seven `metronome_*` parameters are not in presets
+- **The looper (`looper.rs`, #280)** sits in `process` after the chain and before the click, so a loop
+  is what the player heard, never has the click in it and is not run through the amp again; Bypass
+  and the Output knob are therefore already in it, and the tuner silences it (playback only). States:
+  Empty, Recording, Playing, Overdubbing, Stopped. The buffer (60 s of stereo, 40 s above 96 kHz) is
+  allocated in `set_sample_rate` and nowhere else; a change of rate empties the loop, the same rate
+  leaves it, and `reset` leaves it too (a host that stops and starts does not take a performance away,
+  and the loop runs on its own sample count, not the host's transport). A loop is counted in samples; the
+  recorded start is faded in and its end out over 5 ms, so the seam is silent and there is no click.
+  Empty it costs three atomic reads a block (the looper alone, not the amp: 0.02 us a block of 64; playing 0.55 us,
+  overdubbing 0.64 us, under 0.05 % of a core; the amp's own `amp_report` is unchanged: `cargo test -p amp --release looper_report -- --ignored --nocapture`) and
+  leaves the sound bit-identical (`lib.rs` tests).
+  Closing rounds the length to whole bars of the metronome where it is on (`Metronome::bar_samples`,
+  from the host's tempo too), at least one, cut to the buffer; the rest of a bar rounded up is
+  silence, a recording shorter than 10 ms is thrown away. Overdub adds through `soft_limit` (quiet
+  passes add exactly, a loud one cannot run away) with a 5 ms ramp in and out. Stop mutes the
+  loop but it keeps counting, so Resume comes back in time; Clear fades out over 5 ms and then
+  is Empty. Commands (`press`, `stop`, `clear`) are atomics taken at the start of the next block, so a
+  press lands to the block, not the sample. `looper_level` is the one parameter (not in presets);
+  the buttons are not parameters. Not built yet: the plate and the strip's icon (milestone 2, after
+  the owner's pick from `/design` explore), and starting a first record on the metronome's next
+  downbeat (milestone 3; today a record starts at the press, so a snapped length is right but its
+  start is not on the beat)
 - **The click's own output (`metronome_out`, follows #181):** both audio layouts carry one more
   stereo output, the auxiliary port named `Metronome` (`CLICK_PORT`). Mixed (the default, so
   existing projects are unchanged) is the click added to the main output as above, bit for bit,
@@ -514,6 +538,7 @@ How it behaves:
 | Reverb Mix (`reverb_mix`) | 0-100 % | 20 % | Level of the tail |
 | Output (`out_level`) | -30 to +6 dB | 0 dB | Output level, in front of the safety clip |
 | Tuner (`tuner`) | on / off | off | Silent tuning. Not automatable, not in presets, not changed when a project is loaded |
+| Looper Level (`looper_level`) | -60 to +6 dB | 0 dB | The loop against the live sound; -60 is silence. Not in presets. The looper's buttons are commands, not parameters |
 | Metronome (`metronome_on`) | on / off | off | The click, on top of the finished sound. Not in presets |
 | Metronome Tempo (`metronome_bpm`) | 40-300 bpm | 120 | Beats a minute: quarter notes, in 6/8 eighths |
 | Metronome Sync (`metronome_sync`) | on / off | off | Follow the host's tempo and position; silent while the host is stopped. With no tempo from the host, the Tempo knob's |
