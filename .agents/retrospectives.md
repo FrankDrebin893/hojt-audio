@@ -11,3 +11,9 @@ appears twice becomes a rule in `.agents/learnings.md` (**Builds**). Read by the
 (none yet)
 
 ## Entries
+
+### 2026-11-11, #270 / PR (kind:look, amp)
+- **Went well:** reading main's tests first showed only the 16 + 2-amp proof was missing, so the change stayed to one test and two snapshots
+- **Problems:** none from review beyond one test comment that left out the gate piece (fixed)
+- **Friction:** `scripts/check.sh` takes over ten minutes, past the foreground limit, so it needs `run_in_background`; `scripts/page-check.sh` has no exec bit in the checkout, run it with `bash`
+- **Recurring:** none
