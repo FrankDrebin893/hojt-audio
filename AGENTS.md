@@ -41,8 +41,7 @@ detail lives. Each detail is next to what it governs.
   `site/dsp/` (https://hojte.net/hojt-audio/dsp/; the root sends their old `#anchors` there), the
   piano viz's in `site/piano/` (https://hojte.net/hojt-audio/piano/), and Resources in
   `site/resources/` (https://hojte.net/hojt-audio/resources/): free tools for learning to play, a
-  folder each (the Guitar and Piano Chord Atlas so far) on the shelf of its `index.html`.
-  The download section of `site/dsp/` leads with the Windows installer and `SHA256SUMS.txt`, with the zips as "just one plugin". One look for all:
+  folder each (the Guitar and Piano Chord Atlas so far) on the shelf of its `index.html`. One look for all:
   `site/hojt.css`, with the plugins' colours and fonts; the favicon is the whole HØJT badge
   (`site/favicon.svg`). Fonts, screenshots (`site/img/`) and sounds (`site/audio/`) stay at the root.
   The old address, https://hojte.net/hojt-audio-piano-viz/, is served by the old repository.
