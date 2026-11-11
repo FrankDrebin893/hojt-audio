@@ -76,9 +76,7 @@ pub struct LooperControl {
 impl LooperControl {
     /// The big button: Record, then Play, then Overdub, then Play again
     pub fn press(&self) {
-        let _ = self
-            .presses
-            .fetch_update(Ordering::Release, Ordering::Relaxed, |n| Some(n.saturating_add(1)));
+        self.presses.fetch_add(1, Ordering::Release);
     }
 
     /// Mute the loop and keep it, or bring it back
@@ -407,14 +405,15 @@ mod tests {
         assert_eq!(looper.state(), State::Playing);
         assert_eq!(looper.control().length(), 4800);
         // The block that closed it already plays the loop from its start
-        for i in FADE..100 {
-            assert_eq!(first[i], phrase[i], "sample {i}");
+        for i in 0..100 {
+            let faded = phrase[i] * (i as f32 / FADE as f32);
+            assert!((first[i] - faded).abs() < 1e-6, "sample {i}");
         }
         // And on, to the length of what was recorded
         let rest = play(&mut looper, &vec![0.0; 4700], None);
         for i in 0..4700 - FADE {
             let at = 100 + i;
-            if at >= FADE && at < 4800 - FADE {
+            if (FADE..4800 - FADE).contains(&at) {
                 assert_eq!(rest[i], phrase[at], "sample {at}");
             }
         }
