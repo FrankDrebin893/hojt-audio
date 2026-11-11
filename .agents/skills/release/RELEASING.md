@@ -20,7 +20,12 @@ out; the HØJT name and logo are kept out of it (`NOTICE.md`).
 - The zips are named `<BundleName>-<windows|macos|linux>.zip`, without a version: the page
   links to `releases/latest/download/<name>`, so these names never change
 - A release also carries `HojtDSP-Setup.exe` (the Windows installer, built by `release.yml`, tested on
-  the runner by `installer/test-installer.ps1`) and `SHA256SUMS.txt` of every asset. Both names are versionless
+  the runner by `installer/test-installer.ps1`) and `SHA256SUMS.txt` of every asset. Both names are versionless,
+  and the page's download section links both through `releases/latest/download/` (`scripts/page-check.sh links`
+  checks the names against `installer/hojt-dsp.iss` and `scripts/checksums.sh`)
+- Before a tag: the `Release` workflow run on the release branch (by hand, or from the pull request that
+  touches the installer) is green, its `Test the installer` step included. A tag over a red installer test
+  publishes an installer nobody has seen install, so it waits
 - To see the zips without releasing, run the Release workflow by hand (Actions tab) and take
   them from the run's artifacts
 - `Cargo.lock` is committed so a release is built from the crates that were tested

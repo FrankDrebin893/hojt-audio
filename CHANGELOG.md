@@ -12,7 +12,8 @@ GitHub release.
   formats you want, a newer installer goes over an older one and your projects keep their settings,
   it asks to close a running DAW, and Windows lists it under Apps with an uninstaller. It is not signed
   yet, so Windows may ask you to confirm. Every release now has a `SHA256SUMS.txt` to check a download
-  against. The zips of single plugins stay.
+  against. The zips of single plugins stay. The download section of the page leads with the installer,
+  says why Windows may show its "Run anyway" screen and how to check a download with `Get-FileHash`.
 
 ### Guitar Amp
 
