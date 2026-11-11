@@ -2716,6 +2716,35 @@ mod tests {
         line_harness(width, height, &params, &setter, 1.0e6).0.snapshot("line_scrolled_end");
     }
 
+    // The longest chain there is: sixteen blocks (and the gate in front of them) and both amps on (Torden and Klar), in the window
+    // that shows them whole and in the smallest one scrolled to the amps. Both lanes stay readable
+    // at the least zoom, and the line at rest still asks for no repaint
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_sixteen_blocks_and_both_amps_look_as_they_did() {
+        let params = GuitarAmpParams {
+            amp: EnumParam::new("Amp", Amp::Torden),
+            amp2_on: BoolParam::new("Amp 2", true),
+            ..GuitarAmpParams::default()
+        };
+        params.chain.put(sixteen_blocks());
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        line_harness(2120, 292, &params, &setter, 0.0).0.snapshot("line_sixteen_two_amps");
+        // The stack stands after the eight blocks in front of it: scrolled so that it is in view
+        let stack_at = Line::of_chain(&sixteen_blocks()).places_for_test()[8 + 1];
+        let (mut harness, _) =
+            line_harness(MIN_WIDTH, MIN_HEIGHT, &params, &setter, stack_at - 200.0);
+        harness.snapshot("line_two_amps_scrolled");
+        for _ in 0..3 {
+            harness.step();
+        }
+        let delays: Vec<_> =
+            harness.output().viewport_output.values().map(|v| v.repaint_delay).collect();
+        assert!(!delays.is_empty());
+        assert!(delays.iter().all(|delay| *delay == std::time::Duration::MAX), "{delays:?}");
+    }
+
     /// The wheel turned over `at`, by `delta` points
     #[cfg(target_os = "linux")]
     fn wheel(harness: &mut Harness, at: Pos2, delta: Vec2) {
