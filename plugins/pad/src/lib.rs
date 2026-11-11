@@ -11,6 +11,8 @@ use pad::{PadSettings, ShimmerPad};
 pub struct ShimmerPadPlugin {
     params: Arc<ShimmerPadParams>,
     pad: ShimmerPad,
+    /// The sustain pedal as the last CC 64 left it; the Hold switch is a parameter
+    pedal_cc: bool,
 }
 
 #[derive(Params)]
@@ -59,11 +61,19 @@ pub struct ShimmerPadParams {
 
     #[id = "shimmer"]
     pub shimmer: FloatParam,
+
+    /// Keeps every key that is let go sounding, as a sustain pedal does
+    #[id = "hold"]
+    pub hold: BoolParam,
 }
 
 impl Default for ShimmerPadPlugin {
     fn default() -> Self {
-        Self { params: Arc::new(ShimmerPadParams::default()), pad: ShimmerPad::new() }
+        Self {
+            params: Arc::new(ShimmerPadParams::default()),
+            pad: ShimmerPad::new(),
+            pedal_cc: false,
+        }
     }
 }
 
@@ -139,6 +149,8 @@ impl Default for ShimmerPadParams {
 
             shimmer_on: BoolParam::new("Shimmer", defaults.shimmer_on),
             shimmer: percent_param("Shimmer Level", defaults.shimmer, pad::SHIMMER_MAX),
+
+            hold: BoolParam::new("Hold", false),
         }
     }
 }
@@ -161,6 +173,16 @@ fn seconds_param(name: &str, default: f32, min: f32, max: f32) -> FloatParam {
     .with_step_size(0.01)
     .with_unit(" s")
     .with_value_to_string(formatters::v2s_f32_rounded(2))
+}
+
+/// CC 64: 64 and up (0.5 and up, as nih-plug scales 0-127) is down
+fn pedal_down(value: f32) -> bool {
+    value >= 0.5
+}
+
+/// The pedal and the Hold switch are one state: down if either is
+fn sustain(pedal_cc: bool, hold: bool) -> bool {
+    pedal_cc || hold
 }
 
 impl ShimmerPadParams {
@@ -235,6 +257,9 @@ impl Plugin for ShimmerPadPlugin {
         context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
         self.pad.set(&self.params.settings());
+        // The Hold switch is read once per block; the pedal's edges are kept to the sample
+        let hold = self.params.hold.value();
+        self.pad.set_sustain(sustain(self.pedal_cc, hold));
 
         let mut next_event = context.next_event();
 
@@ -253,6 +278,10 @@ impl Plugin for ShimmerPadPlugin {
                     }
                     NoteEvent::MidiCC { cc, .. } if cc == control_change::ALL_SOUND_OFF => {
                         self.pad.reset()
+                    }
+                    NoteEvent::MidiCC { cc, value, .. } if cc == control_change::DAMPER_PEDAL => {
+                        self.pedal_cc = pedal_down(value);
+                        self.pad.set_sustain(sustain(self.pedal_cc, hold));
                     }
                     NoteEvent::MidiCC { cc, value, .. } if cc == control_change::MODULATION_MSB => {
                         self.pad.set_wheel(value)
@@ -309,6 +338,21 @@ mod vst3_export {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_cc_64_is_down_from_half() {
+        let down: Vec<bool> = [0.0, 0.49, 0.5, 1.0].into_iter().map(pedal_down).collect();
+        assert_eq!(down, [false, false, true, true]);
+    }
+
+    #[test]
+    fn test_pedal_and_hold_are_or_ed() {
+        assert!(!sustain(false, false));
+        assert!(sustain(true, false));
+        assert!(sustain(false, true));
+        assert!(sustain(true, true));
+        assert!(!ShimmerPadParams::default().hold.value());
+    }
 
     #[test]
     fn test_parameter_defaults_are_those_of_the_dsp() {
