@@ -17,3 +17,9 @@ appears twice becomes a rule in `.agents/learnings.md` (**Builds**). Read by the
 - **Problems:** none from review beyond one test comment that left out the gate piece (fixed)
 - **Friction:** `scripts/check.sh` takes over ten minutes, past the foreground limit, so it needs `run_in_background`; `scripts/page-check.sh` has no exec bit in the checkout, run it with `bash`
 - **Recurring:** none
+
+### 2026-11-11, #306 / PR #323 (feature, common)
+- **Went well:** measuring three HTTP clients in a scratch crate first made the choice a number, not an opinion
+- **Problems:** two tests depended on timing (a callback checked right after `fresh` was set, a 200 ms sleep); the reviewer found both, fixed before the PR
+- **Friction:** `scripts/check.sh` runs over ten minutes, so it needs `run_in_background`; a monitor on its log is the way to wait
+- **Recurring:** none
