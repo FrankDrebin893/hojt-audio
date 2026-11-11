@@ -28,7 +28,11 @@ protected, so a release goes in through a pull request like any other change.
    Then `/page release $ARGUMENTS`: the page describes exactly this version.
 5. **Gates.** `scripts/check.sh` (every step of CI), and `cargo xtask bundle -p pitch_shifter
    -p drums -p amp -p bass -p bells -p pad --release` followed by `cargo xtask check-art`: every
-   bundle carries its plugin's artwork.
+   bundle carries its plugin's artwork. The Windows installer is built and tested by the same
+   workflow, so before the tag the `Release` workflow run on the release pull request (started by hand
+   if the pull request did not start it) must be green, its `Test the installer` step in the Windows job
+   included. The release then carries `HojtDSP-Setup.exe` and `SHA256SUMS.txt`, which the page links
+   (`scripts/page-check.sh links` knows both names).
 6. **Stop.** Show the changelog section, the changed sound examples and the commit you would
    make. Only after Rasmus says yes in chat: commit, push the branch and open a pull request
    with auto-merge. Once it has merged, tag the merge commit `v$ARGUMENTS` and push the tag.

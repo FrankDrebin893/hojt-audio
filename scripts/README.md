@@ -27,7 +27,8 @@ What each script in this folder does, and the detail behind the rules in `AGENTS
 - `board-state.sh` - Sets an issue's State on the board without touching its label (`move-issue.sh`
   and `board-sync.yml` use it)
 - `page-check.sh` - Whether `/page` has looked at what changed since `main`, and whether
-  the page's links hold. The end-of-session hook runs it
+  the page's links hold, its downloads against the names a release makes (the zips of `bundler.toml`, the
+  installer of `installer/hojt-dsp.iss`, `SHA256SUMS.txt`). The end-of-session hook runs it
 
 ## Install
 

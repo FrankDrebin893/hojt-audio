@@ -50,6 +50,9 @@ to do with `gh`, and read with REST (`gh api` or the tools); GraphQL is blocked.
      changed plugin attach to the pull request the render before (from `main`) and after, with
      their names
    - `/page release <version>`, so the page describes exactly this version
+   - The installer is built and tested by the `Release` workflow (a run by hand builds and tests it
+     without publishing): note in the pull request whether its `Test the installer` step of the
+     Windows job is green on the branch, since a tag must not be pushed over a red installer test
    - `scripts/check.sh`, every step of CI, and fix what it finds. A failure you cannot fix is
      reported in the pull request, not hidden
 6. **What the cloud cannot do** goes in the pull request as a checklist for somebody, never

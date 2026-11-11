@@ -32,3 +32,9 @@ Entries up to 2026-11-11 are below. From 2026-11-12 each retro is an issue label
 - **Friction:** `scripts/check.sh` failed twice on clippy only after 10+ minutes (a deprecated atomic method on 1.99, the range): run `cargo +1.99.1 clippy -p amp --all-targets -- -D warnings` before the full gate. A new parameter touches four places that are easy to miss: `ids.txt`, the position test in `lib.rs`, `LEFT_ALONE` in `user_presets.rs` (found only by the full test run, 11 minutes) and the AGENTS table.
 - **Session:** the shared `no_alloc` host cannot send commands mid-run, so the test drives `process` itself; a helper that takes a per-block hook would help. Waiting on long gates cost several foreground time-outs: start them in the background at once.
 - **Recurring:** none
+
+### 2026-11-11, #309 / PR #324 (kind:docs, infra)
+- **Went well:** reading main first showed #304 had already done most of the docs (AGENTS.md, RELEASING.md, scripts/README.md, changelog), so only the skills, mirrors and the link check were left
+- **Problems:** the independent reviewer sent the first version back: the page section would be live on merge while the installer and `SHA256SUMS.txt` are in no release yet (a dead button), against `/page` ("the page describes the latest release"). The issue text asked for the page now and it was followed over that rule; the section was parked as a patch for the release commit
+- **Friction:** `scripts/check.sh` takes over ten minutes (`run_in_background` and one wait); `scripts/page-check.sh` is run with `bash`; the "Waits for" and "Done when" of a sub-issue can ask for something an existing page rule forbids until the next tag, and nothing in the spec said so
+- **Recurring:** none yet; a second case of a spec asking for page text about an unreleased asset would become a rule in `/spec` (say what goes in the release commit)
