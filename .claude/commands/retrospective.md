@@ -11,6 +11,9 @@ request ($ARGUMENTS: the pull request, and its issue if the pull request does no
 finds what made the work hard or the result worse, checks whether that has happened before, and
 records it. It changes no code of the pull request and never approves or merges anything.
 
+Write every rule, skill line and doc a finding leads to with the `writing-for-agents` skill's
+guide (short, concrete, one instruction each, no emphasis), since an agent reads it cold.
+
 Before anything else, read `.agents/learnings.md` (**Everywhere** and **Builds**), so a finding
 is not recorded as new when it already is a rule.
 
@@ -58,6 +61,25 @@ builder does next time:
   a line in a skill, a helper script, a fixture, a doc, a cache. Skip noise: one typo
 - **Recurring:** the same cause in two or more entries of the log or in two pull requests'
   feedback (compare by cause, not by wording). Recurring ones are the point of this skill
+
+- **Environment:** for each finding, which part of the agent's environment would have prevented
+  it (the categories of Matt Pocock's `retro`, adopted here, see
+  `.agents/matt-pocock-skills/README.md`):
+  - *Navigation:* it took long to find a file or fact; a navigation pointer (a line in
+    `AGENTS.md` or a skill) would have saved it, or a hidden dependency between files needs naming
+  - *Automated check:* a mistake a check could have caught. Read `scripts/check.sh`, `ci.yml`
+    and the hooks first: a check that exists but is unwired or silently broken is the finding.
+    A **mechanical** mistake (a banned pattern, a file location, a missing id) gets a
+    deterministic check (a test, a clippy lint, a step of `check.sh`), not a rule in prose. Rules
+    in `.agents/learnings.md` are for judgement calls
+  - *Reviewer:* a mistake the reviewer of `/next` should have caught: a new or clarified rubric
+    line, since the reviewer has the least context pressure and imposes the standards
+  - *Steering size:* `AGENTS.md` or a skill grew a paragraph that is only a detail; move it next
+    to what it governs, and delete steering that changes no behaviour (a no-op)
+  - *Tool economy:* an expensive call (a whole-file read, a repeated search, a slow gate run
+    twice) a helper or a narrower command would replace
+  - *Information access:* a fact the agent could not reach (a log, a service, the cloud's
+    limits) and what would give it access
 
 Skip what is already a rule, what was a one-off with no lesson, and praise with nothing to keep.
 Three good findings beat ten weak ones; none is a valid result ("Nothing to add").
