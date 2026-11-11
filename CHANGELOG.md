@@ -123,6 +123,15 @@ GitHub release.
 - The standalone program reads a stereo input channel by channel; before, the two channels'
   samples could land in the wrong halves of the buffer.
 
+### Shimmer Pad
+
+- A sustain pedal. The Shimmer Pad answers MIDI CC 64 (any channel; 64 and up is down): while it is
+  down, a key you let go keeps sounding at full, and when it comes up those keys fall with the
+  Release time, as on a piano. Keys still held by a finger at that moment stay held. A new Hold
+  footswitch on the pedal does the same without a MIDI pedal, and a Hold switch left on is not undone
+  by a pedal that is lifted. All notes off lets go of everything. Nothing changes until the pedal or
+  the switch is used, and the new `hold` parameter leaves every saved project as it was.
+
 ### Shimmer Pad and Glass Bells
 
 - The mod wheel (MIDI CC 1) shapes the sound while you play. In the Shimmer Pad it opens the filter

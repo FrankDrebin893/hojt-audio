@@ -11,9 +11,13 @@ static ALLOC: NoAlloc = NoAlloc;
 fn test_process_allocates_nothing() {
     // More notes held than there are voices
     let mut notes = host::notes(40, 16, 3, 4, 100);
-    // And the mod wheel moved in the middle of the notes, up, down and back
+    // The mod wheel moved in the middle of the notes, up, down and back
     for (block, value) in [(13, 0.8), (14, 1.0), (37, 0.2), (38, 0.0), (61, 0.5)] {
         notes.push((block, NoteEvent::MidiCC { timing: 30, channel: 0, cc: 1, value }));
+    }
+    // And the sustain pedal down and up between them, in the middle of a block
+    for (block, value) in [(5, 1.0), (20, 0.0), (45, 1.0), (70, 0.0)] {
+        notes.push((block, NoteEvent::MidiCC { timing: 10, channel: 0, cc: 64, value }));
     }
     notes.sort_by_key(|(block, event)| (*block, event.timing()));
     let mut plugin = ShimmerPadPlugin::default();

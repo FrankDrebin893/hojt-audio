@@ -83,6 +83,8 @@ const FILTER_K: f32 = 1.25;
 struct Voice {
     note: Option<u8>,
     held: bool,
+    // Let go by its key but kept sounding by the sustain pedal (`held` stays up with it)
+    pedal: bool,
     env: f32,
     freq_hz: f32,
     velocity: f32,
@@ -155,6 +157,8 @@ pub struct ShimmerPad {
     wheel_target: f32,
     wheel: f32,
     wheel_follow: f32,
+    // The sustain pedal (or the Hold switch): down keeps every key that is let go
+    sustain: bool,
 }
 
 impl ShimmerPad {
@@ -195,6 +199,7 @@ impl ShimmerPad {
             wheel_target: 0.0,
             wheel: 0.0,
             wheel_follow: 1.0,
+            sustain: false,
         };
         pad.set_sample_rate(44100.0);
         pad
@@ -231,8 +236,8 @@ impl ShimmerPad {
         self.reset();
     }
 
-    /// Silence at once: voices, chorus, hall and shimmer. Allocates nothing. The mod wheel stays
-    /// where it is: it is where a hand is, not sound
+    /// Silence at once: voices, chorus, hall and shimmer. Allocates nothing. The mod wheel and the
+    /// sustain pedal stay where they are: they are where a hand and a foot are, not sound
     pub fn reset(&mut self) {
         self.voices = [Voice::default(); VOICES];
         self.control = 0;
@@ -306,6 +311,7 @@ impl ShimmerPad {
         }
         voice.note = Some(note);
         voice.held = true;
+        voice.pedal = false;
         voice.velocity = 0.4 + 0.6 * velocity.min(1.0);
         voice.freq_hz = note_hz(note as f32);
     }
@@ -313,15 +319,39 @@ impl ShimmerPad {
     pub fn note_off(&mut self, note: u8) {
         for voice in &mut self.voices {
             if voice.note == Some(note) {
-                voice.held = false;
+                if self.sustain {
+                    // The pedal keeps it: it goes on sounding at full
+                    voice.pedal = voice.held;
+                } else {
+                    voice.held = false;
+                }
             }
         }
     }
 
-    /// Lets go of every note
+    /// The sustain pedal, or the Hold switch, down (`true`) or up. A key let go while it is down
+    /// stays sounding; when it comes up, those keys are let go, and keys still held by a finger
+    /// stay held
+    pub fn set_sustain(&mut self, down: bool) {
+        if down == self.sustain {
+            return;
+        }
+        self.sustain = down;
+        if !down {
+            for voice in &mut self.voices {
+                if voice.pedal {
+                    voice.held = false;
+                    voice.pedal = false;
+                }
+            }
+        }
+    }
+
+    /// Lets go of every note, pedal or not
     pub fn release(&mut self) {
         for voice in &mut self.voices {
             voice.held = false;
+            voice.pedal = false;
         }
     }
 
@@ -601,6 +631,139 @@ mod tests {
         pad.note_on(72, 0.8);
         assert_eq!(pad.voices[5].note, Some(72));
         assert!(pad.voices.iter().all(|voice| voice.held));
+    }
+
+    /// A chord of `notes` held for 0.3 s, with the pedal down before it
+    fn pedalled(notes: &[u8]) -> ShimmerPad {
+        let mut pad = pad(&plain(), SAMPLE_RATE);
+        pad.set_sustain(true);
+        for &note in notes {
+            pad.note_on(note, 0.8);
+        }
+        render(&mut pad, SAMPLE_RATE, 0.3);
+        pad
+    }
+
+    #[test]
+    fn test_pedal_keeps_a_released_key_at_full_and_its_up_lets_it_fall() {
+        let mut pad = pedalled(&[48, 55, 60]);
+        let (before, _) = render(&mut pad, SAMPLE_RATE, 0.3);
+        for note in [48, 55, 60] {
+            pad.note_off(note);
+        }
+        let (after, _) = render(&mut pad, SAMPLE_RATE, 1.0);
+        assert!(pad
+            .voices
+            .iter()
+            .filter(|voice| voice.note.is_some())
+            .all(|voice| voice.env > 0.99));
+        assert!(rms(&after[SAMPLE_RATE as usize / 2..]) > 0.8 * rms(&before));
+        pad.set_sustain(false);
+        let (fall, _) = render(&mut pad, SAMPLE_RATE, 1.5);
+        assert!(peak(&fall[60000..]) < 0.0005);
+    }
+
+    #[test]
+    fn test_a_key_still_held_at_pedal_up_stays() {
+        let mut pad = pedalled(&[48, 55, 60]);
+        pad.note_off(55);
+        pad.note_off(60);
+        pad.set_sustain(false);
+        let (left, _) = render(&mut pad, SAMPLE_RATE, 1.5);
+        let held: Vec<_> = pad.voices.iter().filter(|voice| voice.held).collect();
+        assert_eq!(held.len(), 1);
+        assert_eq!(held[0].note, Some(48));
+        assert!(rms(&left[60000..]) > 0.01);
+    }
+
+    #[test]
+    fn test_a_struck_again_pedalled_note_reuses_its_voice() {
+        let mut pad = pedalled(&[48, 52, 55, 59, 60, 62, 64, 65, 67, 69, 71, 72]);
+        for note in [48, 52, 55, 59, 60, 62, 64, 65, 67, 69, 71, 72] {
+            pad.note_off(note);
+        }
+        pad.note_on(60, 0.8);
+        assert_eq!(pad.voices.iter().filter(|voice| voice.note == Some(60)).count(), 1);
+        assert_eq!(pad.voices.iter().filter(|voice| voice.note == Some(72)).count(), 1);
+        assert!(pad.voices.iter().all(|voice| voice.note.is_some()));
+        // Struck again, it is held by the finger, and then by the pedal again
+        let again = pad.voices.iter().find(|voice| voice.note == Some(60)).unwrap();
+        assert!(again.held && !again.pedal);
+        pad.note_off(60);
+        pad.set_sustain(false);
+        assert!(pad.voices.iter().all(|voice| !voice.held));
+        // and one that is let go while the pedal is up
+        pad.set_sustain(true);
+        pad.note_on(60, 0.8);
+        pad.note_off(60);
+        let kept = pad.voices.iter().find(|voice| voice.note == Some(60) && voice.held).unwrap();
+        assert!(kept.pedal);
+    }
+
+    #[test]
+    fn test_a_chord_kept_by_the_pedal_survives_twelve_more_notes() {
+        let mut pad = pedalled(&[48, 52, 55]);
+        for note in [48, 52, 55] {
+            pad.note_off(note);
+        }
+        // Nine fingers fill the free voices; the others are let go at once
+        for note in 70..79 {
+            pad.note_on(note, 0.8);
+        }
+        for note in 79..82 {
+            pad.note_on(note, 0.8);
+            pad.note_off(note);
+            render(&mut pad, SAMPLE_RATE, 0.02);
+        }
+        // Three more: each takes the quietest let-go voice, which is a pedalled one only
+        // when no other is left
+        for note in 82..85 {
+            pad.note_on(note, 0.8);
+            pad.note_off(note);
+            render(&mut pad, SAMPLE_RATE, 0.02);
+        }
+        for note in [48, 52, 55] {
+            assert!(
+                pad.voices.iter().any(|voice| voice.note == Some(note) && voice.held),
+                "{note} was taken"
+            );
+        }
+    }
+
+    #[test]
+    fn test_all_notes_off_ends_pedalled_voices() {
+        let mut pad = pedalled(&[48, 55, 60]);
+        pad.note_off(55);
+        pad.release();
+        assert!(pad.voices.iter().all(|voice| !voice.held && !voice.pedal));
+        let (left, _) = render(&mut pad, SAMPLE_RATE, 1.5);
+        assert!(peak(&left[60000..]) < 0.0005);
+        // The pedal is still down, as the foot is
+        pad.note_on(60, 0.8);
+        pad.note_off(60);
+        assert!(pad.voices.iter().any(|voice| voice.pedal));
+    }
+
+    #[test]
+    fn test_pedal_up_without_pedalled_voices_changes_nothing() {
+        let run = |pedal: bool| {
+            let mut pad = pad(&PadSettings::default(), SAMPLE_RATE);
+            for note in [48, 55, 60] {
+                pad.note_on(note, 0.8);
+            }
+            let mut out = render(&mut pad, SAMPLE_RATE, 0.5).0;
+            if pedal {
+                pad.set_sustain(true);
+                out.extend(render(&mut pad, SAMPLE_RATE, 0.3).0);
+                pad.set_sustain(false);
+            } else {
+                out.extend(render(&mut pad, SAMPLE_RATE, 0.3).0);
+            }
+            pad.note_off(48);
+            out.extend(render(&mut pad, SAMPLE_RATE, 0.5).0);
+            out
+        };
+        assert_eq!(run(true), run(false));
     }
 
     #[test]
@@ -941,6 +1104,60 @@ mod tests {
             }
             writer.finalize().unwrap();
         }
+        println!("Wrote renders to {}", dir.display());
+    }
+
+    /// Writes target/renders/pad-sustain.wav for listening: three chords, each played short
+    /// (a second) and kept by the sustain pedal, which is lifted just as the next one is struck,
+    /// the way a piano's is changed:
+    ///   cargo test -p pad --release render_sustain_wav -- --ignored
+    #[test]
+    #[ignore]
+    fn render_sustain_wav() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/renders");
+        std::fs::create_dir_all(&dir).unwrap();
+        let rate = SAMPLE_RATE as usize;
+        let volume = suite_common::dsp::db_to_gain(VOLUME_DEFAULT_DB);
+        let chords: [(usize, [u8; 4]); 3] =
+            [(0, [45, 52, 60, 64]), (6, [41, 53, 57, 60]), (12, [43, 50, 59, 62])];
+        let spec = hound::WavSpec {
+            channels: 2,
+            sample_rate: SAMPLE_RATE as u32,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        let mut pad = pad(&PadSettings::default(), SAMPLE_RATE);
+        let mut writer = hound::WavWriter::create(dir.join("pad-sustain.wav"), spec).unwrap();
+        for sample in 0..rate * 24 {
+            for (start, notes) in chords {
+                for note in notes {
+                    if sample == start * rate {
+                        pad.note_on(note, 0.7);
+                    }
+                    if sample == start * rate + rate {
+                        pad.note_off(note);
+                    }
+                }
+            }
+            // Down before the first chord; changed a moment after each next chord is struck
+            // (up, and down again 0.1 s later); up for good at 18 s
+            match sample {
+                0 => pad.set_sustain(true),
+                s if s == 6 * rate + rate / 10 || s == 12 * rate + rate / 10 => {
+                    pad.set_sustain(false)
+                }
+                s if s == 6 * rate + rate / 5 || s == 12 * rate + rate / 5 => pad.set_sustain(true),
+                s if s == 18 * rate => pad.set_sustain(false),
+                _ => {}
+            }
+            let (left, right) = pad.process();
+            for channel in [left, right] {
+                writer
+                    .write_sample(((channel * volume).clamp(-1.0, 1.0) * 32767.0) as i16)
+                    .unwrap();
+            }
+        }
+        writer.finalize().unwrap();
         println!("Wrote renders to {}", dir.display());
     }
 

@@ -9,6 +9,7 @@ param chorus_on
 param cutoff
 param detune
 param dry
+param hold
 param motion
 param release
 param reverb

@@ -7,7 +7,7 @@ A slow ambient pad. MIDI in, stereo out, twelve voices. Ported from `prototypes/
 - `src/lib.rs` - Plugin entry point, parameters. Reads them once per block into `PadSettings`
 - `src/pad.rs` - `ShimmerPad`: voices (three detuned saws and noise through a low-pass that
   opens with the swell), chorus, the hall (`suite_common::dsp::Hall`), the shimmer
-- `src/editor.rs` - egui GUI: plum pedal, twelve knobs, Chorus and Shimmer footswitches
+- `src/editor.rs` - egui GUI: plum pedal, twelve knobs, Chorus, Shimmer and Hold footswitches
 
 How it behaves:
 
@@ -24,6 +24,14 @@ How it behaves:
   top of 0.6). The Shimmer switch stays the master: off, the wheel adds none. The wheel is followed
   over about 30 ms, one step per control tick, so a fast move does not zipper. At 0 the sound is
   bit-for-bit what it was; the knobs do not move on screen. Reset keeps the wheel where it is
+- The sustain pedal (CC 64, any channel, 0.5 and up is down; `pedal_cc` in `lib.rs`, not a
+  parameter) and the Hold switch (`hold`) are one state, `pedal_cc || hold`, passed to
+  `ShimmerPad::set_sustain` once per block (the switch) and at each CC 64 event (sample-accurate).
+  Down: `note_off` sets `Voice::pedal` and leaves `held` up, so the voice stays at full; up: every
+  voice with `pedal` is let go with the Release time. A key played again clears `pedal` (the voice
+  it has, held by the finger, and by the pedal again when it is let go); a pedalled voice counts as
+  held for stealing. A key still held at pedal-up stays. All notes off clears both; Reset leaves the
+  pedal state where it is, like the wheel. Half pedalling is not modelled; an inverted pedal is not handled
 
 | Parameter (id) | Range | Default | Description |
 |----------------|-------|---------|-------------|
@@ -39,6 +47,7 @@ How it behaves:
 | Reverb (`reverb`) | 0-100 % | 60 % | Level of the hall |
 | Reverb Decay (`reverb_decay`) | 1-20 s | 7 s | Time for the tail to fall by 60 dB |
 | Shimmer (`shimmer_on`), Shimmer Level (`shimmer`) | on / off, 0-60 % | on, 30 % | How much of the tail comes back an octave up |
+| Hold (`hold`) | on / off | off | Keeps every key that is let go sounding, as a sustain pedal does |
 
 Tests sit next to the code (`pad.rs`): tuning at several rates, envelopes, voice stealing, the effects and their switches, bounded output with everything up. Two ignored tests are tools for working on the sound:
 
@@ -46,6 +55,7 @@ Tests sit next to the code (`pad.rs`): tuning at several rates, envelopes, voice
 # Level, tuning and brightness per note, and the cost
 cargo test -p pad --release pad_report -- --ignored --nocapture
 
-# WAV file in target/renders: pad.wav
+# WAV files in target/renders: pad.wav, and pad-sustain.wav (a progression changed with the pedal)
 cargo test -p pad --release render_wavs -- --ignored
+cargo test -p pad --release render_sustain_wav -- --ignored
 ```

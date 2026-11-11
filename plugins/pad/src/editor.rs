@@ -113,9 +113,11 @@ fn draw(ctx: &Context, setter: &ParamSetter, params: &ShimmerPadParams) {
             None,
         );
 
-        for (param, label, x) in
-            [(&params.chorus_on, "Chorus", 265.0), (&params.shimmer_on, "Shimmer", 395.0)]
-        {
+        for (param, label, x) in [
+            (&params.chorus_on, "Chorus", 200.0),
+            (&params.shimmer_on, "Shimmer", 330.0),
+            (&params.hold, "Hold", 460.0),
+        ] {
             let on = param.value();
             led(ui.painter(), origin + vec2(x, 452.0), on);
             if footswitch(ui, origin + vec2(x, 506.0), label).clicked() {
