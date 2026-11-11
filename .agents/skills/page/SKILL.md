@@ -52,7 +52,10 @@ Without an argument, run the **end of session** steps. With `release <version>`,
 ## Release
 
 Called from `/release` after the changelog section `## <version>` is written and before the
-gates. The page must describe exactly that version.
+gates. The page must describe exactly that version. Its download section leads with the Windows
+installer (`HojtDSP-Setup.exe`, with the SmartScreen note and `SHA256SUMS.txt`); say there only what
+the installer built by `installer/hojt-dsp.iss` does at this release (its components, the folders it
+installs to), nothing that is only in `CHANGELOG.md` under `Unreleased`.
 
 1. **Walk the section.** For every plugin in `## <version>` of `CHANGELOG.md`, and every plugin
    in `bundler.toml`, check the page against the code:

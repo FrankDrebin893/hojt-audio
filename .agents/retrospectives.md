@@ -33,8 +33,8 @@ Entries up to 2026-11-11 are below. From 2026-11-12 each retro is an issue label
 - **Session:** the shared `no_alloc` host cannot send commands mid-run, so the test drives `process` itself; a helper that takes a per-block hook would help. Waiting on long gates cost several foreground time-outs: start them in the background at once.
 - **Recurring:** none
 
-### 2026-11-11, #279 / PR #320 (feature, pad)
-- **Went well:** the spec named files, ids and tests, so the build was one pass; the reviewer accepted with no findings
-- **Friction:** the spec named `control_change::SUSTAIN_PEDAL`, which nih-plug does not have (it is `DAMPER_PEDAL`, found by grepping midi-consts in the cargo checkout); the first draft of the listening render re-pressed the pedal in the wrong place and was fixed before it was shipped; `scripts/check.sh` takes over ten minutes, run in the background as the brief said
-- **Page:** a new control is unreleased, so the page was left alone (a first edit to `site/dsp/index.html` was reverted per /page)
-- **Nothing recurring yet**
+### 2026-11-11, #309 / PR #324 (kind:docs, infra)
+- **Went well:** reading main first showed #304 had already done most of the docs (AGENTS.md, RELEASING.md, scripts/README.md, changelog), so only the skills, mirrors and the link check were left
+- **Problems:** the independent reviewer sent the first version back: the page section would be live on merge while the installer and `SHA256SUMS.txt` are in no release yet (a dead button), against `/page` ("the page describes the latest release"). The issue text asked for the page now and it was followed over that rule; the section was parked as a patch for the release commit
+- **Friction:** `scripts/check.sh` takes over ten minutes (`run_in_background` and one wait); `scripts/page-check.sh` is run with `bash`; the "Waits for" and "Done when" of a sub-issue can ask for something an existing page rule forbids until the next tag, and nothing in the spec said so
+- **Recurring:** none yet; a second case of a spec asking for page text about an unreleased asset would become a rule in `/spec` (say what goes in the release commit)

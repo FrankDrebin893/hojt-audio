@@ -71,8 +71,11 @@ links() {
                     case "$ref" in
                         */hojt-audio/releases/latest/download/*)
                             zip=${ref##*/}
-                            if ! grep -q "\"${zip%-*}\"" bundler.toml || ! [[ $zip =~ -(windows|macos|linux)\.zip$ ]]; then
-                                echo "$page: download $zip is not a zip a release makes (bundler.toml, scripts/package.sh)"
+                            if [ "$zip" = "$(sed -n 's/^OutputBaseFilename=//p' installer/hojt-dsp.iss).exe" ] \
+                                || [ "$zip" = SHA256SUMS.txt ]; then
+                                : # the installer (installer/hojt-dsp.iss) and the checksum file (scripts/checksums.sh)
+                            elif ! grep -q "\"${zip%-*}\"" bundler.toml || ! [[ $zip =~ -(windows|macos|linux)\.zip$ ]]; then
+                                echo "$page: download $zip is not an asset a release makes (bundler.toml, scripts/package.sh, installer/hojt-dsp.iss, scripts/checksums.sh)"
                                 bad=1
                             fi
                             ;;
