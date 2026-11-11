@@ -21,6 +21,7 @@ mod gate;
 mod lamps;
 mod layout;
 mod looks;
+mod looper;
 mod metronome;
 mod mods;
 #[cfg(test)]
@@ -48,6 +49,7 @@ use dial_memory::DialMemory;
 use eq::EqSettings;
 use fuzz::FuzzSettings;
 use layout::Layout;
+use looper::{Looper, LooperSettings};
 use metronome::{ClickOut, Metronome, MetronomeSettings, Sound, TimeSignature};
 use mods::chorus::{self, ChorusSettings};
 use mods::flanger::{self, FlangerSettings};
@@ -89,6 +91,8 @@ pub struct GuitarAmpPlugin {
     cab_load_due: bool,
     /// The practice click, added to the output after the whole chain
     metronome: Metronome,
+    /// Records the finished sound and plays it back, before the click (#280)
+    looper: Looper,
 }
 
 /// What is done away from the audio thread
@@ -425,6 +429,12 @@ pub struct GuitarAmpParams {
     #[id = "wah_sens"]
     pub wah_sens: FloatParam,
 
+    // Looper (#280): how loud the loop is against the live sound. Last before the slots, so
+    // every parameter before it keeps its place. Not part of a sound, so presets leave it
+    // alone like the metronome's. The buttons are commands (`LooperControl`), not parameters
+    #[id = "looper_level"]
+    pub looper_level: FloatParam,
+
     // The slots of the chain (`slots`): a switch and five knobs each, named alike for the
     // host. The audio reads them for a block that is not on its pedal's own slot (`layout`,
     // `extras`, #268). Last in the list
@@ -473,6 +483,7 @@ impl Default for GuitarAmpPlugin {
             cab_loader,
             cab_load_due: false,
             metronome: Metronome::new(),
+            looper: Looper::new(),
         }
     }
 }
@@ -703,6 +714,14 @@ impl Default for GuitarAmpParams {
             wah_q: dial_param("Wah Bite", defaults.wah.bite),
             wah_mode: EnumParam::new("Wah Mode", defaults.wah.mode),
             wah_sens: dial_param("Wah Sens", defaults.wah.sens),
+
+            looper_level: FloatParam::new(
+                "Looper Level",
+                looper::LEVEL_DEFAULT_DB,
+                FloatRange::Linear { min: looper::LEVEL_MIN_DB, max: looper::LEVEL_MAX_DB },
+            )
+            .with_unit(" dB")
+            .with_value_to_string(formatters::v2s_f32_rounded(1)),
 
             slot1: SlotParams::new(1),
             slot2: SlotParams::new(2),
@@ -986,6 +1005,7 @@ impl Plugin for GuitarAmpPlugin {
     ) -> bool {
         self.chain.set_sample_rate(buffer_config.sample_rate);
         self.metronome.set_sample_rate(buffer_config.sample_rate);
+        self.looper.set_sample_rate(buffer_config.sample_rate);
         // The player's own cabinet is made for one sample rate, and a project that was
         // just loaded may name another file: read it again. The read is not waited for:
         // the first block asks the host to do it in the background, and the amp plays
@@ -1041,6 +1061,19 @@ impl Plugin for GuitarAmpPlugin {
             (None, false, None)
         };
         let metronome = self.params.metronome_settings(tempo, playing, beats);
+        // The loop records the finished sound and plays on top of it, before the click, which
+        // is therefore never in it. A whole bar is the metronome's, where it is on
+        let bar_samples = self.metronome.bar_samples(&metronome);
+        let looping = LooperSettings {
+            level: looper::level_gain(self.params.looper_level.value()),
+            muted: self.params.tuner_on.value(),
+            bar_samples,
+        };
+        match buffer.as_slice() {
+            [left, right] => self.looper.process(&looping, left, Some(&mut **right)),
+            [mono] => self.looper.process(&looping, mono, None),
+            _ => {}
+        }
         // Mixed: on top of the amp. Separate: alone on the "Metronome" output, and the main
         // output is the amp alone. Where the host gives no such output (the standalone
         // program, or a host that left it off) the click is mixed in, so it is never lost
@@ -1077,7 +1110,7 @@ impl Plugin for GuitarAmpPlugin {
         // feedback is a guess, and gains nothing: CLAP hosts are told to go on either way
         // A click that follows the host waits for the song to play: asleep, the plugin would
         // not be called when it does
-        if self.chain.is_idle() && self.metronome.is_idle() && !following {
+        if self.chain.is_idle() && self.metronome.is_idle() && self.looper.is_idle() && !following {
             ProcessStatus::Normal
         } else {
             ProcessStatus::KeepAlive
@@ -1346,9 +1379,22 @@ mod tests {
         with_aux: bool,
         api: PluginApi,
     ) -> (Vec<f32>, Vec<f32>) {
+        play_driven(amp, blocks, with_aux, api, |_, _| {})
+    }
+
+    /// `play_in`, with `before` called ahead of each block (its number, the amp): the player's
+    /// hand on the looper
+    fn play_driven(
+        amp: &mut GuitarAmpPlugin,
+        blocks: usize,
+        with_aux: bool,
+        api: PluginApi,
+        mut before: impl FnMut(usize, &GuitarAmpPlugin),
+    ) -> (Vec<f32>, Vec<f32>) {
         const LEN: usize = 480;
         let (mut main_out, mut aux_out) = (Vec::new(), Vec::new());
         for block in 0..blocks {
+            before(block, amp);
             let tone = |channel: f32| -> Vec<f32> {
                 (0..LEN)
                     .map(|i| {
@@ -1480,6 +1526,96 @@ mod tests {
         assert_ne!(main, amp_only);
     }
 
+    /// The looper's buttons, pressed as a player would over `blocks` of 480 samples (10 ms)
+    fn pressed(block: usize, amp: &GuitarAmpPlugin) {
+        let control = amp.looper.control();
+        match block {
+            2 | 40 | 80 | 120 | 200 => control.press(),
+            // Record 3 to 40, play, overdub 80 to 120, play, stop 160, resume 180, press at
+            // 200 overdubs, clear at 240, record again from 260
+            160 | 180 => control.stop(),
+            240 => control.clear(),
+            260 | 300 => control.press(),
+            _ => {}
+        }
+    }
+
+    #[test]
+    fn test_an_empty_looper_leaves_the_sound_bit_for_bit_as_it_was_and_so_does_a_cleared_one() {
+        let (plain, _) = play(&mut clicking(true, ClickOut::Mixed), 340, false);
+        // The level knob at any place, nothing recorded: untouched
+        let mut quiet = clicking(true, ClickOut::Mixed);
+        quiet.params = Arc::new(GuitarAmpParams {
+            metronome_on: BoolParam::new("Metronome", true),
+            looper_level: FloatParam::new(
+                "Looper Level",
+                -20.0,
+                FloatRange::Linear { min: looper::LEVEL_MIN_DB, max: looper::LEVEL_MAX_DB },
+            ),
+            ..GuitarAmpParams::default()
+        });
+        let (empty, _) = play(&mut quiet, 340, false);
+        assert_eq!(empty, plain);
+
+        // Played with, then cleared: from the block after the fade, as if never there
+        let mut used = clicking(true, ClickOut::Mixed);
+        let (handled, _) =
+            play_driven(&mut used, 340, false, PluginApi::Vst3, |block, amp| match block {
+                2 | 40 | 80 => amp.looper.control().press(),
+                120 => amp.looper.control().clear(),
+                _ => {}
+            });
+        assert_ne!(handled[480 * 2 * 60..480 * 2 * 70], plain[480 * 2 * 60..480 * 2 * 70]);
+        let from = 480 * 2 * 125;
+        assert_eq!(handled[from..], plain[from..], "after Clear");
+        assert!(used.looper.is_idle());
+    }
+
+    #[test]
+    fn test_the_loop_is_in_the_sound_and_the_click_is_not_in_the_loop() {
+        // 90 bpm, a bar of 2.667 s: nothing to round to here, the metronome is on and its
+        // bar is what the loop closes on
+        let mut amp = clicking(true, ClickOut::Mixed);
+        let (with_loop, _) = play_driven(&mut amp, 340, false, PluginApi::Vst3, pressed);
+        let (plain, _) = play(&mut clicking(true, ClickOut::Mixed), 340, false);
+        assert_ne!(with_loop, plain);
+        assert!(with_loop.iter().all(|s| s.abs() <= 1.0));
+    }
+
+    #[test]
+    fn test_process_with_the_looper_in_every_state_allocates_nothing() {
+        use suite_common::host;
+        let mut amp = clicking(true, ClickOut::Mixed);
+        let control = amp.looper.control();
+        let (mut left, mut right) = (vec![0.0f32; 480], vec![0.0f32; 480]);
+        let mut seen = std::collections::HashSet::new();
+        for block in 0..340 {
+            pressed(block, &amp);
+            for i in 0..480 {
+                let t = (block * 480 + i) as f32 / 48_000.0;
+                left[i] = 0.3 * (std::f32::consts::TAU * 110.0 * t).sin();
+                right[i] = left[i];
+            }
+            let mut buffer = Buffer::default();
+            // SAFETY: the slices are the vectors above, which outlive the buffer, 480 long
+            unsafe {
+                buffer.set_slices(480, |slices| {
+                    slices.clear();
+                    slices.extend([&mut left[..], &mut right[..]]);
+                });
+            }
+            let mut aux = AuxiliaryBuffers { inputs: &mut [], outputs: &mut [] };
+            host::assert_allocates_nothing("The looper's process", || {
+                amp.process(&mut buffer, &mut aux, &mut PlainHost(PluginApi::Vst3));
+            });
+            seen.insert(control.state());
+        }
+        use looper::State::*;
+        for state in [Empty, Recording, Playing, Overdubbing, Stopped] {
+            assert!(seen.contains(&state), "the test did not reach {state:?}");
+        }
+    }
+
     /// What `process` answers after `blocks` blocks of silence
     fn status_after_silence(amp: &mut GuitarAmpPlugin, blocks: usize) -> ProcessStatus {
         let mut status = ProcessStatus::Normal;
@@ -1533,12 +1669,12 @@ mod tests {
         }
         let ids: Vec<String> =
             GuitarAmpParams::default().param_map().into_iter().map(|(id, _, _)| id).collect();
-        // Only the EQ's five, the wah's five and the slots' ninety-six come after it
+        // Only the EQ's five, the wah's five, the looper's level and the slots' ninety-six come after it
         let slots = slots::MAX_SLOTS * (1 + slots::KNOBS);
-        assert_eq!(ids.iter().position(|id| id == "metronome_out"), Some(ids.len() - 11 - slots));
+        assert_eq!(ids.iter().position(|id| id == "metronome_out"), Some(ids.len() - 12 - slots));
         assert!(ids[ids.len() - slots..].iter().all(|id| id.starts_with("slot")));
         assert_eq!(
-            &ids[ids.len() - 10 - slots..ids.len() - slots],
+            &ids[ids.len() - 11 - slots..ids.len() - 1 - slots],
             [
                 "eq_on",
                 "eq_low",
@@ -1552,6 +1688,7 @@ mod tests {
                 "wah_sens"
             ]
         );
+        assert_eq!(ids[ids.len() - 1 - slots], "looper_level");
         assert_eq!(GuitarAmpParams::default().metronome_out.value(), ClickOut::Mixed);
     }
 

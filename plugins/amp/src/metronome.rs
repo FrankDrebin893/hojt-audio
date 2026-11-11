@@ -354,6 +354,23 @@ impl Metronome {
         60.0 / bpm * quarters * f64::from(self.sample_rate)
     }
 
+    /// The bar in samples, at the tempo the click plays at now (the host's, where it is followed
+    /// and gives one): `None` while the click is off, when there is no bar to round a loop to
+    pub fn bar_samples(&self, settings: &MetronomeSettings) -> Option<u32> {
+        if !settings.on {
+            return None;
+        }
+        let signature = settings.time_signature;
+        let mut bpm = f64::from(settings.bpm.clamp(BPM_MIN, BPM_MAX));
+        if settings.sync {
+            if let Some(tempo) = settings.host_tempo.filter(|tempo| *tempo > 0.0) {
+                bpm = tempo.clamp(f64::from(BPM_MIN) / 2.0, f64::from(BPM_MAX) * 2.0);
+            }
+        }
+        let bar = self.period(bpm, signature.quarters_per_beat()) * f64::from(signature.beats());
+        Some(bar.round().max(1.0) as u32)
+    }
+
     /// Adds the click to a block. A block of one channel is the left one
     pub fn process(
         &mut self,
@@ -541,6 +558,24 @@ pub(crate) mod tests {
 
     fn running(bpm: f32) -> MetronomeSettings {
         MetronomeSettings { on: true, bpm, gain: 1.0, ..MetronomeSettings::default() }
+    }
+
+    #[test]
+    fn test_the_bar_is_the_beats_of_the_signature_at_the_tempo_the_click_plays_at() {
+        let mut metronome = Metronome::new();
+        metronome.set_sample_rate(48_000.0);
+        assert_eq!(metronome.bar_samples(&MetronomeSettings::default()), None, "off: no bar");
+        // 4/4 at 120 bpm is two seconds
+        assert_eq!(metronome.bar_samples(&running(120.0)), Some(96_000));
+        // 6/8: six eighth notes
+        let six_eight =
+            MetronomeSettings { time_signature: TimeSignature::SixEight, ..running(120.0) };
+        assert_eq!(metronome.bar_samples(&six_eight), Some(72_000));
+        // Following the host's tempo, where it gives one
+        let synced = MetronomeSettings { sync: true, host_tempo: Some(60.0), ..running(120.0) };
+        assert_eq!(metronome.bar_samples(&synced), Some(192_000));
+        let no_tempo = MetronomeSettings { host_tempo: None, ..synced };
+        assert_eq!(metronome.bar_samples(&no_tempo), Some(96_000));
     }
 
     #[test]
