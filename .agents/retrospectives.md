@@ -18,6 +18,12 @@ appears twice becomes a rule in `.agents/learnings.md` (**Builds**). Read by the
 - **Friction:** `scripts/check.sh` takes over ten minutes, past the foreground limit, so it needs `run_in_background`; `scripts/page-check.sh` has no exec bit in the checkout, run it with `bash`
 - **Recurring:** none
 
+### 2026-11-11, #306 / PR #323 (feature, common)
+- **Went well:** measuring three HTTP clients in a scratch crate first made the choice a number, not an opinion
+- **Problems:** two tests depended on timing (a callback checked right after `fresh` was set, a 200 ms sleep); the reviewer found both, fixed before the PR
+- **Friction:** `scripts/check.sh` runs over ten minutes, so it needs `run_in_background`; a monitor on its log is the way to wait
+- **Recurring:** none
+
 ### 2026-11-11, #309 / PR #324 (kind:docs, infra)
 - **Went well:** reading main first showed #304 had already done most of the docs (AGENTS.md, RELEASING.md, scripts/README.md, changelog), so only the skills, mirrors and the link check were left
 - **Problems:** the independent reviewer sent the first version back: the page section would be live on merge while the installer and `SHA256SUMS.txt` are in no release yet (a dead button), against `/page` ("the page describes the latest release"). The issue text asked for the page now and it was followed over that rule; the section was parked as a patch for the release commit
