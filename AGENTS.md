@@ -58,8 +58,8 @@ detail lives. Each detail is next to what it governs.
 - `.agents/matt-pocock-skills/` - Provenance of the vendored [Matt Pocock skills](https://github.com/mattpocock/skills)
   in `.agents/skills/` (version, what is installed and what is not, how to update); `docs/agents/` is their
   per-repo setup (issue tracker, domain docs)
-- `.agents/retrospectives.md` - The log of what each Builder pull request taught (`/retrospective`, run by every `/next`
-  builder once its pull request is open); the skills read it. Since 2026-11-12 a retro is an issue (`from:retro`), not an entry
+- `.agents/retrospectives.md` - The log of what each Builder pull request taught (`/retrospective`, run by `/next` in a session of
+  its own once a pull request is open); the skills read it. Since 2026-11-12 a retro is an issue (`from:retro`), not an entry
   in the log. There is no file of learnings: a rule that comes out of feedback or a retro is written where it applies (see
   "Rules from feedback")
 - `.github/workflows/` - `ci.yml` (tests), `release.yml` (the plugins, on `vX.Y.Z`), `piano.yml` (builds
@@ -187,13 +187,14 @@ would have to guess gets questions and `needs:reporter`, and no spec until the r
   it opens. A merge still needs CI to pass
 - `/next` on its own works through the whole list: the session that runs it only picks, reviews
   and merges, and every issue is built in a sub-session of its own, started with a fresh context.
-  It reviews each pull request itself, turns on auto-merge, and goes on to the next issue until
-  every approved issue is merged or waiting on an answer from Rasmus
-- Before a pull request of `/next`, a reviewer with a fresh context, given only the spec and
-  the diff, scores the branch: fits the spec, ids untouched, tests that prove the change,
-  stays in scope. Its verdict, accept or revise, goes in the pull request's description; on
-  revise the builder fixes the findings and a new reviewer looks again. The rubric and the
-  reviewer's brief are in `.agents/skills/next/SKILL.md`, "The reviewer"
+  An approved issue is built in the same run, never deferred to "a run of its own". The
+  Specwriter likewise writes each spec in a sub-session of its own
+- After the builder opens a pull request, `/next` starts two more fresh sessions, neither the
+  builder's: an independent reviewer, given only the spec and the diff, who scores it (fits the
+  spec, ids untouched, tests that prove the change, stays in scope), and a `/retrospective` on the
+  builder's session. The reviewer's findings are fixed by the builder and a new reviewer looks
+  again; auto-merge goes on only after `Verdict: accept`. No review service or bot is used. The
+  rubric and the brief are in `.agents/skills/next/SKILL.md`, "The reviewer"
 - `main` is protected: a pull request merges only when `Test` on all three systems and
   `Format and clippy` pass, for admins too, and nothing is pushed to it directly. A check
   that is renamed in `ci.yml` must be renamed in the protection as well, or nothing merges.

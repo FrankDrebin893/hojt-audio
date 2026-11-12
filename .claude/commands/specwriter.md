@@ -8,6 +8,11 @@ argument-hint: [how many specs, at most 2]
 Turn the best `state:idea` issues of FrankDrebin893/hojt-audio into specs, $ARGUMENTS of them
 (default 2, never more than 2), so the owner finds a short list to approve.
 
+This session **orchestrates** steps 1 to 3 and the report; it never writes a spec itself. Each
+spec of step 4 is written by a **sub-session of its own** (the way `/next` starts a builder:
+a fresh context, not this conversation), so one issue's code reading and report output do not
+leak into the next spec. Its brief is `/spec` with the issue's link, and it reports the spec's link and its questions. One sub-session at a time.
+
 1. **Stop early** if an open issue titled `Pause automation` exists, or if 5 or more issues
    are in `state:spec` already: the owner has enough to read. Say so and write nothing.
 2. **Groom** as `/groom` does: every open `state:idea` issue gets one of ready for a spec,
@@ -21,7 +26,7 @@ Turn the best `state:idea` issues of FrankDrebin893/hojt-audio into specs, $ARGU
    so many that more than 5 specs wait. An issue from somebody outside the project (`from:user`) goes
    before an equal `from:scout` one. An issue labelled `needs:reporter` is not ready and is never picked
    (see below).
-4. **Spec** each as `/spec` does, in full: read the code and run a report where a figure
+4. **Spec** each, in a sub-session of its own, as `/spec` does, in full: read the code and run a report where a figure
    decides the problem. A spec that would be `L` says how it splits into sub-issues.
 5. **Report** in a few lines: the specs written with links and their questions, what was
    closed or asked, and that the list to approve is the pinned issue `Specs to approve`.
