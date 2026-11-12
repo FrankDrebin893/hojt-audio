@@ -372,6 +372,20 @@ pub enum Reconfigure {
     Opening(Answer),
 }
 
+/// Passes an answer on, running `on_ok` first when it is `Ok`: what was chosen is kept (saved,
+/// and noted as what plays) only once the new devices play, never when they would not open
+pub fn after_ok(answer: Answer, on_ok: impl FnOnce() + Send + 'static) -> Answer {
+    let (sender, passed) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let result = answer.recv().unwrap_or_else(|_| Err("the audio stopped".into()));
+        if result.is_ok() {
+            on_ok();
+        }
+        let _ = sender.send(result);
+    });
+    passed
+}
+
 /// The program's side of the Audio panel: it knows the machine's drivers and devices and
 /// how to start the program again with new choices
 pub trait Host: Send + Sync {
@@ -1054,5 +1068,65 @@ mod tests {
         let mut choice = AudioChoice::open(&host, wasapi());
         assert_eq!(choice.apply(&host), Applied::Restarting);
         assert_eq!(host.restarts.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn test_the_choice_is_kept_only_after_the_devices_open() {
+        let kept = Arc::new(std::sync::atomic::AtomicU32::new(0));
+        let keep = |kept: &Arc<std::sync::atomic::AtomicU32>| {
+            let kept = kept.clone();
+            move || {
+                kept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            }
+        };
+        let (sender, answer) = std::sync::mpsc::channel();
+        sender.send(Err("no such device".to_string())).unwrap();
+        let passed = after_ok(answer, keep(&kept));
+        assert_eq!(passed.recv().unwrap(), Err("no such device".to_string()));
+        assert_eq!(kept.load(std::sync::atomic::Ordering::SeqCst), 0, "nothing kept on an error");
+        // The program ending without an answer is an error too
+        let (sender, answer) = std::sync::mpsc::channel::<Result<(), String>>();
+        drop(sender);
+        assert!(after_ok(answer, keep(&kept)).recv().unwrap().is_err());
+        assert_eq!(kept.load(std::sync::atomic::Ordering::SeqCst), 0);
+        let (sender, answer) = std::sync::mpsc::channel();
+        sender.send(Ok(())).unwrap();
+        // `on_ok` has run by the time the panel hears Ok
+        assert_eq!(after_ok(answer, keep(&kept)).recv().unwrap(), Ok(()));
+        assert_eq!(kept.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn test_the_resolved_launch_is_the_same_stream_as_the_choice_opened_on_it() {
+        // `main` puts the resolved settings in `set_launch`, the panel opens on them and Apply
+        // compares what it chose with them: resolving changes devices, never the stream
+        let drivers = ["auto".to_string(), "wasapi".to_string()];
+        let saved = Prefs {
+            backend: "wasapi".into(),
+            period_size: Some(128),
+            sample_rate: Some(96_000),
+            input_device: Some("Gone".into()),
+            ..Prefs::default()
+        };
+        let launch = resolve(
+            saved.clone(),
+            &drivers,
+            &["Mic".into()],
+            &["Speakers".into()],
+            Some("Mic".into()),
+        );
+        assert!(launch.same_stream(&saved));
+        let host = Live::new(true, Ok(()));
+        let choice = AudioChoice::open(&host, launch.clone());
+        assert!(
+            choice.prefs.same_stream(&launch),
+            "the panel changes no stream setting on opening"
+        );
+        // Only another driver on this machine is changed by resolving, and then it is the
+        // resolved one that plays and that the panel starts from
+        let other = Prefs { backend: "alsa".into(), ..saved };
+        let launch = resolve(other, &drivers, &[], &[], None);
+        assert_eq!(launch.backend, "auto");
+        assert!(AudioChoice::open(&host, launch.clone()).prefs.same_stream(&launch));
     }
 }

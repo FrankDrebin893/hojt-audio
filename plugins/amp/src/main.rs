@@ -84,17 +84,13 @@ impl standalone::Host for Machine {
         }) else {
             return Reconfigure::Unsupported;
         };
-        // What was chosen is kept for the next start only once it plays: a device that would
-        // not open must not be the one the amp starts on
-        let (sender, opening) = std::sync::mpsc::channel();
-        let prefs = prefs.clone();
-        std::thread::spawn(move || {
-            let result = answer.recv().unwrap_or_else(|_| Err("the audio stopped".into()));
-            if result.is_ok() {
-                let _ = prefs.save(&path);
-                standalone::set_launch(prefs);
-            }
-            let _ = sender.send(result);
+        // What was chosen is kept for the next start, and noted as what plays, only once it
+        // plays: a device that would not open must not be the one the amp starts on. What is
+        // noted is the resolved choice, like the one the program started with
+        let chosen = prefs.clone();
+        let opening = standalone::after_ok(answer, move || {
+            let _ = chosen.save(&path);
+            standalone::set_launch(devices);
         });
         Reconfigure::Opening(opening)
     }
