@@ -85,7 +85,10 @@ jobs:
         if: needs.changes.outputs.code != 'true' && needs.changes.outputs.skills == 'true' && runner.os == 'Linux'
       - name: Test the skills' guards
         if: needs.changes.outputs.code != 'true' && needs.changes.outputs.skills == 'true' && runner.os == 'Linux'
-        run: cargo test -p xtask --locked
+        # A subset of `cargo test --workspace`, which scripts/check.sh runs; a block, so
+        # check_mirrors_ci does not ask the script for the same step twice
+        run: |
+          cargo test -p xtask --locked
 
       # The clippers' two-at-a-time path is only compiled in optimised x86-64 builds, and the
       # bass's cost bound only means something optimised
