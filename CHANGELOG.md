@@ -16,6 +16,10 @@ GitHub release.
 
 ### Guitar Amp
 
+- The standalone program's Audio panel changes the input and output device and their channels without
+  starting the program again: Apply and the sound blinks for a moment, while the window, the preset and
+  everything open stay as they are. A device that will not open says so, and the old one plays on. A new
+  driver, buffer size or sample rate still starts the program again for now.
 - The standalone program no longer stops with a buffer-size error when it plays through WASAPI.
 - The standalone program's icon in the taskbar, the title bar and Explorer is sharp at every size: the
   HØJT badge is drawn afresh for each, and the smallest (16 and 24 px) show a dark plate, a cream frame

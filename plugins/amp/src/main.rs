@@ -4,7 +4,7 @@
 //! Audio panel last time (`amp::standalone`), with the machine's default devices before
 //! that. Started with arguments they go to nih-plug's host as they are (`--help` lists them).
 
-use amp::standalone::{self, DriverDevices, Prefs};
+use amp::standalone::{self, DriverDevices, Prefs, Reconfigure};
 use cpal::traits::{DeviceTrait, HostTrait};
 use nih_plug::prelude::*;
 #[cfg(all(target_os = "windows", feature = "asio"))]
@@ -65,6 +65,38 @@ impl standalone::Host for Machine {
 
     fn set_test_tone(&self, on: bool) {
         nih_standalone_set_test_tone(on);
+    }
+
+    fn reconfigure(&self, prefs: &Prefs) -> Reconfigure {
+        // Only the devices and their channels can change while the amp plays
+        if !prefs.same_stream(&standalone::launch()) {
+            return Reconfigure::Unsupported;
+        }
+        let Some(path) = standalone::prefs_path() else {
+            return Reconfigure::Unsupported;
+        };
+        let devices = resolved_running(prefs.clone());
+        let Ok(answer) = nih_standalone_reconfigure(StandaloneDevices {
+            input_device: devices.input_device.clone(),
+            output_device: devices.output_device.clone(),
+            input_channel: devices.input_channel,
+            output_channel: devices.output_channel,
+        }) else {
+            return Reconfigure::Unsupported;
+        };
+        // What was chosen is kept for the next start only once it plays: a device that would
+        // not open must not be the one the amp starts on
+        let (sender, opening) = std::sync::mpsc::channel();
+        let prefs = prefs.clone();
+        std::thread::spawn(move || {
+            let result = answer.recv().unwrap_or_else(|_| Err("the audio stopped".into()));
+            if result.is_ok() {
+                let _ = prefs.save(&path);
+                standalone::set_launch(prefs);
+            }
+            let _ = sender.send(result);
+        });
+        Reconfigure::Opening(opening)
     }
 
     fn restart(&self, prefs: &Prefs) -> std::io::Result<()> {
@@ -193,6 +225,24 @@ fn resolved(prefs: Prefs) -> Prefs {
         &host.output_devices().map(names).unwrap_or_default(),
         host.default_input_device().and_then(|device| device.name().ok()),
     )
+}
+
+/// `resolved` for the amp that is playing. An ASIO driver cannot be asked again while it plays
+/// (the Audio panel reads its snapshot), so ASIO's devices are the snapshot's
+fn resolved_running(prefs: Prefs) -> Prefs {
+    #[cfg(all(target_os = "windows", feature = "asio"))]
+    if prefs.backend == "asio" {
+        let snapshot = asio_snapshot();
+        let drivers = standalone::Host::drivers(&Machine);
+        return standalone::resolve(
+            prefs,
+            &drivers,
+            &snapshot.devices.inputs,
+            &snapshot.devices.outputs,
+            snapshot.devices.inputs.first().cloned(),
+        );
+    }
+    resolved(prefs)
 }
 
 fn start(args: Vec<String>) -> bool {

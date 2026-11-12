@@ -29,7 +29,7 @@ use crate::presets::{self, PRESETS};
 use crate::slots::{Block, Chain, EffectKind, Live, SlotParams};
 #[cfg(all(test, target_os = "linux"))]
 use crate::standalone::Prefs;
-use crate::standalone::{self, AudioChoice};
+use crate::standalone::{self, Applied, AudioChoice};
 use crate::tuner::{Note, TunerReading};
 use crate::user_cab;
 use crate::user_presets::{self, Bank};
@@ -232,6 +232,8 @@ const SETTINGS_CAPTION_WIDTH: f32 = 130.0;
 const SETTINGS_TAPE_WIDTH: f32 = 330.0;
 const SETTINGS_ROW_HEIGHT: f32 = 34.0;
 const SETTINGS_NOTE_HEIGHT: f32 = 26.0;
+/// How often the settings plate asks whether the new audio devices have opened
+const OPENING_POLL: std::time::Duration = std::time::Duration::from_millis(50);
 const SETTINGS_FOOT_HEIGHT: f32 = 58.0;
 const SETTINGS_BUTTON_SPREAD: f32 = 110.0;
 // A stepper reaches its buttons this far past its tape on each side
@@ -2283,6 +2285,10 @@ fn settings_plate(
     let Some(Open::Settings(audio)) = view.plate.as_mut() else {
         return;
     };
+    // The devices being opened answer from another thread: the panel looks again until they have
+    if audio.as_mut().is_some_and(AudioChoice::poll) {
+        ui.ctx().request_repaint_after(OPENING_POLL);
+    }
     let audio_rows = audio.as_ref().map(AudioChoice::rows);
     let rows = 1 + audio_rows.as_ref().map_or(0, |rows| rows.len());
     let height = settings_height(audio_rows.is_some(), rows);
@@ -2350,10 +2356,12 @@ fn settings_plate(
         let choice = audio.as_ref();
         let note = match (choice.and_then(|choice| choice.error.as_deref()), choice) {
             (Some(error), _) => error,
+            (None, Some(choice)) if choice.is_opening() => "Opening ...",
             (None, Some(choice)) if choice.test_tone => {
                 "The tone is on the chosen outputs; mind the volume"
             }
-            (None, Some(_)) => "Apply starts the amp again on the new settings",
+            (None, Some(choice)) if choice.applied => "Playing on the new settings",
+            (None, Some(_)) => "Apply opens the new settings",
             (None, None) => "Cabinet files are read from the cabinets folder",
         };
         silk_label(
@@ -2385,10 +2393,11 @@ fn settings_plate(
         }
         Some(SettingsEvent::Apply) => {
             if let (Some(choice), Some(host)) = (audio.as_mut(), host) {
-                match host.restart(&choice.prefs) {
+                match choice.apply(host) {
                     // The new program is on its way: this window is done
-                    Ok(()) => ui.ctx().send_viewport_cmd(ViewportCommand::Close),
-                    Err(error) => choice.error = Some(format!("Could not restart: {error}")),
+                    Applied::Restarting => ui.ctx().send_viewport_cmd(ViewportCommand::Close),
+                    Applied::Opening => ui.ctx().request_repaint(),
+                    Applied::Failed => {}
                 }
             }
         }
