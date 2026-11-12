@@ -476,6 +476,9 @@ pub struct AudioChoice {
     pub applied: bool,
     /// Looks at the answer so far, for the trace
     polls: u32,
+    /// When the change being opened was asked for, and how long it may take
+    opening_since: Option<std::time::Instant>,
+    answer_timeout: std::time::Duration,
 }
 
 /// What Apply came to
@@ -488,6 +491,9 @@ pub enum Applied {
     /// Nothing was done; `error` says why
     Failed,
 }
+
+/// How long the audio may take to answer a change of devices before the panel gives up
+pub const ANSWER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// The amp's audio is a stereo pair, so the device's channels are offered two at a time
 const PAIR: u32 = 2;
@@ -521,6 +527,8 @@ impl AudioChoice {
             opening: None,
             applied: false,
             polls: 0,
+            opening_since: None,
+            answer_timeout: ANSWER_TIMEOUT,
         };
         choice.count_channels(host);
         // A channel the device does not have (a file from another interface) is the first
@@ -615,6 +623,7 @@ impl AudioChoice {
         match reconfigure {
             Reconfigure::Opening(answer) => {
                 self.polls = 0;
+                self.opening_since = Some(std::time::Instant::now());
                 self.opening = Some(Arc::new(Mutex::new(answer)));
                 Applied::Opening
             }
@@ -644,7 +653,14 @@ impl AudioChoice {
             trace(format_args!("panel: poll number {}: {received:?}", self.polls));
         }
         match received {
-            Err(TryRecvError::Empty) => return true,
+            Err(TryRecvError::Empty) => {
+                let waited = self.opening_since.map(|since| since.elapsed());
+                if !waited.is_some_and(|waited| waited >= self.answer_timeout) {
+                    return true;
+                }
+                trace(format_args!("panel: no answer after {waited:?}, giving up"));
+                self.error = Some("The audio did not answer; restart the amp".into())
+            }
             Ok(Ok(())) => self.applied = true,
             Ok(Err(error)) => {
                 self.error = Some(format!("Could not open them ({error}), the old ones play"))
@@ -655,6 +671,7 @@ impl AudioChoice {
         }
         trace(format_args!("panel: the answer reached the panel after {} polls", self.polls));
         self.opening = None;
+        self.opening_since = None;
         false
     }
 
@@ -1091,6 +1108,37 @@ mod tests {
         assert!(!choice.poll(), "the answer has come");
         assert!(choice.applied && choice.error.is_none() && !choice.is_opening());
         assert_eq!(host.restarts.load(std::sync::atomic::Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn test_an_audio_that_never_answers_ends_in_an_error_not_in_opening_for_ever() {
+        struct Silent(std::sync::Mutex<Option<std::sync::mpsc::Sender<Result<(), String>>>>);
+        impl Host for Silent {
+            fn drivers(&self) -> Vec<String> {
+                vec!["wasapi".into()]
+            }
+            fn devices(&self, _: &str) -> DriverDevices {
+                DriverDevices { inputs: vec![], outputs: vec![] }
+            }
+            fn reconfigure(&self, _: &Prefs) -> Reconfigure {
+                let (sender, receiver) = std::sync::mpsc::channel();
+                // Kept, so the channel stays open and silent
+                *self.0.lock().unwrap() = Some(sender);
+                Reconfigure::Opening(receiver)
+            }
+            fn restart(&self, _: &Prefs) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        let host = Silent(Default::default());
+        let mut choice = AudioChoice::open(&host, wasapi());
+        choice.answer_timeout = std::time::Duration::from_millis(50);
+        assert_eq!(choice.apply(&host), Applied::Opening);
+        assert!(choice.poll(), "still waiting at first");
+        std::thread::sleep(std::time::Duration::from_millis(80));
+        assert!(!choice.poll());
+        assert!(!choice.is_opening() && !choice.applied);
+        assert_eq!(choice.error.as_deref(), Some("The audio did not answer; restart the amp"));
     }
 
     #[test]
