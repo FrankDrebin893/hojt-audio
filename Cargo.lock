@@ -113,6 +113,7 @@ dependencies = [
  "hound",
  "nih_plug",
  "nih_plug_egui",
+ "png 0.17.16",
  "suite_common",
 ]
 

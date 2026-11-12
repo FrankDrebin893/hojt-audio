@@ -108,7 +108,11 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   and the count can change; the fork's cpal backend walks such a callback in chunks of at most the period (#250).
   The ASIO path is untouched by that
 - The exe carries the HØJT badge (`assets/amp.ico`, `assets/amp.rc`, `build.rs`) and
-  `give_window_the_icon` in `main.rs` sets it on the window, which the framework makes without one
+  `give_window_the_icon` in `main.rs` sets it on the window, which the framework makes without one.
+  `amp.ico` is made by `scripts/make-icon.py` (one drawing per size from `site/hojt.svg`'s geometry, the
+  small print dropped below 32 px), never scaled from the page's picture; `tests/icon.rs` holds its sizes,
+  its transparent surround and its sharp edges. Explorer may show the old icon from its cache after an
+  update: `ie4uinit.exe -ClearIconCache`
 - `src/editor.rs` - egui GUI (the signal line in a layer 584 high and as wide as the chain, 3411 for today's twelve pedals; opened scaled to the screen up to 3411 x 584 or 1876 x 321 on a 1920 x 1080 screen, resizable freely from 1301 x 293 by its corner handle, scaled to fit between 0.5 and 1.0 and scrolled sideways below that, `Fit`): the slim oxblood strip
   across the top (64 px) with the input (meter and Input gain), the preset display that opens
   the bank and preset plate, or the tuner display in its place, the metronome, tuner and
