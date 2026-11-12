@@ -56,7 +56,7 @@ to do with `gh`, and read with REST (`gh api` or the tools); GraphQL is blocked.
    faked, never ticked:
    - `scripts/screenshots.ps1 <plugin>` for each plugin whose look changed or that is new (it
      needs a Windows display at 100 % scaling), and a look at each
-   - A listen to the changed files in `site/audio/`, plugin by plugin, with the before and after
+   - A listen to the changed files (offered to him, not a gate: the pull request does not wait for it) in `site/audio/`, plugin by plugin, with the before and after
    - The bundles on Windows, and installing them (`cargo xtask bundle ...`, `cargo xtask
      check-art`) if the plugins changed
    - After the merge: tag the merge commit `v<version>` and push the tag, which makes
