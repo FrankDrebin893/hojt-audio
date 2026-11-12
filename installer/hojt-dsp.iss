@@ -3,7 +3,7 @@
 ;   iscc /DAppVersion=0.3.0 installer\hojt-dsp.iss
 ; It installs for the whole machine (admin): VST3 to Common Files\VST3, CLAP to Common Files\CLAP,
 ; and the licences under Program Files\Hojt Audio. Bundle names and ids are never changed (Versioning
-; in AGENTS.md), so a newer setup upgrades in place (the fixed AppId) and projects keep their settings.
+; in CLAUDE.md), so a newer setup upgrades in place (the fixed AppId) and projects keep their settings.
 ;
 ; Setup takes one parameter of its own, for the tests of the pull-request path (release.yml):
 ;   /PLUGINROOT=<folder>   puts VST3 and CLAP under <folder>\VST3 and <folder>\CLAP instead of

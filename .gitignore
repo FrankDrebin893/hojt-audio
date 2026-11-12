@@ -1,9 +1,8 @@
 /target
 build.bat
 nul
-.claude/*
-!.claude/commands/
-!.claude/settings.json
+.claude/settings.local.json
+.claude/worktrees/
 /dist
 /.impeccable/
 # What an editor's snapshot test leaves beside its reference when the picture changed

@@ -87,7 +87,7 @@ On Windows, `scripts/install.ps1` builds the VST3 bundles from your checkout and
 (all six, or name some: `scripts/install.ps1 amp drums`). Close the DAW first.
 
 The plugins are written in Rust on [NIH-plug](https://github.com/robbert-vdh/nih-plug).
-[AGENTS.md](AGENTS.md) describes the suite, and `plugins/<name>/AGENTS.md` how each plugin works,
+[CLAUDE.md](CLAUDE.md) describes the suite, and `plugins/<name>/CLAUDE.md` how each plugin works,
 its parameters and the tools for working on its sound. [CHANGELOG.md](CHANGELOG.md) says what
 changed in each release.
 

@@ -1,7 +1,7 @@
 //! A host for tests, and an allocator that tells when the audio thread allocates.
 //!
 //! Nothing may allocate, free or resize memory on the audio thread (Code Conventions in
-//! AGENTS.md). Each plugin's `no_alloc` tests hold that: [`assert_process_allocates_nothing`]
+//! CLAUDE.md). Each plugin's `no_alloc` tests hold that: [`assert_process_allocates_nothing`]
 //! plays the whole plugin the way a DAW does, and [`assert_allocates_nothing`] covers what its
 //! defaults do not reach. Both need [`NoAlloc`] as the allocator of the test binary:
 //!
@@ -105,7 +105,7 @@ pub fn assert_allocates_nothing<R>(what: &str, audio: impl FnOnce() -> R) -> R {
     if let Some(found) = FOUND.with(|found| found.borrow_mut().take()) {
         panic!(
             "{what} {} {} bytes, here:\n{}\n\nNothing may allocate, free or resize memory on the audio thread \
-             (Code Conventions in AGENTS.md). Make the buffer at its largest size in `new` or \
+             (Code Conventions in CLAUDE.md). Make the buffer at its largest size in `new` or \
              `initialize` and reuse it, and keep `Vec`, `Box`, `String`, `format!` and \
              collecting out of the audio path",
             found.what, found.bytes, found.trace

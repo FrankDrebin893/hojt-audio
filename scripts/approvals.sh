@@ -23,7 +23,7 @@ list_issue() {
 }
 
 # One line of a spec: its title, what the player gets, its size and how many questions it asks.
-# The spec's parts are bold headings (.agents/skills/spec/SKILL.md): **What changes**, **Risks and
+# The spec's parts are bold headings (.claude/skills/spec/SKILL.md): **What changes**, **Risks and
 # size** (opening with S, M or L) and **Questions** (a numbered list)
 describe() {
     local n="$1" title spec player size questions
@@ -97,7 +97,7 @@ approve_one() {
         return 0
     fi
     gh issue edit "$n" --repo "$repo" --remove-label state:spec --add-label state:approved > /dev/null
-    # `/next` reads this comment: who started the run is who approved (see .agents/skills/next/SKILL.md)
+    # `/next` reads this comment: who started the run is who approved (see .claude/skills/next/SKILL.md)
     gh issue comment "$n" --repo "$repo" --body "Approved by the owner through the approval list.
 
 <!-- approved-by-run: ${RUN_URL:-unknown} -->" > /dev/null

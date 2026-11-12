@@ -12,7 +12,7 @@
 #
 # The checks: (1) closed issues still labelled state:review or state:building, (2) issues that sat
 # in building or review with no activity for STALE_DAYS, (3) newer compatible dependencies, the
-# nih-plug pin against upstream, the Rust that ci.yml pins against stable, (4) AGENTS.md naming
+# nih-plug pin against upstream, the Rust that ci.yml pins against stable, (4) CLAUDE.md naming
 # files that no longer exist, A check whose tool is
 # missing is skipped with a note. A finding is filed once: an issue (open or closed) with its title
 # stops it, so titles carry what changed (a version, a month, an issue number).
@@ -138,7 +138,7 @@ check_nih_plug() {
         file "Weekly: the nih-plug pin is $behind commits behind upstream ($head)" \
             "The pin \`${rev:0:7}\` (the fork \`$fork/nih-plug\`) lacks $behind commits of upstream \`master\` (now \`$head\`).
 
-AGENTS.md says how to move it: rebase the fork's commits onto upstream and pin the result."
+CLAUDE.md says how to move it: rebase the fork's commits onto upstream and pin the result."
     fi
 }
 
@@ -160,12 +160,12 @@ Move the pin (and the clippy fixes it brings) in one change."
     fi
 }
 
-# 4. A backticked name in AGENTS.md that looks like a file or a folder and is not there, nor
+# 4. A backticked name in CLAUDE.md that looks like a file or a folder and is not there, nor
 # written anywhere else in the tree (a URL path or a file made at run time is not a drift).
 check_drift() {
     local doc dir name missing="" files
     files="$(git ls-files)"
-    for doc in AGENTS.md plugins/*/AGENTS.md; do
+    for doc in CLAUDE.md plugins/*/CLAUDE.md; do
         [[ -f "$doc" ]] || continue
         dir="$(dirname "$doc")"
         while IFS= read -r name; do
@@ -174,14 +174,14 @@ check_drift() {
             [[ -e "$name" || -e "$dir/$name" ]] && continue
             grep -Fq -- "/${name%/}" <<< "/$files" && continue
             # or written verbatim in some other tracked file: a URL path, a file made at run time
-            git grep -Fq -e "$name" -- . ':(exclude)AGENTS.md' ':(exclude)**/AGENTS.md' ':(exclude)CLAUDE.md' && continue
+            git grep -Fq -e "$name" -- . ':(exclude)CLAUDE.md' ':(exclude)**/CLAUDE.md' ':(exclude)CLAUDE.md' && continue
             missing+="- \`$name\` in \`$doc\`"$'\n'
         done < <(grep -o '`[^` ]*`' "$doc" | tr -d '`' |
             grep -E '^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)+/?$|^[A-Za-z0-9_-]+\.(md|sh|rs|toml|yml|yaml|py|ps1|json|html|css)$' |
             grep -Ev '^(target|http|www)|^(\.\./)|/(ids\.txt)$|^(owner|path)/|^FrankDrebin893/' | sort -u)
     done
     if [[ -n "$missing" ]]; then
-        file "Weekly: AGENTS.md names files that are not there ($(date -u +%Y-%m))" \
+        file "Weekly: CLAUDE.md names files that are not there ($(date -u +%Y-%m))" \
             "These names are written in an instruction file and no file or folder of that name exists (a name that is only a pattern or an example may be listed by mistake):
 
 $missing
