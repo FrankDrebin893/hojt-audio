@@ -23,6 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.diff.outputs.code }}
+      skills: ${{ steps.diff.outputs.skills }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,14 +37,18 @@ jobs:
           HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           code=true
+          skills=false
           if files=$(git diff --name-only "$BASE...$HEAD" 2>/dev/null || git diff --name-only "$BASE" "$HEAD" 2>/dev/null) && [ -n "$files" ]; then
-            # Light: the page and its sources, markdown outside the skills (the tests read
-            # those), the licence and the issue forms. Everything else is code.
-            rest=$(printf '%s\n' "$files" | grep -vE '^(site/|site-sources/|site-design/|\.github/ISSUE_TEMPLATE/|LICENSE$|piano/LICENSE$)' | grep -vE '^(\.claude/|\.claude/)' | grep -vE '\.md$' || true)
-            skills=$(printf '%s\n' "$files" | grep -E '^(\.claude/|\.claude/)' || true)
-            if [ -z "$rest" ] && [ -z "$skills" ]; then code=false; fi
+            # Light: the page and its sources, markdown, `.claude/` (settings and the retro log),
+            # the licence and the issue forms. Everything else is code. The skills are light too,
+            # but `xtask`'s tests read them (the approval rules), so a change to them runs
+            # those alone, on Linux (the `skills` output), not the whole workspace.
+            rest=$(printf '%s\n' "$files" | grep -vE '^(site/|site-sources/|site-design/|\.claude/|\.github/ISSUE_TEMPLATE/|LICENSE$|piano/LICENSE$)' | grep -vE '\.md$' || true)
+            if [ -z "$rest" ]; then code=false; fi
+            if printf '%s\n' "$files" | grep -qE '^\.claude/skills/'; then skills=true; fi
           fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "skills=$skills" >> "$GITHUB_OUTPUT"
           echo "Changed files:"; printf '%s\n' "$files"
           echo "Heavy checks needed: $code"
 
@@ -74,6 +79,13 @@ jobs:
       - name: Test
         if: needs.changes.outputs.code == 'true'
         run: cargo test --workspace --locked
+
+      # Only the skills changed: the tests that read them (approval rules, release cycle)
+      - uses: dtolnay/rust-toolchain@stable
+        if: needs.changes.outputs.code != 'true' && needs.changes.outputs.skills == 'true' && runner.os == 'Linux'
+      - name: Test the skills' guards
+        if: needs.changes.outputs.code != 'true' && needs.changes.outputs.skills == 'true' && runner.os == 'Linux'
+        run: cargo test -p xtask --locked
 
       # The clippers' two-at-a-time path is only compiled in optimised x86-64 builds, and the
       # bass's cost bound only means something optimised
