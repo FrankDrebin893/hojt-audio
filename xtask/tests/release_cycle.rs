@@ -79,7 +79,7 @@ fn test_the_digest_shows_a_release_due_and_one_not_reviewed() {
 fn test_the_release_skills_never_tag_or_approve_and_can_be_paused() {
     for skill in ["release-prep", "release-review"] {
         let text = read(&format!(".agents/skills/{skill}/SKILL.md"));
-        for needle in ["`Pause automation`", "Never", ".agents/learnings.md"] {
+        for needle in ["`Pause automation`", "Never"] {
             assert!(text.contains(needle), "/{skill} lacks {needle}");
         }
         for line in text.lines().filter(|l| l.contains("state:approved")) {

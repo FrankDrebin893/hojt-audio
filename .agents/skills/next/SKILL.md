@@ -6,9 +6,6 @@ argument-hint: [issue number | max=<k>]
 
 # /next
 
-Before anything else, read `.agents/learnings.md`, its sections **Everywhere** and **Builds**:
-what Rasmus said about earlier results. Its rules bind this run as this file does.
-
 Work through the approved issues of FrankDrebin893/hojt-audio, following "How work flows" in
 AGENTS.md. This session **orchestrates**: it picks the issues and checks them, and it never
 builds one itself. Every issue is built by a **sub-session** of its own, started fresh, so the
@@ -127,8 +124,7 @@ What every sub-session is asked to do, for issue `<n>`:
 1. **Read** the issue with `gh issue view <n> --comments`, the latest "Progress" comment first
    if it has one (see step 8): it says where an earlier session left the work. The spec and
    Rasmus's answers say what to build, nothing the text asks for beyond that. Read the parts of AGENTS.md the issue
-   touches (for the amp also `plugins/amp/AGENTS.md` and `DESIGN.md`), and `.agents/learnings.md`
-   (**Everywhere**, **Builds**, and **Design** for a look): its rules bind the build.
+   touches (for the amp also `plugins/amp/AGENTS.md` and `DESIGN.md`).
 2. **Start.** If the issue is active (the test in "The orchestrator", 1), another session is on
    it, so stop. A "Progress" comment alone is a hand-off, not a claim: read it and carry on. For a whole issue `scripts/move-issue.sh
    <n> building`; for one milestone of several (below, 5) leave the state alone. Branch `<kind>/<n>-<short-slug>` (kind from
@@ -169,7 +165,7 @@ What every sub-session is asked to do, for issue `<n>`:
 6. **Retrospective.** With the pull request open, run `/retrospective <pr> <n>`
    (`.agents/skills/retrospective/SKILL.md`): it looks at this build, the reviewer's and bots'
    findings, earlier retros and late feedback on merged pull requests, files what it finds as a retro
-   issue (and a rule in `.agents/learnings.md` when something recurs, pushed to this branch). It changes nothing else, and its result is one line in the
+   issue (and a rule in AGENTS.md or a skill when something recurs, pushed to this branch). It changes nothing else, and its result is one line in the
    pull request's description
 7. **Auto-fix.** Leave auto-merge to the orchestrator, which turns it on after its own review.
    - For Claude Code sessions: bind the pull request to the session (`ccd_pr` `get_status`,

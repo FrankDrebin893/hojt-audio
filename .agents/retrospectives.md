@@ -3,7 +3,7 @@
 One entry per Builder pull request, written by `/retrospective`
 (`.agents/skills/retrospective/SKILL.md`): what went well, what the reviewers, bots and CI
 found, what made the build hard, and what came back as feedback after a merge. A cause that
-appears twice becomes a rule in `.agents/learnings.md` (**Builds**). Read by the builder and by
+appears twice becomes a rule in AGENTS.md or the skill it governs. Read by the builder and by
 `/retrospective`; no entry names a person.
 
 Entries up to 2026-11-11 are below. From 2026-11-12 each retro is an issue labelled `from:retro`

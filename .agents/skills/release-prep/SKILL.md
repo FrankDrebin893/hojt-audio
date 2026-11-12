@@ -6,10 +6,6 @@ argument-hint: [force, to prepare a release that is not due]
 
 # /release-prep
 
-Before anything else, read `.agents/learnings.md`, its sections **Everywhere**, **Page and releases**
-and **Release cycle**: what Rasmus said about earlier results. Its rules bind this run as this file
-does.
-
 The weekly Release Manager (Fridays 06:30 UTC). It notices that a release is due and prepares it
 by `.agents/skills/release/RELEASING.md`, steps 1, 2 and 4, as a pull request. It stops there:
 merging the pull request and tagging `v<version>` stay with Rasmus, because a tag publishes to
