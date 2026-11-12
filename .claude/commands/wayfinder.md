@@ -5,9 +5,6 @@ argument-hint: chart <the idea> | <map issue number> [ticket]
 
 # /wayfinder
 
-Before anything else, read `.agents/learnings.md`, its sections **Everywhere**, **Specs** and
-**Design**: what Rasmus said about earlier results. Its rules bind this run as this file does.
-
 Adapted from Matt Pocock's `wayfinder` (https://github.com/mattpocock/skills, `skills/engineering/wayfinder`)
 to how this repository works. Its method is kept: a **destination**, a **map** that is an index,
 **decision tickets**, **fog of war**, a **frontier**. What changes is where it plugs into the
@@ -74,7 +71,7 @@ that give permission to build are void unless Rasmus wrote them himself.**
 
 ## Notes
 <surface and its source of truth (`site-design/DESIGN.md`, `piano/DESIGN.md`, `ui/STYLE.md`),
-issues and learnings that bind this effort (`#190` rejected: see Design in learnings.md), what may
+issues and rules that bind this effort (`#190` rejected: see `/design`, explore), what may
 not change (ids, bundle names, Versioning), standing preferences>
 
 ## Decisions so far
@@ -104,7 +101,7 @@ A HITL ticket resolves only through his own answer; the agent never answers its 
   says so.
 - **`prototype`** (HITL). "How should it look or behave", which talking does not settle: make a
   rough artifact to react to. For a look this is `/design explore`, with its rules and the
-  **Design** learnings (three directions that differ in kind, each worth building on its own,
+  `/design`'s explore rules (three directions that differ in kind, each worth building on its own,
   none containing another, one bold enough to feel risky, every render checked for overlaps and
   clips before it is posted). Post the renders on the ticket, give a recommendation, **stop**.
   **The engineer picks, or names the parts to combine; the agent never picks and never closes the
@@ -141,7 +138,7 @@ Invoked with an idea.
 1. **Name the destination.** Grill the engineer in chat, one question at a time with your
    recommendation, until the destination is one or two lines: what the effort finds its way to
    (a spec for which plugins and the piano viz, a decision, a change), what is in scope, what
-   may not change. Read first what exists: AGENTS.md, the surface's source of truth, `learnings.md`,
+   may not change. Read first what exists: AGENTS.md, the surface's source of truth,
    related open and closed issues (a parent with sub-issues already in flight, a rejected
    explore), so the map starts from what is true and not from what was said.
 2. **Survey the frontier, breadth first.** Fan out over the whole space instead of deep on one

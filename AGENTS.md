@@ -58,9 +58,10 @@ detail lives. Each detail is next to what it governs.
 - `.agents/matt-pocock-skills/` - Provenance of the vendored [Matt Pocock skills](https://github.com/mattpocock/skills)
   in `.agents/skills/` (version, what is installed and what is not, how to update); `docs/agents/` is their
   per-repo setup (issue tracker, domain docs)
-- `.agents/learnings.md` and `.agents/retrospectives.md` - What Rasmus said about results (`/feedback`) and what each Builder
-  pull request taught (`/retrospective`, run by every `/next` builder once its pull request is open); skills read both.
-  Since 2026-11-12 a retro is an issue (`from:retro`), not an entry in the log
+- `.agents/retrospectives.md` - The log of what each Builder pull request taught (`/retrospective`, run by every `/next`
+  builder once its pull request is open); the skills read it. Since 2026-11-12 a retro is an issue (`from:retro`), not an entry
+  in the log. There is no file of learnings: a rule that comes out of feedback or a retro is written where it applies (see
+  "Rules from feedback")
 - `.github/workflows/` - `ci.yml` (tests), `release.yml` (the plugins, on `vX.Y.Z`), `piano.yml` (builds
   the piano viz when `piano/` changes, releases it on `piano-vX.Y.Z`), `pages.yml`, `approval-guard.yml`, `sound.yml`
   (what a plugin's reports say changed against `main`), `weekly.yml` (a weekly run that only files
@@ -207,11 +208,32 @@ would have to guess gets questions and `needs:reporter`, and no spec until the r
   above. No routine runs it, and a map plans: it builds nothing
 - A decision the spec did not cover is asked on the issue, not guessed
 - What Rasmus says about a result (a mock-up, a spec, an idea, a build) is recorded with `/feedback`
-  in `.agents/learnings.md`, a section per process. Every skill reads it before it starts, so
-  the routines learn from it too, and a learning that changes a step is written into that skill
+  as a rule in the place it governs (see "Rules from feedback" below)
 - A `/next` session that ends without a pull request leaves a "Progress" comment on the issue:
   what is done, what was verified and how, what is next, what is blocked. The next session on
   that issue reads the latest one first (`.agents/skills/next/SKILL.md`, "The builder")
+
+### Rules from feedback
+
+A rule that comes out of what Rasmus said about a result (`/feedback`) or out of a retro
+(`/retrospective`) is not kept in a file of its own, dated or otherwise. It is written as a plain,
+checkable instruction in the place an agent reads when it does the work:
+
+- A rule for one process goes into the step of that skill it governs (`.agents/skills/<name>/SKILL.md`,
+  mirrored in `.claude/commands/`)
+- A rule for every process goes here, under "Rules for every run" below, or into the section of this
+  file about that subject
+- A rule that contradicts an older one replaces it. Why it was made lives in the pull request and the issue
+
+### Rules for every run
+
+- Never cite a bare number in a report, comment or chat message. Each item says whether it is an issue
+  or a pull request, gives its title in plain words and a link, and says in one line whether it needs
+  anything from the engineer and exactly what ("read the three plate renders and pick one", "nothing, it is
+  merged"). An item waiting on him names the question, not only the label. This holds for every routine
+  (Scout, Specwriter, Builder, Stall check, Release Manager, Release Analyst, the dashboard digest)
+- `needs:engineer` goes on only once the question can be answered: the explore renders are posted, or the
+  question is written out in the comment. A step the agent can do itself (the explore) is done first, then asked
 
 ### End of a session
 

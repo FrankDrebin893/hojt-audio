@@ -5,9 +5,6 @@ argument-hint: explore|build|review <surface> [what]
 
 # /design
 
-Before anything else, read `.agents/learnings.md`, its sections **Everywhere** and **Design**:
-what Rasmus said about earlier results. Its rules bind this run as this file does.
-
 How the look of HØJT is changed. Claude builds well and follows written rules, but judges its own
 taste badly and sees nothing without a render, and a critique-and-polish loop run again and again
 drifts back to the average. So this skill puts taste where it belongs, with Rasmus picking between
