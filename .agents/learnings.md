@@ -11,6 +11,16 @@ is changed to carry a learning, its entry stays here with `In the skill:` and th
 
 ## Everywhere
 
+- **2026-11-12, Builder report (#247, #280).** The nightly report listed bare numbers
+  ("#247 waits", "#280 skipped"), and Rasmus could not tell whether each was an issue or a pull
+  request, what it was about, or what he was meant to do. **Rule:** in every report, comment
+  and chat message, never cite a bare number. Each item says whether it is an issue or a pull
+  request, gives its title in plain words and a link, and says in one line whether it needs
+  anything from Rasmus and exactly what (for example "read the three plate renders and pick
+  one", or "nothing, it is merged"). An item waiting on him names the question, not only the
+  label. Applies to every routine (Scout, Specwriter, Builder, Stall check, Release Manager,
+  Release Analyst, the dashboard digest) and to this repository's skills.
+
 ## Design (`/design`)
 
 - **2026-10-31, #190 (explore, editors and piano viz).** None of the three directions was worth
@@ -39,6 +49,11 @@ is changed to carry a learning, its entry stays here with `In the skill:` and th
   **Rule:** the start-of-run sweep also records a pick and closes a finished explore issue, and
   closes an open `state:building` issue whose dependents are all closed. In the skill: `/next`,
   orchestrator step 1, "Sweep, finished explore".
+- **2026-11-12, #280.** A builder put `needs:engineer` on an issue for "a pick between plate
+  designs" before any designs existed, so the Builder skipped it and the explore that makes the
+  designs never ran. **Rule:** `needs:engineer` goes on only once the question can be answered:
+  the explore renders are posted, or the question is written out in the comment. A step the
+  agent can do itself (the explore) is done first, then asked.
 
 ## Page and releases (`/page`, `/release`, `/piano-release`, `/piano-readme`)
 
