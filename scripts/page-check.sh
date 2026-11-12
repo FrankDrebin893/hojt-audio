@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The page (site/) against the work of a session: whether /page has looked at what changed,
 # and whether the page's own links hold. Used by the /page skill and by the end-of-session
-# hook of any agent tool (for Claude Code: .claude/settings.json).
+# hook (.claude/settings.json).
 #
 #   scripts/page-check.sh            lists what changed since main that the page may describe;
 #                                    exits 1 if /page has not looked at it yet, 0 if it has or

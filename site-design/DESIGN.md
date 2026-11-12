@@ -45,7 +45,7 @@ layout:
 The site's source of truth for its look. `site/hojt.css` holds the tokens as CSS custom
 properties; this file holds why they are what they are, the rules a page is checked against and
 the references. It sits outside `site/` so it is not published. How a change to the look is made
-is `/design` (`.agents/skills/design/SKILL.md`).
+is `/design` (`.claude/skills/design/SKILL.md`).
 
 **Status: first draft (2026-10-28), written from the site as it is. The named rules and the
 reference board are for Rasmus to confirm or correct.**

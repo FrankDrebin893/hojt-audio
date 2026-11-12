@@ -1,6 +1,6 @@
 # Scripts
 
-What each script in this folder does, and the detail behind the rules in `AGENTS.md`.
+What each script in this folder does, and the detail behind the rules in `CLAUDE.md`.
 
 - `install.ps1` - Builds the VST3 bundles from this checkout and installs them on Windows (see Install)
 - `check.sh` - What CI runs, run before a push (see Testing); `quick` is format and clippy
@@ -81,9 +81,8 @@ none. The renders before and after are the run's `renders` artifact.
 **Always run `scripts/check.sh` before pushing.** It runs every step of `ci.yml`: `cargo fmt --all --check`,
 `cargo clippy --workspace --all-targets -- -D warnings` (on Rust 1.99.1, pinned in `ci.yml`, when rustup has it),
 `cargo test --workspace` and `cargo test -p amp -p bass --release`. On Linux it first names the packages the build needs
-that are missing. In Claude Code a hook (`.claude/settings.json`) runs `scripts/check.sh quick` before every
-`git commit` and stops a commit that fails it; an agent tool without hooks runs `scripts/check.sh quick` itself
-before committing. A step added to `ci.yml` is added to `scripts/check.sh` too, which
+that are missing. A hook (`.claude/settings.json`) runs `scripts/check.sh quick` before every
+`git commit` and stops a commit that fails it. A step added to `ci.yml` is added to `scripts/check.sh` too, which
 `xtask/tests/check_mirrors_ci.rs` holds.
 Lints that clash with DSP code are allowed in the root `Cargo.toml`, each with its reason.
 
@@ -127,7 +126,7 @@ turns 7 days old the line shows until the review has run; if it is still there a
 
 ## Release cycle
 
-Two scheduled tasks (AGENTS.md, "Automation and health") run it, their prompts in
+Two scheduled tasks (CLAUDE.md, "Automation and health") run it, their prompts in
 `automation/scheduled-tasks.md` of the project files: the Release Manager (`/release-prep`, Fridays
 06:30 UTC) prepares a `release/<version>` pull request when a release is due, with auto-merge off,
 and somebody merges it and tags; the Release Analyst (`/release-review`, Mondays 07:15 UTC) writes a

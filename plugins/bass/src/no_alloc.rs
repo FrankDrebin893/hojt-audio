@@ -1,4 +1,4 @@
-//! Nothing allocates on the audio thread (Code Conventions in AGENTS.md)
+//! Nothing allocates on the audio thread (Code Conventions in CLAUDE.md)
 
 use crate::bass::{Bass, Voice};
 use crate::BassSynthPlugin;

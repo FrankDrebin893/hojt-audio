@@ -1,8 +1,8 @@
 # Issue tracker: GitHub
 
 Issues and specs for this repo live as GitHub issues of `FrankDrebin893/hojt-audio`. This file is
-what the installed Matt Pocock skills (`.agents/matt-pocock-skills/README.md`) read; the repo's
-own flow (states, approval, labels) is in `AGENTS.md`, "How work flows", and wins wherever the two differ.
+what the installed Matt Pocock skills (`.claude/matt-pocock-skills/README.md`) read; the repo's
+own flow (states, approval, labels) is in `CLAUDE.md`, "How work flows", and wins wherever the two differ.
 
 ## Conventions
 

@@ -1,7 +1,7 @@
 //! The weekly run (`.github/workflows/weekly.yml`, `scripts/weekly-checks.sh`) only reports and
 //! files ideas: it runs on a schedule and by hand, holds no more than the right to write issues,
 //! uses no secret but the built-in token, and neither the workflow nor the script ever sets
-//! `state:approved` (only Rasmus does; AGENTS.md, "How work flows")
+//! `state:approved` (only Rasmus does; CLAUDE.md, "How work flows")
 
 use std::path::Path;
 
@@ -87,7 +87,7 @@ fn test_the_drift_check_accepts_names_written_elsewhere() {
     std::fs::write(dir.join("src/main.rs"), "const URL: &str = \"releases/latest/download/\";\n")
         .unwrap();
     std::fs::write(
-        dir.join("AGENTS.md"),
+        dir.join("CLAUDE.md"),
         "`real.md`, `releases/latest/download/`, `gone/nowhere.json`, `only/docs.sh`\n",
     )
     .unwrap();

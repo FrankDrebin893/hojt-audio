@@ -121,9 +121,9 @@ controls, portrait) or `plugins/drums/src/editor.rs` (many controls, landscape) 
   zoom that reads and full size, and scrolled sideways below that
 - **Clean factory paint:** no wear or dirt. Surfaces are lit, not flat: powder-coat flake, bevels, brushed and knurled metal come from `ui/raster.rs`, never from image files
 - **New shared pieces go in `suite_common::ui`,** not in a plugin's editor, so every plugin gets them
-- **Rigs** (a window of several pedals, as the Guitar Amp has): the rules for the strip, the stack, mini pedals, pedal art, the signal line (blocks of one width, a scaled and scrolled window), signal lamps, presets, file choices and the tuner are in `plugins/amp/AGENTS.md`, "Look: the rig". Read them before drawing a second rig
+- **Rigs** (a window of several pedals, as the Guitar Amp has): the rules for the strip, the stack, mini pedals, pedal art, the signal line (blocks of one width, a scaled and scrolled window), signal lamps, presets, file choices and the tuner are in `plugins/amp/CLAUDE.md`, "Look: the rig". Read them before drawing a second rig
 
-After changing an editor, run it standalone (see `AGENTS.md`, Build Commands) and look at it before bundling.
+After changing an editor, run it standalone (see `CLAUDE.md`, Build Commands) and look at it before bundling.
 
 Each editor also has a snapshot test (`suite_common::ui::snapshot`), which draws it off screen with
 every parameter at its default and compares the picture with `plugins/<name>/tests/snapshots/editor.png`
