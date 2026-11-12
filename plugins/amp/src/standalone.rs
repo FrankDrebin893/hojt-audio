@@ -346,6 +346,34 @@ pub fn config_dir() -> Option<PathBuf> {
     Some(base.join("Hojt Audio"))
 }
 
+/// TEMPORARY, to find a hang on a change of devices: where the trace is written, besides stderr
+pub fn trace_path() -> Option<PathBuf> {
+    config_dir().map(|dir| dir.join("reconfigure-trace.log"))
+}
+
+/// TEMPORARY, to find a hang on a change of devices: a timestamped line on stderr and appended
+/// to `trace_path()`, the same file the fork's host writes to. Always on for now; to be removed
+pub fn trace(args: std::fmt::Arguments) {
+    use std::io::Write;
+    let now =
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+    let thread = std::thread::current();
+    let line = format!(
+        "{}.{:03} [{}] amp: {}\n",
+        now.as_secs(),
+        now.subsec_millis(),
+        thread.name().unwrap_or("unnamed"),
+        args
+    );
+    eprint!("{line}");
+    if let Some(path) = trace_path() {
+        let _ = std::fs::create_dir_all(path.parent().unwrap_or(Path::new(".")));
+        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+            let _ = file.write_all(line.as_bytes());
+        }
+    }
+}
+
 /// The settings file
 pub fn prefs_path() -> Option<PathBuf> {
     config_dir().map(|dir| dir.join(FILE))
@@ -377,11 +405,15 @@ pub enum Reconfigure {
 pub fn after_ok(answer: Answer, on_ok: impl FnOnce() + Send + 'static) -> Answer {
     let (sender, passed) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
+        trace(format_args!("after_ok: waiting for the host's answer"));
         let result = answer.recv().unwrap_or_else(|_| Err("the audio stopped".into()));
+        trace(format_args!("after_ok: the host answered {result:?}"));
         if result.is_ok() {
             on_ok();
+            trace(format_args!("after_ok: saved and noted"));
         }
         let _ = sender.send(result);
+        trace(format_args!("after_ok: passed on to the panel"));
     });
     passed
 }
@@ -442,6 +474,8 @@ pub struct AudioChoice {
     opening: Option<Arc<Mutex<Answer>>>,
     /// The devices of the last Apply are open and playing
     pub applied: bool,
+    /// Looks at the answer so far, for the trace
+    polls: u32,
 }
 
 /// What Apply came to
@@ -486,6 +520,7 @@ impl AudioChoice {
             error: None,
             opening: None,
             applied: false,
+            polls: 0,
         };
         choice.count_channels(host);
         // A channel the device does not have (a file from another interface) is the first
@@ -571,8 +606,15 @@ impl AudioChoice {
             // The last one is still being opened
             return Applied::Opening;
         }
-        match host.reconfigure(&self.prefs) {
+        trace(format_args!("panel: Apply, {:?}", self.prefs));
+        let reconfigure = host.reconfigure(&self.prefs);
+        trace(format_args!(
+            "panel: the host says {}",
+            if matches!(reconfigure, Reconfigure::Opening(_)) { "opening" } else { "unsupported" }
+        ));
+        match reconfigure {
             Reconfigure::Opening(answer) => {
+                self.polls = 0;
                 self.opening = Some(Arc::new(Mutex::new(answer)));
                 Applied::Opening
             }
@@ -597,6 +639,10 @@ impl AudioChoice {
             return false;
         };
         let received = answer.lock().unwrap_or_else(|e| e.into_inner()).try_recv();
+        self.polls += 1;
+        if self.polls == 1 || self.polls.is_multiple_of(40) {
+            trace(format_args!("panel: poll number {}: {received:?}", self.polls));
+        }
         match received {
             Err(TryRecvError::Empty) => return true,
             Ok(Ok(())) => self.applied = true,
@@ -607,6 +653,7 @@ impl AudioChoice {
                 self.error = Some("The audio stopped while changing".into())
             }
         }
+        trace(format_args!("panel: the answer reached the panel after {} polls", self.polls));
         self.opening = None;
         false
     }

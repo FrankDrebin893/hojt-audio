@@ -68,22 +68,31 @@ impl standalone::Host for Machine {
     }
 
     fn reconfigure(&self, prefs: &Prefs) -> Reconfigure {
+        let launch = standalone::launch();
+        standalone::trace(format_args!(
+            "Machine::reconfigure: chosen {prefs:?}, playing {launch:?}, same stream {}",
+            prefs.same_stream(&launch)
+        ));
         // Only the devices and their channels can change while the amp plays
-        if !prefs.same_stream(&standalone::launch()) {
+        if !prefs.same_stream(&launch) {
             return Reconfigure::Unsupported;
         }
         let Some(path) = standalone::prefs_path() else {
+            standalone::trace(format_args!("Machine::reconfigure: no place for the settings"));
             return Reconfigure::Unsupported;
         };
         let devices = resolved_running(prefs.clone());
+        standalone::trace(format_args!("Machine::reconfigure: resolved {devices:?}"));
         let Ok(answer) = nih_standalone_reconfigure(StandaloneDevices {
             input_device: devices.input_device.clone(),
             output_device: devices.output_device.clone(),
             input_channel: devices.input_channel,
             output_channel: devices.output_channel,
         }) else {
+            standalone::trace(format_args!("Machine::reconfigure: the host cannot, restart"));
             return Reconfigure::Unsupported;
         };
+        standalone::trace(format_args!("Machine::reconfigure: the host takes the request"));
         // What was chosen is kept for the next start, and noted as what plays, only once it
         // plays: a device that would not open must not be the one the amp starts on. What is
         // noted is the resolved choice, like the one the program started with
@@ -316,6 +325,10 @@ fn give_window_the_icon() {
 }
 
 fn main() {
+    if let Some(path) = standalone::trace_path() {
+        nih_standalone_set_trace_file(path);
+    }
+    standalone::trace(format_args!("start: {:?}", std::env::args().collect::<Vec<_>>()));
     #[cfg(target_os = "windows")]
     {
         enable_dpi_awareness();
