@@ -17,6 +17,9 @@ GitHub release.
 ### Guitar Amp
 
 - The standalone program no longer stops with a buffer-size error when it plays through WASAPI.
+- The standalone program's icon in the taskbar, the title bar and Explorer is sharp at every size: the
+  HØJT badge is drawn afresh for each, and the smallest (16 and 24 px) show a dark plate, a cream frame
+  and the H instead of four letters gone to mud.
 - The strip across the top of the Guitar Amp is slim now, and shows only what you need all the time: the
   input meter with the Input gain beside it, the preset name, and the output knob with its meter and
   the Clip lamp, with the jacks, the model number and the logo at its ends. The Bank and Preset
