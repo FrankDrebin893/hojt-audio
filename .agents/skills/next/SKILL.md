@@ -89,9 +89,10 @@ goes on to the next issue, with no further prompt, until the list is done. Words
    - **Accept**: turn on GitHub auto-merge (`ccd_pr` `set_auto_merge`, squash, or
      `gh pr merge <pr> --auto --squash`) and tell Rasmus in a line what to listen to or look at,
      which the sub-session names. Never merge by hand. If the sub-session names something only
-     he can do (listen, look, try on a machine, or a milestone that waits on his pick), the issue
+     he can do (look, try on a machine, or a milestone that waits on his pick), the issue
      gets `needs:engineer` and a comment saying exactly what, or, when the issue is closed by the
-     pull request, a new issue "Check: <what>" labelled `needs:engineer`
+     pull request, a new issue "Check: <what>" labelled `needs:engineer`. A listen is not such a thing: it is a line
+     in the pull request and the report, never a label and never a "Check" issue, and it never holds the next milestone
 6. **Go on.** Back to step 1 at once; the pull request merges when CI passes, and Auto-fix in
    its sub-session mends a failure (one it cannot mend is reported like a question). One run
    works through a whole parent: it does not end after one issue.
@@ -158,7 +159,7 @@ What every sub-session is asked to do, for issue `<n>`:
    (the approval covers every milestone, so nothing needs the label back, and the agent never
    sets it). Post a "Progress" comment on the issue (step 8) saying which milestone merged and
    which is next. Only the last milestone says `Closes`. If the next milestone needs something
-   from the engineer first (a pick between explore directions, a listen), also label the issue
+   from the engineer first (a pick between explore directions; never a listen), also label the issue
    `needs:engineer` and say in the comment what is asked; the engineer's answer on the issue clears it.
    The same holds for a parent with sub-issues: the sub-issues are built, the parent is closed
    by whoever closes the last one.

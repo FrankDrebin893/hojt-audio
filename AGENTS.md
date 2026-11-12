@@ -158,7 +158,7 @@ Two rules keep an issue from stalling once it leaves the spec stage:
   are not built: their sub-issues are, and `/next` takes a sub-issue (`Parent: #<p>`) on its
   parent's approval, unless its body has a sentence `Waits for ...` naming an issue that is still open
 - **Awaiting an engineer decision is a label, `needs:engineer`,** not a state: set when a session stops on a
-  question, a pick or a listen, with a comment saying what. It lists the issue on the pinned
+  question or a pick (never a listen, see "Rules for every run"), with a comment saying what. It lists the issue on the pinned
   "Specs to approve" under "Awaiting engineer decision", the Builder skips it, and his comment on the issue
   (not one signed with the agent's footer, which every agent comment on an issue carries) takes it off through `needs-owner.yml`, after which
   `/next` picks the issue up with his answer
@@ -232,6 +232,10 @@ checkable instruction in the place an agent reads when it does the work:
   anything from the engineer and exactly what ("read the three plate renders and pick one", "nothing, it is
   merged"). An item waiting on him names the question, not only the label. This holds for every routine
   (Scout, Specwriter, Builder, Stall check, Release Manager, Release Analyst, the dashboard digest)
+- A listen (a sound or a render to hear) never blocks work and never gets `needs:engineer`: the pull request says what
+  to listen to and merges on green CI, the next milestone is built, and no "Check: listen to ..." issue is filed. If a
+  listen turns up a problem, he files it as a bug. A check that needs his Windows machine is different: it can still
+  be asked
 - `needs:engineer` goes on only once the question can be answered: the explore renders are posted, or the
   question is written out in the comment. A step the agent can do itself (the explore) is done first, then asked
 
