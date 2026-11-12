@@ -96,7 +96,7 @@ def draw_size(px):
         pts = polygon(GLYPH_H)
         cx = (10.142 + 17.578) / 2
         cy = (7.7 + 23.1) / 2
-        sx, sy = W / px * 1.0, 1.15  # stems one pixel wide
+        sx, sy = W / px * 1.0, 1.15  # stems about 2.4 px wide, whatever the size
         pts = [((x - cx) * sx + W / 2, (y - cy) * sy + H_PLATE / 2) for x, y in pts]
         layer(lambda lay, d: d.polygon([pt(p, oy) for p in pts], fill=SILK))
     else:
