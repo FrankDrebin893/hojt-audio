@@ -77,6 +77,9 @@
                                       IsCheckable="True" IsChecked="{Binding IsSongPracticeVisible}"/>
                             <MenuItem Header="_Open MIDI Song…" InputGestureText="Ctrl+O"
                                       Command="{Binding SongPractice.OpenSongCommand}"/>
+                            <MenuItem Header="Check for _Updates" IsCheckable="True"
+                                      IsChecked="{Binding UpdateNotice.CheckEnabled}"
+                                      ToolTip="Once a day at startup, ask GitHub whether a newer version exists. Nothing else is sent."/>
                             <Separator/>
                             <!-- A keyboard option, not a panel, so zen mode leaves it alone. -->
                             <MenuItem Header="All _Note Names" IsCheckable="True"
@@ -102,18 +105,38 @@
                 <!-- Keyboard and audio at a glance, e.g. "Digital Piano · ASIO": amber while
                      either isn't ready, with a dot that flickers as you play. It lives here
                      rather than in the status bar, which can be hidden. Opens Settings. -->
-                <Button Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center"
-                        Margin="12,0,10,0"
-                        Style="{StaticResource Style.StatusChip}"
-                        Command="{Binding ToggleSettingsOverlayCommand}"
-                        ToolTip="{Binding StatusChipToolTip}"
-                        AutomationProperties.Name="{Binding StatusChipText}">
-                    <StackPanel Orientation="Horizontal">
-                        <Ellipse Style="{StaticResource Style.StatusDot}" VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding StatusChipText}" Margin="6,0,0,0" MaxWidth="260"
-                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right"
+                            VerticalAlignment="Center">
+                    <!-- A newer piano viz exists (Services/UpdateCheck.cs, once a day): one quiet
+                         line of legend text, two link buttons and a close, printed on the panel beside the
+                         status chip. Collapsed, it takes no room, so every other render is as it was. -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0"
+                                Visibility="{Binding UpdateNotice.IsVisible, Converter={StaticResource BoolToVisConverter}}">
+                        <TextBlock Text="{Binding UpdateNotice.Text}" FontSize="11"
+                                   Foreground="{StaticResource Brush.Text.Secondary}" VerticalAlignment="Center"/>
+                        <Button Content="Download" Style="{StaticResource Style.SetupLink}"
+                                Command="{Binding UpdateNotice.OpenDownloadCommand}"
+                                ToolTip="Open this version's page on GitHub"/>
+                        <Button Content="Turn off" Style="{StaticResource Style.SetupLink}"
+                                Command="{Binding UpdateNotice.TurnOffCommand}"
+                                ToolTip="Stop checking for new versions. View, Check for Updates turns it back on."/>
+                        <Button Content="&#xE711;" Style="{StaticResource Style.SetupLink}"
+                                FontFamily="{StaticResource Font.Icon}" FontSize="9" Padding="6,4"
+                                Command="{Binding UpdateNotice.DismissCommand}"
+                                ToolTip="Hide until the next launch" AutomationProperties.Name="Hide"/>
                     </StackPanel>
-                </Button>
+                    <Button VerticalAlignment="Center" Margin="12,0,10,0"
+                            Style="{StaticResource Style.StatusChip}"
+                            Command="{Binding ToggleSettingsOverlayCommand}"
+                            ToolTip="{Binding StatusChipToolTip}"
+                            AutomationProperties.Name="{Binding StatusChipText}">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Style="{StaticResource Style.StatusDot}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding StatusChipText}" Margin="6,0,0,0" MaxWidth="260"
+                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                     <Button Content="&#xE921;" Click="MinimizeButton_Click" ToolTip="Minimise"

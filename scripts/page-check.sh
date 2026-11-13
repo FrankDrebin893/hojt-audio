@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The page (site/) against the work of a session: whether /page has looked at what changed,
 # and whether the page's own links hold. Used by the /page skill and by the end-of-session
-# hook of any agent tool (for Claude Code: .claude/settings.json).
+# hook (.claude/settings.json).
 #
 #   scripts/page-check.sh            lists what changed since main that the page may describe;
 #                                    exits 1 if /page has not looked at it yet, 0 if it has or
@@ -72,8 +72,9 @@ links() {
                         */hojt-audio/releases/latest/download/*)
                             zip=${ref##*/}
                             if [ "$zip" = "$(sed -n 's/^OutputBaseFilename=//p' installer/hojt-dsp.iss).exe" ] \
-                                || [ "$zip" = SHA256SUMS.txt ]; then
-                                : # the installer (installer/hojt-dsp.iss) and the checksum file (scripts/checksums.sh)
+                                || [ "$zip" = SHA256SUMS.txt ] \
+                                || { [ "$zip" = HojtDSP-linux.zip ] && grep -q 'HojtDSP-linux.zip' scripts/package.sh; }; then
+                                : # the installer (installer/hojt-dsp.iss), the checksum file (scripts/checksums.sh) and the Linux suite zip (scripts/package.sh)
                             elif ! grep -q "\"${zip%-*}\"" bundler.toml || ! [[ $zip =~ -(windows|macos|linux)\.zip$ ]]; then
                                 echo "$page: download $zip is not an asset a release makes (bundler.toml, scripts/package.sh, installer/hojt-dsp.iss, scripts/checksums.sh)"
                                 bad=1

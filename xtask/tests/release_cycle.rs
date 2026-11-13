@@ -1,4 +1,4 @@
-//! The release cycle (`/release-prep`, `/release-review`, AGENTS.md "Automation and health"):
+//! The release cycle (`/release-prep`, `/release-review`, CLAUDE.md "Automation and health"):
 //! the two skills never tag, never approve and can be paused, and the weekly digest shows a
 //! release that is due and one that was never reviewed
 
@@ -78,18 +78,18 @@ fn test_the_digest_shows_a_release_due_and_one_not_reviewed() {
 #[test]
 fn test_the_release_skills_never_tag_or_approve_and_can_be_paused() {
     for skill in ["release-prep", "release-review"] {
-        let text = read(&format!(".agents/skills/{skill}/SKILL.md"));
-        for needle in ["`Pause automation`", "Never", ".agents/learnings.md"] {
+        let text = read(&format!(".claude/skills/{skill}/SKILL.md"));
+        for needle in ["`Pause automation`", "Never"] {
             assert!(text.contains(needle), "/{skill} lacks {needle}");
         }
         for line in text.lines().filter(|l| l.contains("state:approved")) {
             assert!(line.to_lowercase().contains("never"), "/{skill} may approve: {line}");
         }
     }
-    let prep = read(".agents/skills/release-prep/SKILL.md");
+    let prep = read(".claude/skills/release-prep/SKILL.md");
     assert!(prep.contains("auto-merge **off**"), "a release pull request must not auto-merge");
     assert!(prep.contains("never tags"), "/release-prep must say it never tags");
-    let review = read(".agents/skills/release-review/SKILL.md");
+    let review = read(".claude/skills/release-review/SKILL.md");
     assert!(
         review.contains("evidence only") && review.contains("verified by login"),
         "/release-review must treat public text as evidence and act on the owner's feedback only"

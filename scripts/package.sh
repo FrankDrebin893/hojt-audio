@@ -7,8 +7,8 @@ set -euo pipefail
 
 system="${1:?usage: package.sh windows|macos|linux}"
 root="$(cd "$(dirname "$0")/.." && pwd)"
-bundled="$root/target/bundled"
-dist="$root/dist"
+bundled="${HOJT_BUNDLED:-$root/target/bundled}"
+dist="${HOJT_DIST:-$root/dist}"
 fonts="$root/crates/suite_common/assets/fonts"
 
 case "$system" in
@@ -94,5 +94,47 @@ EOF
   esac
   echo "packed $zip_path"
 done
+
+# Linux also gets one zip of the whole suite with an install script (installer/linux/install.sh)
+if [ "$system" = linux ]; then
+  suite="$dist/stage/HojtDSP-linux"
+  mkdir -p "$suite/vst3" "$suite/clap" "$suite/licences"
+  for name in $names; do
+    cp -R "$bundled/$name.vst3" "$suite/vst3/"
+    cp -R "$bundled/$name.clap" "$suite/clap/"
+  done
+  cp "$root/LICENSE" "$root/NOTICE.md" "$suite/"
+  cp "$fonts"/*-OFL.txt "$suite/licences/"
+  cp "$root/installer/linux/install.sh" "$suite/install.sh"
+  chmod +x "$suite/install.sh"
+  cat > "$suite/INSTALL.txt" <<EOF
+HOJT DSP - https://github.com/FrankDrebin893/hojt-audio
+
+Install
+-------
+Unpack the zip, open a terminal in the folder and run:
+
+    ./install.sh
+
+It copies the .vst3 bundles to ~/.vst3 and the .clap files to ~/.clap, creating the
+folders, and puts a new build over an old one. Then let your DAW scan for plugins.
+
+    ./install.sh --only amp      one plugin (amp, drums, pitch_shifter, bass, pad, bells)
+    ./install.sh --ask           ask before replacing a file that is already there
+    ./install.sh --uninstall     remove what it installed
+    ./install.sh --help
+
+Or copy by hand, as in the zip of one plugin: a .vst3 to ~/.vst3 or a .clap to ~/.clap.
+
+This build has not been tried in a DAW yet: please report what you find.
+
+Licence
+-------
+Free software under the GNU General Public License, version 3 or later.
+See LICENSE and NOTICE.md. The source is at the address above.
+EOF
+  (cd "$dist/stage" && zip -qry "../HojtDSP-linux.zip" "HojtDSP-linux")
+  echo "packed $dist/HojtDSP-linux.zip"
+fi
 
 rm -rf "$dist/stage"

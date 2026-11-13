@@ -19,6 +19,11 @@ pub struct GuitarPitchShifterParams {
     #[persist = "editor-state-pedal2"]
     pub editor_state: Arc<EguiState>,
 
+    /// The update check's settings (its off switch, when it last asked, the newest version it
+    /// found, the version whose line was closed): saved with the project, never a parameter
+    #[persist = "update"]
+    pub update: Arc<std::sync::Mutex<suite_common::update::UpdateSettings>>,
+
     // The key before it, kept as it was so no saved key goes away. Nothing reads it
     #[persist = "editor-state-pedal"]
     old_editor_state: Arc<EguiState>,
@@ -52,6 +57,7 @@ impl Default for GuitarPitchShifterParams {
     fn default() -> Self {
         Self {
             editor_state: editor::default_state(),
+            update: Arc::default(),
             old_editor_state: editor::default_state(),
 
             semitones: IntParam::new("Semitones", 0, IntRange::Linear { min: -12, max: 12 })
@@ -146,8 +152,8 @@ impl Plugin for GuitarPitchShifterPlugin {
         _aux: &mut AuxiliaryBuffers,
         _context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
-        // Bypass is a shift of 0 semitones: the shifter settles on its minimum delay
-        // and then passes the input through bit-exactly, without a click
+        // Bypass is a shift of 0 semitones: the shifter fades back to the input over
+        // Smoothness and then passes it through bit-exactly, without a click
         let semitones = if self.params.bypass.value() { 0 } else { self.params.semitones.value() };
         self.pitch_shifter.set_semitones(semitones);
         self.pitch_shifter.set_latency_ms(self.params.latency_ms.value());

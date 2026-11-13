@@ -3,12 +3,15 @@
 ;   iscc /DAppVersion=0.3.0 installer\hojt-dsp.iss
 ; It installs for the whole machine (admin): VST3 to Common Files\VST3, CLAP to Common Files\CLAP,
 ; and the licences under Program Files\Hojt Audio. Bundle names and ids are never changed (Versioning
-; in AGENTS.md), so a newer setup upgrades in place (the fixed AppId) and projects keep their settings.
+; in CLAUDE.md), so a newer setup upgrades in place (the fixed AppId) and projects keep their settings.
 ;
 ; Setup takes one parameter of its own, for the tests of the pull-request path (release.yml):
 ;   /PLUGINROOT=<folder>   puts VST3 and CLAP under <folder>\VST3 and <folder>\CLAP instead of
 ;                          Common Files, and leaves the machine's plugin folders alone
 ; NumericVersion is the four-part x.y.z.0 of the file properties.
+; Each plugin also has its standalone program (target/standalone/<BundleName>.exe, built by
+; scripts/build-standalones.sh) in the app folder, with a Start menu entry: WASAPI only, ASIO is
+; built by hand (plugins/amp/CLAUDE.md).
 ; Every bundle in bundler.toml has its lines below (xtask/tests/installer.rs holds that).
 
 #ifndef AppVersion
@@ -16,6 +19,9 @@
 #endif
 #ifndef BundleDir
   #define BundleDir "..\target\bundled"
+#endif
+#ifndef StandaloneDir
+  #define StandaloneDir "..\target\standalone"
 #endif
 #ifndef OutDir
   #define OutDir "..\dist"
@@ -68,28 +74,34 @@ SignedUninstaller=yes
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Types]
-Name: "full"; Description: "Every plugin, VST3 and CLAP"
+Name: "full"; Description: "Every plugin, VST3 and CLAP, and the standalone programs"
 Name: "custom"; Description: "Choose what to install"; Flags: iscustom
 
 [Components]
 Name: "pitch_shifter"; Description: "Pitch Shifter"; Types: full
 Name: "pitch_shifter\vst3"; Description: "VST3"; Types: full
 Name: "pitch_shifter\clap"; Description: "CLAP"; Types: full
+Name: "pitch_shifter\standalone"; Description: "Standalone program"; Types: full
 Name: "drums"; Description: "Drum Synth"; Types: full
 Name: "drums\vst3"; Description: "VST3"; Types: full
 Name: "drums\clap"; Description: "CLAP"; Types: full
+Name: "drums\standalone"; Description: "Standalone program"; Types: full
 Name: "amp"; Description: "Guitar Amp"; Types: full
 Name: "amp\vst3"; Description: "VST3"; Types: full
 Name: "amp\clap"; Description: "CLAP"; Types: full
+Name: "amp\standalone"; Description: "Standalone program"; Types: full
 Name: "bass"; Description: "Bass Synth"; Types: full
 Name: "bass\vst3"; Description: "VST3"; Types: full
 Name: "bass\clap"; Description: "CLAP"; Types: full
+Name: "bass\standalone"; Description: "Standalone program"; Types: full
 Name: "pad"; Description: "Shimmer Pad"; Types: full
 Name: "pad\vst3"; Description: "VST3"; Types: full
 Name: "pad\clap"; Description: "CLAP"; Types: full
+Name: "pad\standalone"; Description: "Standalone program"; Types: full
 Name: "bells"; Description: "Glass Bells"; Types: full
 Name: "bells\vst3"; Description: "VST3"; Types: full
 Name: "bells\clap"; Description: "CLAP"; Types: full
+Name: "bells\standalone"; Description: "Standalone program"; Types: full
 
 [Files]
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
@@ -99,26 +111,40 @@ Source: "..\crates\suite_common\assets\fonts\*-OFL.txt"; DestDir: "{app}\licence
 ; Pitch Shifter
 Source: "{#BundleDir}\HojtPitchShifter.vst3\*"; DestDir: "{code:PluginDir|VST3}\HojtPitchShifter.vst3"; Components: pitch_shifter\vst3; Flags: ignoreversion recursesubdirs createallsubdirs restartreplace uninsrestartdelete
 Source: "{#BundleDir}\HojtPitchShifter.clap"; DestDir: "{code:PluginDir|CLAP}"; Components: pitch_shifter\clap; Flags: ignoreversion restartreplace uninsrestartdelete
+Source: "{#StandaloneDir}\HojtPitchShifter.exe"; DestDir: "{app}"; Components: pitch_shifter\standalone; Flags: ignoreversion restartreplace uninsrestartdelete
 
 ; Drum Synth
 Source: "{#BundleDir}\HojtDrumSynth.vst3\*"; DestDir: "{code:PluginDir|VST3}\HojtDrumSynth.vst3"; Components: drums\vst3; Flags: ignoreversion recursesubdirs createallsubdirs restartreplace uninsrestartdelete
 Source: "{#BundleDir}\HojtDrumSynth.clap"; DestDir: "{code:PluginDir|CLAP}"; Components: drums\clap; Flags: ignoreversion restartreplace uninsrestartdelete
+Source: "{#StandaloneDir}\HojtDrumSynth.exe"; DestDir: "{app}"; Components: drums\standalone; Flags: ignoreversion restartreplace uninsrestartdelete
 
 ; Guitar Amp
 Source: "{#BundleDir}\HojtGuitarAmp.vst3\*"; DestDir: "{code:PluginDir|VST3}\HojtGuitarAmp.vst3"; Components: amp\vst3; Flags: ignoreversion recursesubdirs createallsubdirs restartreplace uninsrestartdelete
 Source: "{#BundleDir}\HojtGuitarAmp.clap"; DestDir: "{code:PluginDir|CLAP}"; Components: amp\clap; Flags: ignoreversion restartreplace uninsrestartdelete
+Source: "{#StandaloneDir}\HojtGuitarAmp.exe"; DestDir: "{app}"; Components: amp\standalone; Flags: ignoreversion restartreplace uninsrestartdelete
 
 ; Bass Synth
 Source: "{#BundleDir}\HojtBassSynth.vst3\*"; DestDir: "{code:PluginDir|VST3}\HojtBassSynth.vst3"; Components: bass\vst3; Flags: ignoreversion recursesubdirs createallsubdirs restartreplace uninsrestartdelete
 Source: "{#BundleDir}\HojtBassSynth.clap"; DestDir: "{code:PluginDir|CLAP}"; Components: bass\clap; Flags: ignoreversion restartreplace uninsrestartdelete
+Source: "{#StandaloneDir}\HojtBassSynth.exe"; DestDir: "{app}"; Components: bass\standalone; Flags: ignoreversion restartreplace uninsrestartdelete
 
 ; Shimmer Pad
 Source: "{#BundleDir}\HojtShimmerPad.vst3\*"; DestDir: "{code:PluginDir|VST3}\HojtShimmerPad.vst3"; Components: pad\vst3; Flags: ignoreversion recursesubdirs createallsubdirs restartreplace uninsrestartdelete
 Source: "{#BundleDir}\HojtShimmerPad.clap"; DestDir: "{code:PluginDir|CLAP}"; Components: pad\clap; Flags: ignoreversion restartreplace uninsrestartdelete
+Source: "{#StandaloneDir}\HojtShimmerPad.exe"; DestDir: "{app}"; Components: pad\standalone; Flags: ignoreversion restartreplace uninsrestartdelete
 
 ; Glass Bells
 Source: "{#BundleDir}\HojtGlassBells.vst3\*"; DestDir: "{code:PluginDir|VST3}\HojtGlassBells.vst3"; Components: bells\vst3; Flags: ignoreversion recursesubdirs createallsubdirs restartreplace uninsrestartdelete
 Source: "{#BundleDir}\HojtGlassBells.clap"; DestDir: "{code:PluginDir|CLAP}"; Components: bells\clap; Flags: ignoreversion restartreplace uninsrestartdelete
+Source: "{#StandaloneDir}\HojtGlassBells.exe"; DestDir: "{app}"; Components: bells\standalone; Flags: ignoreversion restartreplace uninsrestartdelete
+
+[Icons]
+Name: "{group}\HØJT Pitch Shifter"; Filename: "{app}\HojtPitchShifter.exe"; Components: pitch_shifter\standalone
+Name: "{group}\HØJT Drum Synth"; Filename: "{app}\HojtDrumSynth.exe"; Components: drums\standalone
+Name: "{group}\HØJT Guitar Amp"; Filename: "{app}\HojtGuitarAmp.exe"; Components: amp\standalone
+Name: "{group}\HØJT Bass Synth"; Filename: "{app}\HojtBassSynth.exe"; Components: bass\standalone
+Name: "{group}\HØJT Shimmer Pad"; Filename: "{app}\HojtShimmerPad.exe"; Components: pad\standalone
+Name: "{group}\HØJT Glass Bells"; Filename: "{app}\HojtGlassBells.exe"; Components: bells\standalone
 
 [Code]
 // Common Files\<Sub>, or <PLUGINROOT>\<Sub> when the tests give one

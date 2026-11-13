@@ -38,7 +38,7 @@
         Play a MIDI keyboard through any SoundFont or SFZ piano, and read the chord, its Roman
         numeral, the voicing, the staff and the circle of fifths from the piano stool.</p>
       <div class="downloads">
-        <a id="hero-download-btn" class="button" href="https://github.com/FrankDrebin893/hojt-audio-piano-viz/releases/download/v1.0.0/PianoMidiVisualizationApp-1.0.0-win-x64.zip"><span id="hero-download-label">Download for Windows</span><small>v1.0.0</small></a>
+        <a id="hero-download-btn" class="button" href="https://github.com/FrankDrebin893/hojt-audio/releases?q=piano-v&amp;expanded=true"><span id="hero-download-label">Download for Windows</span><small>latest release</small></a>
         <a class="button plain" href="https://github.com/FrankDrebin893/hojt-audio/releases?q=piano-v&amp;expanded=true">All releases</a>
       </div>
     </div>
@@ -214,7 +214,7 @@
         <div class="cols">
           <div>
             <div class="downloads">
-              <a id="primary-zip-link" class="button" href="https://github.com/FrankDrebin893/hojt-audio-piano-viz/releases/download/v1.0.0/PianoMidiVisualizationApp-1.0.0-win-x64.zip">Download for Windows<small id="release-asset-meta">v1.0.0, about 70 MB</small></a>
+              <a id="primary-zip-link" class="button" href="https://github.com/FrankDrebin893/hojt-audio/releases?q=piano-v&amp;expanded=true">Download for Windows<small id="release-asset-meta">latest release, about 70 MB</small></a>
             </div>
             <p><a href="https://github.com/FrankDrebin893/hojt-audio/releases?q=piano-v&amp;expanded=true">Release notes and all releases</a></p>
           </div>
@@ -386,7 +386,7 @@
       });
 
       // 3. The newest piano release (a piano-v* tag of hojt-audio; the plugins' v* releases are skipped).
-      // Until there is one, or when GitHub says no, the static v1.0.0 from the old repository stays.
+      // Until there is one, or when GitHub says no, the buttons open this repository's list of piano releases.
       var releasesApi = 'https://api.github.com/repos/FrankDrebin893/hojt-audio/releases?per_page=50';
       fetch(releasesApi, { headers: { 'Accept': 'application/vnd.github+json' } })
         .then(function (res) {
@@ -422,7 +422,7 @@
           }
         })
         .catch(function () {
-          // Static pre-rendered v1.0.0 card remains active if offline or rate-limited
+          // The static buttons to the releases list stay if offline or rate-limited
         });
     })();
   </script>

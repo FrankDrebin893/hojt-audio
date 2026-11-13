@@ -57,6 +57,10 @@ jobs:
           "VERSION=$version" >> $env:GITHUB_ENV
           "ZIP=PianoMidiVisualizationApp-$version-win-x64.zip" >> $env:GITHUB_ENV
 
+      # The update check's tests (piano/tests/): version comparison, gating and the request, with a fake handler
+      - name: Test the update check
+        run: dotnet test piano/tests/UpdateCheck.Tests/UpdateCheck.Tests.csproj -c Release
+
       - name: Publish
         run: dotnet publish piano/src/PianoMidiVisualizationApp/PianoMidiVisualizationApp.csproj -c Release -r win-x64 -p:Version=$env:VERSION -o publish
 

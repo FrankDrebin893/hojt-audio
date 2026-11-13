@@ -462,6 +462,15 @@
       name of the file you copied:</p>
 <pre>xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/HojtGuitarAmp.vst3</pre>
 
+    <h3>Linux: all six at once</h3>
+    <p><a href="https://github.com/FrankDrebin893/hojt-audio/releases/latest/download/HojtDSP-linux.zip">HojtDSP-linux.zip</a>
+      holds every plugin, VST3 and CLAP, with a script that copies them to <code>~/.vst3</code> and
+      <code>~/.clap</code> for you. Unpack it, open a terminal in the folder and run:</p>
+<pre>./install.sh</pre>
+    <p><code>./install.sh --only amp</code> installs one plugin, <code>--ask</code> asks before
+      replacing a file, and <code>--uninstall</code> takes them out again. The zips of single plugins
+      above work as before.</p>
+
     <h3>Updating</h3>
     <p>Copy the new file over the old one. Projects that use the plugin open with their
       settings as they were.</p>

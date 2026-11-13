@@ -39,8 +39,8 @@ jobs:
           if files=$(git diff --name-only "$BASE...$HEAD" 2>/dev/null || git diff --name-only "$BASE" "$HEAD" 2>/dev/null) && [ -n "$files" ]; then
             # Light: the page and its sources, markdown outside the skills (the tests read
             # those), the licence and the issue forms. Everything else is code.
-            rest=$(printf '%s\n' "$files" | grep -vE '^(site/|site-sources/|site-design/|\.github/ISSUE_TEMPLATE/|LICENSE$|piano/LICENSE$)' | grep -vE '^(\.agents/|\.claude/)' | grep -vE '\.md$' || true)
-            skills=$(printf '%s\n' "$files" | grep -E '^(\.agents/|\.claude/)' || true)
+            rest=$(printf '%s\n' "$files" | grep -vE '^(site/|site-sources/|site-design/|\.github/ISSUE_TEMPLATE/|LICENSE$|piano/LICENSE$)' | grep -vE '^(\.claude/|\.claude/)' | grep -vE '\.md$' || true)
+            skills=$(printf '%s\n' "$files" | grep -E '^(\.claude/|\.claude/)' || true)
             if [ -z "$rest" ] && [ -z "$skills" ]; then code=false; fi
           fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
@@ -80,6 +80,11 @@ jobs:
       - name: Test the amp and the bass, optimised
         if: needs.changes.outputs.code == 'true'
         run: cargo test -p amp -p bass --release --locked
+
+      # The Linux zip's install.sh into a temporary HOME, and out again (shellcheck on it too)
+      - name: Test the Linux install script
+        if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
+        run: bash scripts/test-linux-install.sh
 
   lint:
     name: Format and clippy

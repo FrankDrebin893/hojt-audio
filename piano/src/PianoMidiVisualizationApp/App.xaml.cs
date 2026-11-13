@@ -59,6 +59,15 @@ public partial class App : Application
 
         MainWindow = window;
         window.Show();
+
+        // The daily update check, after the window is up and off the UI thread; it shows a line
+        // in the title bar only if a newer release exists, and is silent about everything else.
+        // Here and not in ApplySettings, so the screenshot harness never reaches the network.
+        var running = System.Reflection.Assembly.GetExecutingAssembly()
+            .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+            .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+            .FirstOrDefault()?.InformationalVersion ?? "0.0.0";
+        _ = _mainViewModel.UpdateNotice.CheckAtStartupAsync(running);
     }
 
     private static void RestoreWindowPlacement(Window window, AppSettings saved)

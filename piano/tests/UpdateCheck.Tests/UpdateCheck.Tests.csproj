@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Tests of the piano viz's update check (Services/UpdateCheck.cs). That file has no WPF in
+       it, so it is compiled in here directly: no reference to the self-contained WPF app, and
+       the tests run on any OS. Not part of the solution, like the screenshot harness; piano.yml
+       runs it with `dotnet test`. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\PianoMidiVisualizationApp\Services\UpdateCheck.cs" Link="UpdateCheck.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+</Project>

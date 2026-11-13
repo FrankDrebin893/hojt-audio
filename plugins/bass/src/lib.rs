@@ -18,6 +18,11 @@ pub struct BassSynthParams {
     #[persist = "editor-state"]
     pub editor_state: Arc<EguiState>,
 
+    /// The update check's settings (its off switch, when it last asked, the newest version it
+    /// found, the version whose line was closed): saved with the project, never a parameter
+    #[persist = "update"]
+    pub update: Arc<std::sync::Mutex<suite_common::update::UpdateSettings>>,
+
     #[id = "voice"]
     pub voice: EnumParam<Voice>,
 
@@ -62,6 +67,7 @@ impl Default for BassSynthParams {
         let defaults = BassSettings::default();
         Self {
             editor_state: editor::default_state(),
+            update: Arc::default(),
 
             voice: EnumParam::new("Voice", defaults.voice),
 

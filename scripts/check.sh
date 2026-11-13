@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# What CI runs (.github/workflows/ci.yml), run here before a push, the same for every agent tool.
+# What CI runs (.github/workflows/ci.yml), run here before a push.
 #
 #   scripts/check.sh            every step of CI: format, clippy, the tests, the amp's tests
 #                               optimised. Exits 1 at the first step that fails
@@ -73,6 +73,7 @@ full() {
     # The clippers' two-at-a-time path is only compiled in optimised x86-64 builds, and the bass's
     # cost bound only means something optimised
     step cargo test -p amp -p bass --release --locked
+    [[ "$(uname -s)" == Linux ]] && step bash scripts/test-linux-install.sh
     echo "== All of CI's steps pass"
 }
 

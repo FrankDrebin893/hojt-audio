@@ -13,6 +13,8 @@ on:
       - .github/workflows/release.yml
       - scripts/package.sh
       - scripts/build-installer.sh
+      - scripts/build-standalones.sh
+      - scripts/smoke-standalones.ps1
       - scripts/checksums.sh
       - installer/**
 
@@ -66,6 +68,25 @@ jobs:
       - name: Package
         shell: bash
         run: bash scripts/package.sh ${{ matrix.name }}
+
+      # HojtDSP-linux.zip, with install.sh, is made by the Package step. This packs stand-in bundles
+      # the same way, installs them into a temporary HOME and uninstalls them again
+      # (shellcheck on install.sh as well) before anything is published
+      - name: Test the Linux install script
+        if: runner.os == 'Linux'
+        run: bash scripts/test-linux-install.sh
+
+      # The six standalone programs (WASAPI and the dummy backend; ASIO stays a build by hand),
+      # each started for a few seconds with the dummy backend to see that its window opens
+      - name: Build the standalone programs
+        if: runner.os == 'Windows'
+        shell: bash
+        run: bash scripts/build-standalones.sh
+
+      - name: Start the standalone programs
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: scripts/smoke-standalones.ps1
 
       # The Windows installer, from the bundles just built. Unsigned: to sign, set
       # HOJT_SIGN_COMMAND (a command that signs the file it is given last) in this step's env

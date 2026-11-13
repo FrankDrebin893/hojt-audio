@@ -38,6 +38,12 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
   mini pedal described by a `MiniStyle`; `coupler` and `patch_cable` carry the signal between them
 - `sheet.rs` - the sheet that rises from below and the plus, the cross and the dashed place of a rig's chain
 - `plate.rs`, `icons.rs` - `plate` (a hardware plate in a layer above the window, closing on a click outside it or escape; the caller owns which is open) and `icon_switch` (a drawing that opens a plate, with a lamp and a chrome switch where the thing can be on or off)
+- `update_line.rs` - `update_line`: the one line of label tape that says a newer version is out ("0.4.0 IS OUT",
+  an underlined DOWNLOAD that opens the page, OFF, and a cross), drawn from an `update::UpdateCheck`; nothing when there is
+  nothing to say. It is mono 10 on the tape at `TAPE_TEXT`, dimmed until hovered: no new surface, never a pop-up. Each
+  editor gives it a place of its own where no control, caption or art detail is under it: on a pedal between the jack
+  captions (`UPDATE_LINE_AT`, 33 px down), on the amp's strip in the room between the settings icon and the output knob
+  (`update_line_at`). Each editor has a test that it is drawn when a newer version is known and not when off or closed
 - `raster.rs` - Per-pixel lit surfaces (signed distance field + one fixed light; `paint_box_wide` for a long strip, one picture whose middle is stretched, never over 8192 px): `box_image`, `knob_image`
   (a `KnobCap`: `Fluted`, the pedals' knob, `ChickenHead`, `CreamChickenHead`, `GoldTop`, `ChromeSkirt`), `screw_image`, and for the
   half stack `tolex_image` (`Tolex`), `grille_image` (`Grille`, cloth or mesh with the speakers behind it) and
@@ -121,9 +127,9 @@ controls, portrait) or `plugins/drums/src/editor.rs` (many controls, landscape) 
   zoom that reads and full size, and scrolled sideways below that
 - **Clean factory paint:** no wear or dirt. Surfaces are lit, not flat: powder-coat flake, bevels, brushed and knurled metal come from `ui/raster.rs`, never from image files
 - **New shared pieces go in `suite_common::ui`,** not in a plugin's editor, so every plugin gets them
-- **Rigs** (a window of several pedals, as the Guitar Amp has): the rules for the strip, the stack, mini pedals, pedal art, the signal line (blocks of one width, a scaled and scrolled window), signal lamps, presets, file choices and the tuner are in `plugins/amp/AGENTS.md`, "Look: the rig". Read them before drawing a second rig
+- **Rigs** (a window of several pedals, as the Guitar Amp has): the rules for the strip, the stack, mini pedals, pedal art, the signal line (blocks of one width, a scaled and scrolled window), signal lamps, presets, file choices and the tuner are in `plugins/amp/CLAUDE.md`, "Look: the rig". Read them before drawing a second rig
 
-After changing an editor, run it standalone (see `AGENTS.md`, Build Commands) and look at it before bundling.
+After changing an editor, run it standalone (see `CLAUDE.md`, Build Commands) and look at it before bundling.
 
 Each editor also has a snapshot test (`suite_common::ui::snapshot`), which draws it off screen with
 every parameter at its default and compares the picture with `plugins/<name>/tests/snapshots/editor.png`

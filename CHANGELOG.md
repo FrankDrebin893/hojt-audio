@@ -5,6 +5,13 @@ GitHub release.
 
 ## Unreleased
 
+### Update notice
+
+- A quiet line of label tape in every plugin's window and standalone program says when a newer
+  version is out: "0.4.0 IS OUT", a DOWNLOAD that opens the download page in your browser, an OFF
+  that turns the check off for good, and a cross that closes the line until the next version.
+  Nothing downloads by itself, nothing pops up, and the line is not there when you are up to date.
+
 ### Installer
 
 - Windows: one installer, `HojtDSP-Setup.exe`, puts every plugin in place for the whole machine: VST3
@@ -13,13 +20,53 @@ GitHub release.
   it asks to close a running DAW, and Windows lists it under Apps with an uninstaller. It is not signed
   yet, so Windows may ask you to confirm. Every release now has a `SHA256SUMS.txt` to check a download
   against. The zips of single plugins stay.
+- Windows: the installer also offers each plugin's standalone program (a window of its own, no DAW
+  needed), with a Start menu entry and the HØJT badge as its icon. They play through WASAPI; ASIO
+  stays a build by hand for now.
+
+- Linux: `HojtDSP-linux.zip` holds all six plugins, VST3 and CLAP, with an `install.sh` that copies
+  them to `~/.vst3` and `~/.clap` (`--only <plugin>` for one, `--ask` to be asked before a file is
+  replaced, `--uninstall` to remove them). The zips of single plugins stay. The Linux build is still
+  untried in a DAW.
+
+### Pitch Shifter
+
+- The Pitch Shifter is new inside: chords come out as chords now, a long note rings on without
+  turning robotic, and the level you put in is the level that comes out. Before, it cut the sound
+  into pieces one note period long and joined them, which only works for a single clean note;
+  now it moves every overtone of what you play on its own.
+- The delay no longer depends on the note. It is the longest of 5, 11, 21 and 43 ms (at 48 kHz, a tenth more at 44.1 kHz) that fits
+  under Max Latency: 11 ms at the default of 15 ms, and 5 ms for anything under 11. A longer one is
+  a little cleaner on single notes; chords are fine at every setting, so there is no need to turn
+  it up for them any more.
+- Smoothness is now the length of the crossfade when the shift is switched on or off.
+- It uses more of the computer than before: 3 to 4 % of one core while it shifts (twice that on
+  a stereo track), and nothing at 0 semitones or in Bypass.
+- For the page at release: the row of Max Latency ("The longest the delay may get. Low E needs
+  12 ms, chords are cleaner at 25 to 30 ms") becomes "The delay: 5, 11, 21 or 43 ms, the longest
+  that fits. Longer is a little cleaner"; Smoothness becomes "Length of the crossfade when the
+  shift is switched on or off"; the tip "Single notes are cleanest. For chords, turn Max Latency
+  up to 25 or 30 ms" goes.
+
+### Piano viz
+
+- The piano viz tells you when a newer version is out: once a day, when it starts, it asks GitHub for the
+  newest piano release, and if there is one it shows a small line in the title bar ("Version 1.2.0 is
+  out") with a Download link. Nothing but that one request is sent, and a failure is silent. "Turn off"
+  on the line, or View, Check for Updates, stops the check for good; the cross hides the line until the
+  next launch.
+- The page's download buttons for the piano viz now open this repository's piano releases, where they
+  opened the old repository's version 1.0.0 zip until the page had read the newest release.
 
 ### Guitar Amp
 
 - The standalone program's Audio panel changes the input and output device and their channels without
-  starting the program again: Apply and the sound blinks for a moment, while the window, the preset and
-  everything open stay as they are. A device that will not open says so, and the old one plays on. A new
-  driver, buffer size or sample rate still starts the program again for now.
+  starting the program again when it plays through WASAPI: Apply and the sound blinks for a moment, while
+  the window, the preset and everything open stay as they are. A device that will not open says so, and
+  the old one plays on; one that gets no answer in 10 seconds says so too. ASIO, and a new driver, buffer
+  size or sample rate, still start the program again.
+- The Pitch pedal has the Pitch Shifter's new insides: chords, long notes and the level hold
+  up through it. Tracking sets its delay the same way, 11 ms at the default whatever the note.
 - The standalone program no longer stops with a buffer-size error when it plays through WASAPI.
 - The standalone program's icon in the taskbar, the title bar and Explorer is sharp at every size: the
   HØJT badge is drawn afresh for each, and the smallest (16 and 24 px) show a dark plate, a cream frame

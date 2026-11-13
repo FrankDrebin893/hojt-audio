@@ -1,11 +1,11 @@
 # Plugins
 
-- **Pitch Shifter** (`plugins/pitch_shifter`) - Real-time guitar pitch shifter (effect): semitones -12 to +12 by variable-rate playback with waveform-matched splices. Bypass is a shift of 0 semitones. Its CLAP ID and VST3 class ID predate the suite and are kept as they were. Details, algorithm and tools: `plugins/pitch_shifter/AGENTS.md`.
-- **Drum Synth** (`plugins/drums`) - Fully synthesized drums (no sample files), MIDI in, stereo out, General MIDI map; kits Rock, Jazz, Metal, Groove (new kits go at the end: a project remembers its kit by its number). Details, note map, parameters and tools: `plugins/drums/AGENTS.md`.
-- **Bass Synth** (`plugins/bass`) - Plucked string bass, one note at a time, voices Metal (picked) and Groove (finger). Details: `plugins/bass/AGENTS.md`.
-- **Shimmer Pad** (`plugins/pad`) - Slow ambient pad, twelve voices, with a chorus and a shimmering hall. Details: `plugins/pad/AGENTS.md`.
-- **Glass Bells** (`plugins/bells`) - Soft glassy bells with a ping-pong delay and a hall, twelve voices; note-off does nothing. Details: `plugins/bells/AGENTS.md`.
-- **Guitar Amp** (`plugins/amp`) - A guitar amp with a full signal chain, all our own designs: own names, no real makers' names, trademarks or circuit names anywhere (code, comments, docs, commit messages; `plugins/amp/tests/rules.rs` holds this against a list kept as hashes). Ten amps (Klar clean, Brøl crunch, Torden high gain, Glød edge of breakup, Sang singing lead, Drøn loose and heavy, Knald thick warm mid-gain, Gnist bright chimey mid-gain, Skarp crisp high gain, Hvas hot-rodded high gain), a gate, pitch shifter, compressor, overdrive, fuzz, four modulation pedals, delay and reverb, a cabinet (built-in or the player's own WAV), an optional second amp with a cabinet of its own and a Blend between the two (a heavy and a clean sound at once, #177), a tuner, factory presets and a pedal order the player sets. Its signal flow, parameter table and report tools are in `plugins/amp/AGENTS.md`, read when working there.
+- **Pitch Shifter** (`plugins/pitch_shifter`) - Real-time guitar pitch shifter (effect): semitones -12 to +12, chords as well as single notes, by a spectral shifter with a fixed latency of about 11 ms. Bypass is a shift of 0 semitones. Its CLAP ID and VST3 class ID predate the suite and are kept as they were. Details, algorithm and tools: `plugins/pitch_shifter/CLAUDE.md`.
+- **Drum Synth** (`plugins/drums`) - Fully synthesized drums (no sample files), MIDI in, stereo out, General MIDI map; kits Rock, Jazz, Metal, Groove (new kits go at the end: a project remembers its kit by its number). Details, note map, parameters and tools: `plugins/drums/CLAUDE.md`.
+- **Bass Synth** (`plugins/bass`) - Plucked string bass, one note at a time, voices Metal (picked) and Groove (finger). Details: `plugins/bass/CLAUDE.md`.
+- **Shimmer Pad** (`plugins/pad`) - Slow ambient pad, twelve voices, with a chorus and a shimmering hall. Details: `plugins/pad/CLAUDE.md`.
+- **Glass Bells** (`plugins/bells`) - Soft glassy bells with a ping-pong delay and a hall, twelve voices; note-off does nothing. Details: `plugins/bells/CLAUDE.md`.
+- **Guitar Amp** (`plugins/amp`) - A guitar amp with a full signal chain, all our own designs: own names, no real makers' names, trademarks or circuit names anywhere (code, comments, docs, commit messages; `plugins/amp/tests/rules.rs` holds this against a list kept as hashes). Ten amps (Klar clean, Brøl crunch, Torden high gain, Glød edge of breakup, Sang singing lead, Drøn loose and heavy, Knald thick warm mid-gain, Gnist bright chimey mid-gain, Skarp crisp high gain, Hvas hot-rodded high gain), a gate, pitch shifter, compressor, overdrive, fuzz, four modulation pedals, delay and reverb, a cabinet (built-in or the player's own WAV), an optional second amp with a cabinet of its own and a Blend between the two (a heavy and a clean sound at once, #177), a tuner, factory presets and a pedal order the player sets. Its signal flow, parameter table and report tools are in `plugins/amp/CLAUDE.md`, read when working there.
 
 # Adding a plugin
 
@@ -17,7 +17,7 @@ Each plugin keeps DSP in its own module(s), separate from `lib.rs` (plugin entry
    `ui::pedal` and a `PedalStyle` (own paint colour in `ui/theme.rs`, model number, ornament). Look and
    style rules: `crates/suite_common/src/ui/STYLE.md`
 4. Pick a unique `VST3_CLASS_ID` (16 bytes) and `CLAP_ID`; DAW projects reference plugins by these
-5. Give it `no_alloc` tests (see `AGENTS.md`, Code Conventions) and an `ids` test (see Versioning in `AGENTS.md`)
+5. Give it `no_alloc` tests (see `CLAUDE.md`, Code Conventions) and an `ids` test (see Versioning in `CLAUDE.md`)
 
 ## Versioning
 

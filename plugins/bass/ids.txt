@@ -13,3 +13,4 @@ param transpose
 param voice
 param volume
 persist editor-state
+persist update

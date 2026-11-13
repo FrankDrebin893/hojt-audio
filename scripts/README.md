@@ -1,6 +1,6 @@
 # Scripts
 
-What each script in this folder does, and the detail behind the rules in `AGENTS.md`.
+What each script in this folder does, and the detail behind the rules in `CLAUDE.md`.
 
 - `install.ps1` - Builds the VST3 bundles from this checkout and installs them on Windows (see Install)
 - `check.sh` - What CI runs, run before a push (see Testing); `quick` is format and clippy
@@ -11,7 +11,11 @@ What each script in this folder does, and the detail behind the rules in `AGENTS
 - `site-shots.sh` - Screenshots of the site's own pages at 1440 and 390 wide into `target/shots/`, for
   `/design` and `/page` to look at (not published; needs Node with Playwright)
 - `package.sh` - Packs the bundles into the zips of a release
+- `test-linux-install.sh` - Packs stand-in bundles with `package.sh linux`, unpacks `HojtDSP-linux.zip` (the suite zip
+  with `installer/linux/install.sh`), installs it into a temporary `HOME`, checks `--only`, `--ask` and `--uninstall`,
+  and runs `shellcheck` when it is installed; CI runs it on Linux (`ci.yml`, `release.yml`) and `check.sh` too
 - `build-installer.sh` - Builds `dist/HojtDSP-Setup.exe` from the bundles with Inno Setup (Installer below)
+- `build-standalones.sh` - Builds the six standalone programs to `target/standalone/<BundleName>.exe`; `smoke-standalones.ps1` starts each with the dummy backend and checks its icon (Windows job of `release.yml`)
 - `checksums.sh` - Writes `SHA256SUMS.txt` for the files of a folder, as `release.yml` does for a release
 - `site-audio.sh` - Makes the page's sound examples from the render tests
 - `sound-reports.sh` - The sound reports without their timings, for comparing two builds
@@ -61,7 +65,7 @@ CLAP, all ticked), for the whole machine (admin): VST3 to `Common Files\VST3`, C
 licences under `Program Files\Hojt Audio\HOJT DSP`, an uninstaller. Its `AppId` never changes, so a newer
 setup upgrades in place; bundle names and ids are untouched (Versioning), so projects keep their settings.
 `CloseApplications` asks to close a DAW that holds the files, and a restart is offered only if a file stays
-locked. `scripts/build-installer.sh` (Git Bash, after `cargo xtask bundle`) reads the version from `Cargo.toml`
+locked. `scripts/build-installer.sh` (Git Bash, after `cargo xtask bundle` and `build-standalones.sh`) reads the version from `Cargo.toml`
 and stops if a bundle of `bundler.toml` is missing or not in the script (`xtask/tests/installer.rs` holds the
 latter on every system). The Windows job of `release.yml` builds it after `package.sh`, then
 `installer/test-installer.ps1` installs it silently into temp folders (`/DIR` for the licences and
@@ -81,9 +85,8 @@ none. The renders before and after are the run's `renders` artifact.
 **Always run `scripts/check.sh` before pushing.** It runs every step of `ci.yml`: `cargo fmt --all --check`,
 `cargo clippy --workspace --all-targets -- -D warnings` (on Rust 1.99.1, pinned in `ci.yml`, when rustup has it),
 `cargo test --workspace` and `cargo test -p amp -p bass --release`. On Linux it first names the packages the build needs
-that are missing. In Claude Code a hook (`.claude/settings.json`) runs `scripts/check.sh quick` before every
-`git commit` and stops a commit that fails it; an agent tool without hooks runs `scripts/check.sh quick` itself
-before committing. A step added to `ci.yml` is added to `scripts/check.sh` too, which
+that are missing. A hook (`.claude/settings.json`) runs `scripts/check.sh quick` before every
+`git commit` and stops a commit that fails it. A step added to `ci.yml` is added to `scripts/check.sh` too, which
 `xtask/tests/check_mirrors_ci.rs` holds.
 Lints that clash with DSP code are allowed in the root `Cargo.toml`, each with its reason.
 
@@ -127,7 +130,7 @@ turns 7 days old the line shows until the review has run; if it is still there a
 
 ## Release cycle
 
-Two scheduled tasks (AGENTS.md, "Automation and health") run it, their prompts in
+Two scheduled tasks (CLAUDE.md, "Automation and health") run it, their prompts in
 `automation/scheduled-tasks.md` of the project files: the Release Manager (`/release-prep`, Fridays
 06:30 UTC) prepares a `release/<version>` pull request when a release is due, with auto-merge off,
 and somebody merges it and tags; the Release Analyst (`/release-review`, Mondays 07:15 UTC) writes a
