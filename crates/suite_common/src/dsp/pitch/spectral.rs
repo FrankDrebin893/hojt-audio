@@ -82,6 +82,9 @@ const LOBE_FLOOR: f32 = 0.000_316;
 /// Input below this for a whole frame is silence: the frame is not worked out
 const SILENCE: f32 = 1.0e-7;
 
+/// Largest sample taken in (60 dB over full scale)
+const INPUT_MOST: f32 = 1000.0;
+
 const INPUT_LEN: usize = 2 * FRAME;
 const INPUT_MASK: usize = INPUT_LEN - 1;
 const OUTPUT_LEN: usize = FRAME;
@@ -451,6 +454,10 @@ impl Engine {
 
     #[inline]
     fn push(&mut self, sample: f32) {
+        // A sample that is not a number, or so large that its spectrum would not be one,
+        // would stay in the rotations the frames hand on: it is taken as silence, or held
+        // to a size no signal has
+        let sample = if sample.is_finite() { sample.clamp(-INPUT_MOST, INPUT_MOST) } else { 0.0 };
         self.input[self.input_pos] = sample;
         self.input_pos = (self.input_pos + 1) & INPUT_MASK;
         self.quiet = if sample.abs() < SILENCE { (self.quiet + 1).min(FRAME) } else { 0 };

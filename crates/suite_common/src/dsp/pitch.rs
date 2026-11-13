@@ -64,7 +64,8 @@ impl Channel {
 
 /// A pitch shifter for chords as well as single notes, with a fixed latency.
 ///
-/// The shifted signal lags the input by a fixed time, the largest of 5, 11, 21 and 43 ms that
+/// The shifted signal lags the input by a fixed time, the largest of 5, 11, 21 and 43 ms (at
+/// 48 kHz; a tenth more at 44.1 kHz) that
 /// `set_latency_ms` allows (the longer, the cleaner). A shift of nothing passes the input
 /// through bit for bit, `MIN_DELAY` samples late, and so does the dry part of the blend.
 pub struct PitchShifter {
@@ -967,7 +968,7 @@ mod tests {
     }
 
     #[test]
-    fn test_latency_stays_within_the_setting() {
+    fn test_latency_stays_within_a_setting_of_6_ms_or_more() {
         for sample_rate in [44100.0_f32, 48000.0, 96000.0, 192000.0] {
             let mut shifter = PitchShifter::new();
             shifter.set_sample_rate(sample_rate);
@@ -1001,6 +1002,22 @@ mod tests {
             let ratio = rms(&output[SETTLE..]) / rms(&input[SETTLE..]);
             let least = if semitones > 0 { 0.5 } else { 0.8 };
             assert!(ratio > least && ratio < 1.2, "Semitones={}: level times {}", semitones, ratio);
+        }
+    }
+
+    #[test]
+    fn test_a_bad_sample_does_not_stay() {
+        // Not a number, infinite, or far over full scale: the shifter is itself again once
+        // the sample has left its frame
+        let input = generate_sine_wave(196.0, SAMPLE_RATE, 30000);
+        for bad in [f32::NAN, f32::INFINITY, 1.0e30] {
+            let mut shifter = new_shifter(7);
+            let mut spoilt = input.clone();
+            spoilt[5000] = bad;
+            let output = process_buffer(&mut shifter, &spoilt);
+            assert!(output.iter().all(|sample| sample.is_finite()), "{}: output not finite", bad);
+            let ratio = rms(&output[20000..]) / rms(&input[20000..]);
+            assert!((ratio - 1.0).abs() < 0.05, "{}: level times {} afterwards", bad, ratio);
         }
     }
 

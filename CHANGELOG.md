@@ -20,7 +20,7 @@ GitHub release.
   turning robotic, and the level you put in is the level that comes out. Before, it cut the sound
   into pieces one note period long and joined them, which only works for a single clean note;
   now it moves every overtone of what you play on its own.
-- The delay no longer depends on the note. It is the longest of 5, 11, 21 and 43 ms that fits
+- The delay no longer depends on the note. It is the longest of 5, 11, 21 and 43 ms (at 48 kHz, a tenth more at 44.1 kHz) that fits
   under Max Latency: 11 ms at the default of 15 ms, and 5 ms for anything under 11. A longer one is
   a little cleaner on single notes; chords are fine at every setting, so there is no need to turn
   it up for them any more.

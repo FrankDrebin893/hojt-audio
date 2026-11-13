@@ -45,7 +45,7 @@ The shifted part trails the dry one by the latency: at octaves and fifths that i
 pedal does, at +-1 and +-2 semitones it can be heard as a short doubling. That is left as it is.
 
 The delay is fixed by Max Latency and does not depend on the note. At the default it is 10.7 ms
-(48 kHz), where single strings come out about 45 dB clean and full chords about 25 to 30 dB;
+(48 kHz), where single strings come out about 45 dB clean and full chords 22 to 38 dB;
 5.3 ms costs single notes about 10 dB, and chords little. It costs 3 to 4 % of a core per channel
 at any setting, in a frame every 2.7 to 10.7 ms (about a tenth of a 64-sample block at 48 kHz).
 
