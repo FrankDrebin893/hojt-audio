@@ -60,6 +60,11 @@ GitHub release.
 
 ### Guitar Amp
 
+- The standalone program's Audio panel changes the input and output device and their channels without
+  starting the program again when it plays through WASAPI: Apply and the sound blinks for a moment, while
+  the window, the preset and everything open stay as they are. A device that will not open says so, and
+  the old one plays on; one that gets no answer in 10 seconds says so too. ASIO, and a new driver, buffer
+  size or sample rate, still start the program again.
 - The Pitch pedal has the Pitch Shifter's new insides: chords, long notes and the level hold
   up through it. Tracking sets its delay the same way, 11 ms at the default whatever the note.
 - The standalone program no longer stops with a buffer-size error when it plays through WASAPI.

@@ -1,14 +1,17 @@
 //! The amp as a program of its own: what the player chose for the audio interface, kept
 //! between launches, and the hook the window uses to list the machine's devices.
 //!
-//! nih-plug's standalone host opens its audio streams once, from its command line. So the
-//! program (`main.rs`) turns the saved choices into that command line when it starts, and the
-//! window's Audio panel saves new choices and starts the program again to open them. In a
-//! DAW nothing here is used: no host is installed and the editor shows no Audio button.
+//! nih-plug's standalone host opens its audio streams from its command line. So the program
+//! (`main.rs`) turns the saved choices into that command line when it starts. The window's
+//! Audio panel then changes the devices and their channels while the program runs (the fork's
+//! host closes its streams and opens the new ones, the window stays); a new driver, buffer size
+//! or sample rate still saves the choices and starts the program again. In a DAW nothing here
+//! is used: no host is installed and the editor shows no Audio button.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::OnceLock;
+use std::sync::mpsc::{Receiver, TryRecvError};
+use std::sync::{Arc, Mutex, OnceLock};
 
 /// The buffer sizes the panel offers, in samples
 pub const PERIODS: [u32; 4] = [64, 128, 256, 512];
@@ -50,6 +53,22 @@ impl Default for Prefs {
 }
 
 impl Prefs {
+    /// Do the two open the same stream, so that only the devices and their channels differ?
+    /// Those can be changed while the program plays; a new driver, buffer size or sample rate
+    /// needs it to start again
+    pub fn same_stream(&self, other: &Prefs) -> bool {
+        self.backend == other.backend
+            && self.period_size == other.period_size
+            && self.sample_rate == other.sample_rate
+    }
+
+    /// Can the program that plays on `running` change to these devices while it plays? Only
+    /// with the same stream, and not with ASIO: its driver cannot be opened again in the same
+    /// process (the Focusrite's would not), so ASIO always starts the program again
+    pub fn changes_live(&self, running: &Prefs) -> bool {
+        self.same_stream(running) && self.backend != "asio" && running.backend != "asio"
+    }
+
     /// The saved choices, or the defaults for a missing or unreadable file. Values the
     /// panel does not offer are put back to the nearest it does
     pub fn load(path: &Path) -> Self {
@@ -257,17 +276,19 @@ fn nearest(list: &[u32], value: u32) -> u32 {
     list.iter().copied().min_by_key(|&entry| entry.abs_diff(value)).unwrap_or(value)
 }
 
-/// What the program was started with, which the Audio panel opens on
-static LAUNCH: OnceLock<Prefs> = OnceLock::new();
+/// What the program plays on now, which the Audio panel opens on: what it was started with,
+/// until the devices are changed while it runs
+static LAUNCH: Mutex<Option<Prefs>> = Mutex::new(None);
 
-/// Tells the panel what this run was started with
+/// Tells the panel what the program plays on: at the start, and after each change of devices
 pub fn set_launch(prefs: Prefs) {
-    let _ = LAUNCH.set(prefs);
+    *LAUNCH.lock().unwrap_or_else(|e| e.into_inner()) = Some(prefs);
 }
 
-/// What this run was started with: the settings saved, or the arguments given
+/// What the program plays on: the settings saved, or the arguments given, or the devices
+/// chosen since
 pub fn launch() -> Prefs {
-    LAUNCH.get().cloned().unwrap_or_default()
+    LAUNCH.lock().unwrap_or_else(|e| e.into_inner()).clone().unwrap_or_default()
 }
 
 /// The saved choices with the defaults of this machine put in: an input is only connected
@@ -344,6 +365,34 @@ pub struct DriverDevices {
     pub outputs: Vec<String>,
 }
 
+/// The answer of a change of devices: `Ok` once they play, `Err` with why they would not open
+pub type Answer = Receiver<Result<(), String>>;
+
+/// What the program says to a request to change the devices while it plays
+#[derive(Debug)]
+pub enum Reconfigure {
+    /// It cannot (another driver, buffer size or sample rate; or a driver that cannot): the
+    /// program has to start again
+    Unsupported,
+    /// It is opening them: the answer comes on the receiver, `Ok` when the new devices play
+    /// and `Err` with what went wrong when they would not open (the old ones then play again)
+    Opening(Answer),
+}
+
+/// Passes an answer on, running `on_ok` first when it is `Ok`: what was chosen is kept (saved,
+/// and noted as what plays) only once the new devices play, never when they would not open
+pub fn after_ok(answer: Answer, on_ok: impl FnOnce() + Send + 'static) -> Answer {
+    let (sender, passed) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let result = answer.recv().unwrap_or_else(|_| Err("the audio stopped".into()));
+        if result.is_ok() {
+            on_ok();
+        }
+        let _ = sender.send(result);
+    });
+    passed
+}
+
 /// The program's side of the Audio panel: it knows the machine's drivers and devices and
 /// how to start the program again with new choices
 pub trait Host: Send + Sync {
@@ -351,6 +400,12 @@ pub trait Host: Send + Sync {
     fn drivers(&self) -> Vec<String>;
     /// The devices of one driver
     fn devices(&self, driver: &str) -> DriverDevices;
+    /// Changes the devices and channels to `prefs` while the program plays, and saves `prefs`
+    /// for the next start once they open. `Unsupported` (the default) when that is not
+    /// possible, and the panel then uses `restart`
+    fn reconfigure(&self, _prefs: &Prefs) -> Reconfigure {
+        Reconfigure::Unsupported
+    }
     /// Saves `prefs` and asks for the program to start again with them once the window has
     /// closed and let go of the audio device. The settings file then wins over any
     /// arguments the program was started with
@@ -387,9 +442,31 @@ pub struct AudioChoice {
     output_channels: u32,
     /// Is the test tone sounding. Not kept between launches
     pub test_tone: bool,
-    /// What `restart` said when it failed
+    /// What `restart` or the new devices said when they failed
     pub error: Option<String>,
+    /// The answer of a change of devices that is being opened. Shared, so the choice stays
+    /// `Clone`
+    opening: Option<Arc<Mutex<Answer>>>,
+    /// The devices of the last Apply are open and playing
+    pub applied: bool,
+    /// When the change being opened was asked for, and how long it may take
+    opening_since: Option<std::time::Instant>,
+    answer_timeout: std::time::Duration,
 }
+
+/// What Apply came to
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Applied {
+    /// The program starts again: the window is done
+    Restarting,
+    /// The new devices are being opened: the window stays, and asks `poll` for the answer
+    Opening,
+    /// Nothing was done; `error` says why
+    Failed,
+}
+
+/// How long the audio may take to answer a change of devices before the panel gives up
+pub const ANSWER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// The amp's audio is a stereo pair, so the device's channels are offered two at a time
 const PAIR: u32 = 2;
@@ -420,6 +497,10 @@ impl AudioChoice {
             output_channels: PAIR,
             test_tone: false,
             error: None,
+            opening: None,
+            applied: false,
+            opening_since: None,
+            answer_timeout: ANSWER_TIMEOUT,
         };
         choice.count_channels(host);
         // A channel the device does not have (a file from another interface) is the first
@@ -495,6 +576,63 @@ impl AudioChoice {
         if row <= 4 {
             self.count_channels(host);
         }
+    }
+
+    /// Apply: changes the devices while the program plays if it can, else starts it again
+    pub fn apply(&mut self, host: &dyn Host) -> Applied {
+        self.error = None;
+        self.applied = false;
+        if self.opening.is_some() {
+            // The last one is still being opened
+            return Applied::Opening;
+        }
+        let reconfigure = host.reconfigure(&self.prefs);
+        match reconfigure {
+            Reconfigure::Opening(answer) => {
+                self.opening_since = Some(std::time::Instant::now());
+                self.opening = Some(Arc::new(Mutex::new(answer)));
+                Applied::Opening
+            }
+            Reconfigure::Unsupported => match host.restart(&self.prefs) {
+                Ok(()) => Applied::Restarting,
+                Err(error) => {
+                    self.error = Some(format!("Could not restart: {error}"));
+                    Applied::Failed
+                }
+            },
+        }
+    }
+
+    /// Is a change of devices being opened
+    pub fn is_opening(&self) -> bool {
+        self.opening.is_some()
+    }
+
+    /// Looks for the answer of the devices being opened. Returns whether they still are
+    pub fn poll(&mut self) -> bool {
+        let Some(answer) = self.opening.clone() else {
+            return false;
+        };
+        let received = answer.lock().unwrap_or_else(|e| e.into_inner()).try_recv();
+        match received {
+            Err(TryRecvError::Empty) => {
+                let waited = self.opening_since.map(|since| since.elapsed());
+                if !waited.is_some_and(|waited| waited >= self.answer_timeout) {
+                    return true;
+                }
+                self.error = Some("The audio did not answer; restart the amp".into())
+            }
+            Ok(Ok(())) => self.applied = true,
+            Ok(Err(error)) => {
+                self.error = Some(format!("Could not open them ({error}), the old ones play"))
+            }
+            Err(TryRecvError::Disconnected) => {
+                self.error = Some("The audio stopped while changing".into())
+            }
+        }
+        self.opening = None;
+        self.opening_since = None;
+        false
     }
 
     /// The panel is closing: the tone must not be left sounding
@@ -865,5 +1003,195 @@ mod tests {
         };
         let resolved = resolve(saved, &drivers, &list(&["Mic"]), &list(&["Scarlett"]), None);
         assert_eq!((resolved.input_channel, resolved.output_channel), (1, 5));
+    }
+
+    /// A host that answers a change of devices as it is told to, and counts the restarts
+    struct Live {
+        answer: Mutex<Option<Result<(), String>>>,
+        live: bool,
+        restarts: std::sync::atomic::AtomicU32,
+    }
+    impl Live {
+        fn new(live: bool, answer: Result<(), String>) -> Self {
+            Self { answer: Mutex::new(Some(answer)), live, restarts: Default::default() }
+        }
+    }
+    impl Host for Live {
+        fn drivers(&self) -> Vec<String> {
+            vec!["wasapi".into()]
+        }
+        fn devices(&self, _: &str) -> DriverDevices {
+            DriverDevices { inputs: vec!["Mic".into()], outputs: vec!["Speakers".into()] }
+        }
+        fn reconfigure(&self, _: &Prefs) -> Reconfigure {
+            if !self.live {
+                return Reconfigure::Unsupported;
+            }
+            let (sender, receiver) = std::sync::mpsc::channel();
+            if let Some(answer) = self.answer.lock().unwrap().take() {
+                sender.send(answer).unwrap();
+            }
+            // The sender goes when this returns: an answer already waits in the channel
+            Reconfigure::Opening(receiver)
+        }
+        fn restart(&self, _: &Prefs) -> std::io::Result<()> {
+            self.restarts.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    fn wasapi() -> Prefs {
+        Prefs { backend: "wasapi".into(), ..Prefs::default() }
+    }
+
+    #[test]
+    fn test_only_the_devices_and_channels_can_change_while_playing() {
+        let base = wasapi();
+        let other_device =
+            Prefs { output_device: Some("Speakers".into()), output_channel: 3, ..base.clone() };
+        assert!(base.same_stream(&other_device));
+        for different in [
+            Prefs { backend: "asio".into(), ..base.clone() },
+            Prefs { period_size: Some(64), ..base.clone() },
+            Prefs { sample_rate: Some(96_000), ..base.clone() },
+        ] {
+            assert!(!base.same_stream(&different));
+        }
+    }
+
+    #[test]
+    fn test_an_asio_choice_always_starts_the_amp_again() {
+        let asio = Prefs { backend: "asio".into(), ..Prefs::default() };
+        let other = Prefs { output_device: Some("Speakers".into()), ..asio.clone() };
+        // Same stream, but ASIO cannot be opened again while it plays
+        assert!(asio.same_stream(&other) && !other.changes_live(&asio));
+        // Machine::reconfigure says Unsupported for it, and `apply` then restarts the amp
+        assert!(wasapi().changes_live(&wasapi()));
+    }
+
+    #[test]
+    fn test_apply_opens_the_new_devices_without_a_restart() {
+        let host = Live::new(true, Ok(()));
+        let mut choice = AudioChoice::open(&host, wasapi());
+        assert_eq!(choice.apply(&host), Applied::Opening);
+        assert!(choice.is_opening(), "the panel shows Opening ... until the answer");
+        assert!(!choice.poll(), "the answer has come");
+        assert!(choice.applied && choice.error.is_none() && !choice.is_opening());
+        assert_eq!(host.restarts.load(std::sync::atomic::Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn test_an_audio_that_never_answers_ends_in_an_error_not_in_opening_for_ever() {
+        struct Silent(std::sync::Mutex<Option<std::sync::mpsc::Sender<Result<(), String>>>>);
+        impl Host for Silent {
+            fn drivers(&self) -> Vec<String> {
+                vec!["wasapi".into()]
+            }
+            fn devices(&self, _: &str) -> DriverDevices {
+                DriverDevices { inputs: vec![], outputs: vec![] }
+            }
+            fn reconfigure(&self, _: &Prefs) -> Reconfigure {
+                let (sender, receiver) = std::sync::mpsc::channel();
+                // Kept, so the channel stays open and silent
+                *self.0.lock().unwrap() = Some(sender);
+                Reconfigure::Opening(receiver)
+            }
+            fn restart(&self, _: &Prefs) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        let host = Silent(Default::default());
+        let mut choice = AudioChoice::open(&host, wasapi());
+        choice.answer_timeout = std::time::Duration::from_millis(50);
+        assert_eq!(choice.apply(&host), Applied::Opening);
+        assert!(choice.poll(), "still waiting at first");
+        std::thread::sleep(std::time::Duration::from_millis(80));
+        assert!(!choice.poll());
+        assert!(!choice.is_opening() && !choice.applied);
+        assert_eq!(choice.error.as_deref(), Some("The audio did not answer; restart the amp"));
+    }
+
+    #[test]
+    fn test_a_failing_reconfigure_keeps_the_old_settings_and_shows_the_error() {
+        let host = Live::new(true, Err("no such device".into()));
+        let before = wasapi();
+        let mut choice = AudioChoice::open(&host, before.clone());
+        assert_eq!(choice.apply(&host), Applied::Opening);
+        assert!(!choice.poll());
+        assert!(!choice.applied);
+        let error = choice.error.clone().expect("the error is shown");
+        assert!(error.contains("no such device") && error.contains("old ones play"), "{error}");
+        // Nothing was restarted
+        assert_eq!(host.restarts.load(std::sync::atomic::Ordering::SeqCst), 0);
+        // The panel is not stuck: Apply can be tried again
+        assert!(!choice.is_opening());
+    }
+
+    #[test]
+    fn test_what_cannot_change_while_playing_starts_the_amp_again() {
+        let host = Live::new(false, Ok(()));
+        let mut choice = AudioChoice::open(&host, wasapi());
+        assert_eq!(choice.apply(&host), Applied::Restarting);
+        assert_eq!(host.restarts.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn test_the_choice_is_kept_only_after_the_devices_open() {
+        let kept = Arc::new(std::sync::atomic::AtomicU32::new(0));
+        let keep = |kept: &Arc<std::sync::atomic::AtomicU32>| {
+            let kept = kept.clone();
+            move || {
+                kept.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            }
+        };
+        let (sender, answer) = std::sync::mpsc::channel();
+        sender.send(Err("no such device".to_string())).unwrap();
+        let passed = after_ok(answer, keep(&kept));
+        assert_eq!(passed.recv().unwrap(), Err("no such device".to_string()));
+        assert_eq!(kept.load(std::sync::atomic::Ordering::SeqCst), 0, "nothing kept on an error");
+        // The program ending without an answer is an error too
+        let (sender, answer) = std::sync::mpsc::channel::<Result<(), String>>();
+        drop(sender);
+        assert!(after_ok(answer, keep(&kept)).recv().unwrap().is_err());
+        assert_eq!(kept.load(std::sync::atomic::Ordering::SeqCst), 0);
+        let (sender, answer) = std::sync::mpsc::channel();
+        sender.send(Ok(())).unwrap();
+        // `on_ok` has run by the time the panel hears Ok
+        assert_eq!(after_ok(answer, keep(&kept)).recv().unwrap(), Ok(()));
+        assert_eq!(kept.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn test_the_resolved_launch_is_the_same_stream_as_the_choice_opened_on_it() {
+        // `main` puts the resolved settings in `set_launch`, the panel opens on them and Apply
+        // compares what it chose with them: resolving changes devices, never the stream
+        let drivers = ["auto".to_string(), "wasapi".to_string()];
+        let saved = Prefs {
+            backend: "wasapi".into(),
+            period_size: Some(128),
+            sample_rate: Some(96_000),
+            input_device: Some("Gone".into()),
+            ..Prefs::default()
+        };
+        let launch = resolve(
+            saved.clone(),
+            &drivers,
+            &["Mic".into()],
+            &["Speakers".into()],
+            Some("Mic".into()),
+        );
+        assert!(launch.same_stream(&saved));
+        let host = Live::new(true, Ok(()));
+        let choice = AudioChoice::open(&host, launch.clone());
+        assert!(
+            choice.prefs.same_stream(&launch),
+            "the panel changes no stream setting on opening"
+        );
+        // Only another driver on this machine is changed by resolving, and then it is the
+        // resolved one that plays and that the panel starts from
+        let other = Prefs { backend: "alsa".into(), ..saved };
+        let launch = resolve(other, &drivers, &[], &[], None);
+        assert_eq!(launch.backend, "auto");
+        assert!(AudioChoice::open(&host, launch.clone()).prefs.same_stream(&launch));
     }
 }

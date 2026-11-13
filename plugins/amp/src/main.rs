@@ -4,7 +4,7 @@
 //! Audio panel last time (`amp::standalone`), with the machine's default devices before
 //! that. Started with arguments they go to nih-plug's host as they are (`--help` lists them).
 
-use amp::standalone::{self, DriverDevices, Prefs};
+use amp::standalone::{self, DriverDevices, Prefs, Reconfigure};
 use cpal::traits::{DeviceTrait, HostTrait};
 use nih_plug::prelude::*;
 #[cfg(all(target_os = "windows", feature = "asio"))]
@@ -65,6 +65,35 @@ impl standalone::Host for Machine {
 
     fn set_test_tone(&self, on: bool) {
         nih_standalone_set_test_tone(on);
+    }
+
+    fn reconfigure(&self, prefs: &Prefs) -> Reconfigure {
+        let launch = standalone::launch();
+        // Only the devices and their channels can change while the amp plays, and not with ASIO
+        if !prefs.changes_live(&launch) {
+            return Reconfigure::Unsupported;
+        }
+        let Some(path) = standalone::prefs_path() else {
+            return Reconfigure::Unsupported;
+        };
+        let devices = resolved(prefs.clone());
+        let Ok(answer) = nih_standalone_reconfigure(StandaloneDevices {
+            input_device: devices.input_device.clone(),
+            output_device: devices.output_device.clone(),
+            input_channel: devices.input_channel,
+            output_channel: devices.output_channel,
+        }) else {
+            return Reconfigure::Unsupported;
+        };
+        // What was chosen is kept for the next start, and noted as what plays, only once it
+        // plays: a device that would not open must not be the one the amp starts on. What is
+        // noted is the resolved choice, like the one the program started with
+        let chosen = prefs.clone();
+        let opening = standalone::after_ok(answer, move || {
+            let _ = chosen.save(&path);
+            standalone::set_launch(devices);
+        });
+        Reconfigure::Opening(opening)
     }
 
     fn restart(&self, prefs: &Prefs) -> std::io::Result<()> {
