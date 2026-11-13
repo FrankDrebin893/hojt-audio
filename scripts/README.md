@@ -11,6 +11,9 @@ What each script in this folder does, and the detail behind the rules in `CLAUDE
 - `site-shots.sh` - Screenshots of the site's own pages at 1440 and 390 wide into `target/shots/`, for
   `/design` and `/page` to look at (not published; needs Node with Playwright)
 - `package.sh` - Packs the bundles into the zips of a release
+- `test-linux-install.sh` - Packs stand-in bundles with `package.sh linux`, unpacks `HojtDSP-linux.zip` (the suite zip
+  with `installer/linux/install.sh`), installs it into a temporary `HOME`, checks `--only`, `--ask` and `--uninstall`,
+  and runs `shellcheck` when it is installed; CI runs it on Linux (`ci.yml`, `release.yml`) and `check.sh` too
 - `build-installer.sh` - Builds `dist/HojtDSP-Setup.exe` from the bundles with Inno Setup (Installer below)
 - `build-standalones.sh` - Builds the six standalone programs to `target/standalone/<BundleName>.exe`; `smoke-standalones.ps1` starts each with the dummy backend and checks its icon (Windows job of `release.yml`)
 - `checksums.sh` - Writes `SHA256SUMS.txt` for the files of a folder, as `release.yml` does for a release

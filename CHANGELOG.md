@@ -24,6 +24,11 @@ GitHub release.
   needed), with a Start menu entry and the HØJT badge as its icon. They play through WASAPI; ASIO
   stays a build by hand for now.
 
+- Linux: `HojtDSP-linux.zip` holds all six plugins, VST3 and CLAP, with an `install.sh` that copies
+  them to `~/.vst3` and `~/.clap` (`--only <plugin>` for one, `--ask` to be asked before a file is
+  replaced, `--uninstall` to remove them). The zips of single plugins stay. The Linux build is still
+  untried in a DAW.
+
 ### Pitch Shifter
 
 - The Pitch Shifter is new inside: chords come out as chords now, a long note rings on without
