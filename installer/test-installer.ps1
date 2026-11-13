@@ -105,7 +105,10 @@ function Assert-Standalones([string]$app, [string[]]$only, [string]$tag) {
         $installed = Join-Path $app "$name.exe"
         if (-not (Test-Path -LiteralPath $installed)) { Fail "${tag}: $name.exe was not installed"; continue }
         if ((Hash (Join-Path $StandaloneDir "$name.exe")) -ne (Hash $installed)) { Fail "${tag}: $name.exe differs from the build" }
-        if ((Start-MenuShortcuts $name).Count -eq 0) { Fail "${tag}: $name has no Start menu entry" }
+        $shortcuts = Start-MenuShortcuts $name
+        if ($shortcuts.Count -eq 0) { Fail "${tag}: $name has no Start menu entry" }
+        # In the suite's own folder (HØJT DSP), not one Inno names "(Default)" when the script names none
+        elseif (-not ($shortcuts | Where-Object { $_.Directory.Name -like 'H?JT DSP' })) { Fail "${tag}: $name's Start menu entry is in $($shortcuts[0].Directory.Name), not the suite's own folder" }
     }
 }
 function Assert-No-Standalones([string]$app, [string[]]$only, [string]$tag) {
