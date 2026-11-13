@@ -2616,6 +2616,7 @@ mod tests {
         let cab_loader = CabLoader::new(Arc::new(crate::cab_stage::CabStage::new()), 48_000.0);
         let view = Rc::new(RefCell::new(fresh_view(&params, &lamp_reading)));
         let state = EguiState::from_size(WINDOW_WIDTH, WINDOW_HEIGHT);
+        let update = UpdateCheck::resting(params.update.clone());
         let mut harness = pedal_harness(WINDOW_WIDTH, WINDOW_HEIGHT, {
             let view = view.clone();
             let state = state.clone();
@@ -2627,6 +2628,7 @@ mod tests {
                     cab_loader: &cab_loader,
                     load_cabinet: &|| {},
                     audio_host: None,
+                    update: &update,
                 };
                 window(ctx, &state, &setter, &params, &mut view.borrow_mut(), &shared);
             }
