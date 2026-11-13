@@ -7576,6 +7576,55 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
         }
     }
 
+    /// Writes what the pitch pedal sounds like through a driven rig, for measuring and
+    /// listening: AMP_INPUT_WAV through the compressor, the drive and two amps as a player
+    /// had them (Hvas beside Torden), with the pedal at PITCH_SEMITONES (-4 when not set; 0
+    /// leaves it off) and PITCH_LATENCY_MS (50 when not set, as that player had it; the
+    /// pedal's own default is 15), to AMP_OUTPUT_WAV, 16 bits and held to full scale:
+    ///   cargo test -p amp --release render_pitch_rig -- --ignored
+    #[test]
+    #[ignore]
+    fn render_pitch_rig() {
+        let (input, sample_rate) =
+            read_wav_mono(&std::env::var("AMP_INPUT_WAV").expect("AMP_INPUT_WAV"));
+        let semitones: i32 =
+            std::env::var("PITCH_SEMITONES").map_or(-4, |value| value.parse().unwrap());
+        let latency_ms: f32 =
+            std::env::var("PITCH_LATENCY_MS").map_or(50.0, |value| value.parse().unwrap());
+        let plain = AmpSettings::default();
+        let settings = AmpSettings {
+            pitch: PitchSettings { on: semitones != 0, semitones, blend: 1.0, latency_ms },
+            comp: CompSettings { on: true, sustain: 0.5, level: 0.5 },
+            drive_on: true,
+            drive_gain: 0.637,
+            drive_tone: 0.784,
+            drive_level: 0.5,
+            amp: Amp::Hvas,
+            gain: 0.647,
+            bass: 0.345,
+            mid: 0.57,
+            treble: 0.681,
+            presence: 0.665,
+            master: 0.5,
+            second: SecondSettings {
+                on: true,
+                amp: Amp::Torden,
+                gain: 0.589,
+                bass: 0.341,
+                mid: 0.69,
+                treble: 0.5,
+                presence: 0.735,
+                master: 0.5,
+                ..plain.second
+            },
+            blend: 0.634,
+            ..plain
+        };
+        let output = run(&settings, &input, sample_rate as f32);
+        let path = std::env::var("AMP_OUTPUT_WAV").expect("AMP_OUTPUT_WAV");
+        write_wav(std::path::Path::new(&path), &[&output], sample_rate);
+    }
+
     /// Writes WAV files to target/renders for listening: a direct guitar signal, dry and
     /// through every amp at a few settings, palm mutes through every amp, the drive pedal in
     /// front of Torden and of Klar, the cabinet's dials and the cabinet switched off, the gate
