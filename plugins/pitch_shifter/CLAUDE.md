@@ -80,3 +80,25 @@ cargo test -p suite_common --release quality_report -- --ignored --nocapture
 # Optional env vars: PITCH_SHIFTER_INPUT_WAV=<recording>, PITCH_SHIFTER_LATENCY_MS=<ms>
 cargo test -p suite_common --release render_wavs -- --ignored
 ```
+
+Three more tools score the shifter on recorded playing, which the made-up strings above cannot
+stand in for (`scripts/pitch-bench/`):
+
+```bash
+# A WAV through the shifter: in, out, semitones, max latency in ms, rate factor (4 = in the amp)
+cargo run -p suite_common --release --example pitch_render -- in.wav out.wav -4 15 4
+
+# The pedal in front of a driven rig (compressor, drive, two amps): AMP_INPUT_WAV, AMP_OUTPUT_WAV,
+# PITCH_SEMITONES (0 = off), PITCH_LATENCY_MS
+cargo test -p amp --release render_pitch_rig -- --ignored
+
+# Every take of a folder, alone and through the rig, scored against the true shifted signal
+# (the take played slower): tone, junk, shape, attack, level, lag. Run it on two checkouts with
+# the same output folder and two names to compare engines
+scripts/pitch-bench/run.sh <takes> <out> -4 15 <name>
+```
+
+`shape` is what decides how the pedal sounds in front of a drive or an amp: a clipper answers to
+the waveform, not to the spectrum, so a shifter that keeps every partial but lets their phases
+drift apart sounds unlike a detuned guitar once it is distorted. Judge a change by the rig's
+table as well as by the pedal's own.
