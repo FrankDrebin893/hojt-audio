@@ -14,6 +14,16 @@ GitHub release.
   yet, so Windows may ask you to confirm. Every release now has a `SHA256SUMS.txt` to check a download
   against. The zips of single plugins stay.
 
+### Piano viz
+
+- The piano viz tells you when a newer version is out: once a day, when it starts, it asks GitHub for the
+  newest piano release, and if there is one it shows a small line in the title bar ("Version 1.2.0 is
+  out") with a Download link. Nothing but that one request is sent, and a failure is silent. "Turn off"
+  on the line, or View, Check for Updates, stops the check for good; the cross hides the line until the
+  next launch.
+- The page's download buttons for the piano viz now open this repository's piano releases, where they
+  opened the old repository's version 1.0.0 zip until the page had read the newest release.
+
 ### Guitar Amp
 
 - The standalone program no longer stops with a buffer-size error when it plays through WASAPI.

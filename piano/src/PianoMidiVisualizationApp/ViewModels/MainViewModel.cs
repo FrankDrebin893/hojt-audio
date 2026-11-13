@@ -75,6 +75,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public SongPracticeViewModel SongPractice { get; }
     public ChordStripViewModel ChordStrip { get; }
     public PianoControlsViewModel PianoControls { get; }
+    public UpdateNoticeViewModel UpdateNotice { get; } = new();
 
     [ObservableProperty]
     private string _statusText = "Ready";
@@ -699,6 +700,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             SongPractice.LoadSong(saved.SongPath, showTrackList: false);
         IsSongPracticeVisible = saved.ShowSongPractice;
         PianoControls.ApplyFrom(saved);
+        UpdateNotice.ApplyFrom(saved);
         PianoKeyboard.SetKey(Settings.CurrentKey);
         UpdateAudiblePitchClasses();
         ApplyMetronomeSettings();
@@ -722,6 +724,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         saved.SongSpeed = SongPractice.Speed;
         saved.SongMode = SongPractice.Mode.ToString();
         PianoControls.CaptureInto(saved);
+        UpdateNotice.CaptureInto(saved);
         return saved;
     }
 

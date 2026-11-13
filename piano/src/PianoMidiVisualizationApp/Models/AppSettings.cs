@@ -75,6 +75,13 @@ public class AppSettings
     // shows what isn't ready, so this only hides the checklist.
     public bool HideSetupChecklist { get; set; }
 
+    // The daily update check (Services/UpdateCheck.cs): on by default; the off switch is the
+    // View menu's "Check for Updates" or the notice's "Turn off". The last request's time and
+    // the newer version it found are kept so a day passes between requests.
+    public bool CheckForUpdates { get; set; } = true;
+    public DateTime? LastUpdateCheckUtc { get; set; }
+    public string? LatestKnownVersion { get; set; }
+
     // Song practice: the song reopens on launch while practice is on. Speed is clamped on load.
     public string? SongPath { get; set; }
     public double SongSpeed { get; set; } = 1.0;
