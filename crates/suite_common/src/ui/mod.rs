@@ -16,6 +16,8 @@
 //!   a lamp and a switch that opens one
 //! - `sheet`: the sheet that rises from below, with the plus, the cross and the dashed place of a
 //!   rig's chain
+//! - `update_line`: the line of label tape that says a newer version is out, with its download
+//!   link, its off switch and its cross
 //! - `snapshot` (feature `snapshot`, tests only): draws an editor off screen into a picture
 
 pub mod amp;
@@ -32,6 +34,7 @@ pub mod sheet;
 #[cfg(feature = "snapshot")]
 pub mod snapshot;
 pub mod theme;
+pub mod update_line;
 pub mod widgets;
 
 pub use amp::{
@@ -54,6 +57,7 @@ pub use sheet::{
     plus_button, pointer_over, sheet, BRASS, PLUS_RADIUS,
 };
 pub use theme::install;
+pub use update_line::{update_line, UPDATE_LINE_HEIGHT};
 pub use widgets::{
     bare_param_knob, beat_lamp, beat_lamp_sized, cents_meter, chrome_button, crossfader,
     drop_panel, drop_panel_with, footswitch, led, led_stepper, level_meter, level_meter_wide,

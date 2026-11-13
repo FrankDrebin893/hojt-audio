@@ -5,6 +5,13 @@ GitHub release.
 
 ## Unreleased
 
+### Update notice
+
+- A quiet line of label tape in every plugin's window and standalone program says when a newer
+  version is out: "0.4.0 IS OUT", a DOWNLOAD that opens the download page in your browser, an OFF
+  that turns the check off for good, and a cross that closes the line until the next version.
+  Nothing downloads by itself, nothing pops up, and the line is not there when you are up to date.
+
 ### Installer
 
 - Windows: one installer, `HojtDSP-Setup.exe`, puts every plugin in place for the whole machine: VST3
@@ -16,6 +23,11 @@ GitHub release.
 - Windows: the installer also offers each plugin's standalone program (a window of its own, no DAW
   needed), with a Start menu entry and the HØJT badge as its icon. They play through WASAPI; ASIO
   stays a build by hand for now.
+
+- Linux: `HojtDSP-linux.zip` holds all six plugins, VST3 and CLAP, with an `install.sh` that copies
+  them to `~/.vst3` and `~/.clap` (`--only <plugin>` for one, `--ask` to be asked before a file is
+  replaced, `--uninstall` to remove them). The zips of single plugins stay. The Linux build is still
+  untried in a DAW.
 
 ### Pitch Shifter
 

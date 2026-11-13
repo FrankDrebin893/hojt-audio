@@ -37,6 +37,14 @@ impl GuiContext for NoHost {
     fn set_state(&self, _: PluginState) {}
 }
 
+/// A check that knows a newer version is out (99.0.0), without asking anyone, for the editors'
+/// tests of the update line. Its settings are its own, so a test may close or turn it off
+pub fn newer_version() -> crate::update::UpdateCheck {
+    crate::update::UpdateCheck::resting(std::sync::Arc::new(std::sync::Mutex::new(
+        crate::update::UpdateSettings { latest: "99.0.0".into(), ..Default::default() },
+    )))
+}
+
 #[cfg(target_os = "linux")]
 mod harness {
     use nih_plug_egui::egui::Context;
