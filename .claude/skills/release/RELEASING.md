@@ -19,6 +19,7 @@ out; the HØJT name and logo are kept out of it (`NOTICE.md`).
 
 - The zips are named `<BundleName>-<windows|macos|linux>.zip`, without a version: the page
   links to `releases/latest/download/<name>`, so these names never change
+- The Linux job also makes `HojtDSP-linux.zip` (all six, with `install.sh`; `scripts/package.sh`), versionless like the rest
 - A release also carries `HojtDSP-Setup.exe` (the Windows installer, built by `release.yml`, tested on
   the runner by `installer/test-installer.ps1`) and `SHA256SUMS.txt` of every asset. Both names are versionless,
   and the page's download section links both through `releases/latest/download/` (`scripts/page-check.sh links`

@@ -81,6 +81,11 @@ jobs:
         if: needs.changes.outputs.code == 'true'
         run: cargo test -p amp -p bass --release --locked
 
+      # The Linux zip's install.sh into a temporary HOME, and out again (shellcheck on it too)
+      - name: Test the Linux install script
+        if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
+        run: bash scripts/test-linux-install.sh
+
   lint:
     name: Format and clippy
     needs: changes

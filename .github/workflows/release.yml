@@ -69,6 +69,13 @@ jobs:
         shell: bash
         run: bash scripts/package.sh ${{ matrix.name }}
 
+      # HojtDSP-linux.zip, with install.sh, is made by the Package step. This packs stand-in bundles
+      # the same way, installs them into a temporary HOME and uninstalls them again
+      # (shellcheck on install.sh as well) before anything is published
+      - name: Test the Linux install script
+        if: runner.os == 'Linux'
+        run: bash scripts/test-linux-install.sh
+
       # The six standalone programs (WASAPI and the dummy backend; ASIO stays a build by hand),
       # each started for a few seconds with the dummy backend to see that its window opens
       - name: Build the standalone programs
