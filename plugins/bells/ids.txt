@@ -17,3 +17,4 @@ param reverb_mix
 param reverb_on
 param volume
 persist editor-state
+persist update

@@ -15,3 +15,4 @@ param snare
 param toms
 param tune
 persist editor-state-pedal
+persist update

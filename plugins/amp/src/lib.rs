@@ -109,6 +109,11 @@ pub struct GuitarAmpParams {
     #[persist = "editor-state-rig12"]
     pub editor_state: Arc<EguiState>,
 
+    /// The update check's settings (its off switch, when it last asked, the newest version it
+    /// found, the version whose line was closed): saved with the project, never a parameter
+    #[persist = "update"]
+    pub update: Arc<std::sync::Mutex<suite_common::update::UpdateSettings>>,
+
     /// Index into `presets::PRESETS` of the preset loaded last. Not a parameter: the editor
     /// sets the parameters themselves when a preset is loaded
     #[persist = "preset"]
@@ -497,6 +502,7 @@ impl Default for GuitarAmpParams {
         let legacy_order = chain.legacy();
         Self {
             editor_state: editor::default_state(),
+            update: Arc::default(),
             preset: std::sync::atomic::AtomicU32::new(0),
             user_preset: std::sync::Mutex::new(String::new()),
             preset_bank: std::sync::Mutex::new(String::new()),

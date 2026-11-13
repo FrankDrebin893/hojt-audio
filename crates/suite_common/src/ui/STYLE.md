@@ -38,6 +38,12 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
   mini pedal described by a `MiniStyle`; `coupler` and `patch_cable` carry the signal between them
 - `sheet.rs` - the sheet that rises from below and the plus, the cross and the dashed place of a rig's chain
 - `plate.rs`, `icons.rs` - `plate` (a hardware plate in a layer above the window, closing on a click outside it or escape; the caller owns which is open) and `icon_switch` (a drawing that opens a plate, with a lamp and a chrome switch where the thing can be on or off)
+- `update_line.rs` - `update_line`: the one line of label tape that says a newer version is out ("0.4.0 IS OUT",
+  an underlined DOWNLOAD that opens the page, OFF, and a cross), drawn from an `update::UpdateCheck`; nothing when there is
+  nothing to say. It is mono 10 on the tape at `TAPE_TEXT`, dimmed until hovered: no new surface, never a pop-up. Each
+  editor gives it a place of its own where no control, caption or art detail is under it: on a pedal between the jack
+  captions (`UPDATE_LINE_AT`, 33 px down), on the amp's strip in the room between the settings icon and the output knob
+  (`update_line_at`). Each editor has a test that it is drawn when a newer version is known and not when off or closed
 - `raster.rs` - Per-pixel lit surfaces (signed distance field + one fixed light; `paint_box_wide` for a long strip, one picture whose middle is stretched, never over 8192 px): `box_image`, `knob_image`
   (a `KnobCap`: `Fluted`, the pedals' knob, `ChickenHead`, `CreamChickenHead`, `GoldTop`, `ChromeSkirt`), `screw_image`, and for the
   half stack `tolex_image` (`Tolex`), `grille_image` (`Grille`, cloth or mesh with the speakers behind it) and

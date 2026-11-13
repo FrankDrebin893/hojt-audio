@@ -18,3 +18,4 @@ param shimmer
 param shimmer_on
 param volume
 persist editor-state
+persist update

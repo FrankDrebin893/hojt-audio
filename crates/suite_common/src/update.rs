@@ -80,11 +80,19 @@ pub struct UpdateSettings {
     pub last_check: u64,
     /// The newest version the last working check found, `X.Y.Z`; empty when none has
     pub latest: String,
+    /// The version whose line the player closed: it is not shown again for that version, only for
+    /// a newer one. Empty when none was closed
+    pub dismissed: String,
 }
 
 impl Default for UpdateSettings {
     fn default() -> Self {
-        UpdateSettings { enabled: true, last_check: 0, latest: String::new() }
+        UpdateSettings {
+            enabled: true,
+            last_check: 0,
+            latest: String::new(),
+            dismissed: String::new(),
+        }
     }
 }
 
@@ -243,8 +251,48 @@ impl UpdateCheck {
         if !s.enabled {
             return None;
         }
+        if s.dismissed == s.latest {
+            return None;
+        }
         notice_for(&s.latest, CURRENT)
     }
+
+    /// A handle on `settings` that never checks: it shows what the settings already hold. For
+    /// tests, and for a window that is drawn where no check may run
+    pub fn resting(settings: Arc<Mutex<UpdateSettings>>) -> UpdateCheck {
+        UpdateCheck {
+            shared: Arc::new(Shared {
+                settings,
+                fresh: AtomicBool::new(false),
+                repaint: Mutex::new(None),
+            }),
+        }
+    }
+
+    /// The player closed the line: it stays away until a newer version is out
+    pub fn dismiss(&self) {
+        let mut s = lock(&self.shared.settings);
+        s.dismissed = s.latest.clone();
+    }
+
+    /// The player turned the check off: no request is made and no line is shown
+    pub fn turn_off(&self) {
+        lock(&self.shared.settings).enabled = false;
+    }
+}
+
+/// Opens `url` in the system's browser. Nothing happens if there is none
+pub fn open_url(url: &str) {
+    let mut command = if cfg!(target_os = "windows") {
+        let mut c = std::process::Command::new("rundll32");
+        c.arg("url.dll,FileProtocolHandler");
+        c
+    } else if cfg!(target_os = "macos") {
+        std::process::Command::new("open")
+    } else {
+        std::process::Command::new("xdg-open")
+    };
+    let _ = command.arg(url).spawn();
 }
 
 /// The notice for a stored latest version against the running one
@@ -355,7 +403,12 @@ mod tests {
 
     #[test]
     fn settings_persist_with_defaults_for_missing_fields() {
-        let s = UpdateSettings { enabled: false, last_check: 5, latest: "0.4.0".into() };
+        let s = UpdateSettings {
+            enabled: false,
+            last_check: 5,
+            latest: "0.4.0".into(),
+            dismissed: "0.3.9".into(),
+        };
         let back: UpdateSettings =
             serde_json::from_str(&serde_json::to_string(&s).unwrap()).unwrap();
         assert_eq!(back, s);
@@ -448,7 +501,7 @@ mod tests {
     }
 
     fn settings(enabled: bool, last_check: u64) -> Arc<Mutex<UpdateSettings>> {
-        Arc::new(Mutex::new(UpdateSettings { enabled, last_check, latest: String::new() }))
+        Arc::new(Mutex::new(UpdateSettings { enabled, last_check, ..Default::default() }))
     }
 
     fn wait_for(h: &UpdateCheck) {
@@ -535,10 +588,33 @@ mod tests {
             enabled: false,
             last_check: 0,
             latest: "99.0.0".into(),
+            ..Default::default()
         }));
         let h = UpdateCheck::start_with(st.clone(), "http://127.0.0.1:1/", TIMEOUT, 5);
         assert!(h.notice().is_none());
         lock(&st).enabled = true;
         assert!(h.notice().is_some());
+    }
+
+    #[test]
+    fn a_closed_line_stays_closed_for_that_version_only() {
+        let st =
+            Arc::new(Mutex::new(UpdateSettings { latest: "99.0.0".into(), ..Default::default() }));
+        let h = UpdateCheck::resting(st.clone());
+        assert!(h.notice().is_some());
+        h.dismiss();
+        assert!(h.notice().is_none());
+        lock(&st).latest = "99.0.1".into();
+        assert!(h.notice().is_some());
+    }
+
+    #[test]
+    fn turning_off_hides_the_line_and_stops_the_check() {
+        let st =
+            Arc::new(Mutex::new(UpdateSettings { latest: "99.0.0".into(), ..Default::default() }));
+        let h = UpdateCheck::resting(st.clone());
+        h.turn_off();
+        assert!(h.notice().is_none());
+        assert!(!lock(&st).due(u64::MAX / 2));
     }
 }

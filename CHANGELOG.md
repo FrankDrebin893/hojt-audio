@@ -5,6 +5,13 @@ GitHub release.
 
 ## Unreleased
 
+### Update notice
+
+- A quiet line of label tape in every plugin's window and standalone program says when a newer
+  version is out: "0.4.0 IS OUT", a DOWNLOAD that opens the download page in your browser, an OFF
+  that turns the check off for good, and a cross that closes the line until the next version.
+  Nothing downloads by itself, nothing pops up, and the line is not there when you are up to date.
+
 ### Installer
 
 - Windows: one installer, `HojtDSP-Setup.exe`, puts every plugin in place for the whole machine: VST3
