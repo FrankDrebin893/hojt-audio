@@ -94,6 +94,11 @@ Each editor's snapshot test draws it into `plugins/<name>/tests/snapshots/` on L
 `mesa-vulkan-drivers`): a change of look fails it and leaves `.new.png` and `.diff.png` to open; accept
 one with `UPDATE_SNAPSHOTS=1` only after looking at it (`crates/suite_common/src/ui/STYLE.md`).
 
+The pitch shifter is scored on recorded playing with `scripts/pitch-bench/run.sh` (and its
+`bench.py`): every take of a folder, alone and through a driven rig, against the true shifted
+signal. Not part of CI; it needs python with numpy, scipy and soundfile. How to read its table:
+`plugins/pitch_shifter/CLAUDE.md`.
+
 ## Health
 
 `health.yml` runs `health.sh --sound` every Monday (and by hand with "Run workflow"), adds the line

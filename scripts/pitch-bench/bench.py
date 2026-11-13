@@ -8,15 +8,18 @@ The truth is the dry take played slower or faster (every pitch exactly right, on
 scaled), read at the matching moments. Through a rig the truth is the rig's output for that
 slowed take, made by run.sh. Needs numpy, scipy and soundfile.
 
-  tone   dB  how right the partials are: magnitude SNR, 186 ms frames, 60 Hz to 6 kHz
-  fine   dB  the same in 12 ms frames: envelopes and attacks
-  junk   dB  energy where the truth has none between its partials (0 = as clean as the truth)
+  tone   dB  how right the partials are: magnitude SNR, 8192-sample frames (186 ms at
+             44.1 kHz), 60 Hz to 6 kHz
+  fine   dB  the same in 12 ms frames: envelopes only (such a frame cannot tell a pitch, so
+             it does not say whether the shift is right)
+  junk   dB  energy where the truth has none between its partials (0 = as clean as the truth),
+             at the level that fits the truth best
   shape  0-1 how much of the truth's waveform is left in each 30 ms piece, whatever its slip.
              What a drive or an amp after the pedal makes of the signal follows this
   attack %   height of the note attacks against the truth's
   level  dB  loudness against the truth
   lag    ms  delay of the render
-Higher is better for tone, fine and shape; nearer 0 for junk and level; 100 for attack.
+Higher is better for tone and shape; nearer 0 for junk and level; 100 for attack.
 """
 import sys
 import numpy as np
@@ -60,19 +63,21 @@ def score(slow, out, rate, ratio):
     band = (freqs > 60) & (freqs < 6000)
     times = np.arange(0.5, seconds - 0.5, 0.02)
     truth = frames(slow, rate, size, times / ratio)[band]
-    best = (-99.0, 0.0, None)
+    best = (-99.0, 0.0, None, 1.0)
     for lag in np.arange(0.0, 70.0, 2.0):
         got = frames(out, rate, size, times + lag / 1000)[band]
         gain = np.sum(truth * got) / (np.sum(got * got) + 1e-20)
         value = snr_db(truth, gain * got)
         if value > best[0]:
-            best = (value, lag, got)
-    tone, lag, got = best
+            best = (value, lag, got, gain)
+    tone, lag, got, gain = best
     level = 10 * np.log10(np.sum(got**2) / np.sum(truth**2))
+    got = gain * got
 
     # junk: bins 30 dB under the truth's partials nearby, in frames that sound
     near = signal.convolve2d(truth**2, np.ones((9, 1)), mode="same")
-    around = np.maximum.reduce([np.roll(near, k, 0) for k in range(-12, 13)])
+    wide = np.pad(near, ((12, 12), (0, 0)))
+    around = np.maximum.reduce([wide[k : k + near.shape[0]] for k in range(25)])
     quiet = (truth**2 < 1e-3 * around) & (truth.sum(0) > 0.1 * np.median(truth.sum(0)))[None, :]
     junk = 10 * np.log10((np.sum((got**2)[quiet]) + 1e-12) / (np.sum((truth**2)[quiet]) + 1e-12))
 

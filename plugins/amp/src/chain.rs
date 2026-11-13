@@ -7578,8 +7578,9 @@ A note held at 220 Hz (a sine) at the same levels: distortion in dB against the 
 
     /// Writes what the pitch pedal sounds like through a driven rig, for measuring and
     /// listening: AMP_INPUT_WAV through the compressor, the drive and two amps as a player
-    /// had them (Hvas beside Torden), with the pedal at PITCH_SEMITONES (0 leaves it off)
-    /// and PITCH_LATENCY_MS, to AMP_OUTPUT_WAV:
+    /// had them (Hvas beside Torden), with the pedal at PITCH_SEMITONES (-4 when not set; 0
+    /// leaves it off) and PITCH_LATENCY_MS (50 when not set, as that player had it; the
+    /// pedal's own default is 15), to AMP_OUTPUT_WAV, 16 bits and held to full scale:
     ///   cargo test -p amp --release render_pitch_rig -- --ignored
     #[test]
     #[ignore]
