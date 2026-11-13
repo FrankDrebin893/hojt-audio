@@ -133,7 +133,8 @@ pub fn rig(ctx: &Context, add_contents: impl FnOnce(&mut Ui, Pos2)) {
         let rect = ctx
             .layer_transform_from_global(layer)
             .map_or_else(|| ctx.screen_rect(), |from_global| from_global * ctx.screen_rect());
-        let mut ui = ui.new_child(egui::UiBuilder::new().layer_id(layer).max_rect(rect));
+        let mut ui =
+            ui.new_child(egui::UiBuilder::new().id_salt("rig").layer_id(layer).max_rect(rect));
         ui.set_clip_rect(rect);
         ui.painter().rect_filled(rect, 0.0, BENCH);
         add_contents(&mut ui, rect.min);
