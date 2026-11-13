@@ -40,6 +40,11 @@ pub struct DrumSynthParams {
     #[persist = "editor-state-pedal"]
     pub editor_state: Arc<EguiState>,
 
+    /// The update check's settings (its off switch, when it last asked, the newest version it
+    /// found, the version whose line was closed): saved with the project, never a parameter
+    #[persist = "update"]
+    pub update: Arc<std::sync::Mutex<suite_common::update::UpdateSettings>>,
+
     #[id = "kit"]
     pub kit: EnumParam<Kit>,
 
@@ -95,6 +100,7 @@ impl Default for DrumSynthParams {
     fn default() -> Self {
         Self {
             editor_state: editor::default_state(),
+            update: Arc::default(),
 
             kit: EnumParam::new("Kit", Kit::Rock),
 

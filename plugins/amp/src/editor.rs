@@ -35,6 +35,7 @@ use crate::user_cab;
 use crate::user_presets::{self, Bank};
 use crate::wah::WahMode;
 use crate::{Amp, GuitarAmpParams, GuitarAmpPlugin, Task};
+use suite_common::update::UpdateCheck;
 
 /// The width of the line's design layer for the chain a project had before it could be built:
 /// the gate, the twelve pedals and the stack. The strip's places are made at this width and move
@@ -133,6 +134,18 @@ const METRONOME_X: f32 =
     (PRESET_END + OUTPUT_KNOB.x - KNOB_REACH) / 2.0 - ICONS_SPAN / 2.0 + ui::icons::ICON_REACH;
 const TUNER_X: f32 = METRONOME_X + ICON_PITCH;
 const SETTINGS_X: f32 = TUNER_X + ICON_PITCH;
+
+// The update line (`ui::update_line`) stands on the strip in the room between the settings icon
+// and the output knob, which is the widest empty room on it, and moves with both ends of it
+const UPDATE_ROOM_LEFT: f32 = SETTINGS_X + ui::icons::ICON_REACH;
+const UPDATE_ROOM_RIGHT: f32 = OUTPUT_KNOB.x - KNOB_REACH;
+
+/// Where the update line is centred on the strip, from the window's top left corner, for a
+/// strip whose right end and middle have moved by `shift` and half of it
+fn update_line_at(shift: f32) -> Vec2 {
+    let (left, right) = (UPDATE_ROOM_LEFT + shift / 2.0, UPDATE_ROOM_RIGHT + shift);
+    vec2((left + right) / 2.0, STRIP_Y)
+}
 
 // The output: the knob, the meter and the Clip lamp, lit while the output is rounded off by the
 // safety clip, with its caption under it. The model number and the logo are right of them
@@ -1813,6 +1826,9 @@ pub fn create(
     let opened_params = params.clone();
     let window_state = editor_state.clone();
     let screen_state = editor_state.clone();
+    // Where the window is made, never in `process`: at most one request a day, on its own thread
+    let update = UpdateCheck::start(params.update.clone());
+    let opened_update = update.clone();
     create_egui_editor(
         editor_state,
         View {
@@ -1828,6 +1844,10 @@ pub fn create(
         },
         move |egui_ctx, view| {
             ui::install(egui_ctx);
+            // A result arrives on the check's own thread: the window is painted only when
+            // asked, so it asks
+            let ctx = egui_ctx.clone();
+            opened_update.on_result(move || ctx.request_repaint());
             // What was clipped while the window was closed is not news
             view.lamps = LampView::new(&opened_reading);
             // The player may have renamed, moved or added presets in the folder since
@@ -1851,6 +1871,7 @@ pub fn create(
                 cab_loader: &cab_loader,
                 load_cabinet: &load_cabinet,
                 audio_host: standalone::host(),
+                update: &update,
             };
             ResizableWindow::new(RESIZE_ID)
                 .min_size(vec2(MIN_WIDTH as f32, MIN_HEIGHT as f32))
@@ -1880,6 +1901,8 @@ struct Shared<'a> {
     load_cabinet: &'a dyn Fn(),
     /// The machine's audio, in the standalone program; a plugin in a DAW has none
     audio_host: Option<&'a dyn standalone::Host>,
+    /// Whether a newer version is out: the line on the strip
+    update: &'a UpdateCheck,
 }
 
 /// The whole window, once the fonts are in: what the plugin shows and its snapshot tests draw
@@ -1919,6 +1942,7 @@ fn draw(
             vec2(fit.strip_width() - 2.0 * BENCH_MARGIN, STRIP_HEIGHT),
         );
         ui::slim_strip(ui, strip, &STYLE);
+        ui::update_line(ui, window + update_line_at(fit.shift()), shared.update);
         // What is on the strip is placed from here
         let origin = window;
         let host = shared.audio_host;
@@ -2534,6 +2558,7 @@ mod tests {
                 cab_loader: &cab_loader,
                 load_cabinet: &|| {},
                 audio_host,
+                update: &UpdateCheck::resting(params.update.clone()),
             };
             draw(ctx, setter, params, &mut view.borrow_mut(), &shared);
         })
@@ -2574,6 +2599,65 @@ mod tests {
         let host = NoHost;
         let setter = ParamSetter::new(&host);
         harness_of(&params, &setter, None, |_| {}).snapshot("editor");
+    }
+
+    // The update line is drawn when a newer version is known, and only then: with the check off,
+    // or the line closed for that version, the window is the one it was (pixel for pixel)
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_update_line_is_drawn_when_a_newer_version_is_known() {
+        type Settings = suite_common::update::UpdateSettings;
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let picture = |change: &dyn Fn(&mut Settings)| {
+            let params = GuitarAmpParams::default();
+            change(&mut params.update.lock().unwrap());
+            let mut harness = harness_of(&params, &setter, None, |_| {});
+            // Not returned directly: the harness must go before the params it borrows
+            #[allow(clippy::let_and_return)]
+            let raw = harness.render().unwrap().into_raw();
+            raw
+        };
+        let none = picture(&|_| {});
+        let newer = |settings: &mut Settings| settings.latest = "99.0.0".into();
+        assert_ne!(picture(&newer), none, "no line with a newer version known");
+        assert!(
+            picture(&|settings| {
+                newer(settings);
+                settings.enabled = false;
+            }) == none,
+            "a line with the check off"
+        );
+        assert!(
+            picture(&|settings| {
+                newer(settings);
+                settings.dismissed = settings.latest.clone();
+            }) == none,
+            "a line after it was closed"
+        );
+    }
+
+    // The window with the line, against tests/snapshots/editor_update.png
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_editor_with_the_update_line_looks_as_it_did() {
+        let params = GuitarAmpParams::default();
+        params.update.lock().unwrap().latest = "99.0.0".into();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        harness_of(&params, &setter, None, |_| {}).snapshot("editor_update");
+    }
+
+    // The line has the room it needs on the strip at its narrowest and at the widest it opens,
+    // clear of the settings icon and of the output knob's scale
+    #[test]
+    fn test_the_update_line_has_room_on_the_strip() {
+        let needed = ui::update_line::parts(Pos2::ZERO, [96.0, 51.0, 19.0]).0.width();
+        for width in [STRIP_MIN_WIDTH, WINDOW_WIDTH as f32, 3840.0] {
+            let shift = width - WINDOW_WIDTH as f32;
+            let room = (UPDATE_ROOM_RIGHT + shift) - (UPDATE_ROOM_LEFT + shift / 2.0) - STRIP_GAP;
+            assert!(room >= needed, "{room} of the strip's room at {width} wide");
+        }
     }
 
     // The window at the size it opens at (0.55 zoom, 1876 x 321): every pedal, label and the
