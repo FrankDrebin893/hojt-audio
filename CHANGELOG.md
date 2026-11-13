@@ -63,6 +63,8 @@ GitHub release.
 - The Pitch pedal has the Pitch Shifter's new insides: chords, long notes and the level hold
   up through it. Tracking sets its delay the same way, 11 ms at the default whatever the note.
 - The standalone program no longer stops with a buffer-size error when it plays through WASAPI.
+- Windows: the standalone program comes back after a change of driver, buffer or sample rate in its
+  Audio settings, instead of leaving an empty window that never closes.
 - The standalone program's icon in the taskbar, the title bar and Explorer is sharp at every size: the
   HØJT badge is drawn afresh for each, and the smallest (16 and 24 px) show a dark plate, a cream frame
   and the H instead of four letters gone to mud.

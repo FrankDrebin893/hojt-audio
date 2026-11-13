@@ -88,8 +88,12 @@ impl standalone::Host for Machine {
             return Ok(());
         }
         // The program starts again from `main` once the window has closed and the audio
-        // device is let go
+        // device is let go. The editor's own close only closes its view inside the
+        // framework's window, which then stays open and empty and never returns to `main`
+        // (#334), so the framework's window is asked to close as its X would
         standalone::request_restart();
+        #[cfg(target_os = "windows")]
+        close_the_window();
         Ok(())
     }
 }
@@ -209,6 +213,28 @@ fn enable_dpi_awareness() {
     // SAFETY: tells Windows this standalone process handles monitor DPI without bitmap scaling.
     unsafe {
         SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    }
+}
+
+/// Asks the framework's top-level window to close, as its X does. Posted, not sent: the
+/// panel's Apply runs on that window's own thread, which handles it once Apply returns
+#[cfg(target_os = "windows")]
+fn close_the_window() {
+    use std::ffi::c_void;
+    type Hwnd = *mut c_void;
+    #[link(name = "user32")]
+    extern "system" {
+        fn FindWindowW(class: *const u16, title: *const u16) -> Hwnd;
+        fn PostMessageW(window: Hwnd, message: u32, wparam: usize, lparam: isize) -> i32;
+    }
+    const WM_CLOSE: u32 = 0x0010;
+    let title: Vec<u16> = "Hojt Guitar Amp\0".encode_utf16().collect();
+    // SAFETY: plain Win32 calls with a NUL-terminated title; the handle is only posted to
+    unsafe {
+        let window = FindWindowW(std::ptr::null(), title.as_ptr());
+        if !window.is_null() {
+            PostMessageW(window, WM_CLOSE, 0, 0);
+        }
     }
 }
 
