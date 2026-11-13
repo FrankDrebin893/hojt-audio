@@ -12,6 +12,7 @@ What each script in this folder does, and the detail behind the rules in `CLAUDE
   `/design` and `/page` to look at (not published; needs Node with Playwright)
 - `package.sh` - Packs the bundles into the zips of a release
 - `build-installer.sh` - Builds `dist/HojtDSP-Setup.exe` from the bundles with Inno Setup (Installer below)
+- `build-standalones.sh` - Builds the six standalone programs to `target/standalone/<BundleName>.exe`; `smoke-standalones.ps1` starts each with the dummy backend and checks its icon (Windows job of `release.yml`)
 - `checksums.sh` - Writes `SHA256SUMS.txt` for the files of a folder, as `release.yml` does for a release
 - `site-audio.sh` - Makes the page's sound examples from the render tests
 - `sound-reports.sh` - The sound reports without their timings, for comparing two builds
@@ -61,7 +62,7 @@ CLAP, all ticked), for the whole machine (admin): VST3 to `Common Files\VST3`, C
 licences under `Program Files\Hojt Audio\HOJT DSP`, an uninstaller. Its `AppId` never changes, so a newer
 setup upgrades in place; bundle names and ids are untouched (Versioning), so projects keep their settings.
 `CloseApplications` asks to close a DAW that holds the files, and a restart is offered only if a file stays
-locked. `scripts/build-installer.sh` (Git Bash, after `cargo xtask bundle`) reads the version from `Cargo.toml`
+locked. `scripts/build-installer.sh` (Git Bash, after `cargo xtask bundle` and `build-standalones.sh`) reads the version from `Cargo.toml`
 and stops if a bundle of `bundler.toml` is missing or not in the script (`xtask/tests/installer.rs` holds the
 latter on every system). The Windows job of `release.yml` builds it after `package.sh`, then
 `installer/test-installer.ps1` installs it silently into temp folders (`/DIR` for the licences and

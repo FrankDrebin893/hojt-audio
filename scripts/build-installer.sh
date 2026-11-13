@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Builds dist/HojtDSP-Setup.exe, the Windows installer, from the bundles in target/bundled
+# Builds dist/HojtDSP-Setup.exe, the Windows installer, from the bundles in target/bundled and the
+# standalone programs in target/standalone (scripts/build-standalones.sh)
 # (Inno Setup 6; the windows-latest runner has it). Run from Git Bash after `cargo xtask bundle`:
 #
 #   scripts/build-installer.sh
@@ -12,6 +13,7 @@ set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 bundled="$root/target/bundled"
+standalone="$root/target/standalone"
 script="$root/installer/hojt-dsp.iss"
 dist="$root/dist"
 
@@ -26,8 +28,9 @@ names=$(sed -n 's/^name = "\(.*\)"$/\1/p' "$root/bundler.toml")
 for name in $names; do
   [[ -f "$bundled/$name.vst3/Contents/x86_64-win/$name.vst3" ]] || { echo "missing $bundled/$name.vst3 (cargo xtask bundle first)" >&2; exit 1; }
   [[ -f "$bundled/$name.clap" ]] || { echo "missing $bundled/$name.clap, or it is not a file" >&2; exit 1; }
-  for format in vst3 clap; do
-    grep -qF "$name.$format" "$script" || { echo "$name.$format has no line in installer/hojt-dsp.iss" >&2; exit 1; }
+  [[ -f "$standalone/$name.exe" ]] || { echo "missing $standalone/$name.exe (scripts/build-standalones.sh first)" >&2; exit 1; }
+  for file in "$name.vst3" "$name.clap" "$name.exe"; do
+    grep -qF "$file" "$script" || { echo "$file has no line in installer/hojt-dsp.iss" >&2; exit 1; }
   done
 done
 
@@ -55,6 +58,7 @@ args=(
   "/DAppVersion=$version"
   "/DNumericVersion=$numeric.0"
   "/DBundleDir=$(winpath "$bundled")"
+  "/DStandaloneDir=$(winpath "$standalone")"
   "/DOutDir=$(winpath "$dist")"
   "/DStageDir=$(winpath "$stage")"
 )

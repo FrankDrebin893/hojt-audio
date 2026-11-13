@@ -99,7 +99,9 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   (`amp/asio` -> `nih_plug/asio` -> cpal's): Windows only, and the Steinberg ASIO SDK has to be
   at `CPAL_ASIO_DIR` at build time. No CI job builds it (`check_mirrors_ci` wants every cargo
   step of CI in `check.sh`, which cannot reach the SDK): build it by hand on Windows,
-  `cargo run -p amp --features asio`. Notes from trying it on a Focusrite: the driver takes the buffer size set in its own
+  `cargo run -p amp --features asio`. The standalone the installer ships (all six plugins have one,
+  `scripts/build-standalones.sh`) is WASAPI only, for the same reason; ASIO in the installer waits on
+  where CI may get the SDK (#305). Notes from trying it on a Focusrite: the driver takes the buffer size set in its own
   control panel (the fork brings the size asked for into the driver's range), the panel's
   device list and channel counts are read once before the streams open (`AsioSnapshot` in
   `main.rs`: asking a running ASIO driver hangs the window), and Apply starts the program again
@@ -424,13 +426,14 @@ How it behaves:
   Off it is skipped and the signal is bit-identical; switching crossfades in 20 ms, and a
   pedal that has faded out is idle (`is_idle`, so it never keeps the host awake). On it adds
   latency: a shift of 0 passes the input 2 samples of the oversampled rate late, and a shift
-  up or down lags the input by about a pitch period of the note, never more than Tracking (a
-  plucked 110 Hz string starts 4 ms later at -12, 7 ms at +12 with Tracking 15 ms, 25 ms at
-  +12 with 50 ms; the dry part of Blend is not delayed). Nothing is reported to the host. Flat
-  to 0.0 dB: the note that comes out is as loud as the amp playing it itself. Above 192 kHz
-  of oversampled rate the buffer is shorter than 50 ms (42 ms at a host's 192 kHz). Cost: about
-  0.4 to 4 % of a core over the amp at 48 kHz (shift 0: under 0.5 %), with a splice every
-  period costing up to a tenth of a block; the report is `pitch_report`
+  up or down lags the input by a fixed time whatever the note, the largest of 5.3, 10.7, 21 and
+  43 ms that fits under Tracking (a plucked 110 Hz string starts 10 ms later with Tracking
+  15 ms, 5.5 ms with 2 ms, 40 ms with 50 ms; the dry part of Blend is not delayed). Nothing is
+  reported to the host. Flat to 0.0 dB: the note that comes out is as loud as the amp playing it
+  itself. The shifter works at 44.1 to 48 kHz whatever the oversampled rate (it steps down and
+  up again), so the guitar comes out of it band-limited to 21 kHz. Cost: 3 to 5 % of a core
+  over the amp (shift 0: nothing), in a frame every 2.7 ms that takes about a tenth of a
+  64-sample block at 48 kHz and half of one at 192 kHz; the report is `pitch_report`
 - The EQ (`eq.rs`) is three biquads of `dsp/filters.rs` in f64, each gliding to a new setting
   over 20 ms so a dial turned while playing does not click: Low a shelf at 100 Hz, Mid a bell of
   Q 0.9 centred 200 Hz to 5 kHz on a log scale (Freq 5 is 1 kHz), High a shelf at 4 kHz, each
@@ -505,7 +508,7 @@ How it behaves:
 | Pitch (`pitch_on`) | on / off | off | Pitch shifter pedal, in front of the amp or behind the cabinet |
 | Pitch Semitones (`pitch_semitones`) | -12 to +12 | 0 | Whole semitones: the guitar down an octave to up one. Shown `-5`, `0`, `+7`; double-click returns to 0 |
 | Pitch Blend (`pitch_blend`) | 0-100 % | 100 % | The guitar as it comes in (0) to the shifted guitar alone (100). The dry part is not delayed |
-| Pitch Tracking (`pitch_latency`) | 2-50 ms | 15 ms | The most the shifted guitar may lag behind the input: the longest period that splices cleanly (a low E is 12 ms, a power chord on it about 24 ms) |
+| Pitch Tracking (`pitch_latency`) | 2-50 ms | 15 ms | The most the shifted guitar may lag behind the input. The lag is fixed, whatever the note: the largest of 5.3, 10.7, 21 and 43 ms that fits (5.3 ms under that). Longer is cleaner |
 | Fuzz Tone (`fuzz_tone`) | 0.0-10.0 | 5.0 | Dark (a low-pass at 650 Hz) to bright (a high-pass at 1.1 kHz), the mids scooped in between |
 | Amp (`amp`) | Klar / Brøl / Torden / Glød / Sang / Drøn | Brøl | Amp and its cabinet. Variant ids `klar`, `brol`, `torden`, `glod`, `sang`, `dron`. New amps go at the end: a project remembers its amp by its number |
 | Gain, Bass, Mid, Treble, Presence, Master (`gain`, `bass`, `mid`, `treble`, `presence`, `master`) | 0.0-10.0 | 5.0 | The amp's dials |

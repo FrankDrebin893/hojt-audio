@@ -19,6 +19,8 @@ png = "0.17"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 minreq = { version = "2", default-features = false, features = ["https-rustls"] }
+# The pitch shifter's spectra (`dsp::pitch`): real FFTs that do not allocate once planned
+realfft = "3.5"
 
 # Draws an editor off screen into a picture, for the snapshot tests of `ui::snapshot`. The
 # release matches egui's (0.31.1, through nih_plug_egui): one egui in the tree. Linux only, where

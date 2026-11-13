@@ -1,147 +1,102 @@
-use std::f32::consts::PI;
+//! The pitch shifter of the Pitch Shifter plugin and of the Guitar Amp's pitch pedal.
+//!
+//! `PitchShifter` is what the plugins hold: the dry signal, the blend, the switch to and from a
+//! shift of nothing, and the step down to the rate the engine works at. The shifting itself is
+//! in `spectral`.
 
-/// Circular buffer length. A power of two so positions wrap with a mask, and long enough for
-/// the largest latency setting at 192 kHz, so it never has to be resized while audio runs.
-const BUFFER_SIZE: usize = 1 << 16;
-const BUFFER_MASK: usize = BUFFER_SIZE - 1;
+mod spectral;
 
-/// Closest the read head may get to the write head. Cubic interpolation reads two samples
-/// past the head, and a whole-sample delay reads the buffer back bit-exactly.
-const MIN_DELAY: f64 = 2.0;
+use spectral::{Engine, CHUNKS};
 
-/// Shortest crossfade, in samples
-const MIN_FADE: usize = 8;
+/// How far the dry signal, and with it a shift of nothing, lags the input, in samples
+const MIN_DELAY: usize = 2;
 
-/// Splice points are searched on a copy of the input decimated to roughly this rate
-const ANALYSIS_RATE: f32 = 11025.0;
+/// The engine runs at the host's rate divided by a whole number, as near to this as that gets
+const ENGINE_RATE: f32 = 48000.0;
 
-/// Shortest jump considered, about one period of the highest fretted note
-const MIN_LAG_MS: f32 = 0.7;
+/// Largest such number (768 kHz)
+const MAX_FACTOR: usize = 16;
 
-/// Bounds on how much signal is compared when looking for a splice point
-const MIN_WINDOW_MS: f32 = 5.0;
-const MAX_WINDOW_MS: f32 = 20.0;
+/// Length of the filter that steps the rate down and up again: this many taps per factor,
+/// plus one. Its delay is half of that, each way
+const TAPS_PER_FACTOR: usize = 12;
+const MAX_TAPS: usize = TAPS_PER_FACTOR * MAX_FACTOR + 1;
 
-/// Span compared when lining the splice up to the exact sample
-const REFINE_WINDOW_MS: f32 = 6.0;
+/// Where the filter is 6 dB down, as a share of the engine's rate (21 kHz at 48 kHz)
+const FILTER_CUTOFF: f32 = 0.44;
 
-/// The correlation has to fall below this before a peak counts, which rules out the
-/// trivial match of the signal with itself at very short lags
-const DIP_LEVEL: f32 = 0.5;
+const HIGH_LEN: usize = 256;
+const HIGH_MASK: usize = HIGH_LEN - 1;
+const LOW_LEN: usize = 32;
+const LOW_MASK: usize = LOW_LEN - 1;
 
-/// A peak this close to the best one is taken as the period (rather than a multiple of it)
-const KEY_PEAK_RATIO: f32 = 0.9;
+/// One channel: its engine, the last few samples for the dry signal, and the history of the
+/// filters around the engine
+struct Channel {
+    engine: Engine,
+    dry: [f32; 4],
+    // Input at the host's rate, for stepping down
+    high: Vec<f32>,
+    // The engine's output, for stepping up
+    low: Vec<f32>,
+    low_pos: usize,
+}
 
-/// Match quality needed to splice before the latency limit forces one
-const GOOD_MATCH: f32 = 0.85;
+impl Channel {
+    fn new() -> Self {
+        Self {
+            engine: Engine::new(),
+            dry: [0.0; 4],
+            high: vec![0.0; HIGH_LEN],
+            low: vec![0.0; LOW_LEN],
+            low_pos: 0,
+        }
+    }
 
-/// Below this the signal has no usable period and the jump only minimizes latency
-const POOR_MATCH: f32 = 0.25;
+    fn reset(&mut self) {
+        self.engine.reset();
+        self.dry = [0.0; 4];
+        self.high.fill(0.0);
+        self.low.fill(0.0);
+        self.low_pos = 0;
+    }
+}
 
-/// How much further the head falls behind before a failed search is retried
-const RETRY_MS: f32 = 1.0;
-
-/// Input peak level below which splices are inaudible (-60 dBFS), and how long that level
-/// is held after the last peak
-const QUIET_LEVEL: f32 = 0.001;
-const LEVEL_RELEASE_MS: f32 = 50.0;
-
-/// Furthest the head may fall behind while the input is quiet
-const QUIET_DELAY_MS: f32 = 3.0;
-
-/// Capacity of the correlation scratch buffer
-const MAX_SCORES: usize = 2048;
-
-/// A pitch shifter using variable-rate playback with waveform-matched splices.
+/// A pitch shifter for chords as well as single notes, with a fixed latency.
 ///
-/// 1. One read head plays the input back at the shifted rate (cubic interpolation), so
-///    between splices the output is a plain resampled copy of the input
-/// 2. The head only jumps when it drifts too close to or too far from the write head
-/// 3. Each jump lands where the waveform lines up with itself (normally a whole pitch
-///    period away), bridged by a short constant-level crossfade
+/// The shifted signal lags the input by a fixed time, the largest of 5, 11, 21 and 43 ms (at
+/// 48 kHz; a tenth more at 44.1 kHz) that
+/// `set_latency_ms` allows (the longer, the cleaner). A shift of nothing passes the input
+/// through bit for bit, `MIN_DELAY` samples late, and so does the dry part of the blend.
 pub struct PitchShifter {
-    // Circular buffers for input samples, one per channel
-    buffers: [Vec<f32>; 2],
+    channels: [Channel; 2],
 
-    // Mono mix of the input, used to find splice points
-    mix: Vec<f32>,
+    // Samples taken in so far
+    pos: usize,
 
-    // Samples written so far (wraps with BUFFER_MASK)
-    write_pos: usize,
-
-    // Low-rate copy of the mix for the coarse splice search
-    decimated: Vec<f32>,
-    decimated_pos: usize,
-    decimation: usize,
-    decimation_sum: f32,
-    decimation_count: usize,
-
-    // Read head position, in samples behind the write head
-    delay: f64,
-
-    // Outgoing head while a splice is crossfading
-    fade_delay: f64,
-    fade_len: usize,
-    fade_remaining: usize,
-
-    // How well the two heads matched at the splice (0.0 to 1.0)
-    fade_match: f32,
-
-    // Playback rate (1.0 = normal, 2.0 = octave up, 0.5 = octave down)
-    playback_rate: f64,
-
-    // How much of the output is the shifted head (1.0) rather than the dry input (0.0)
+    semitones: i32,
+    // How much of the output is the shifted signal (1.0) rather than the dry input (0.0)
     blend: f32,
 
-    // Parameters
     sample_rate: f32,
     latency_ms: f32,
     smoothness_ms: f32,
 
-    // Furthest the head may fall behind the write head, in samples
-    max_delay: f64,
+    // The engine's rate is the host's divided by this
+    factor: usize,
+    taps: Vec<f32>,
+    num_taps: usize,
 
-    // The same limit while the input is quiet
-    quiet_delay: f64,
-
-    // Peak level of the recent input
-    level: f32,
-    level_decay: f32,
-
-    // Crossfade length for the current rate, in samples
-    crossfade_len: usize,
-
-    // Shortest allowed jump at the current rate, in samples
-    min_lag: usize,
-
-    // When shifting up: jump once the head gets this close to the write head
-    low_delay: f64,
-
-    // When shifting up: where the head waits while the input is quiet
-    hold_delay: f64,
-
-    // When shifting down: look for a splice once the head is this far behind
-    next_search_delay: f64,
-
-    // Search sizes, in samples
+    // The engines are working: there is a shift, or one is fading out
+    running: bool,
+    // Samples until the engines' first output after a start has come through
+    warm_up: usize,
+    // Share of the engines in the shifted signal, the rest being the dry input: 0.0 at a
+    // shift of nothing, 1.0 once a shift has faded in
+    heard: f32,
+    fade_step: f32,
+    // The chunk length the latency setting asks for, as an index into `CHUNKS`
     window: usize,
-    refine_window: usize,
-    retry_step: f64,
-
-    // Scratch space for correlation values
-    scores: Vec<f32>,
-}
-
-/// Result of a splice search
-struct SpliceMatch {
-    // How far to move the head, in samples
-    lag: f64,
-    // Normalized correlation at that lag
-    quality: f32,
-    // Shortest well-matched lag, i.e. the pitch period
-    period: f64,
-    // Whether the lag is a real correlation peak rather than just the best value in range
-    is_peak: bool,
 }
 
 impl Default for PitchShifter {
@@ -153,37 +108,21 @@ impl Default for PitchShifter {
 impl PitchShifter {
     pub fn new() -> Self {
         let mut shifter = Self {
-            buffers: [vec![0.0; BUFFER_SIZE], vec![0.0; BUFFER_SIZE]],
-            mix: vec![0.0; BUFFER_SIZE],
-            write_pos: 0,
-            decimated: vec![0.0; BUFFER_SIZE],
-            decimated_pos: 0,
-            decimation: 1,
-            decimation_sum: 0.0,
-            decimation_count: 0,
-            delay: MIN_DELAY,
-            fade_delay: MIN_DELAY,
-            fade_len: 0,
-            fade_remaining: 0,
-            fade_match: 1.0,
-            playback_rate: 1.0,
+            channels: [Channel::new(), Channel::new()],
+            pos: 0,
+            semitones: 0,
             blend: 1.0,
             sample_rate: 44100.0,
             latency_ms: 15.0,
             smoothness_ms: 2.0,
-            max_delay: 0.0,
-            quiet_delay: 0.0,
-            level: 0.0,
-            level_decay: 0.0,
-            crossfade_len: 0,
-            min_lag: 0,
-            low_delay: MIN_DELAY,
-            hold_delay: MIN_DELAY,
-            next_search_delay: 0.0,
+            factor: 1,
+            taps: vec![0.0; MAX_TAPS],
+            num_taps: 1,
+            running: false,
+            warm_up: 0,
+            heard: 0.0,
+            fade_step: 1.0,
             window: 0,
-            refine_window: 0,
-            retry_step: 0.0,
-            scores: vec![0.0; MAX_SCORES],
         };
         shifter.update_timing();
         shifter.reset();
@@ -192,12 +131,35 @@ impl PitchShifter {
 
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
         self.sample_rate = sample_rate;
+        self.factor = ((sample_rate / ENGINE_RATE).round() as usize).clamp(1, MAX_FACTOR);
+
+        // A windowed sinc (Blackman) that cuts at the engine's band, with a gain of 1
+        self.num_taps = TAPS_PER_FACTOR * self.factor + 1;
+        let middle = (self.num_taps - 1) as f32 / 2.0;
+        let cutoff = FILTER_CUTOFF / self.factor as f32;
+        let mut sum = 0.0;
+        for (i, tap) in self.taps[..self.num_taps].iter_mut().enumerate() {
+            let t = i as f32 - middle;
+            let sinc = if t == 0.0 {
+                2.0 * cutoff
+            } else {
+                (std::f32::consts::TAU * cutoff * t).sin() / (std::f32::consts::PI * t)
+            };
+            let phase = std::f32::consts::TAU * i as f32 / (self.num_taps - 1) as f32;
+            *tap = sinc * (0.42 - 0.5 * phase.cos() + 0.08 * (2.0 * phase).cos());
+            sum += *tap;
+        }
+        for tap in &mut self.taps[..self.num_taps] {
+            *tap /= sum;
+        }
+
         self.update_timing();
         self.reset();
     }
 
-    /// Furthest the output may lag behind the input. This is also the longest pitch period
-    /// that can be spliced cleanly (low E is about 12 ms).
+    /// Most the shifted signal may lag the input. The lag is fixed: the largest of the
+    /// engine's chunk lengths that fits (the smallest, about 5 ms, where none does). A longer
+    /// one is cleaner, most of all on low notes and chords
     pub fn set_latency_ms(&mut self, latency_ms: f32) {
         if latency_ms != self.latency_ms {
             self.latency_ms = latency_ms;
@@ -205,7 +167,8 @@ impl PitchShifter {
         }
     }
 
-    /// Crossfade length at each splice
+    /// Length of the crossfade between the input and the shifted signal when a shift starts,
+    /// ends, or takes another latency
     pub fn set_smoothness_ms(&mut self, smoothness_ms: f32) {
         if smoothness_ms != self.smoothness_ms {
             self.smoothness_ms = smoothness_ms;
@@ -214,75 +177,63 @@ impl PitchShifter {
     }
 
     pub fn set_semitones(&mut self, semitones: i32) {
-        let playback_rate = 2.0_f64.powf(semitones as f64 / 12.0);
-        if playback_rate != self.playback_rate {
-            self.playback_rate = playback_rate;
-            self.update_timing();
+        if semitones != self.semitones {
+            self.semitones = semitones;
+            let ratio = 2.0_f32.powf(semitones as f32 / 12.0);
+            for channel in &mut self.channels {
+                channel.engine.set_ratio(ratio);
+            }
         }
     }
 
-    /// Mix of the dry input (0.0) and the shifted one (1.0). The dry part is the input at the
-    /// minimum delay, where a shift of 0 passes it through, so at a shift of 0 the two are the
-    /// same signal and the mix leaves it as it is.
+    /// Mix of the dry input (0.0) and the shifted one (1.0). The dry part is the input
+    /// `MIN_DELAY` samples late, which is also what a shift of nothing is, so at a shift of
+    /// nothing the two are the same signal and the mix leaves it as it is.
     pub fn set_blend(&mut self, blend: f32) {
         self.blend = blend.clamp(0.0, 1.0);
+    }
+
+    /// Samples the shifted signal lags the input by, at the host's rate
+    pub fn latency_samples(&self) -> usize {
+        let engine = CHUNKS[self.window] - 1;
+        if self.factor == 1 {
+            engine
+        } else {
+            engine * self.factor + self.num_taps - 1
+        }
     }
 
     /// Address and capacity of every buffer, for tests that hold a host's audio thread to
     /// never allocating or resizing one
     pub fn buffers(&self) -> Vec<(usize, usize)> {
-        let all = [&self.buffers[0], &self.buffers[1], &self.mix, &self.decimated, &self.scores];
-        all.iter().map(|buffer| (buffer.as_ptr() as usize, buffer.capacity())).collect()
+        let mut all = vec![(self.taps.as_ptr() as usize, self.taps.capacity())];
+        for channel in &self.channels {
+            all.push((channel.high.as_ptr() as usize, channel.high.capacity()));
+            all.push((channel.low.as_ptr() as usize, channel.low.capacity()));
+            all.extend(channel.engine.buffers());
+        }
+        all
     }
 
     pub fn reset(&mut self) {
-        for buffer in &mut self.buffers {
-            buffer.fill(0.0);
+        for channel in &mut self.channels {
+            channel.reset();
         }
-        self.mix.fill(0.0);
-        self.decimated.fill(0.0);
-        self.write_pos = 0;
-        self.decimated_pos = 0;
-        self.decimation_sum = 0.0;
-        self.decimation_count = 0;
-        self.delay = MIN_DELAY;
-        self.fade_delay = MIN_DELAY;
-        self.fade_remaining = 0;
-        self.next_search_delay = MIN_DELAY;
-        self.level = 0.0;
+        self.pos = 0;
+        self.running = false;
+        self.warm_up = 0;
+        self.heard = 0.0;
     }
 
-    /// Converts the parameters to sample counts for the current sample rate and shift
+    /// Converts the parameters to sample counts for the current sample rate
     fn update_timing(&mut self) {
-        let samples = |ms: f32| (self.sample_rate * ms / 1000.0) as f64;
-        let drift = (self.playback_rate - 1.0).abs();
-
-        self.decimation = ((self.sample_rate / ANALYSIS_RATE).round() as usize).max(1);
-        self.max_delay = samples(self.latency_ms).clamp(MIN_DELAY + 64.0, (BUFFER_SIZE / 4) as f64);
-        self.window = samples(self.latency_ms.clamp(MIN_WINDOW_MS, MAX_WINDOW_MS)) as usize;
-        self.refine_window = (samples(REFINE_WINDOW_MS) as usize).min(self.window);
-        self.retry_step = samples(RETRY_MS);
-        self.level_decay = (-1.0 / samples(LEVEL_RELEASE_MS)).exp() as f32;
-
-        // While a crossfade runs the outgoing head keeps drifting, which uses up part of the
-        // delay range. Shorten the fade if it would not leave room for a jump.
-        let mut crossfade_len = samples(self.smoothness_ms) as usize;
-        if drift > 0.0 {
-            let room = ((self.max_delay - MIN_DELAY) / (5.0 * drift)) as usize;
-            crossfade_len = crossfade_len.min(room);
-        }
-        self.crossfade_len = crossfade_len.max(MIN_FADE);
-
-        // A jump has to buy at least two crossfade lengths of playing time
-        let fade_drift = self.crossfade_len as f64 * drift;
-        self.min_lag = (samples(MIN_LAG_MS) as usize).max((2.0 * fade_drift).ceil() as usize);
-        self.low_delay = MIN_DELAY + fade_drift;
-
-        // Far enough back that two of the longest periods go by before the head has caught up
-        let hold_delay = self.low_delay + (2.0 * self.max_delay * drift).max(self.min_lag as f64);
-        self.hold_delay = hold_delay.min(self.max_delay);
-        self.quiet_delay = (MIN_DELAY + samples(QUIET_DELAY_MS).max(2.0 * self.min_lag as f64))
-            .min(self.max_delay);
+        let engine_rate = self.sample_rate / self.factor as f32;
+        let filters = if self.factor == 1 { 0.0 } else { (self.num_taps - 1) as f32 };
+        let lag_ms =
+            |chunk: usize| ((chunk - 1) as f32 / engine_rate + filters / self.sample_rate) * 1000.0;
+        self.window =
+            (0..CHUNKS.len()).rev().find(|&i| lag_ms(CHUNKS[i]) <= self.latency_ms).unwrap_or(0);
+        self.fade_step = 1.0 / (self.smoothness_ms * 0.001 * self.sample_rate).max(1.0);
     }
 
     /// Processes one mono sample
@@ -290,326 +241,101 @@ impl PitchShifter {
         self.process_frame([input, 0.0], 1)[0]
     }
 
-    /// Processes one stereo frame. Both channels share the same read head, so they stay
-    /// aligned with each other.
+    /// Processes one stereo frame. Each channel is shifted on its own, by the same amount
+    /// and with the same latency.
     pub fn process_stereo(&mut self, left: f32, right: f32) -> (f32, f32) {
         let output = self.process_frame([left, right], 2);
         (output[0], output[1])
     }
 
     fn process_frame(&mut self, input: [f32; 2], channels: usize) -> [f32; 2] {
-        // Write input to the buffers
-        let write_idx = self.write_pos & BUFFER_MASK;
-        let mut mix = 0.0;
-        let mut peak = 0.0_f32;
-        for channel in 0..channels {
-            self.buffers[channel][write_idx] = input[channel];
-            mix += input[channel];
-            peak = peak.max(input[channel].abs());
-        }
-        mix /= channels as f32;
-        self.mix[write_idx] = mix;
-        self.write_pos = self.write_pos.wrapping_add(1);
-        self.level = peak.max(self.level * self.level_decay);
-
-        self.decimation_sum += mix;
-        self.decimation_count += 1;
-        if self.decimation_count == self.decimation {
-            self.decimated[self.decimated_pos & BUFFER_MASK] =
-                self.decimation_sum / self.decimation as f32;
-            self.decimated_pos = self.decimated_pos.wrapping_add(1);
-            self.decimation_sum = 0.0;
-            self.decimation_count = 0;
+        // A shift is wanted, and at the latency the engines have
+        let shifting = self.semitones != 0;
+        let settled = self.channels[0].engine.window() == self.window;
+        if !self.running && shifting {
+            // Start from nothing heard: the engines begin a new output at the latency asked
+            // for, and are faded in once their first chunk has come through
+            for channel in &mut self.channels {
+                channel.engine.set_window(self.window);
+            }
+            self.running = true;
+            self.warm_up = self.latency_samples() + 1;
         }
 
-        if self.fade_remaining == 0 {
-            self.update_splice();
-        }
-
-        // No shift, settled on the minimum delay and no splice running: the head reads the
-        // input back untouched
-        let passthrough =
-            self.playback_rate == 1.0 && self.fade_remaining == 0 && self.delay == MIN_DELAY;
-
+        let phase = self.pos % self.factor;
         let mut output = [0.0; 2];
-        if self.fade_remaining > 0 {
-            let (fade_out, fade_in) = self.fade_gains();
-            for channel in 0..channels {
-                output[channel] = self.read_cubic(channel, self.fade_delay) * fade_out
-                    + self.read_cubic(channel, self.delay) * fade_in;
-            }
-            self.fade_delay = (self.fade_delay + 1.0 - self.playback_rate).max(MIN_DELAY);
-            self.fade_remaining -= 1;
-        } else {
-            for channel in 0..channels {
-                output[channel] = self.read_cubic(channel, self.delay);
+        for (index, channel) in self.channels[..channels].iter_mut().enumerate() {
+            let dry = channel.dry[self.pos.wrapping_sub(MIN_DELAY) & 3];
+            channel.dry[self.pos & 3] = input[index];
+
+            let wet = if self.factor == 1 {
+                if self.running {
+                    channel.engine.process(input[index])
+                } else {
+                    channel.engine.feed(input[index]);
+                    0.0
+                }
+            } else {
+                channel.high[self.pos & HIGH_MASK] = input[index];
+                if phase == 0 {
+                    let mut low = 0.0;
+                    for (i, tap) in self.taps[..self.num_taps].iter().enumerate() {
+                        low += tap * channel.high[self.pos.wrapping_sub(i) & HIGH_MASK];
+                    }
+                    channel.low_pos = (channel.low_pos + 1) & LOW_MASK;
+                    channel.low[channel.low_pos] = if self.running {
+                        channel.engine.process(low)
+                    } else {
+                        channel.engine.feed(low);
+                        0.0
+                    };
+                }
+                // Every sample of the engine's is `factor` of the host's: the taps a whole
+                // number of them apart meet the samples there are
+                let mut high = 0.0;
+                let mut tap = phase;
+                let mut back = 0;
+                while tap < self.num_taps {
+                    high +=
+                        self.taps[tap] * channel.low[channel.low_pos.wrapping_sub(back) & LOW_MASK];
+                    tap += self.factor;
+                    back += 1;
+                }
+                high * self.factor as f32
+            };
+
+            // At a shift of nothing, faded out, the output is the dry input, bit for bit
+            let shifted = if self.heard <= 0.0 {
+                dry
+            } else if self.heard >= 1.0 {
+                wet
+            } else {
+                dry + self.heard * (wet - dry)
+            };
+            output[index] = if self.blend <= 0.0 {
+                dry
+            } else if self.blend < 1.0 && self.heard > 0.0 {
+                (1.0 - self.blend) * dry + self.blend * shifted
+            } else {
+                shifted
+            };
+        }
+        self.pos = self.pos.wrapping_add(1);
+
+        if self.running {
+            if self.warm_up > 0 {
+                self.warm_up -= 1;
+            } else if shifting && settled {
+                self.heard = (self.heard + self.fade_step).min(1.0);
+            } else {
+                self.heard = (self.heard - self.fade_step).max(0.0);
+                // Faded out: the engines rest, and start over when there is a shift again
+                self.running = self.heard > 0.0;
             }
         }
-
-        // Blend the dry input back in. In the passthrough state the output already is the
-        // dry input, so it is left bit-exact.
-        if self.blend < 1.0 && !passthrough {
-            let dry_idx = self.write_pos.wrapping_sub(1 + MIN_DELAY as usize) & BUFFER_MASK;
-            for channel in 0..channels {
-                let dry = self.buffers[channel][dry_idx];
-                output[channel] = (1.0 - self.blend) * dry + self.blend * output[channel];
-            }
-        }
-
-        // The write head moves one sample per sample, the read head moves at the playback rate
-        self.delay = (self.delay + 1.0 - self.playback_rate).max(MIN_DELAY);
 
         output
     }
-
-    /// Starts a splice when the read head has drifted as far as it may
-    fn update_splice(&mut self) {
-        if self.playback_rate > 1.0 {
-            // Shifting up: the head catches up with the write head. Jump back while the
-            // outgoing head still has room to finish its fade.
-            if self.level < QUIET_LEVEL {
-                // Nothing audible is playing, so wait further back. The next note then gets
-                // a couple of periods in before its first splice, instead of one that lands
-                // in the middle of the attack.
-                if self.delay <= self.hold_delay - self.min_lag as f64 {
-                    self.begin_fade(self.hold_delay, 0.0);
-                }
-            } else if self.delay <= self.low_delay {
-                let max_lag = ((self.max_delay - self.delay).max(0.0) as usize).max(self.min_lag);
-                let found = self.find_splice_lag(self.min_lag, max_lag, true);
-                self.begin_fade(self.delay + found.lag, found.quality);
-            }
-        } else if self.playback_rate < 1.0 {
-            // Shifting down: the head falls behind. Jump forward as soon as a whole period
-            // fits, or when the latency limit is reached. While the input is quiet a rough
-            // splice cannot be heard, so stay close and keep the next attack on time.
-            let limit = if self.level < QUIET_LEVEL { self.quiet_delay } else { self.max_delay };
-            let forced = self.delay >= limit;
-            if !forced && self.delay < self.next_search_delay {
-                return;
-            }
-
-            let max_lag = (self.delay - MIN_DELAY) as usize;
-            if max_lag <= self.min_lag && !forced {
-                self.next_search_delay = MIN_DELAY + self.min_lag as f64 + self.retry_step;
-                return;
-            }
-
-            let found = self.find_splice_lag(self.min_lag.min(max_lag), max_lag, false);
-            let good = found.is_peak && found.quality >= GOOD_MATCH;
-            if good {
-                self.begin_fade(self.delay - found.lag, found.quality);
-                // Search again once the next period has built up, with room to see its peak
-                let reach = found.period * 1.05 + (2 * self.decimation) as f64;
-                self.next_search_delay = MIN_DELAY + reach.max(self.min_lag as f64 + 1.0);
-            } else if forced {
-                // Nothing lines up well, so at least get back to the lowest latency
-                let lag = if found.quality < POOR_MATCH { max_lag as f64 } else { found.lag };
-                self.begin_fade(self.delay - lag, found.quality);
-                self.next_search_delay = self.delay + self.retry_step;
-            } else {
-                self.next_search_delay = self.delay + self.retry_step;
-            }
-        } else if self.delay != MIN_DELAY {
-            // No shift: settle on a whole-sample delay so the input passes through untouched
-            let head = self.delay.round() as usize;
-            let quality = correlation(
-                &self.mix,
-                self.write_pos.wrapping_sub(1),
-                head,
-                MIN_DELAY as usize,
-                self.refine_window,
-            );
-            self.begin_fade(MIN_DELAY, quality);
-        }
-    }
-
-    fn begin_fade(&mut self, new_delay: f64, quality: f32) {
-        self.fade_delay = self.delay;
-        self.delay = new_delay.max(MIN_DELAY);
-        self.fade_len = self.crossfade_len;
-        self.fade_remaining = self.crossfade_len;
-        self.fade_match = quality.clamp(0.0, 1.0);
-    }
-
-    /// Finds how far the read head should jump so the waveform continues seamlessly.
-    ///
-    /// Compares the signal leading up to the head with the signal leading up to each
-    /// candidate position, `min_lag` to `max_lag` samples away. Only past input is used, so
-    /// the search adds no latency.
-    fn find_splice_lag(
-        &mut self,
-        min_lag: usize,
-        max_lag: usize,
-        toward_past: bool,
-    ) -> SpliceMatch {
-        let head = self.delay.round() as usize;
-        let step = self.decimation;
-
-        // Coarse search on the decimated mix, starting from lag 1 so the peak picker can
-        // see where the signal stops matching itself
-        let newest = self.decimated_pos.wrapping_sub(1);
-        let head_coarse = (head + step - 1).saturating_sub(self.decimation_count) / step;
-        let window = (self.window / step).max(4);
-        let first_lag = min_lag.div_ceil(step).max(1);
-        let last_lag = (max_lag / step).clamp(first_lag.min(MAX_SCORES), MAX_SCORES);
-        for lag in 1..=last_lag {
-            let other =
-                if toward_past { head_coarse + lag } else { head_coarse.saturating_sub(lag) };
-            self.scores[lag - 1] = correlation(&self.decimated, newest, head_coarse, other, window);
-        }
-        let (chosen, first, is_peak) =
-            pick_peak(&self.scores[..last_lag], first_lag - 1, toward_past);
-        let coarse_lag = (chosen + 1) * step;
-        let coarse_period = (first + 1) * step;
-
-        // Fine search at full rate around the coarse result, with one extra lag on each
-        // side for interpolating the peak position
-        let newest = self.write_pos.wrapping_sub(1);
-        let lo = coarse_lag.saturating_sub(step).clamp(min_lag, max_lag);
-        let hi = (coarse_lag + step).clamp(lo, max_lag);
-        let from = lo.saturating_sub(1).max(1);
-        let to = if toward_past { hi + 1 } else { (hi + 1).min(head) };
-        for lag in from..=to {
-            let other = if toward_past { head + lag } else { head - lag };
-            self.scores[lag - from] =
-                correlation(&self.mix, newest, head, other, self.refine_window);
-        }
-        let mut best = lo;
-        for lag in lo..=hi {
-            if self.scores[lag - from] > self.scores[best - from] {
-                best = lag;
-            }
-        }
-
-        let mut lag = best as f64;
-        if best > from && best < to {
-            let before = self.scores[best - 1 - from];
-            let peak = self.scores[best - from];
-            let after = self.scores[best + 1 - from];
-            let curvature = before - 2.0 * peak + after;
-            if curvature < 0.0 {
-                lag += (0.5 * (before - after) / curvature).clamp(-0.5, 0.5) as f64;
-            }
-        }
-
-        // Judge the match over the long window. The short one above only says how well the
-        // last few milliseconds happen to line up, which is not enough for a chord.
-        let other = if toward_past { head + best } else { head - best };
-        let quality = correlation(&self.mix, newest, head, other, self.window);
-
-        SpliceMatch {
-            lag,
-            quality,
-            period: if chosen == first { lag } else { coarse_period as f64 },
-            is_peak,
-        }
-    }
-
-    /// Gains for the outgoing and incoming head during a splice.
-    /// Returns (fade_out, fade_in)
-    fn fade_gains(&self) -> (f32, f32) {
-        let progress =
-            (self.fade_len - self.fade_remaining + 1) as f32 / (self.fade_len + 1) as f32;
-        let fade_in = 0.5 - 0.5 * (PI * progress).cos();
-        let fade_out = 1.0 - fade_in;
-
-        // Matched signals add in amplitude, unrelated ones add in power. Scale for the
-        // measured match so the level stays constant through the fade either way.
-        let level =
-            fade_in * fade_in + fade_out * fade_out + 2.0 * self.fade_match * fade_in * fade_out;
-        let scale = level.sqrt().recip();
-        (fade_out * scale, fade_in * scale)
-    }
-
-    /// Cubic Hermite interpolation, reading `delay` samples behind the newest input sample
-    fn read_cubic(&self, channel: usize, delay: f64) -> f32 {
-        let whole = delay.ceil();
-        let frac = (whole - delay) as f32;
-        let idx = self.write_pos.wrapping_sub(1 + whole as usize);
-        let buffer = &self.buffers[channel];
-
-        // Get 4 samples for cubic interpolation
-        let s0 = buffer[idx.wrapping_sub(1) & BUFFER_MASK];
-        let s1 = buffer[idx & BUFFER_MASK];
-        let s2 = buffer[idx.wrapping_add(1) & BUFFER_MASK];
-        let s3 = buffer[idx.wrapping_add(2) & BUFFER_MASK];
-
-        // Cubic Hermite interpolation
-        let c0 = s1;
-        let c1 = 0.5 * (s2 - s0);
-        let c2 = s0 - 2.5 * s1 + 2.0 * s2 - 0.5 * s3;
-        let c3 = 0.5 * (s3 - s0) + 1.5 * (s1 - s2);
-
-        ((c3 * frac + c2) * frac + c1) * frac + c0
-    }
-}
-
-/// Normalized correlation between two `len`-sample spans of a circular buffer. Each span is
-/// given by how far its newest sample lies behind `newest`.
-fn correlation(buffer: &[f32], newest: usize, delay_a: usize, delay_b: usize, len: usize) -> f32 {
-    let (mut ab, mut aa, mut bb) = (0.0_f32, 0.0_f32, 0.0_f32);
-    for i in 0..len {
-        let a = buffer[newest.wrapping_sub(delay_a + i) & BUFFER_MASK];
-        let b = buffer[newest.wrapping_sub(delay_b + i) & BUFFER_MASK];
-        ab += a * b;
-        aa += a * a;
-        bb += b * b;
-    }
-
-    let energy = aa * bb;
-    if energy > 1e-18 {
-        ab / energy.sqrt()
-    } else {
-        0.0
-    }
-}
-
-/// Picks the lag to splice at from correlation scores (`scores[i]` belongs to lag `i + 1`).
-/// Only indices from `min_index` on may be chosen.
-///
-/// Returns (chosen index, index of the shortest good peak, whether a real peak was found).
-/// `prefer_short` chooses the shortest good peak, otherwise the longest.
-fn pick_peak(scores: &[f32], min_index: usize, prefer_short: bool) -> (usize, usize, bool) {
-    let len = scores.len();
-    let is_peak = |i: usize| scores[i] >= scores[i - 1] && scores[i] > scores[i + 1];
-
-    // Peaks only count after the signal has stopped matching itself
-    let dip = scores.iter().position(|&score| score < DIP_LEVEL).unwrap_or(len);
-    let start = dip.max(min_index).max(1);
-    let end = len.saturating_sub(1);
-
-    let mut best = 0.0_f32;
-    for i in start..end {
-        if is_peak(i) && scores[i] > best {
-            best = scores[i];
-        }
-    }
-
-    if best > 0.0 {
-        // With a clear period its multiples match about equally well, so the direction
-        // decides. Without one, only the single best peak is worth anything.
-        let threshold = if best >= GOOD_MATCH { best * KEY_PEAK_RATIO } else { best };
-        let mut first = None;
-        let mut last = start;
-        for i in start..end {
-            if is_peak(i) && scores[i] >= threshold {
-                first.get_or_insert(i);
-                last = i;
-            }
-        }
-        let first = first.unwrap_or(last);
-        return (if prefer_short { first } else { last }, first, true);
-    }
-
-    // No peak in range: take the best value there is
-    let mut chosen = min_index.min(end);
-    for i in chosen + 1..len {
-        if scores[i] > scores[chosen] || (!prefer_short && scores[i] == scores[chosen]) {
-            chosen = i;
-        }
-    }
-    (chosen, chosen, false)
 }
 
 #[cfg(test)]
@@ -624,9 +350,11 @@ mod tests {
     const NUM_SAMPLES: usize = 44100;
     const SETTLE: usize = 14700;
 
-    // Just intonation, so partials of different notes either coincide or are far apart
-    const POWER_CHORD: [f64; 3] = [82.41, 123.615, 164.82];
-    const MAJOR_CHORD: [f64; 6] = [82.41, 123.615, 164.82, 206.025, 247.23, 329.64];
+    // What a measurement has to stay under, in dB of artifacts
+    const SINE_CLEAN: f64 = -45.0;
+    const TONE_CLEAN: f64 = -40.0;
+    const STRING_CLEAN: f64 = -40.0;
+    const CHORD_CLEAN: f64 = -18.0;
 
     fn new_shifter(semitones: i32) -> PitchShifter {
         let mut shifter = PitchShifter::new();
@@ -667,29 +395,6 @@ mod tests {
             }
         }
         chord
-    }
-
-    /// Plucked string (Karplus-Strong), for a guitar-like attack and decay
-    fn generate_pluck(frequency: f64, sample_rate: f32, num_samples: usize) -> Vec<f32> {
-        let period = (sample_rate as f64 / frequency - 0.5).round() as usize;
-        let mut seed = 12345_u32;
-        let mut line: Vec<f32> = (0..period)
-            .map(|_| {
-                seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
-                (seed >> 9) as f32 / (1 << 22) as f32 - 1.0
-            })
-            .collect();
-
-        let mut pos = 0;
-        (0..num_samples)
-            .map(|_| {
-                let next = (pos + 1) % period;
-                let sample = line[pos];
-                line[pos] = 0.998 * 0.5 * (sample + line[next]);
-                pos = next;
-                sample * 0.5
-            })
-            .collect()
     }
 
     fn generate_noise(num_samples: usize) -> Vec<f32> {
@@ -774,6 +479,157 @@ mod tests {
         artifact_ratio_db(&output[SETTLE..], SAMPLE_RATE, &partials)
     }
 
+    /// The notes of chords as a guitar plays them: equal temperament, so no two notes share
+    /// a period
+    const E_POWER: [f64; 3] = [82.41, 123.47, 164.81];
+    const E_MAJOR: [f64; 6] = [82.41, 123.47, 164.81, 207.65, 246.94, 329.63];
+    const A_MINOR_HIGH: [f64; 3] = [220.0, 261.63, 329.63];
+
+    /// Stiffness of a string: its partials lie a little above whole multiples
+    const STIFFNESS: f64 = 1.2e-4;
+
+    /// The partials of a plucked string up to 6 kHz: (frequency, level, decay time in s)
+    fn string_partials(note: f64) -> Vec<(f64, f64, f64)> {
+        (1..)
+            .map(|n| n as f64)
+            .map(|n| {
+                let frequency = n * note * (1.0 + STIFFNESS * n * n).sqrt();
+                let level = (n * PI64 * 0.18).sin().abs() / n;
+                (frequency, level, 2.2 / (1.0 + 0.012 * n * n))
+            })
+            .take_while(|&(frequency, _, _)| frequency < 6000.0)
+            .collect()
+    }
+
+    /// Plucked strings ringing together, each partial with its own decay, played `ratio`
+    /// times higher: at a ratio other than 1 this is what a perfect shifter would put out
+    fn generate_strings(
+        notes: &[f64],
+        ratio: f64,
+        sample_rate: f32,
+        num_samples: usize,
+    ) -> Vec<f32> {
+        let mut signal = vec![0.0_f64; num_samples];
+        let mut seed = 2463534242_u32;
+        for &note in notes {
+            for (frequency, level, decay) in string_partials(note) {
+                seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+                let phase = 2.0 * PI64 * (seed >> 8) as f64 / (1 << 24) as f64;
+                let frequency = frequency * ratio;
+                if frequency > 0.45 * sample_rate as f64 {
+                    continue;
+                }
+                for (i, sample) in signal.iter_mut().enumerate() {
+                    let t = i as f64 / sample_rate as f64;
+                    *sample +=
+                        level * (-t / decay).exp() * (2.0 * PI64 * frequency * t + phase).sin();
+                }
+            }
+        }
+        let scale = 0.25 / (notes.len() as f64).sqrt();
+        signal
+            .iter()
+            .enumerate()
+            .map(|(i, sample)| {
+                // A pick's attack: 3 ms
+                let attack = (i as f64 / (0.003 * sample_rate as f64)).min(1.0);
+                (scale * attack * sample) as f32
+            })
+            .collect()
+    }
+
+    /// The frequencies strings shifted by `semitones` should consist of
+    fn shifted_string_partials(notes: &[f64], semitones: i32, sample_rate: f32) -> Vec<f64> {
+        let mut partials: Vec<f64> = notes
+            .iter()
+            .flat_map(|&note| string_partials(note))
+            .map(|(frequency, _, _)| frequency * shift_ratio(semitones))
+            .filter(|&frequency| frequency < sample_rate as f64 * 0.45)
+            .collect();
+        partials.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        partials.dedup_by(|a, b| (*a - *b).abs() < 2.0);
+        partials
+    }
+
+    /// Like `artifact_ratio_db` for partials that fade: each is fitted with a level that may
+    /// rise or fall in a straight line over the span, so a decay is not taken for an artifact
+    fn fading_artifact_ratio_db(signal: &[f32], sample_rate: f32, partials: &[f64]) -> f64 {
+        let len = signal.len();
+        let window: Vec<f64> =
+            (0..len).map(|i| 0.5 - 0.5 * (2.0 * PI64 * i as f64 / len as f64).cos()).collect();
+        let mut residual: Vec<f64> = signal.iter().map(|&s| s as f64).collect();
+        let energy =
+            |samples: &[f64]| -> f64 { samples.iter().zip(&window).map(|(s, w)| w * s * s).sum() };
+        let total = energy(&residual);
+        let mut fitted = vec![[0.0_f64; 4]; partials.len()];
+
+        for _ in 0..4 {
+            for (partial, &frequency) in partials.iter().enumerate() {
+                let omega = 2.0 * PI64 * frequency / sample_rate as f64;
+                let basis = |i: usize| {
+                    let (sin, cos) = (omega * i as f64).sin_cos();
+                    let slope = 2.0 * i as f64 / len as f64 - 1.0;
+                    [cos, sin, slope * cos, slope * sin]
+                };
+                // Put this partial back, then fit it again to what the others have left
+                let mut normal = [[0.0_f64; 5]; 4];
+                for i in 0..len {
+                    let basis = basis(i);
+                    let was: f64 = (0..4).map(|k| fitted[partial][k] * basis[k]).sum();
+                    residual[i] += was;
+                    for row in 0..4 {
+                        for column in 0..4 {
+                            normal[row][column] += window[i] * basis[row] * basis[column];
+                        }
+                        normal[row][4] += window[i] * basis[row] * residual[i];
+                    }
+                }
+                // Four equations, by elimination
+                for pivot in 0..4 {
+                    let scale = normal[pivot][pivot];
+                    for column in pivot..5 {
+                        normal[pivot][column] /= scale;
+                    }
+                    for row in 0..4 {
+                        if row != pivot {
+                            let factor = normal[row][pivot];
+                            for column in pivot..5 {
+                                normal[row][column] -= factor * normal[pivot][column];
+                            }
+                        }
+                    }
+                }
+                for k in 0..4 {
+                    fitted[partial][k] = normal[k][4];
+                }
+                for (i, sample) in residual.iter_mut().enumerate() {
+                    let basis = basis(i);
+                    *sample -= (0..4).map(|k| fitted[partial][k] * basis[k]).sum::<f64>();
+                }
+            }
+        }
+
+        10.0 * (energy(&residual) / total).max(1e-20).log10()
+    }
+
+    /// Span the string measurements are taken over: 186 ms, from a quarter second in
+    const STRING_SPAN: std::ops::Range<usize> = 11025..11025 + 8192;
+
+    /// Shifts ringing strings and measures how much of the output is not the shifted strings
+    fn measure_string_artifacts(notes: &[f64], semitones: i32, latency_ms: f32) -> f64 {
+        let mut shifter = new_shifter(semitones);
+        shifter.set_latency_ms(latency_ms);
+        let input = generate_strings(notes, 1.0, SAMPLE_RATE, 22050);
+        let output = process_buffer(&mut shifter, &input);
+        let partials = shifted_string_partials(notes, semitones, SAMPLE_RATE);
+        fading_artifact_ratio_db(&output[STRING_SPAN], SAMPLE_RATE, &partials)
+    }
+
+    /// Samples the shifter takes to be back at the dry input after a shift ends
+    fn fade_len(shifter: &PitchShifter) -> usize {
+        (1.0 / shifter.fade_step).ceil() as usize + 1
+    }
+
     #[test]
     fn test_passthrough_is_exact_at_zero_semitones() {
         let mut shifter = new_shifter(0);
@@ -781,9 +637,8 @@ mod tests {
         let input = generate_harmonic_tone(110.0, 10, 4000);
         let output = process_buffer(&mut shifter, &input);
 
-        let delay = MIN_DELAY as usize;
-        for i in delay..input.len() {
-            assert_eq!(output[i], input[i - delay], "Sample {} was altered", i);
+        for i in MIN_DELAY..input.len() {
+            assert_eq!(output[i], input[i - MIN_DELAY], "Sample {} was altered", i);
         }
     }
 
@@ -796,10 +651,9 @@ mod tests {
         shifter.set_semitones(0);
         output.extend(process_buffer(&mut shifter, &input[20000..]));
 
-        // One crossfade back to the minimum delay, then untouched again
-        let delay = MIN_DELAY as usize;
-        for i in 20000 + shifter.crossfade_len + 1..input.len() {
-            assert_eq!(output[i], input[i - delay], "Sample {} was altered", i);
+        // One crossfade back to the dry input, then untouched again
+        for i in 20000 + fade_len(&shifter)..input.len() {
+            assert_eq!(output[i], input[i - MIN_DELAY], "Sample {} was altered", i);
         }
     }
 
@@ -831,7 +685,7 @@ mod tests {
 
     #[test]
     fn test_full_blend_is_the_shifted_output_unchanged() {
-        // 100 % is the default and the sound from before the knob, bit for bit
+        // 100 % is the default and the sound without the knob, bit for bit
         let input = generate_harmonic_tone(110.0, 10, NUM_SAMPLES);
         for semitones in [-12, -5, 7, 12] {
             let without_knob = process_buffer(&mut new_shifter(semitones), &input);
@@ -851,14 +705,13 @@ mod tests {
     #[test]
     fn test_no_blend_is_the_dry_input_at_every_shift() {
         let input = generate_harmonic_tone(110.0, 10, 20000);
-        let delay = MIN_DELAY as usize;
         for semitones in -12..=12 {
             let output = process_blended(&mut new_shifter(semitones), &input, 0.0);
-            assert!(output[..delay].iter().all(|&s| s == 0.0));
-            for i in delay..input.len() {
+            assert!(output[..MIN_DELAY].iter().all(|&s| s == 0.0));
+            for i in MIN_DELAY..input.len() {
                 assert_eq!(
                     output[i].to_bits(),
-                    input[i - delay].to_bits(),
+                    input[i - MIN_DELAY].to_bits(),
                     "Semitones={}: sample {} is not the dry input",
                     semitones,
                     i
@@ -870,13 +723,12 @@ mod tests {
     #[test]
     fn test_no_shift_passes_through_at_any_blend() {
         let input = generate_harmonic_tone(110.0, 10, 4000);
-        let delay = MIN_DELAY as usize;
         for blend in [0.0, 0.3, 0.5, 1.0] {
             let output = process_blended(&mut new_shifter(0), &input, blend);
-            for i in delay..input.len() {
+            for i in MIN_DELAY..input.len() {
                 assert_eq!(
                     output[i],
-                    input[i - delay],
+                    input[i - MIN_DELAY],
                     "Blend={}: sample {} was altered",
                     blend,
                     i
@@ -889,16 +741,15 @@ mod tests {
     fn test_bypass_returns_to_passthrough_at_any_blend() {
         // Bypass is a shift of 0: after one crossfade back it is bit-exact whatever the blend
         let input = generate_harmonic_tone(110.0, 10, 30000);
-        let delay = MIN_DELAY as usize;
         for blend in [0.0, 0.3, 0.5, 1.0] {
             let mut shifter = new_shifter(-12);
             let mut output = process_blended(&mut shifter, &input[..20000], blend);
             shifter.set_semitones(0);
             output.extend(process_blended(&mut shifter, &input[20000..], blend));
-            for i in 20000 + shifter.crossfade_len + 1..input.len() {
+            for i in 20000 + fade_len(&shifter)..input.len() {
                 assert_eq!(
                     output[i],
-                    input[i - delay],
+                    input[i - MIN_DELAY],
                     "Blend={}: sample {} was altered",
                     blend,
                     i
@@ -909,12 +760,10 @@ mod tests {
 
     #[test]
     fn test_half_blend_is_a_two_note_harmony() {
-        // A fifth up on a 110 Hz sine: both notes at the same level, and no more artifacts
-        // than the shifted note has on its own
+        // A fifth up on a 110 Hz sine: both notes at the same level, and nothing else
         let input = generate_sine_wave(110.0, SAMPLE_RATE, NUM_SAMPLES);
         let shifted = 110.0 * shift_ratio(7);
         let mixed = process_blended(&mut new_shifter(7), &input, 0.5);
-        let alone = process_buffer(&mut new_shifter(7), &input);
 
         let dry_db = level_at_db(&mixed[SETTLE..], SAMPLE_RATE, 110.0);
         let wet_db = level_at_db(&mixed[SETTLE..], SAMPLE_RATE, shifted);
@@ -926,14 +775,8 @@ mod tests {
             wet_db
         );
 
-        let mixed_artifacts = artifact_ratio_db(&mixed[SETTLE..], SAMPLE_RATE, &[110.0, shifted]);
-        let alone_artifacts = artifact_ratio_db(&alone[SETTLE..], SAMPLE_RATE, &[shifted]);
-        assert!(
-            mixed_artifacts <= alone_artifacts,
-            "Artifacts at {:.1} dB blended, {:.1} dB shifted alone",
-            mixed_artifacts,
-            alone_artifacts
-        );
+        let artifacts = artifact_ratio_db(&mixed[SETTLE..], SAMPLE_RATE, &[110.0, shifted]);
+        assert!(artifacts < -40.0, "Artifacts at {:.1} dB", artifacts);
     }
 
     #[test]
@@ -963,7 +806,7 @@ mod tests {
             for note in [82.41, 196.0, 659.26] {
                 let artifacts = measure_artifacts(&[note], 1, semitones, 15.0);
                 assert!(
-                    artifacts < -45.0,
+                    artifacts < SINE_CLEAN,
                     "Semitones={}, {} Hz: artifacts at {:.1} dB",
                     semitones,
                     note,
@@ -977,22 +820,55 @@ mod tests {
     fn test_harmonic_tone_stays_clean() {
         for semitones in [-12, -7, -5, -2, -1, 1, 2, 5, 7, 12] {
             let artifacts = measure_artifacts(&[110.0], 10, semitones, 15.0);
-            assert!(artifacts < -40.0, "Semitones={}: artifacts at {:.1} dB", semitones, artifacts);
+            assert!(
+                artifacts < TONE_CLEAN,
+                "Semitones={}: artifacts at {:.1} dB",
+                semitones,
+                artifacts
+            );
         }
     }
 
     #[test]
-    fn test_chord_stays_clean_when_its_period_fits() {
-        // The notes of a power chord repeat together every 24.3 ms
-        for semitones in [-12, -5, -2, 2, 7, 12] {
-            let artifacts = measure_artifacts(&POWER_CHORD, 6, semitones, 30.0);
-            assert!(artifacts < -45.0, "Semitones={}: artifacts at {:.1} dB", semitones, artifacts);
+    fn test_a_ringing_string_stays_clean() {
+        // What the splicing shifter before this one buzzed on: a string's partials are not
+        // whole multiples, so no period repeats exactly
+        for note in [82.41, 196.0, 659.26] {
+            for semitones in [-12, -5, 7, 12] {
+                let artifacts = measure_string_artifacts(&[note], semitones, 15.0);
+                assert!(
+                    artifacts < STRING_CLEAN,
+                    "{} Hz, semitones={}: artifacts at {:.1} dB",
+                    note,
+                    semitones,
+                    artifacts
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_chords_stay_clean_at_the_default_latency() {
+        // Equal-tempered chords, whose notes share no period short enough to splice on
+        for (name, chord) in [("E5", &E_POWER[..]), ("E", &E_MAJOR[..]), ("Am", &A_MINOR_HIGH[..])]
+        {
+            for semitones in [-12, -5, -2, 2, 7, 12] {
+                let artifacts = measure_string_artifacts(chord, semitones, 15.0);
+                assert!(
+                    artifacts < CHORD_CLEAN,
+                    "{}, semitones={}: artifacts at {:.1} dB",
+                    name,
+                    semitones,
+                    artifacts
+                );
+            }
         }
     }
 
     #[test]
     fn test_stays_clean_at_other_sample_rates() {
-        for sample_rate in [48000.0_f32, 96000.0] {
+        // 96 and 192 kHz go through the step down to the engine's rate and back
+        for sample_rate in [48000.0_f32, 96000.0, 192000.0] {
             for semitones in [-2, 7] {
                 let mut shifter = PitchShifter::new();
                 shifter.set_sample_rate(sample_rate);
@@ -1006,12 +882,14 @@ mod tests {
                 let artifacts =
                     artifact_ratio_db(&output[num_samples / 3..], sample_rate, &partials);
                 assert!(
-                    artifacts < -45.0,
+                    artifacts < SINE_CLEAN,
                     "{} Hz, semitones={}: artifacts at {:.1} dB",
                     sample_rate,
                     semitones,
                     artifacts
                 );
+                let ratio = rms(&output[num_samples / 3..]) / rms(&input[num_samples / 3..]);
+                assert!((ratio - 1.0).abs() < 0.02, "{} Hz: level times {}", sample_rate, ratio);
             }
         }
     }
@@ -1035,93 +913,131 @@ mod tests {
     }
 
     #[test]
-    fn test_latency_follows_pitch_period() {
-        // 329.63 Hz has a period of 134 samples, far below the 15 ms (661 sample) limit
-        for semitones in [-2, 2] {
-            let mut shifter = new_shifter(semitones);
-
-            let input = generate_sine_wave(329.63, SAMPLE_RATE, NUM_SAMPLES);
-            let mut longest: f64 = 0.0;
-            for (i, &sample) in input.iter().enumerate() {
-                shifter.process_sample(sample);
-                if i > SETTLE {
-                    longest = longest.max(shifter.delay);
-                }
-            }
-
+    fn test_a_chord_keeps_its_level() {
+        // Against the same chord played that much higher or lower. Partials of two strings
+        // that nearly meet beat at another rate once shifted, which moves the level a little
+        for semitones in [-12, -5, 7, 12] {
+            let input = generate_strings(&E_MAJOR, 1.0, SAMPLE_RATE, NUM_SAMPLES);
+            let wanted =
+                generate_strings(&E_MAJOR, shift_ratio(semitones), SAMPLE_RATE, NUM_SAMPLES);
+            let output = process_buffer(&mut new_shifter(semitones), &input);
+            let ratio = rms(&output[SETTLE..]) / rms(&wanted[SETTLE..]);
             assert!(
-                longest < 2.0 * 134.0,
-                "Semitones={}: delay reached {} samples",
+                (20.0 * ratio.log10()).abs() < 1.0,
+                "Semitones={}: level changed by {:.2} dB",
                 semitones,
-                longest
+                20.0 * ratio.log10()
             );
         }
     }
 
+    /// First sample over a tenth of the signal's peak
+    fn onset(signal: &[f32]) -> usize {
+        let top = signal.iter().fold(0.0_f32, |top, sample| top.max(sample.abs()));
+        signal.iter().position(|sample| sample.abs() > 0.1 * top).unwrap()
+    }
+
     #[test]
-    fn test_delay_stays_within_limits() {
-        // Noise has no period to lock on to, so every splice is a forced one
-        let input = generate_noise(20000);
+    fn test_a_note_starts_one_latency_late() {
+        // The lag does not depend on the note, as it did when it was a period of it
+        for (latency_ms, note) in [(6.0, 82.41), (15.0, 82.41), (15.0, 659.26), (30.0, 196.0)] {
+            for semitones in [-12, 7] {
+                let mut shifter = new_shifter(semitones);
+                shifter.set_latency_ms(latency_ms);
+                // The shifter is running before the note comes
+                let mut input = vec![0.0; 8000];
+                input.extend(generate_strings(&[note], 1.0, SAMPLE_RATE, 12000));
+                let output = process_buffer(&mut shifter, &input);
 
-        for semitones in -12..=12 {
-            let mut shifter = new_shifter(semitones);
-
-            for &sample in &input {
-                let output = shifter.process_sample(sample);
-                assert!(output.is_finite());
+                let lag = onset(&output) as f32 - onset(&input) as f32;
+                let stated = shifter.latency_samples() as f32;
+                assert!(stated <= latency_ms * 0.001 * SAMPLE_RATE);
+                // The start of a note is spread over the chunk it falls in: it is heard
+                // between half a chunk early and a quarter late
                 assert!(
-                    shifter.delay >= MIN_DELAY && shifter.delay <= shifter.max_delay + 1.0,
-                    "Semitones={}: delay {} outside {}..{}",
+                    lag > 0.4 * stated && lag < 1.3 * stated,
+                    "{} ms, {} Hz, semitones={}: starts {} samples late, latency {}",
+                    latency_ms,
+                    note,
                     semitones,
-                    shifter.delay,
-                    MIN_DELAY,
-                    shifter.max_delay
+                    lag,
+                    stated
                 );
             }
         }
     }
 
     #[test]
-    fn test_quiet_input_keeps_latency_low() {
-        let mut shifter = new_shifter(-5);
-
-        for _ in 0..20000 {
-            shifter.process_sample(0.0);
-            assert!(
-                shifter.delay <= shifter.quiet_delay + 1.0,
-                "Delay grew to {} samples during silence",
-                shifter.delay
-            );
-        }
-    }
-
-    #[test]
-    fn test_quiet_input_holds_head_back_when_shifting_up() {
-        let mut shifter = new_shifter(2);
-
-        for i in 0..20000 {
-            shifter.process_sample(0.0);
-            if i > 1000 {
+    fn test_latency_stays_within_a_setting_of_6_ms_or_more() {
+        for sample_rate in [44100.0_f32, 48000.0, 96000.0, 192000.0] {
+            let mut shifter = PitchShifter::new();
+            shifter.set_sample_rate(sample_rate);
+            let mut last = 0;
+            for latency_ms in [6.0, 10.0, 12.0, 15.0, 22.0, 30.0, 50.0] {
+                shifter.set_latency_ms(latency_ms);
+                let lag = shifter.latency_samples();
                 assert!(
-                    shifter.delay > shifter.hold_delay - shifter.min_lag as f64 - 1.0
-                        && shifter.delay <= shifter.hold_delay,
-                    "Delay {} strayed from the hold position {}",
-                    shifter.delay,
-                    shifter.hold_delay
+                    lag as f32 <= latency_ms * 0.001 * sample_rate,
+                    "{} Hz, {} ms: lags {} samples",
+                    sample_rate,
+                    latency_ms,
+                    lag
                 );
+                assert!(lag >= last);
+                last = lag;
             }
+            // Under the shortest chunk there is, the shortest is what it gets
+            shifter.set_latency_ms(2.0);
+            assert!(shifter.latency_samples() as f32 <= 0.0062 * sample_rate);
         }
     }
 
     #[test]
-    fn test_stereo_channels_share_one_read_head() {
+    fn test_noise_comes_through_at_its_level() {
+        let input = generate_noise(40000);
+        for semitones in [-12, -5, 7, 12] {
+            let output = process_buffer(&mut new_shifter(semitones), &input);
+            assert!(output.iter().all(|sample| sample.is_finite()));
+            // Shifted up, the top of the noise leaves the band
+            let ratio = rms(&output[SETTLE..]) / rms(&input[SETTLE..]);
+            let least = if semitones > 0 { 0.5 } else { 0.8 };
+            assert!(ratio > least && ratio < 1.2, "Semitones={}: level times {}", semitones, ratio);
+        }
+    }
+
+    #[test]
+    fn test_a_bad_sample_does_not_stay() {
+        // Not a number, infinite, or far over full scale: the shifter is itself again once
+        // the sample has left its frame
+        let input = generate_sine_wave(196.0, SAMPLE_RATE, 30000);
+        for bad in [f32::NAN, f32::INFINITY, 1.0e30] {
+            let mut shifter = new_shifter(7);
+            let mut spoilt = input.clone();
+            spoilt[5000] = bad;
+            let output = process_buffer(&mut shifter, &spoilt);
+            assert!(output.iter().all(|sample| sample.is_finite()), "{}: output not finite", bad);
+            let ratio = rms(&output[20000..]) / rms(&input[20000..]);
+            assert!((ratio - 1.0).abs() < 0.05, "{}: level times {} afterwards", bad, ratio);
+        }
+    }
+
+    #[test]
+    fn test_silence_stays_silent() {
+        let mut shifter = new_shifter(-5);
+        for _ in 0..20000 {
+            assert_eq!(shifter.process_sample(0.0), 0.0);
+        }
+    }
+
+    #[test]
+    fn test_stereo_channels_are_shifted_alike() {
         let mut shifter = new_shifter(5);
 
-        let input = generate_harmonic_tone(110.0, 10, 10000);
+        let input = generate_harmonic_tone(110.0, 10, 20000);
         for &sample in &input {
             let (left, right) = shifter.process_stereo(sample, 0.5 * sample);
             assert!(
-                (right - 0.5 * left).abs() < 1e-6,
+                (right - 0.5 * left).abs() < 1e-4,
                 "Channels drifted apart: left={}, right={}",
                 left,
                 right
@@ -1161,106 +1077,40 @@ mod tests {
     fn test_reset_clears_state() {
         let mut shifter = new_shifter(5);
 
-        let input = generate_sine_wave(440.0, SAMPLE_RATE, 2000);
-        let _ = process_buffer(&mut shifter, &input);
+        let input = generate_sine_wave(440.0, SAMPLE_RATE, 20000);
+        let first = process_buffer(&mut shifter, &input);
 
         shifter.reset();
-
-        assert_eq!(shifter.write_pos, 0);
-        assert_eq!(shifter.delay, MIN_DELAY);
-        assert_eq!(shifter.fade_remaining, 0);
         for _ in 0..2000 {
             assert_eq!(shifter.process_sample(0.0), 0.0);
         }
+
+        // And it plays again as it did the first time
+        shifter.reset();
+        assert!(process_buffer(&mut shifter, &input) == first);
     }
 
     #[test]
-    fn test_playback_rate_calculation() {
+    fn test_the_rate_is_stepped_down_to_the_engines() {
         let mut shifter = PitchShifter::new();
-
-        shifter.set_semitones(0);
-        assert!((shifter.playback_rate - 1.0).abs() < 0.001);
-
-        shifter.set_semitones(12);
-        assert!((shifter.playback_rate - 2.0).abs() < 0.001);
-
-        shifter.set_semitones(-12);
-        assert!((shifter.playback_rate - 0.5).abs() < 0.001);
-
-        shifter.set_semitones(7);
-        let expected = 2.0_f64.powf(7.0 / 12.0);
-        assert!((shifter.playback_rate - expected).abs() < 0.001);
-    }
-
-    #[test]
-    fn test_fade_gains_keep_level_constant() {
-        let mut shifter = PitchShifter::new();
-        shifter.fade_len = 100;
-
-        for remaining in 1..=100 {
-            shifter.fade_remaining = remaining;
-
-            // Matched heads add in amplitude
-            shifter.fade_match = 1.0;
-            let (fade_out, fade_in) = shifter.fade_gains();
-            assert!((fade_out + fade_in - 1.0).abs() < 0.001);
-
-            // Unrelated heads add in power
-            shifter.fade_match = 0.0;
-            let (fade_out, fade_in) = shifter.fade_gains();
-            assert!((fade_out * fade_out + fade_in * fade_in - 1.0).abs() < 0.001);
+        for (sample_rate, factor) in
+            [(44100.0, 1), (48000.0, 1), (88200.0, 2), (96000.0, 2), (176400.0, 4), (192000.0, 4)]
+        {
+            shifter.set_sample_rate(sample_rate);
+            assert_eq!(shifter.factor, factor, "{} Hz", sample_rate);
         }
-
-        // The fade ends on the incoming head
-        shifter.fade_remaining = 1;
-        let (fade_out, fade_in) = shifter.fade_gains();
-        assert!(fade_out < 0.001 && fade_in > 0.999);
     }
 
-    #[test]
-    fn test_cubic_interpolation() {
-        let mut shifter = new_shifter(0);
-
-        // Fill the buffer with a simple ramp; the newest sample is 99
-        for i in 0..100 {
-            shifter.process_sample(i as f32);
-        }
-
-        assert_eq!(shifter.read_cubic(0, 10.0), 89.0);
-
-        // For a linear ramp, cubic interpolation should land halfway
-        let val = shifter.read_cubic(0, 10.5);
-        assert!((val - 88.5).abs() < 0.01, "Cubic interpolation value: {}", val);
-    }
-
-    #[test]
-    fn test_pick_peak_finds_the_period() {
-        // Correlation of a signal with a period of 20 lags: peaks at lag 20, 40 and 60
-        let scores: Vec<f32> = (1..=70).map(|lag| (2.0 * PI * lag as f32 / 20.0).cos()).collect();
-
-        // Shifting up takes the shortest jump, shifting down the longest
-        assert_eq!(pick_peak(&scores, 0, true), (19, 19, true));
-        assert_eq!(pick_peak(&scores, 0, false), (59, 19, true));
-
-        // Lags below the minimum are not eligible
-        assert_eq!(pick_peak(&scores, 25, true), (39, 39, true));
-
-        // The falling slope next to lag zero is not a match
-        let slope: Vec<f32> = (1..=10).map(|lag| 1.0 - 0.01 * lag as f32).collect();
-        let (_, _, is_peak) = pick_peak(&slope, 0, true);
-        assert!(!is_peak);
-    }
-
-    /// Prints artifact levels and latency for a range of notes and shifts. Use it to compare
-    /// before and after changing the algorithm or its constants:
-    ///   cargo test --release quality_report -- --ignored --nocapture
+    /// Prints artifact levels, latency and cost for a range of notes and shifts. Use it to
+    /// compare before and after changing the engine or its constants:
+    ///   cargo test -p suite_common --release quality_report -- --ignored --nocapture
     #[test]
     #[ignore]
     fn quality_report() {
         let shifts = [-12, -7, -5, -2, -1, 0, 1, 2, 5, 7, 12];
         let notes = [82.41, 110.0, 196.0, 329.63, 659.26];
 
-        println!("Artifacts in dB (lower is cleaner), sines and a 110 Hz harmonic tone");
+        println!("Artifacts in dB (lower is cleaner), sines and a 110 Hz harmonic tone, at 15 ms");
         println!("{:>4}{:>8}{:>8}{:>8}{:>8}{:>8}{:>10}", "st", 82, 110, 196, 330, 659, "harmonic");
         for semitones in shifts {
             print!("{:>4}", semitones);
@@ -1270,41 +1120,101 @@ mod tests {
             println!("{:>10.1}", measure_artifacts(&[110.0], 10, semitones, 15.0));
         }
 
-        println!("Artifacts in dB, power chord and major chord at 15 and 30 ms max latency");
+        println!();
+        println!("Artifacts in dB, ringing strings (stiff, each partial with its own decay) and");
+        println!("equal-tempered chords of them, at 15 ms");
         println!(
-            "{:>4}{:>10}{:>10}{:>10}{:>10}",
-            "st", "power/15", "major/15", "power/30", "major/30"
+            "{:>4}{:>8}{:>8}{:>8}{:>8}{:>8}{:>8}{:>8}{:>8}",
+            "st", 82, 110, 196, 330, 659, "E5", "E", "Am"
         );
         for semitones in shifts {
             print!("{:>4}", semitones);
-            for latency_ms in [15.0, 30.0] {
-                print!("{:>10.1}", measure_artifacts(&POWER_CHORD, 6, semitones, latency_ms));
-                print!("{:>10.1}", measure_artifacts(&MAJOR_CHORD, 6, semitones, latency_ms));
+            for note in notes {
+                print!("{:>8.1}", measure_string_artifacts(&[note], semitones, 15.0));
+            }
+            for chord in [&E_POWER[..], &E_MAJOR[..], &A_MINOR_HIGH[..]] {
+                print!("{:>8.1}", measure_string_artifacts(chord, semitones, 15.0));
             }
             println!();
         }
 
-        println!("Longest delay in ms once settled");
-        for semitones in shifts {
+        println!();
+        println!("The same per latency setting: a low E string, and an E major chord");
+        println!("{:>4}{:>16}{:>16}{:>16}{:>16}", "st", "5.5 ms", "15 ms", "30 ms", "50 ms");
+        for semitones in [-12, -5, -2, 2, 7, 12] {
             print!("{:>4}", semitones);
-            for note in notes {
-                let mut shifter = new_shifter(semitones);
-                let mut longest: f64 = 0.0;
-                let input = generate_sine_wave(note, SAMPLE_RATE, NUM_SAMPLES);
-                for (i, &sample) in input.iter().enumerate() {
-                    shifter.process_sample(sample);
-                    if i > SETTLE {
-                        longest = longest.max(shifter.delay);
-                    }
-                }
-                print!("{:>8.2}", longest / SAMPLE_RATE as f64 * 1000.0);
+            for latency_ms in [5.5, 15.0, 30.0, 50.0] {
+                print!(
+                    "{:>8.1}{:>8.1}",
+                    measure_string_artifacts(&[82.41], semitones, latency_ms),
+                    measure_string_artifacts(&E_MAJOR, semitones, latency_ms)
+                );
             }
             println!();
+        }
+
+        println!();
+        println!("Level of a shifted E major chord against the chord played there, in dB");
+        for semitones in [-12, -5, -2, 2, 7, 12] {
+            let input = generate_strings(&E_MAJOR, 1.0, SAMPLE_RATE, NUM_SAMPLES);
+            let wanted =
+                generate_strings(&E_MAJOR, shift_ratio(semitones), SAMPLE_RATE, NUM_SAMPLES);
+            let output = process_buffer(&mut new_shifter(semitones), &input);
+            let ratio = rms(&output[SETTLE..]) / rms(&wanted[SETTLE..]);
+            println!("{:>4}{:>8.2}", semitones, 20.0 * ratio.log10());
+        }
+
+        println!();
+        println!("Latency in ms per setting and sample rate");
+        println!("{:>10}{:>8}{:>8}{:>8}{:>8}", "rate", "5.5 ms", "15 ms", "30 ms", "50 ms");
+        for sample_rate in [44100.0_f32, 48000.0, 96000.0, 192000.0] {
+            let mut shifter = PitchShifter::new();
+            shifter.set_sample_rate(sample_rate);
+            print!("{:>10}", sample_rate);
+            for latency_ms in [5.5, 15.0, 30.0, 50.0] {
+                shifter.set_latency_ms(latency_ms);
+                print!("{:>8.2}", shifter.latency_samples() as f32 / sample_rate * 1000.0);
+            }
+            println!();
+        }
+
+        println!();
+        println!("Cost of an E major chord in blocks of 64 at 48 kHz, as a share of the time a");
+        println!("block lasts: over all blocks, and the 99th percentile block");
+        for sample_rate in [48000.0_f32, 192000.0] {
+            for latency_ms in [5.5, 15.0, 30.0, 50.0] {
+                let block = 64 * (sample_rate / 48000.0) as usize;
+                let input = generate_strings(&E_MAJOR, 1.0, sample_rate, 4 * sample_rate as usize);
+                let mut shifter = PitchShifter::new();
+                shifter.set_sample_rate(sample_rate);
+                shifter.set_latency_ms(latency_ms);
+                shifter.set_semitones(-5);
+                let mut times: Vec<f64> = input
+                    .chunks(block)
+                    .map(|block| {
+                        let start = std::time::Instant::now();
+                        for &sample in block {
+                            std::hint::black_box(shifter.process_sample(sample));
+                        }
+                        start.elapsed().as_secs_f64()
+                    })
+                    .collect();
+                let total: f64 = times.iter().sum();
+                times.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                let lasts = block as f64 / sample_rate as f64;
+                println!(
+                    "{:>8} Hz {:>5} ms: {:>5.1} % / {:>5.1} %",
+                    sample_rate,
+                    latency_ms,
+                    100.0 * total / 4.0,
+                    100.0 * times[times.len() * 99 / 100] / lasts
+                );
+            }
         }
     }
 
     /// Writes before/after WAV files to target/renders for listening:
-    ///   cargo test --release render_wavs -- --ignored
+    ///   cargo test -p suite_common --release render_wavs -- --ignored
     ///
     /// Set PITCH_SHIFTER_INPUT_WAV to the path of a recording to render that as well, and
     /// PITCH_SHIFTER_LATENCY_MS to try another max latency.
@@ -1318,27 +1228,39 @@ mod tests {
             .ok()
             .map(|value| value.parse().expect("PITCH_SHIFTER_LATENCY_MS must be a number"));
 
-        // A phrase of single notes across the strings, then a strummed E major chord
-        let note_len = (SAMPLE_RATE * 0.5) as usize;
+        // A phrase of single notes across the strings, a strummed E major chord left to
+        // ring, and power chords
+        let rate = SAMPLE_RATE;
+        let note_len = (rate * 0.5) as usize;
         let mut phrase = vec![0.0; note_len * 7];
         for (i, note) in [82.41, 110.0, 146.83, 196.0, 246.94, 329.63].iter().enumerate() {
-            for (j, sample) in generate_pluck(*note, SAMPLE_RATE, note_len).iter().enumerate() {
+            for (j, sample) in generate_strings(&[*note], 1.0, rate, note_len).iter().enumerate() {
                 phrase[i * note_len + j] += sample;
             }
         }
-        let strum_gap = (SAMPLE_RATE * 0.015) as usize;
-        let mut chord = vec![0.0; note_len * 5];
-        for (i, note) in [82.41, 123.47, 164.81, 207.65, 246.94, 329.63].iter().enumerate() {
+        let strum_gap = (rate * 0.015) as usize;
+        let mut chord = vec![0.0; note_len * 6];
+        for (i, note) in E_MAJOR.iter().enumerate() {
             let start = i * strum_gap;
-            let pluck = generate_pluck(*note, SAMPLE_RATE, chord.len() - start);
-            for (j, sample) in pluck.iter().enumerate() {
-                chord[start + j] += sample / 3.0;
+            let string = generate_strings(&[*note], 1.0, rate, chord.len() - start);
+            for (j, sample) in string.iter().enumerate() {
+                chord[start + j] += 0.5 * sample;
             }
         }
+        let mut riff = vec![0.0; note_len * 6];
+        for (i, root) in [82.41, 82.41, 98.0, 110.0, 82.41, 73.42].iter().enumerate() {
+            let notes = [*root, root * 1.4983, root * 2.0];
+            for (j, sample) in generate_strings(&notes, 1.0, rate, note_len).iter().enumerate() {
+                riff[i * note_len + j] += sample;
+            }
+        }
+        let sustain = generate_strings(&[196.0], 1.0, rate, note_len * 6);
 
         let mut sources = vec![
-            ("notes".to_string(), phrase, SAMPLE_RATE as u32),
-            ("chord".to_string(), chord, SAMPLE_RATE as u32),
+            ("notes".to_string(), phrase, rate as u32),
+            ("chord".to_string(), chord, rate as u32),
+            ("power_chords".to_string(), riff, rate as u32),
+            ("long_note".to_string(), sustain, rate as u32),
         ];
         if let Ok(path) = std::env::var("PITCH_SHIFTER_INPUT_WAV") {
             let (samples, sample_rate) = read_wav_mono(&path);

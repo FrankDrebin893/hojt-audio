@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Makes plugins/amp/assets/amp.ico: the HØJT badge, drawn once per size from the geometry of
+"""Makes plugins/<name>/assets/<name>.ico for the six standalone programs: the HØJT badge, drawn once per size from the geometry of
 site/hojt.svg (the badge) and site/favicon.svg (the badge centred on a square), not scaled from
-one picture. Run it again after the badge changes; the .ico is committed.
+one picture. Run it again after the badge changes; the .ico files are committed. Every plugin's is the
+same badge, so the six files are the same bytes (xtask/tests/standalones.rs holds it).
 
 Each size is drawn on a canvas 4x as large and reduced, so the edges are clean, and is RGBA with a
 transparent surround. At 32 px and up it is the whole badge with its drop shadow. Below that (16
@@ -18,7 +19,8 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-OUT = Path(__file__).resolve().parent.parent / "plugins/amp/assets/amp.ico"
+ROOT = Path(__file__).resolve().parent.parent
+PLUGINS = ["pitch_shifter", "drums", "amp", "bass", "pad", "bells"]
 SIZES = [16, 24, 32, 48, 64, 128, 256]
 SS = 4  # supersampling
 
@@ -144,13 +146,19 @@ def write_ico(images):
 
 def main():
     images = [draw_size(s) for s in SIZES]
-    out = Path(sys.argv[1]) if len(sys.argv) > 1 else OUT
-    out.write_bytes(write_ico(images))
+    data = write_ico(images)
+    if len(sys.argv) > 1:
+        out = Path(sys.argv[1])
+        out.write_bytes(data)
+    else:
+        for name in PLUGINS:
+            (ROOT / f"plugins/{name}/assets/{name}.ico").parent.mkdir(exist_ok=True)
+            (ROOT / f"plugins/{name}/assets/{name}.ico").write_bytes(data)
     # Renders for looking at: make-icon.py <out.ico> also writes <out>-<size>.png
     if len(sys.argv) > 1:
         for s, im in zip(SIZES, images):
             im.save(out.with_name(f"{out.stem}-{s}.png"))
-    print(f"wrote {out} ({out.stat().st_size} bytes, sizes {SIZES})")
+    print(f"wrote {len(data)} bytes, sizes {SIZES}, to " + (str(out) if len(sys.argv) > 1 else "the six plugins' assets"))
 
 
 if __name__ == "__main__":
