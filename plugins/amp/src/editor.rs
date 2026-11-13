@@ -2627,6 +2627,7 @@ mod tests {
                     cab_loader: &cab_loader,
                     load_cabinet: &|| {},
                     audio_host: None,
+                    update: &UpdateCheck::resting(params.update.clone()),
                 };
                 window(ctx, &state, &setter, &params, &mut view.borrow_mut(), &shared);
             }
