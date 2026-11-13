@@ -146,8 +146,8 @@ impl Plugin for GuitarPitchShifterPlugin {
         _aux: &mut AuxiliaryBuffers,
         _context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
-        // Bypass is a shift of 0 semitones: the shifter settles on its minimum delay
-        // and then passes the input through bit-exactly, without a click
+        // Bypass is a shift of 0 semitones: the shifter fades back to the input over
+        // Smoothness and then passes it through bit-exactly, without a click
         let semitones = if self.params.bypass.value() { 0 } else { self.params.semitones.value() };
         self.pitch_shifter.set_semitones(semitones);
         self.pitch_shifter.set_latency_ms(self.params.latency_ms.value());

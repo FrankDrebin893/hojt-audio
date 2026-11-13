@@ -17,8 +17,29 @@ GitHub release.
   needed), with a Start menu entry and the HØJT badge as its icon. They play through WASAPI; ASIO
   stays a build by hand for now.
 
+### Pitch Shifter
+
+- The Pitch Shifter is new inside: chords come out as chords now, a long note rings on without
+  turning robotic, and the level you put in is the level that comes out. Before, it cut the sound
+  into pieces one note period long and joined them, which only works for a single clean note;
+  now it moves every overtone of what you play on its own.
+- The delay no longer depends on the note. It is the longest of 5, 11, 21 and 43 ms (at 48 kHz, a tenth more at 44.1 kHz) that fits
+  under Max Latency: 11 ms at the default of 15 ms, and 5 ms for anything under 11. A longer one is
+  a little cleaner on single notes; chords are fine at every setting, so there is no need to turn
+  it up for them any more.
+- Smoothness is now the length of the crossfade when the shift is switched on or off.
+- It uses more of the computer than before: 3 to 4 % of one core while it shifts (twice that on
+  a stereo track), and nothing at 0 semitones or in Bypass.
+- For the page at release: the row of Max Latency ("The longest the delay may get. Low E needs
+  12 ms, chords are cleaner at 25 to 30 ms") becomes "The delay: 5, 11, 21 or 43 ms, the longest
+  that fits. Longer is a little cleaner"; Smoothness becomes "Length of the crossfade when the
+  shift is switched on or off"; the tip "Single notes are cleanest. For chords, turn Max Latency
+  up to 25 or 30 ms" goes.
+
 ### Guitar Amp
 
+- The Pitch pedal has the Pitch Shifter's new insides: chords, long notes and the level hold
+  up through it. Tracking sets its delay the same way, 11 ms at the default whatever the note.
 - The standalone program no longer stops with a buffer-size error when it plays through WASAPI.
 - The standalone program's icon in the taskbar, the title bar and Explorer is sharp at every size: the
   HØJT badge is drawn afresh for each, and the smallest (16 and 24 px) show a dark plate, a cream frame

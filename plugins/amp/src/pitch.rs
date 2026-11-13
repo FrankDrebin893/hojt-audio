@@ -6,16 +6,16 @@
 //!
 //! The pedal costs nothing while it is off, and passes the signal bit for bit. Switched on
 //! it adds what the Tracking knob says at most when it shifts (the output lags the input by
-//! at most that much, so that a low note has a whole period to splice on), and 2 samples of
-//! the oversampled rate at a shift of 0.
+//! the largest of 5, 11, 21 and 43 ms that fits under it, whatever the note; longer is
+//! cleaner), and 2 samples of the oversampled rate at a shift of 0.
 
 use suite_common::dsp::pitch::PitchShifter;
 
 /// The Semitones knob, from down an octave to up one
 pub const SEMITONES: [i32; 2] = [-12, 12];
 
-/// The Tracking knob: how far the output may fall behind the input, in ms. A low E has a
-/// period of 12 ms, so under that a shift down splices in the middle of a period
+/// The Tracking knob: how far the output may fall behind the input, in ms. The shifter takes
+/// the longest of its latencies that fits (5 ms under the shortest)
 pub const LATENCY_MS: [f32; 2] = [2.0, 50.0];
 
 // Crossfade to and from the untouched signal when the pedal is switched
@@ -81,7 +81,7 @@ impl Pitch {
             return;
         }
         if self.idle {
-            // Nothing is heard yet: start over, so no earlier note is spliced in
+            // Nothing is heard yet: start over, so no earlier note is heard in it
             self.shifter.reset();
             self.idle = false;
         }
