@@ -99,7 +99,9 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   (`amp/asio` -> `nih_plug/asio` -> cpal's): Windows only, and the Steinberg ASIO SDK has to be
   at `CPAL_ASIO_DIR` at build time. No CI job builds it (`check_mirrors_ci` wants every cargo
   step of CI in `check.sh`, which cannot reach the SDK): build it by hand on Windows,
-  `cargo run -p amp --features asio`. Notes from trying it on a Focusrite: the driver takes the buffer size set in its own
+  `cargo run -p amp --features asio`. The standalone the installer ships (all six plugins have one,
+  `scripts/build-standalones.sh`) is WASAPI only, for the same reason; ASIO in the installer waits on
+  where CI may get the SDK (#305). Notes from trying it on a Focusrite: the driver takes the buffer size set in its own
   control panel (the fork brings the size asked for into the driver's range), the panel's
   device list and channel counts are read once before the streams open (`AsioSnapshot` in
   `main.rs`: asking a running ASIO driver hangs the window), and Apply starts the program again

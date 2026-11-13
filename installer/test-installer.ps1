@@ -5,10 +5,11 @@
 #   installer\test-installer.ps1 -Installer dist\HojtDSP-Setup.exe -BundleDir target\bundled `
 #       -Version 0.3.0 [-PreviousZipDir prev]
 #
-# 1. Clean install of everything: every file of every bundle is there and identical, the version
-#    is registered, the licences are in the app folder.
+# 1. Clean install of everything: every file of every bundle is there and identical, so is each
+#    standalone program (with its Start menu entry), the version is registered, the licences are in
+#    the app folder.
 # 2. Uninstall: the app folder, the registry entry and every installed file are gone.
-# 3. Components: only what is ticked is installed.
+# 3. Components: only what is ticked is installed (the standalone programs are a component of each plugin).
 # 4. Upgrade: the contents of the previous release's zips (or, with none, an older build made up
 #    from this one) are in place as if copied by hand, the installer goes over them, and every
 #    file is the new build's. Then uninstall again.
@@ -16,6 +17,7 @@ param(
     [Parameter(Mandatory = $true)][string]$Installer,
     [Parameter(Mandatory = $true)][string]$BundleDir,
     [Parameter(Mandatory = $true)][string]$Version,
+    [string]$StandaloneDir = '',
     [string]$PreviousZipDir = ''
 )
 
@@ -25,6 +27,9 @@ $UninstallKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${App
 
 $Installer = (Resolve-Path $Installer).Path
 $BundleDir = (Resolve-Path $BundleDir).Path
+if (-not $StandaloneDir) { $StandaloneDir = Join-Path (Split-Path -Parent $BundleDir) 'standalone' }
+$StandaloneDir = (Resolve-Path $StandaloneDir).Path
+$StartMenu = Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs'
 $bundlerToml = Join-Path (Split-Path -Parent $PSScriptRoot) 'bundler.toml'
 $names = @(Get-Content $bundlerToml | ForEach-Object {
         if ($_ -match '^name = "(.*)"$') { $Matches[1] }
@@ -89,6 +94,27 @@ function Assert-Bundles([string]$pluginRoot, [string[]]$only, [string]$tag) {
     }
 }
 
+# Each standalone program is in the app folder, is the build's, and has a Start menu entry. The
+# entries are found by the plugin's name, since the folder and the shortcuts carry the Ø
+$DisplayName = @{ HojtPitchShifter = 'Pitch Shifter'; HojtDrumSynth = 'Drum Synth'; HojtGuitarAmp = 'Guitar Amp'; HojtBassSynth = 'Bass Synth'; HojtShimmerPad = 'Shimmer Pad'; HojtGlassBells = 'Glass Bells' }
+function Start-MenuShortcuts([string]$name) {
+    @(Get-ChildItem -LiteralPath $StartMenu -Recurse -File -Filter "*$($DisplayName[$name]).lnk" -ErrorAction SilentlyContinue)
+}
+function Assert-Standalones([string]$app, [string[]]$only, [string]$tag) {
+    foreach ($name in $only) {
+        $installed = Join-Path $app "$name.exe"
+        if (-not (Test-Path -LiteralPath $installed)) { Fail "${tag}: $name.exe was not installed"; continue }
+        if ((Hash (Join-Path $StandaloneDir "$name.exe")) -ne (Hash $installed)) { Fail "${tag}: $name.exe differs from the build" }
+        if ((Start-MenuShortcuts $name).Count -eq 0) { Fail "${tag}: $name has no Start menu entry" }
+    }
+}
+function Assert-No-Standalones([string]$app, [string[]]$only, [string]$tag) {
+    foreach ($name in $only) {
+        if (Test-Path -LiteralPath (Join-Path $app "$name.exe")) { Fail "${tag}: $name.exe is still installed" }
+        if ((Start-MenuShortcuts $name).Count -gt 0) { Fail "${tag}: $name still has a Start menu entry" }
+    }
+}
+
 # No file is left under the plugin root, or, in a lenient run, none that is in the new build
 function Assert-Clean([string]$pluginRoot, [string]$tag) {
     if (-not (Test-Path $pluginRoot)) { return }
@@ -121,8 +147,10 @@ try {
     if ((Install $app $root 'clean' @()) -eq 0) {
         Assert-Registered $app 'clean'
         Assert-Bundles $root $names 'clean'
+        Assert-Standalones $app $names 'clean'
         Uninstall $app 'clean'
         Assert-Clean $root 'clean'
+        Assert-No-Standalones $app $names 'clean'
     }
 
     # 3. Components: one plugin, VST3 only
@@ -137,6 +165,8 @@ try {
         if (Test-Path (Join-Path $root "CLAP\$one.clap")) { Fail "components: $one.clap was installed though it was not ticked" }
         $others = @(Get-ChildItem -LiteralPath $root -Recurse -File | Where-Object { $_.FullName -notlike "*$one*" })
         if ($others.Count -gt 0) { Fail "components: files of other plugins were installed: $(($others | Select-Object -First 3 | ForEach-Object { $_.Name }) -join ', ')" }
+        # Only the VST3 was ticked: no standalone program, and none of the others
+        Assert-No-Standalones $app $names 'components'
         Uninstall $app 'one'
         Assert-Clean $root 'one'
     }
@@ -175,7 +205,9 @@ try {
     if ((Install $app $root 'upgrade' @()) -eq 0) {
         Assert-Registered $app 'upgrade'
         Assert-Bundles $root $names 'upgrade'
+        Assert-Standalones $app $names 'upgrade'
         Uninstall $app 'upgrade'
+        Assert-No-Standalones $app $names 'upgrade'
         # What an older release had and this one has not is not the installer's to remove: only the new files count
         foreach ($name in $names) {
             if (Test-Path (Join-Path $root "CLAP\$name.clap")) { Fail "upgrade: $name.clap is still there after the uninstall" }

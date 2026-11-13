@@ -13,6 +13,9 @@ GitHub release.
   it asks to close a running DAW, and Windows lists it under Apps with an uninstaller. It is not signed
   yet, so Windows may ask you to confirm. Every release now has a `SHA256SUMS.txt` to check a download
   against. The zips of single plugins stay.
+- Windows: the installer also offers each plugin's standalone program (a window of its own, no DAW
+  needed), with a Start menu entry and the HØJT badge as its icon. They play through WASAPI; ASIO
+  stays a build by hand for now.
 
 ### Guitar Amp
 
