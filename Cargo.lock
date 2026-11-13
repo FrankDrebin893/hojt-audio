@@ -2232,7 +2232,7 @@ dependencies = [
 [[package]]
 name = "nih_plug"
 version = "0.0.0"
-source = "git+https://github.com/FrankDrebin893/nih-plug.git?rev=4466bbaa26bd3734587d6d123344a7e0d80f6a01#4466bbaa26bd3734587d6d123344a7e0d80f6a01"
+source = "git+https://github.com/FrankDrebin893/nih-plug.git?rev=9392ed40d050165e81aef4d2b88bc556900ff122#9392ed40d050165e81aef4d2b88bc556900ff122"
 dependencies = [
  "anyhow",
  "anymap3",
@@ -2268,7 +2268,7 @@ dependencies = [
 [[package]]
 name = "nih_plug_derive"
 version = "0.1.0"
-source = "git+https://github.com/FrankDrebin893/nih-plug.git?rev=4466bbaa26bd3734587d6d123344a7e0d80f6a01#4466bbaa26bd3734587d6d123344a7e0d80f6a01"
+source = "git+https://github.com/FrankDrebin893/nih-plug.git?rev=9392ed40d050165e81aef4d2b88bc556900ff122#9392ed40d050165e81aef4d2b88bc556900ff122"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2278,7 +2278,7 @@ dependencies = [
 [[package]]
 name = "nih_plug_egui"
 version = "0.0.0"
-source = "git+https://github.com/FrankDrebin893/nih-plug.git?rev=4466bbaa26bd3734587d6d123344a7e0d80f6a01#4466bbaa26bd3734587d6d123344a7e0d80f6a01"
+source = "git+https://github.com/FrankDrebin893/nih-plug.git?rev=9392ed40d050165e81aef4d2b88bc556900ff122#9392ed40d050165e81aef4d2b88bc556900ff122"
 dependencies = [
  "baseview 0.1.0 (git+https://github.com/RustAudio/baseview.git?rev=9a0b42c09d712777b2edb4c5e0cb6baf21e988f0)",
  "crossbeam",
@@ -2292,7 +2292,7 @@ dependencies = [
 [[package]]
 name = "nih_plug_xtask"
 version = "0.1.0"
-source = "git+https://github.com/FrankDrebin893/nih-plug.git?rev=4466bbaa26bd3734587d6d123344a7e0d80f6a01#4466bbaa26bd3734587d6d123344a7e0d80f6a01"
+source = "git+https://github.com/FrankDrebin893/nih-plug.git?rev=9392ed40d050165e81aef4d2b88bc556900ff122#9392ed40d050165e81aef4d2b88bc556900ff122"
 dependencies = [
  "anyhow",
  "cargo_metadata",
