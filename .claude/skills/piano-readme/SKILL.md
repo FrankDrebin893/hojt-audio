@@ -71,7 +71,7 @@ off-screen, and sets up only what it shows:
   `main-window` hero shot instead.
 
 Current scenes: `main-window` (hero), `song-practice`, `recorder`, `settings` (with two
-learned piano controls), `zen-mode`, `first-run` (the setup checklist; `SetUp: false` skips
+learned piano controls), `zen-mode`, `update-notice` (the title bar's update line, only a snapshot, not in the README), `first-run` (the setup checklist; `SetUp: false` skips
 the sound and audio the other scenes start with). `FakeMidiInput` can also play pads on other
 channels and move controllers (`MoveControl`), e.g. to learn a pedal.
 

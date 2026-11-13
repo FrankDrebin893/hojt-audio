@@ -32,6 +32,7 @@ internal static class Scenes
         new("settings", 1280, 560, Settings),
         new("zen-mode", 1280, 520, ZenMode),
         new("first-run", 1280, 600, _ => { }, SetUp: false),
+        new("update-notice", 1280, 520, UpdateNotice),
     ];
 
     /// <summary>
@@ -178,5 +179,15 @@ internal static class Scenes
         vm.ToggleZenModeCommand.Execute(null);
 
         host.Press(36 + 10, A3, D4, F4);   // Bb2 A3 D4 F4: Bbmaj7, IVmaj7 in F
+    }
+
+    /// <summary>
+    /// The title bar's update line, shown for a made-up newer version (the harness never reaches
+    /// the network: the line is switched on by hand). Every other scene is the line's "off" render.
+    /// </summary>
+    private static void UpdateNotice(Host host)
+    {
+        host.Vm.UpdateNotice.Show(new UpdateInfo(new Version(1, 2, 0), "piano-v1.2.0"));
+        host.Press(C3, G3, E4);
     }
 }
