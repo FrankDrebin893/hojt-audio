@@ -37,6 +37,8 @@ pub mod standalone;
 mod test_util;
 mod tuner;
 mod user_cab;
+#[cfg(test)]
+mod explore;
 mod user_presets;
 mod wah;
 pub use amp::model::Amp;
