@@ -43,6 +43,9 @@ AppPublisher=Hojt Audio
 AppPublisherURL=https://hojte.net/hojt-audio/dsp/
 AppSupportURL=https://github.com/FrankDrebin893/hojt-audio/issues
 DefaultDirName={autopf}\Hojt Audio\HOJT DSP
+; The Start menu folder of the standalones; without a name Inno makes one called "(Default)"
+DefaultGroupName=HØJT DSP
+UsePreviousGroup=no
 DisableProgramGroupPage=yes
 DisableDirPage=auto
 PrivilegesRequired=admin
