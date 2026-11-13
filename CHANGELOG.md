@@ -21,8 +21,8 @@ GitHub release.
   yet, so Windows may ask you to confirm. Every release now has a `SHA256SUMS.txt` to check a download
   against. The zips of single plugins stay.
 - Windows: the installer also offers each plugin's standalone program (a window of its own, no DAW
-  needed), with a Start menu entry in the folder HØJT DSP and the HØJT badge as its icon. They play through WASAPI; ASIO
-  stays a build by hand for now.
+  needed), with a Start menu entry in the folder HØJT DSP and the HØJT badge as its icon. They play
+  through WASAPI; ASIO stays a build by hand for now.
 
 - Linux: `HojtDSP-linux.zip` holds all six plugins, VST3 and CLAP, with an `install.sh` that copies
   them to `~/.vst3` and `~/.clap` (`--only <plugin>` for one, `--ask` to be asked before a file is
