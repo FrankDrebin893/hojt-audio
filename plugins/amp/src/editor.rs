@@ -1852,12 +1852,7 @@ pub fn create(
                 load_cabinet: &load_cabinet,
                 audio_host: standalone::host(),
             };
-            ResizableWindow::new(RESIZE_ID)
-                .min_size(vec2(MIN_WIDTH as f32, MIN_HEIGHT as f32))
-                .show(egui_ctx, window_state.as_ref(), |ui| {
-                    draw(egui_ctx, setter, &params, view, &shared);
-                    paint_resize_corner(ui);
-                });
+            window(egui_ctx, window_state.as_ref(), setter, &params, view, &shared);
         },
     )
     .map(|inner| -> Box<dyn Editor> {
@@ -1867,6 +1862,25 @@ pub fn create(
             scale_factor: AtomicU32::new(1.0_f32.to_bits()),
         })
     })
+}
+
+/// One frame of the window as the host has it: the line in the resizable window
+fn window(
+    ctx: &Context,
+    state: &EguiState,
+    setter: &ParamSetter,
+    params: &GuitarAmpParams,
+    view: &mut View,
+    shared: &Shared,
+) {
+    ResizableWindow::new(RESIZE_ID).min_size(vec2(MIN_WIDTH as f32, MIN_HEIGHT as f32)).show(
+        ctx,
+        state,
+        |ui| {
+            draw(ctx, setter, params, view, shared);
+            paint_resize_corner(ui);
+        },
+    );
 }
 
 /// What the editor reads besides the parameters, shared with the audio and the plugin's
@@ -2561,6 +2575,39 @@ mod tests {
     fn type_text(harness: &mut Harness, text: &str) {
         use nih_plug_egui::egui::Event;
         harness.input_mut().events.push(Event::Text(text.to_owned()));
+        harness.run_ok();
+    }
+
+    // egui's debug build checks that a widget stays on one layer in a frame (#325). The window as
+    // the host has it, in its resizable window, over the frames that matter
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_window_keeps_each_widget_on_one_layer() {
+        let params = GuitarAmpParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let tuner = TunerReading::new();
+        let lamp_reading = LampReading::new();
+        let cab_loader = CabLoader::new(Arc::new(crate::cab_stage::CabStage::new()), 48_000.0);
+        let view = Rc::new(RefCell::new(fresh_view(&params, &lamp_reading)));
+        let state = EguiState::from_size(WINDOW_WIDTH, WINDOW_HEIGHT);
+        let mut harness = pedal_harness(WINDOW_WIDTH, WINDOW_HEIGHT, {
+            let view = view.clone();
+            let state = state.clone();
+            move |ctx| {
+                let shared = Shared {
+                    tuner: &tuner,
+                    lamp_reading: &lamp_reading,
+                    beats: &BeatReading::default(),
+                    cab_loader: &cab_loader,
+                    load_cabinet: &|| {},
+                    audio_host: None,
+                };
+                window(ctx, &state, &setter, &params, &mut view.borrow_mut(), &shared);
+            }
+        });
+        harness.run_ok();
+        click(&mut harness, Pos2::new(WINDOW_WIDTH as f32 - 4.0, WINDOW_HEIGHT as f32 - 4.0));
         harness.run_ok();
     }
 
