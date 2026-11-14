@@ -52,7 +52,73 @@ mod harness {
     use std::panic::catch_unwind;
     use std::rc::Rc;
 
-    pub use egui_kittest::{Harness, SnapshotOptions};
+    pub use egui_kittest::SnapshotOptions;
+    use std::ops::{Deref, DerefMut};
+    use std::sync::{Mutex, MutexGuard};
+
+    /// One editor is drawn at a time. The tests of a plugin run side by side, and with several
+    /// of them drawing at once the software Vulkan driver crashed the whole test run on CI
+    /// (SIGSEGV, no test named), more often the faster the tests around the drawing are
+    static DRAWING: Mutex<()> = Mutex::new(());
+
+    thread_local! {
+        /// The harnesses alive in this thread and the turn they hold together, so that a test
+        /// with two harnesses does not wait for itself
+        static TURN: std::cell::RefCell<(usize, Option<MutexGuard<'static, ()>>)> =
+            const { std::cell::RefCell::new((0, None)) };
+    }
+
+    /// egui_kittest's harness, holding this thread's turn to draw for as long as it lives
+    pub struct Harness<'a>(Option<egui_kittest::Harness<'a>>);
+
+    impl<'a> Deref for Harness<'a> {
+        type Target = egui_kittest::Harness<'a>;
+        fn deref(&self) -> &Self::Target {
+            self.0.as_ref().expect("only taken when dropped")
+        }
+    }
+
+    impl DerefMut for Harness<'_> {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            self.0.as_mut().expect("only taken when dropped")
+        }
+    }
+
+    impl Drop for Harness<'_> {
+        fn drop(&mut self) {
+            // The renderer goes before the turn is given up
+            self.0 = None;
+            end_turn();
+        }
+    }
+
+    fn take_turn() {
+        TURN.with_borrow_mut(|(alive, turn)| {
+            if *alive == 0 {
+                // A test that failed while drawing leaves the lock poisoned; the next may still draw
+                *turn = Some(DRAWING.lock().unwrap_or_else(|poisoned| poisoned.into_inner()));
+            }
+            *alive += 1;
+        });
+    }
+
+    fn end_turn() {
+        TURN.with_borrow_mut(|(alive, turn)| {
+            *alive -= 1;
+            if *alive == 0 {
+                *turn = None;
+            }
+        });
+    }
+
+    /// Gives the turn up when building a harness panics before there is one to drop
+    struct TurnTaken;
+
+    impl Drop for TurnTaken {
+        fn drop(&mut self) {
+            end_turn();
+        }
+    }
 
     /// How many frames the harness draws at most while it waits for egui to settle. An editor
     /// that asks for a repaint in every frame (the amp while it tunes) is drawn this many times
@@ -79,6 +145,8 @@ mod harness {
         height: u32,
         mut draw: impl FnMut(&Context) + 'a,
     ) -> Harness<'a> {
+        take_turn();
+        let turn = TurnTaken;
         let renderer =
             catch_unwind(egui_kittest::wgpu::WgpuTestRenderer::new).unwrap_or_else(|_| {
                 panic!(
@@ -90,7 +158,7 @@ mod harness {
         // until it has been
         let ready = Rc::new(Cell::new(false));
         let mut fonts_in = false;
-        let mut harness = Harness::builder()
+        let mut harness = egui_kittest::Harness::builder()
             .with_size([width as f32, height as f32])
             .with_pixels_per_point(1.0)
             .with_step_dt(STEP_DT)
@@ -110,6 +178,8 @@ mod harness {
         harness.input_mut().max_texture_side = Some(MAX_TEXTURE_SIDE);
         ready.set(true);
         harness.run_ok();
-        harness
+        // From here on the harness gives the turn up, when it is dropped
+        std::mem::forget(turn);
+        Harness(Some(harness))
     }
 }
