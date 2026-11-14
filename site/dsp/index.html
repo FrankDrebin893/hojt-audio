@@ -417,6 +417,35 @@
 <section class="install" id="install">
   <div class="wrap">
     <h2>Download and install</h2>
+
+    <h3>Windows: one installer</h3>
+    <p>One setup puts every plugin in place. You tick which plugins you want, and VST3, CLAP or both.
+      It can also add each plugin as a program of its own, to play without a DAW: it gets an entry in
+      the Start menu folder HØJT DSP. These play through WASAPI; ASIO is a build by hand for now.</p>
+    <p><a class="button" href="https://github.com/FrankDrebin893/hojt-audio/releases/latest/download/HojtDSP-Setup.exe">Download for Windows<small>HojtDSP-Setup.exe, 64-bit</small></a></p>
+    <ol class="steps">
+      <li>Close your DAW. If it is still open, the installer asks to close it.</li>
+      <li>Run <code>HojtDSP-Setup.exe</code> and click through. It asks for administrator rights,
+        because the plugins go to the folders every DAW reads.</li>
+      <li>Open the DAW and let it scan for plugins. They are listed under <b>Hojt Audio</b>.</li>
+    </ol>
+
+    <h3>Windows says it does not know the app</h3>
+    <p>A blue &ldquo;Windows protected your PC&rdquo; screen may come up. The installer is not signed
+      yet, and Windows is wary of any program few people have run.</p>
+    <p>Click <b>More info</b>, then <b>Run anyway</b>.</p>
+
+    <h3>Check what you downloaded</h3>
+    <p>Every release carries
+      <a href="https://github.com/FrankDrebin893/hojt-audio/releases/latest/download/SHA256SUMS.txt">SHA256SUMS.txt</a>,
+      a list of the SHA-256 checksum of each file. In PowerShell, in the folder of the download,
+      run this and compare the result with the line for <code>HojtDSP-Setup.exe</code>:</p>
+<pre>Get-FileHash .\HojtDSP-Setup.exe -Algorithm SHA256</pre>
+    <p>The same works for a zip: use its name. On macOS and Linux the command is
+      <code>shasum -a 256 &lt;file&gt;</code> and <code>sha256sum &lt;file&gt;</code>.</p>
+
+    <h3>Just one plugin, or macOS and Linux</h3>
+    <p>Each plugin is also a zip of its own, for every system.</p>
     <table class="matrix">
       <thead><tr><th scope="col">Plugin</th><th scope="col">Windows<small>VST3 + CLAP, 64-bit</small></th><th scope="col">macOS<small>Intel + Apple Silicon</small></th><th scope="col">Linux<small>x86-64</small></th></tr></thead>
       <tbody>
@@ -430,7 +459,7 @@
     </table>
     <p class="note-once">The macOS and Linux builds have not been tried in a DAW yet.</p>
     <ol class="steps">
-      <li>Download the zip for your system and unpack it.</li>
+      <li>Download the zip for your system and unpack it. On Windows you need this only for a single plugin: the installer above does the rest.</li>
       <li>Copy <b>one</b> of the two plugin files to its folder below: <code>.vst3</code> for most
         DAWs (Reaper, Ableton Live, Cubase, FL Studio, Studio One), or <code>.clap</code> where
         the DAW supports it (Reaper, Bitwig, FL Studio, Studio One). Create the folder if it is
@@ -462,8 +491,15 @@
       above work as before.</p>
 
     <h3>Updating</h3>
-    <p>Copy the new file over the old one. Projects that use the plugin open with their
-      settings as they were.</p>
+    <p>An update is a newer installer. Close your DAW and run it: it goes over the old one, and
+      projects that use the plugins open with their settings as they were. A plugin you put in
+      place from a zip is updated the same way as before: copy the new file over the old one.</p>
+
+    <h3>When a newer version is out</h3>
+    <p>Every plugin window and standalone program shows a quiet line when a newer version is out,
+      with a <b>Download</b> that opens this page. Once a day it asks GitHub for the newest release and
+      sends nothing else; nothing downloads by itself. <b>Off</b> on the line turns the check off, and the
+      cross hides the line until the next version.</p>
 
     <h3>Something wrong?</h3>
     <p>Tell us which plugin, system and DAW in an
