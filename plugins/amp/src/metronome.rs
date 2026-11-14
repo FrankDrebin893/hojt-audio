@@ -371,6 +371,40 @@ impl Metronome {
         Some(bar.round().max(1.0) as u32)
     }
 
+    /// Samples from the start of the next block to its next downbeat (the accented click),
+    /// worked out the way `render` will place it, without moving the clock: `None` while the click
+    /// is off, or follows a host that is stopped (no downbeat is coming). Zero when the click is
+    /// just switched on, or the downbeat falls on the block's first sample
+    pub fn samples_to_downbeat(&self, settings: &MetronomeSettings) -> Option<u32> {
+        if !settings.on {
+            return None;
+        }
+        let signature = settings.time_signature;
+        let beats = signature.beats();
+        let quarters = signature.quarters_per_beat();
+        let mut bpm = f64::from(settings.bpm.clamp(BPM_MIN, BPM_MAX));
+        let (mut until, mut next) =
+            if self.was_on { (self.until_beat, self.next_beat) } else { (0.0, 0) };
+        if settings.sync {
+            if let Some(tempo) = settings.host_tempo.filter(|tempo| *tempo > 0.0) {
+                bpm = tempo.clamp(f64::from(BPM_MIN) / 2.0, f64::from(BPM_MAX) * 2.0);
+                if !settings.host_playing {
+                    return None;
+                }
+                if let Some(position) = settings.host_beats {
+                    let units = position / quarters;
+                    let whole = units.ceil();
+                    until = ((whole - units) * self.period(bpm, quarters)).max(0.0);
+                    next = (whole as i64).rem_euclid(i64::from(beats)) as u32;
+                }
+            }
+        }
+        let period = self.period(bpm, quarters);
+        let to_go = (beats - next % beats) % beats;
+        let at = (until + f64::from(to_go) * period).ceil().max(0.0);
+        Some(at.min(f64::from(u32::MAX)) as u32)
+    }
+
     /// Adds the click to a block. A block of one channel is the left one
     pub fn process(
         &mut self,
@@ -558,6 +592,36 @@ pub(crate) mod tests {
 
     fn running(bpm: f32) -> MetronomeSettings {
         MetronomeSettings { on: true, bpm, gain: 1.0, ..MetronomeSettings::default() }
+    }
+
+    #[test]
+    fn test_the_downbeat_is_found_ahead_of_time_to_the_sample() {
+        // 4/4 at 120 bpm at 48 kHz: a beat is 24000 samples, a bar 96000
+        let off = Metronome::new();
+        assert_eq!(off.samples_to_downbeat(&MetronomeSettings::default()), None, "off: none");
+        // Just switched on: the downbeat is the first sample
+        assert_eq!(off.samples_to_downbeat(&running(120.0)), Some(0));
+        for played in [1000usize, 30_000, 60_500, 96_000, 100_001, 250_000] {
+            let mut metronome = Metronome::new();
+            metronome.set_sample_rate(48_000.0);
+            onsets(&mut metronome, &running(120.0), played, &[480, 333]);
+            let wait = metronome.samples_to_downbeat(&running(120.0)).unwrap() as usize;
+            assert!(wait < 96_000);
+            assert_eq!((played + wait) % 96_000, 0, "after {played}");
+            // Asking moved nothing: and the accented click does start there
+            assert_eq!(metronome.samples_to_downbeat(&running(120.0)), Some(wait as u32));
+            let (starts, _) = onsets(&mut metronome, &running(120.0), wait + 10, &[480]);
+            assert!(starts.contains(&wait), "after {played}: {starts:?} for {wait}");
+        }
+        // Following the host: 1.5 quarters in, the bar's start is 2.5 beats away; stopped, none
+        let mut synced = running(120.0);
+        synced.sync = true;
+        synced.host_tempo = Some(120.0);
+        synced.host_playing = true;
+        synced.host_beats = Some(1.5);
+        assert_eq!(off.samples_to_downbeat(&synced), Some(60_000));
+        synced.host_playing = false;
+        assert_eq!(off.samples_to_downbeat(&synced), None);
     }
 
     #[test]

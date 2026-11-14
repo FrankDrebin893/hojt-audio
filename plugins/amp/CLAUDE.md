@@ -215,9 +215,16 @@ How it behaves:
   while recording against `LooperControl::capacity`, a head going round while playing, Stop, Clear, Level) and
   the strip's looper icon with its lamp and switch are built; the window asks to be drawn 30 times a second
   only while the plate is open and the loop records or plays, and 20 times while it records with the plate shut.
-  Not built yet: starting a first record on the metronome's next
-  downbeat (milestone 3; today a record starts at the press, so a snapped length is right but its
-  start is not on the beat)
+  With the metronome on, the first press of an Empty looper does not start at once but waits for the
+  metronome's next downbeat (`Metronome::samples_to_downbeat`, worked out ahead of the block the way
+  `render` will place it, without moving the clock; `LooperSettings::downbeat_samples`): the sound
+  passes untouched until that sample, which is the first of the loop. It is counted in samples, so
+  it starts on the beat to the sample, at the host's tempo and position too when the click follows
+  them. Nothing waits when the click is off, just switched on (its downbeat is the first sample), or
+  follows a host that is stopped (no downbeat is coming): a record starts at the press. While it
+  waits the state is still Empty (the plate shows nothing yet, `Looper::is_idle` is false so the
+  plugin stays awake), and a second Record press or Clear takes the press back. There is no count-in.
+  The loop does not follow the host's transport (decided on #280)
 - **The click's own output (`metronome_out`, follows #181):** both audio layouts carry one more
   stereo output, the auxiliary port named `Metronome` (`CLICK_PORT`). Mixed (the default, so
   existing projects are unchanged) is the click added to the main output as above, bit for bit,

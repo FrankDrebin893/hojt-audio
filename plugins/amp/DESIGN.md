@@ -222,6 +222,12 @@ The reasons behind choices that the code alone does not explain. What it does is
 - The strip now holds four icons (metronome, looper, tuner, settings) in the room three had: the
   pitch is 160 instead of 240, so no other part of the strip moved. A plate is 500 wide, the metronome's
   width, under the looper's icon
+- #280, milestone 3 (the clock): with the metronome on, the first Record press waits for the next
+  downbeat and the loop closes on the nearest whole bar, so a loop recorded over the click starts on
+  the beat and repeats in step with it. No count-in (the player hears the click and presses when
+  ready) and no sync to the host's transport: the loop keeps its own count of samples, as in the
+  standalone program, so it is the same everywhere. The plate does not show the wait: it was not
+  part of the picked look, and the metronome's beat lamp already shows the beat to press on
 - Gave up: the plate is the tallest (214), and the playhead is a small lamp rather than a position
   on a display, so a player reads where in the loop they are by its colour and place, not by a number
 

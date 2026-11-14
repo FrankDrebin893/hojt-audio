@@ -135,11 +135,19 @@ pub struct LooperSettings {
     pub muted: bool,
     /// The metronome's bar in samples, where it is on: a loop is closed on a whole number of them
     pub bar_samples: Option<u32>,
+    /// Samples from the start of the block to the metronome's next downbeat, where it is on and
+    /// one is coming: the first Record press waits for it
+    pub downbeat_samples: Option<u32>,
 }
 
 impl Default for LooperSettings {
     fn default() -> Self {
-        Self { level: level_gain(LEVEL_DEFAULT_DB), muted: false, bar_samples: None }
+        Self {
+            level: level_gain(LEVEL_DEFAULT_DB),
+            muted: false,
+            bar_samples: None,
+            downbeat_samples: None,
+        }
     }
 }
 
@@ -159,6 +167,8 @@ pub struct Looper {
     /// How much of what is played goes into the loop, ramped at the ends of an overdub
     dub_gain: f32,
     clearing: bool,
+    /// A first Record press that waits for the metronome's downbeat: samples still to go
+    armed: Option<usize>,
     level: f32,
     level_coef: f32,
 }
@@ -198,6 +208,7 @@ impl Looper {
             play_gain: 0.0,
             dub_gain: 0.0,
             clearing: false,
+            armed: None,
             level: 1.0,
             level_coef: 1.0,
         }
@@ -248,6 +259,7 @@ impl Looper {
         self.play_gain = 0.0;
         self.dub_gain = 0.0;
         self.clearing = false;
+        self.armed = None;
         self.publish();
     }
 
@@ -259,7 +271,7 @@ impl Looper {
 
     /// True while there is nothing to hear or to count
     pub fn is_idle(&self) -> bool {
-        self.state == State::Empty
+        self.state == State::Empty && self.armed.is_none()
     }
 
     fn publish(&self) {
@@ -303,10 +315,18 @@ impl Looper {
         self.dub_gain = 0.0;
     }
 
-    fn take_commands(&mut self, bar: Option<u32>) {
+    fn start_recording(&mut self) {
+        self.armed = None;
+        self.state = State::Recording;
+        self.len = 0;
+        self.pos = 0;
+    }
+
+    fn take_commands(&mut self, settings: &LooperSettings) {
+        let bar = settings.bar_samples;
         if self.control.clear.swap(false, Ordering::Acquire) {
             match self.state {
-                State::Empty => {}
+                State::Empty => self.armed = None,
                 State::Recording => self.empty(),
                 _ => self.clearing = true,
             }
@@ -317,11 +337,12 @@ impl Looper {
             }
             match self.state {
                 State::Empty if self.capacity() == 0 => {}
-                State::Empty => {
-                    self.state = State::Recording;
-                    self.len = 0;
-                    self.pos = 0;
-                }
+                // Waiting for a downbeat: a second press takes it back
+                State::Empty if self.armed.is_some() => self.armed = None,
+                State::Empty => match settings.downbeat_samples {
+                    Some(wait) if wait > 0 => self.armed = Some(wait as usize),
+                    _ => self.start_recording(),
+                },
                 State::Recording => self.close(bar),
                 State::Playing => self.state = State::Overdubbing,
                 State::Overdubbing | State::Stopped => self.state = State::Playing,
@@ -344,8 +365,8 @@ impl Looper {
         left: &mut [f32],
         mut right: Option<&mut [f32]>,
     ) {
-        self.take_commands(settings.bar_samples);
-        if self.state == State::Empty {
+        self.take_commands(settings);
+        if self.state == State::Empty && self.armed.is_none() {
             self.level = settings.level;
             self.publish();
             return;
@@ -355,6 +376,15 @@ impl Looper {
             let live_l = left[index];
             let live_r = right.as_deref().map_or(0.0, |right| right[index]);
 
+            // The first press waits for the downbeat: until then the sound passes untouched
+            if let Some(wait) = self.armed {
+                if wait == 0 {
+                    self.start_recording();
+                } else {
+                    self.armed = Some(wait - 1);
+                    continue;
+                }
+            }
             if self.state == State::Recording {
                 let ramp = (self.len as f32 * step).min(1.0);
                 self.left[self.len] = live_l * ramp;
@@ -542,6 +572,78 @@ mod tests {
         let mut looper = fresh();
         record(&mut looper, &tone(0, 6000, 220.0, 0.3), Some(100_000));
         assert_eq!(looper.control().length(), 6000);
+    }
+
+    #[test]
+    fn test_the_first_press_waits_for_the_downbeat_and_the_loop_starts_on_it() {
+        let mut looper = fresh();
+        let control = looper.control();
+        let phrase = tone(0, 6000, 220.0, 0.4);
+        let settings = LooperSettings {
+            bar_samples: Some(4000),
+            downbeat_samples: Some(1500),
+            ..LooperSettings::default()
+        };
+        control.press();
+        // Before the downbeat the sound passes untouched and nothing is recorded
+        let mut left = phrase[..1000].to_vec();
+        looper.process(&settings, &mut left, None);
+        assert_eq!(left, phrase[..1000]);
+        assert_eq!(looper.state(), State::Empty);
+        assert!(!looper.is_idle(), "it is counting down");
+        // The block with the downbeat in it starts the record 500 samples in
+        let settings = LooperSettings { downbeat_samples: Some(500), ..settings };
+        let mut left = phrase[1000..2000].to_vec();
+        looper.process(&settings, &mut left, None);
+        assert_eq!(left, phrase[1000..2000]);
+        assert_eq!(looper.state(), State::Recording);
+        assert_eq!(looper.control().length(), 500);
+        // 3500 recorded in all: 0.875 of a bar of 4000, so a bar
+        let mut rest = phrase[2000..5000].to_vec();
+        looper.process(&settings, &mut rest, None);
+        control.press();
+        looper.process(&settings, &mut [0.0; 10], None);
+        assert_eq!(looper.state(), State::Playing);
+        assert_eq!(looper.control().length(), 4000);
+        // It begins with what was played on the downbeat
+        let (left, _) = looper.recorded();
+        for i in FADE..3500 - FADE {
+            assert_eq!(left[i], phrase[1500 + i], "sample {i}");
+        }
+    }
+
+    #[test]
+    fn test_a_press_or_clear_while_waiting_for_the_downbeat_takes_it_back() {
+        for command in [true, false] {
+            let mut looper = fresh();
+            let control = looper.control();
+            let settings =
+                LooperSettings { downbeat_samples: Some(900), ..LooperSettings::default() };
+            control.press();
+            looper.process(&settings, &mut [0.0; 100], None);
+            assert!(!looper.is_idle());
+            if command {
+                control.press();
+            } else {
+                control.clear();
+            }
+            let input = tone(0, 2000, 220.0, 0.3);
+            let mut block = input.clone();
+            looper.process(&settings, &mut block, None);
+            assert_eq!(block, input);
+            assert_eq!(looper.state(), State::Empty);
+            assert!(looper.is_idle());
+        }
+    }
+
+    #[test]
+    fn test_with_no_downbeat_ahead_the_first_press_starts_at_once() {
+        let mut looper = fresh();
+        looper.control().press();
+        let settings = LooperSettings { downbeat_samples: Some(0), ..LooperSettings::default() };
+        looper.process(&settings, &mut [0.1; 64], None);
+        assert_eq!(looper.state(), State::Recording);
+        assert_eq!(looper.control().length(), 64);
     }
 
     #[test]
