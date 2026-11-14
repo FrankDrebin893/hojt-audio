@@ -38,6 +38,16 @@ strip = "symbols"
 opt-level = 1
 debug = "line-tables-only"
 
+# What the tests and the sound reports run when they have to be optimised (`cargo test --profile
+# optimised`): `release` without the link-time optimisation. Each test binary is linked on its own,
+# and with thin LTO each link optimised egui, wgpu and the rest of the snapshot harness again: the
+# amp's and the bass's took 98 s to build after an edit, and take 25 s this way. The same code is
+# compiled (no debug assertions, so the clippers' SSE2 path) and the reports come out the same to
+# the byte. What ships is still built with `--release`.
+[profile.optimised]
+inherits = "release"
+lto = false
+
 [profile.profiling]
 inherits = "release"
 debug = true

@@ -91,10 +91,11 @@ jobs:
           cargo test -p xtask --locked
 
       # The clippers' two-at-a-time path is only compiled in optimised x86-64 builds, and the
-      # bass's cost bound only means something optimised
+      # bass's cost bound only means something optimised. The `optimised` profile is `release`
+      # without the link-time optimisation, which no test is about (root Cargo.toml)
       - name: Test the amp and the bass, optimised
         if: needs.changes.outputs.code == 'true'
-        run: cargo test -p amp -p bass --release --locked
+        run: cargo test -p amp -p bass --profile optimised --locked
 
       # The Linux zip's install.sh into a temporary HOME, and out again (shellcheck on it too)
       - name: Test the Linux install script
