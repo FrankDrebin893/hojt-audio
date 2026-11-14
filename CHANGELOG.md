@@ -60,6 +60,14 @@ GitHub release.
 
 ### Guitar Amp
 
+- A looper on the strip, beside the metronome: record a phrase, close the loop and play over it,
+  overdub more, mute it or clear it. Its plate is a footswitch standing in a ring of 32 lamps that is
+  the loop (the ring fills red while it records, then a lamp goes round, green playing and amber
+  overdubbing), with the state printed in the ring and what the next press does under it, Stop (Mute
+  while the loop plays) and Clear on the left and a Level knob on the right. The icon on the strip has
+  a lamp and a switch that is the same press. It records what you heard, after the amp, cabinet, delay
+  and reverb and before the click; a loop is not saved with a project and Clear or reloading the plugin
+  empties it. Closing the loop on a bar of the metronome and starting on its downbeat come next.
 - The standalone program's Audio panel changes the input and output device and their channels without
   starting the program again when it plays through WASAPI: Apply and the sound blinks for a moment, while
   the window, the preset and everything open stay as they are. A device that will not open says so, and

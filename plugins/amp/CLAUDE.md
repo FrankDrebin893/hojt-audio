@@ -83,7 +83,8 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
 - `src/metronome.rs` - Metronome: the click on a clock of its own or the host's (`Metronome`,
   `MetronomeSettings`), its three sounds, `BeatReading` (what the editor's lamp reads) and `TapTempo`
 - `src/looper.rs` - Looper (#280): records the finished sound, plays it back and overdubs (`Looper`,
-  `LooperSettings`, `LooperControl`, `State`). Milestone 1 of 3: the audio and its commands; no plate yet
+  `LooperSettings`, `LooperControl`, `State`). The audio and its commands (milestone 1) and, from
+  milestone 2, the plate under the strip's looper icon (`editor.rs`, `looper_plate`, ring picked on #280)
 - `src/standalone.rs` - The standalone program's settings (`Prefs`, saved as
   `amp-standalone.json` in the system's settings folder or `HOJT_CONFIG_DIR`), the `Host` trait
   `main.rs` implements with cpal to list devices and restart, and the Audio panel's choices. The
@@ -123,9 +124,9 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   update: `ie4uinit.exe -ClearIconCache`
 - `src/editor.rs` - egui GUI (the signal line in a layer 584 high and as wide as the chain, 3411 for today's twelve pedals; opened scaled to the screen up to 3411 x 584 or 1876 x 321 on a 1920 x 1080 screen, resizable freely from 1301 x 293 by its corner handle, scaled to fit between 0.5 and 1.0 and scrolled sideways below that, `Fit`): the slim oxblood strip
   across the top (64 px) with the input (meter and Input gain), the preset display that opens
-  the bank and preset plate, or the tuner display in its place, the metronome, tuner and
+  the bank and preset plate, or the tuner display in its place, the metronome, looper, tuner and
   settings icons in the middle, and the output (knob, meter, Clip) with the model and logo at
-  its right; the plates that open under it (`View.plate`: presets, metronome, settings); the stack (two lanes, one per amp: its head
+  its right; the plates that open under it (`View.plate`: presets, metronome, looper, settings); the stack (two lanes, one per amp: its head
   with nameplate and dials, and the cabinet it plays through beside it; the plate where they meet
   with the Blend fader); each of the thirteen pedals in its own paint with its own art
 - `src/looks.rs` - What each amp's head looks like: a `Look` (its `HeadStyle` and knob cap) per
@@ -210,8 +211,11 @@ How it behaves:
   loop but it keeps counting, so Resume comes back in time; Clear fades out over 5 ms and then
   is Empty. Commands (`press`, `stop`, `clear`) are atomics taken at the start of the next block, so a
   press lands to the block, not the sample. `looper_level` is the one parameter (not in presets);
-  the buttons are not parameters. Not built yet: the plate and the strip's icon (milestone 2, after
-  the owner's pick from `/design` explore), and starting a first record on the metronome's next
+  the buttons are not parameters. The plate (`ui::ring`: a footswitch in a ring of 32 lamps, red fill
+  while recording against `LooperControl::capacity`, a head going round while playing, Stop, Clear, Level) and
+  the strip's looper icon with its lamp and switch are built; the window asks to be drawn 30 times a second
+  only while the plate is open and the loop records or plays, and 20 times while it records with the plate shut.
+  Not built yet: starting a first record on the metronome's next
   downbeat (milestone 3; today a record starts at the press, so a snapped length is right but its
   start is not on the beat)
 - **The click's own output (`metronome_out`, follows #181):** both audio layouts carry one more
@@ -868,10 +872,10 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   that opens it is not outside: its click closes it, as Escape does), and while a name is typed on
   it escape drops the name first. It is drawn after everything else in the window, in a
   foreground layer, so nothing behind it answers a click while it is open, and it is kept inside
-  the window. The three plates: presets (under the display, a row of columns of tape rows
+  the window. The four plates: presets (under the display, a row of columns of tape rows
   that show seven rows at a time with a chrome bar and the wheel), the metronome's (tempo, tap,
   sound, meter, click out, volume, Sync; its switch with a lamp that flashes on the beat is on
-  the strip beside the icon) and the settings' (the cabinet files, picked as on the head, and in
+  the strip beside the icon), the looper's (a footswitch in a ring of lamps, Stop, Clear, Level; see DESIGN.md, Looper) and the settings' (the cabinet files, picked as on the head, and in
   the standalone program the machine's audio with Apply and Cancel: the audio's choice opens with
   the plate and is let go when it closes). Icons are `ui::icon_switch`: a drawing, and where the
   thing can be on or off a lamp and a chrome switch; the tuner's is its switch
