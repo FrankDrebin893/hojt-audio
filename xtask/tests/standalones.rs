@@ -113,8 +113,13 @@ fn test_every_standalone_has_the_asio_feature_and_the_build_uses_the_vendored_sd
     }
     let build = read("scripts/build-standalones.sh");
     assert!(build.contains("third_party/asiosdk") && build.contains("standalone,asio"));
-    for file in ["common/asio.h", "common/asio.cpp", "host/asiodrivers.cpp", "host/pc/asiolist.cpp", "LICENSE.txt"]
-    {
+    for file in [
+        "common/asio.h",
+        "common/asio.cpp",
+        "host/asiodrivers.cpp",
+        "host/pc/asiolist.cpp",
+        "LICENSE.txt",
+    ] {
         assert!(root().join("third_party/asiosdk").join(file).is_file(), "missing {file}");
     }
 }
