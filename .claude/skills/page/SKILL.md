@@ -29,7 +29,8 @@ Without an argument, run the **end of session** steps. With `release <version>`,
 
 1. **What changed.** `scripts/page-check.sh` lists the files changed since `main` that the page
    may describe. If it says nothing changed, go to the checks. Otherwise read the diff of
-   those files and `CHANGELOG.md` under `Unreleased`.
+   those files and `CHANGELOG.md` under `Unreleased`: only that section, from the top of the file to
+   the first `## <version>` heading (`grep -n '^## ' CHANGELOG.md` gives the lines), never the whole file.
 2. **Sort** every change a player can notice:
    - **True of the release now:** the page is wrong or missing something about what can be
      downloaded today (a fact, a range, a link, an install step, an issue template that was
