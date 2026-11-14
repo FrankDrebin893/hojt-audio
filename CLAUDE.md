@@ -51,12 +51,11 @@ detail lives. Each detail is next to what it governs.
   `scripts/build-installer.sh` builds `HojtDSP-Setup.exe` in the Windows job of `release.yml`, which
   installs, upgrades and uninstalls it on the runner before anything is published
 - `scripts/` - Build, install, check, page and release tools; see `scripts/README.md`
-- `.claude/skills/` - The skills, in Claude Code's own place, one folder each with a `SKILL.md` (`/issue`, `/spec`, `/next`, `/groom`, `/release`, `/page`,
-  `/design`, `/wayfinder`, `/scout`, `/specwriter`, `/release-prep`, `/release-review`, `/feedback`, `/retrospective`, and the piano viz's `/piano-release` and `/piano-readme`).
-  `.claude/settings.json` has the hooks
-- `.claude/matt-pocock-skills/` - Provenance of the vendored [Matt Pocock skills](https://github.com/mattpocock/skills)
-  in `.claude/skills/` (version, what is installed and what is not, how to update); `docs/agents/` is their
-  per-repo setup (issue tracker, domain docs)
+- `.claude/skills/` - The repo's own skills, one folder each with a `SKILL.md`: `/issue`, `/spec`, `/groom`, `/next`,
+  `/specwriter`, `/scout`, `/design`, `/feedback`, `/retrospective`, `/page`, `/release`, `/release-prep`,
+  `/release-review`, and the piano viz's `/piano-release` and `/piano-readme`. Everything general (`/tdd`,
+  `/code-review`, `/grilling`, `/wayfinder`, `/retro`...) comes from Matt Pocock's plugin, see "Agent skills".
+  `.claude/settings.json` has the hooks and the plugin
 - `.claude/retrospectives.md` - The log of what each Builder pull request taught (`/retrospective`, run by `/next` in a session of
   its own once a pull request is open); the skills read it. Since 2026-11-12 a retro is an issue (`from:retro`), not an entry
   in the log. There is no file of learnings: a rule that comes out of feedback or a retro is written where it applies (see
@@ -157,7 +156,7 @@ Two rules keep an issue from stalling once it leaves the spec stage:
   are not built: their sub-issues are, and `/next` takes a sub-issue (`Parent: #<p>`) on its
   parent's approval, unless its body has a sentence `Waits for ...` naming an issue that is still open
 - **Awaiting an engineer decision is a label, `needs:engineer`,** not a state: set when a session stops on a
-  question, a pick or a listen, with a comment saying what. It lists the issue on the pinned
+  question or a pick (never a listen, see "Rules for every run"), with a comment saying what. It lists the issue on the pinned
   "Specs to approve" under "Awaiting engineer decision", the Builder skips it, and his comment on the issue
   (not one signed with the agent's footer, which every agent comment on an issue carries) takes it off through `needs-owner.yml`, after which
   `/next` picks the issue up with his answer
@@ -198,11 +197,12 @@ would have to guess gets questions and `needs:reporter`, and no spec until the r
   `Format and clippy` pass, for admins too, and nothing is pushed to it directly. A check
   that is renamed in `ci.yml` must be renamed in the protection as well, or nothing merges.
   `Sound` is not required: it only runs when a plugin changed
-  A change that only touches the page (`site/`, `site-sources/`, `site-design/`), markdown outside
-  `.claude/` and `.claude/`, the licences or the issue forms skips the steps of `Test` and
-  `Format and clippy` (the `changes` job in `ci.yml`); the jobs still run and pass, so the required names are met
+  A change that only touches the page (`site/`, `site-sources/`, `site-design/`), markdown anywhere,
+  `.claude/`, the licences or the issue forms skips the steps of `Test` and `Format and clippy`
+  (the `changes` job in `ci.yml`); the jobs still run and pass, so the required names are met. A change
+  to `.claude/skills/` also runs `cargo test -p xtask` on Linux alone, since those tests guard the skills' approval rules
 - A large piece of work is a parent issue with one sub-issue per milestone. One whose route is not
-  yet clear (the overhaul of every editor, a new plugin) is first charted with `/wayfinder`, only when
+  yet clear (the overhaul of every editor, a new plugin) is first charted with Pocock's `/wayfinder`, only when
   Rasmus asks: a map issue (`wayfinder:map`, no `state:*` label) with decision tickets as children,
   resolved one per session until nothing is left to decide, then `/spec` turns the map into the parent
   above. No routine runs it, and a map plans: it builds nothing
@@ -231,6 +231,10 @@ checkable instruction in the place an agent reads when it does the work:
   anything from the engineer and exactly what ("read the three plate renders and pick one", "nothing, it is
   merged"). An item waiting on him names the question, not only the label. This holds for every routine
   (Scout, Specwriter, Builder, Stall check, Release Manager, Release Analyst, the dashboard digest)
+- A listen (a sound or a render to hear) never blocks work and never gets `needs:engineer`: the pull request says what
+  to listen to and merges on green CI, the next milestone is built, and no "Check: listen to ..." issue is filed. If a
+  listen turns up a problem, he files it as a bug. A check that needs his Windows machine is different: it can still
+  be asked
 - `needs:engineer` goes on only once the question can be answered: the explore renders are posted, or the
   question is written out in the comment. A step the agent can do itself (the explore) is done first, then asked
 
@@ -334,14 +338,20 @@ its quick part before each commit. The details, and the sound reports of a pull 
 
 ## Agent skills
 
-### Issue tracker
+General skills are [Matt Pocock's](https://github.com/mattpocock/skills), installed the standard way for
+Claude Code: the plugin `mattpocock-skills@claude-plugins-official`, enabled in `.claude/settings.json`
+so every session and routine gets it and it updates itself. Nothing of it is copied into this repo.
+The repo's own skills (`.claude/skills/`) are the ones that carry its flow: owner-only approval, the
+`state:*` labels, one fresh session per build, the independent review, the retro, releases, the page.
+They call Pocock's skills for the general work (`tdd`, `code-review`, `grilling`, `retro`,
+`writing-for-agents`, `wayfinder`) instead of restating them.
 
-GitHub Issues of `FrankDrebin893/hojt-audio`, with the repo's own state labels. See `docs/agents/issue-tracker.md`.
+The plugin also has skills that move issues or build on their own. Do not use these in a routine, and
+never as a way round the approval: `to-spec`, `to-tickets`, `triage`, `implement`, `implement-spec`,
+`pr`. The repo's `/spec`, `/issue`, `/groom` and `/next` do those jobs, with its labels and its PR
+template. None of the plugin's skills sets `state:approved`.
 
-### Triage labels
+Setup (what `/setup-matt-pocock-skills` asks) is in `docs/agents/`: `issue-tracker.md`,
+`triage-labels.md`, `domain.md`.
 
-Not used: the Pocock `triage` skill is not installed; `/groom` and `/specwriter` triage with the `state:*` labels. See "How work flows".
-
-### Domain docs
-
-Single-context: `GLOSSARY.md` and `docs/adr/` at the root, created lazily by `/domain-modeling`. See `docs/agents/domain.md`.
+Docs: `GLOSSARY.md` and `docs/adr/` at the root, created lazily by `/domain-modeling`.

@@ -1,7 +1,7 @@
 # Issue tracker: GitHub
 
 Issues and specs for this repo live as GitHub issues of `FrankDrebin893/hojt-audio`. This file is
-what the installed Matt Pocock skills (`.claude/matt-pocock-skills/README.md`) read; the repo's
+what Matt Pocock's skills read (the plugin, see `CLAUDE.md`, "Agent skills"); the repo's
 own flow (states, approval, labels) is in `CLAUDE.md`, "How work flows", and wins wherever the two differ.
 
 ## Conventions
@@ -26,9 +26,20 @@ own flow (states, approval, labels) is in `CLAUDE.md`, "How work flows", and win
 ## When a skill says "publish to the issue tracker"
 
 Use `/issue` for an idea, `/spec` to put a spec on an issue. Do not use the Pocock skills that
-publish tickets (`to-spec`, `to-tickets`, `triage`): they are not installed, the repo's own
-skills do that job.
+publish tickets (`to-spec`, `to-tickets`, `triage`): the repo's own skills do that job, with its labels.
 
 ## When a skill says "fetch the relevant ticket"
 
 Read it as in **Read an issue** above, with its comments (the spec, and the latest "Progress" comment).
+
+## Wayfinding operations
+
+Used by Pocock's `/wayfinder`, only when the owner asks. The **map** is one issue labelled
+`wayfinder:map` and **no** `state:*` label. A ticket is a child issue whose body starts with
+`Map: #<map>` (never `Parent:`, which `/next` reads), labelled `wayfinder:<type>` and no state label.
+
+- **Blocking**: a sentence `Waits for #<n>` in the ticket body
+- **Frontier query**: open child issues of the map with no open `Waits for` issue and no assignee
+- **Claim, resolve**: as Pocock's skill says (assign, comment the answer, close, add a context pointer to the map)
+- **Prototype tickets** use `/design`'s explore step; the owner picks, the agent never does
+- **Hand-off**: a cleared map goes to `/spec <map>` as a parent with `Parent:` milestone sub-issues. No routine runs a map
