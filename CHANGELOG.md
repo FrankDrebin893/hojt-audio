@@ -5,6 +5,13 @@ GitHub release.
 
 ## Unreleased
 
+### Fixed
+
+- Windows: the standalone programs the installer puts in the Start menu now offer ASIO as a driver beside
+  WASAPI and JACK, so an audio interface with an ASIO driver can be chosen in the Audio panel. The
+  installed programs had left it out, since it had only been built by hand. The ASIO SDK is built from
+  its GPLv3 licence, the same as the plugins.
+
 ## 0.4.0
 
 ### Update notice

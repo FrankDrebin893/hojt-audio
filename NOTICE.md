@@ -30,6 +30,7 @@ The plugins are built with these, each under its own licence:
 | [egui](https://github.com/emilk/egui) | MIT or Apache-2.0 |
 | [baseview](https://github.com/RustAudio/baseview) | MIT or Apache-2.0 |
 | [hound](https://github.com/ruuda/hound) | Apache-2.0 |
+| [Steinberg ASIO SDK](https://github.com/steinbergmedia/asiosdk) 2.3.4 (host side, `third_party/asiosdk`; Windows standalones) | GPL-3.0 (the GPL alternative of its dual licence) |
 | Bebas Neue, Bowlby One SC, IBM Plex Mono (fonts) | SIL Open Font License 1.1 |
 
 The font licences are in `crates/suite_common/assets/fonts/` and in every download. The full list

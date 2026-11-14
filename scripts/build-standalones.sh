@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Builds the six standalone programs (release, WASAPI and the dummy backend; ASIO is built by hand,
-# see plugins/amp/CLAUDE.md) and puts each at target/standalone/<BundleName>.exe, the names of
+# Builds the six standalone programs (release; on Windows with ASIO beside WASAPI and the dummy backend,
+# from the SDK in third_party/asiosdk, see its README.md) and puts each at target/standalone/<BundleName>.exe, the names of
 # bundler.toml, for the installer (scripts/build-installer.sh). Run in Git Bash on Windows:
 #
 #   scripts/build-standalones.sh
 #
-# On another system it makes the same programs without the .exe, which is how it is tried.
+# On another system it makes the same programs without the .exe and without ASIO, which is how it is
+# tried. HOJT_NO_ASIO=1 leaves ASIO out on Windows too (CPAL_ASIO_DIR, if set, names another SDK folder).
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -19,7 +20,15 @@ pairs=$(awk -F'"' '/^\[/ { gsub(/[\[\]]/, ""); pkg = $0 } /^name = / { print pkg
 
 args=()
 while read -r pkg _; do args+=(-p "$pkg"); done <<< "$pairs"
-(cd "$root" && cargo build --release --locked "${args[@]}" --features standalone)
+features="standalone"
+if [[ -n "$exe" && -z "${HOJT_NO_ASIO:-}" ]]; then
+  asio_dir="${CPAL_ASIO_DIR:-$root/third_party/asiosdk}"
+  [[ -f "$asio_dir/common/asio.h" ]] || { echo "no ASIO SDK at $asio_dir" >&2; exit 1; }
+  command -v cygpath > /dev/null && asio_dir="$(cygpath -w "$asio_dir")"
+  export CPAL_ASIO_DIR="$asio_dir"
+  features="standalone,asio"
+fi
+(cd "$root" && cargo build --release --locked "${args[@]}" --features "$features")
 
 rm -rf "$out"
 mkdir -p "$out"

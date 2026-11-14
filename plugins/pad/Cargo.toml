@@ -12,6 +12,8 @@ crate-type = ["cdylib", "lib"]
 # cargo run -p pad --features standalone
 [features]
 standalone = ["nih_plug/standalone"]
+# ASIO as a driver of the standalone program (Windows): needs CPAL_ASIO_DIR, see scripts/build-standalones.sh
+asio = ["standalone", "nih_plug/asio"]
 
 [[bin]]
 name = "pad_standalone"

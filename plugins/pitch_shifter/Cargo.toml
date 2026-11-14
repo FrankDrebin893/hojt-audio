@@ -12,6 +12,8 @@ crate-type = ["cdylib", "lib"]
 # cargo run -p pitch_shifter --features standalone
 [features]
 standalone = ["nih_plug/standalone"]
+# ASIO as a driver of the standalone program (Windows): needs CPAL_ASIO_DIR, see scripts/build-standalones.sh
+asio = ["standalone", "nih_plug/asio"]
 
 [[bin]]
 name = "pitch_shifter_standalone"
