@@ -317,6 +317,8 @@ its quick part before each commit. The details, and the sound reports of a pull 
   `no_alloc` tests hold this: `suite_common::host` plays the plugin as a DAW does, with an allocator
   that fails the test on an allocation in `process` and says where it was. A new plugin gets them too
 - Keep DSP code separate from plugin boilerplate
+- A module's tests that outgrow it (more than about 500 lines) live in a file of their own, `<module>/tests.rs`,
+  behind `#[cfg(test)] mod tests;` (`plugins/amp/src/chain/tests.rs`): reading or searching the code does not pull the tests in
 - The workspace names `egui-baseview` as a dependency it never uses, at the revision nih-plug
   pins, only to turn its `windows_keyboard_workaround` on: without it a plugin's editor, which
   is a child window of the host's, never takes the keyboard focus on Windows and hears no

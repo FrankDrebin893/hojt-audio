@@ -175,8 +175,8 @@ fn test_the_amp_names_no_maker() {
 #[test]
 fn test_no_dsp_branches_on_the_amp() {
     // Picking an amp is the model's job; the editor and the looks show each amp its own way
-    // `test_util.rs` is a module of tests only
-    let allowed = ["amp/model.rs", "editor.rs", "looks.rs", "test_util.rs"];
+    // `test_util.rs` is a module of tests only, and so is a module's `tests.rs` (`chain/tests.rs`)
+    let allowed = ["amp/model.rs", "editor.rs", "looks.rs", "test_util.rs", "tests.rs"];
     let src = amp_dir().join("src");
     let is_dsp = |path: &Path| {
         path.extension().is_some_and(|ext| ext == "rs")
