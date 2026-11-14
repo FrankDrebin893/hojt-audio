@@ -29,6 +29,15 @@ suite_common = { path = "crates/suite_common" }
 lto = "thin"
 strip = "symbols"
 
+# The tests play seconds of sound through the DSP, hundreds of times: unoptimised the amp's alone
+# took 25 minutes on CI, at level 1 under two. Debug assertions and overflow checks stay on, so a
+# test still catches what it caught; only `--release` turns them off (and compiles the clippers'
+# SSE2 path, plugins/amp/src/dsp/pair.rs). Line tables keep the line numbers of a backtrace.
+# For a quick unoptimised build of one test: CARGO_PROFILE_TEST_OPT_LEVEL=0 cargo test ...
+[profile.test]
+opt-level = 1
+debug = "line-tables-only"
+
 [profile.profiling]
 inherits = "release"
 debug = true

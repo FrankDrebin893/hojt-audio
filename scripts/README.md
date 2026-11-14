@@ -18,7 +18,8 @@ What each script in this folder does, and the detail behind the rules in `CLAUDE
 - `build-standalones.sh` - Builds the six standalone programs to `target/standalone/<BundleName>.exe`; `smoke-standalones.ps1` starts each with the dummy backend and checks its icon (Windows job of `release.yml`)
 - `checksums.sh` - Writes `SHA256SUMS.txt` for the files of a folder, as `release.yml` does for a release
 - `site-audio.sh` - Makes the page's sound examples from the render tests
-- `sound-reports.sh` - The sound reports without their timings, for comparing two builds
+- `sound-reports.sh` - The sound reports without their timings, for comparing two builds; they run side by side,
+  one per core (`SOUND_JOBS=<n>` for another number)
 - `sync-labels.sh` - The backlog's labels on GitHub
 - `move-issue.sh` - Moves an issue to a state: its label and its place on the board
 - `weekly-checks.sh` - The weekly run of `weekly.yml`: files `state:idea` issues for stale
@@ -92,6 +93,10 @@ Every tracked `scripts/*.sh` must be mode 100755 in git's index (`check.sh modes
 CI's lint job): make a new one so with `git update-index --chmod=+x scripts/<name>.sh`. `check.sh` prints
 `== <command>` as each step starts, so a session waiting on it reads the output file with one `tail` and does not
 poll; the long step is `cargo test --workspace`, which shows no progress of its own until it ends.
+The tests are compiled lightly optimised (`[profile.test]` in the root `Cargo.toml`, level 1, debug assertions
+still on): unoptimised, the amp's tests alone took 25 minutes on CI, and take under two this way. A test that
+plays sound costs seconds either way, so keep what it plays short. For a quicker build of one test while
+working on it: `CARGO_PROFILE_TEST_OPT_LEVEL=0 cargo test -p <name> <test>`.
 Lints that clash with DSP code are allowed in the root `Cargo.toml`, each with its reason.
 
 Each editor's snapshot test draws it into `plugins/<name>/tests/snapshots/` on Linux (it needs
