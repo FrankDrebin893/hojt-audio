@@ -42,10 +42,8 @@ to do with `gh`, and read with REST (`gh api` or the tools); GraphQL is blocked.
    - `version` in `[workspace.package]` of `Cargo.toml`, then `cargo check --workspace` so
      `Cargo.lock` follows
    - `## Unreleased` becomes `## <version>`, and an empty `## Unreleased` stays above it
-   - For each plugin whose sound changed, `scripts/site-audio.sh <plugin>` (it needs `ffmpeg`
-     and the Linux packages `ci.yml` installs). Keep the new files in `site/audio/`, and for each
-     changed plugin attach to the pull request the render before (from `main`) and after, with
-     their names
+   - No rendered sound examples: do not run `scripts/site-audio.sh` (Rasmus, 2026-11-14: renders
+     sound unnatural; recordings from a demo project may be added later)
    - `/page release <version>`, so the page describes exactly this version
    - The installer is built and tested by the `Release` workflow (a run by hand builds and tests it
      without publishing): note in the pull request whether its `Test the installer` step of the
@@ -56,7 +54,6 @@ to do with `gh`, and read with REST (`gh api` or the tools); GraphQL is blocked.
    faked, never ticked:
    - `scripts/screenshots.ps1 <plugin>` for each plugin whose look changed or that is new (it
      needs a Windows display at 100 % scaling), and a look at each
-   - A listen to the changed files (offered to him, not a gate: the pull request does not wait for it) in `site/audio/`, plugin by plugin, with the before and after
    - The bundles on Windows, and installing them (`cargo xtask bundle ...`, `cargo xtask
      check-art`) if the plugins changed
    - After the merge: tag the merge commit `v<version>` and push the tag, which makes

@@ -19,8 +19,8 @@ protected, so a release goes in through a pull request like any other change.
 3. **Changelog.** Turn `## Unreleased` into `## $ARGUMENTS`. Check it against the pull
    requests: everything a player will notice is there, in the house voice (what is heard and
    seen, no internals), grouped by plugin. Add what is missing; ask Rasmus if unsure.
-4. **Sound examples.** For each plugin whose sound changed, `scripts/site-audio.sh <plugin>`,
-   then list which files in `site/audio/` changed for Rasmus to listen to. List the plugins
+4. **No rendered sound examples.** The page has none (Rasmus, 2026-11-14: renders sound unnatural; a
+   demo project may supply some later), so `scripts/site-audio.sh` is not run. List the plugins
    whose look changed, and new ones: `scripts/screenshots.ps1 <plugin>` retakes their screenshot in
    `site/img/`; look at each.
    Then `/page release $ARGUMENTS`: the page describes exactly this version.
