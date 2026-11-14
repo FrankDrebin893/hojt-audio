@@ -67,7 +67,11 @@ GitHub release.
   while the loop plays) and Clear on the left and a Level knob on the right. The icon on the strip has
   a lamp and a switch that is the same press. It records what you heard, after the amp, cabinet, delay
   and reverb and before the click; a loop is not saved with a project and Clear or reloading the plugin
-  empties it. Closing the loop on a bar of the metronome and starting on its downbeat come next.
+  empties it. With the metronome on, the loop snaps to whole bars: the first press waits for the next
+  downbeat and starts recording there, and the press that closes the loop rounds its length to the
+  nearest whole bar (at least one, so 1.4 bars is one and 1.6 is two), at the host's tempo too when
+  the click follows it. There is no count-in, and the loop keeps its own time and does not follow
+  the host's transport. Pressed again before the downbeat, or on Clear, the waiting press is taken back.
 - The standalone program's Audio panel changes the input and output device and their channels without
   starting the program again when it plays through WASAPI: Apply and the sound blinks for a moment, while
   the window, the preset and everything open stay as they are. A device that will not open says so, and
