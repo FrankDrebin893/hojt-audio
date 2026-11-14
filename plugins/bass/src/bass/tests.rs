@@ -1068,7 +1068,7 @@ fn test_reset_puts_the_wheel_back_at_centre() {
 #[test]
 fn test_one_note_costs_at_most_2_percent_of_a_core() {
     // Both planes, the playing noises and all. Timing means nothing unoptimised, so this
-    // runs in the optimised step of scripts/check.sh and CI (cargo test -p bass --release)
+    // runs in the optimised step of scripts/check.sh and CI (cargo test -p bass --profile optimised)
     if cfg!(debug_assertions) {
         return;
     }

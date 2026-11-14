@@ -22,6 +22,37 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # The tests run beside the build, not before it: a release waits for the slower of the two
+  # (the tests), not for their sum. Nothing is published unless both pass on all three systems.
+  # The job is called what ci.yml calls its own, so it starts from the cache `main` left there
+  test:
+    name: Test (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: windows, os: windows-latest }
+          - { name: macos, os: macos-latest }
+          - { name: linux, os: ubuntu-latest }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libgl-dev libjack-dev libx11-xcb-dev libxcb1-dev libxcb-dri2-0-dev libxcb-icccm4-dev libxcursor-dev libxkbcommon-dev libxcb-shape0-dev libxcb-xfixes0-dev mesa-vulkan-drivers
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Test
+        run: cargo test --workspace --locked
+
+      - name: Test the amp and the bass, optimised
+        run: cargo test -p amp -p bass --profile optimised --locked
+
   build:
     name: Build (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
@@ -45,12 +76,6 @@ jobs:
         with:
           targets: ${{ runner.os == 'macOS' && 'x86_64-apple-darwin,aarch64-apple-darwin' || '' }}
       - uses: Swatinem/rust-cache@v2
-
-      - name: Test
-        run: cargo test --workspace --locked
-
-      - name: Test the amp and the bass, optimised
-        run: cargo test -p amp -p bass --release --locked
 
       - name: Bundle
         if: runner.os != 'macOS'
@@ -126,7 +151,7 @@ jobs:
     name: Publish
     # Only a pushed tag publishes. A run by hand builds, also when it is started on a tag
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [test, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -38,6 +38,15 @@ bells bells_report
 pitch_shifter quality_report
 '
 
+# `--profile optimised` is `--release` without the link-time optimisation (root Cargo.toml): six
+# test binaries link in a fraction of the time and the reports are the same to the byte. A checkout
+# from before the profile (the `main` side of an older branch) has only `--release`
+if grep -q '^\[profile\.optimised\]' Cargo.toml 2> /dev/null; then
+    profile="--profile optimised"
+else
+    profile="--release"
+fi
+
 jobs="${SOUND_JOBS:-$( (nproc || sysctl -n hw.ncpu) 2> /dev/null || echo 2)}"
 
 # Waits until fewer than $jobs of this script's background jobs run
@@ -52,7 +61,8 @@ one_report() {
     local file="$out/${plugin}_${report}.txt"
     # Only what the report prints (stdout): cargo's build output and warnings go to stderr and
     # carry source line numbers, which move with any edit
-    if cargo test -q -p "$(package_of "$plugin")" --release --locked "$report" -- --ignored --nocapture > "$file.raw" 2>/dev/null; then
+    # shellcheck disable=SC2086
+    if cargo test -q -p "$(package_of "$plugin")" $profile --locked "$report" -- --ignored --nocapture > "$file.raw" 2>/dev/null; then
         # Timings differ from run to run and machine to machine: leave them out (the cost tables
         # that end effects_report, pitch_report and quality_report, the ns columns of comp_report),
         # and the test harness's "has been running for over 60 seconds", which lands in the
@@ -70,7 +80,7 @@ one_report() {
 # A build that fails here fails again in each report, which then says so in its file
 packages=$(while read -r plugin _; do [ -n "$plugin" ] && echo "-p $(package_of "$plugin")"; done <<< "$reports" | sort -u)
 # shellcheck disable=SC2086
-cargo test -q $packages --release --locked --no-run > /dev/null 2>&1 || true
+cargo test -q $packages $profile --locked --no-run > /dev/null 2>&1 || true
 
 while read -r plugin report; do
     [ -z "$plugin" ] && continue
@@ -82,7 +92,8 @@ if [ "${1:-}" = "--renders" ]; then
     shift
     for plugin in "$@"; do
         wait_for_room
-        cargo test -q -p "$(package_of "$plugin")" --release --locked render_wavs -- --ignored > /dev/null 2>&1 &
+        # shellcheck disable=SC2086
+        cargo test -q -p "$(package_of "$plugin")" $profile --locked render_wavs -- --ignored > /dev/null 2>&1 &
     done
 fi
 wait
