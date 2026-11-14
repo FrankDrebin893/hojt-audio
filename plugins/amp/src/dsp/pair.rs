@@ -5,8 +5,9 @@
 //! written sample by sample.
 //!
 //! On x86-64 a pair is one SSE2 register (every x86-64 processor has those). Anywhere else,
-//! and in builds that are not optimised, where every one of those instructions would be a
-//! function call, it is two numbers side by side.
+//! and in builds with debug assertions (`cargo test` without `--release`), whose lowest
+//! optimisation level would make every one of those instructions a function call, it is two
+//! numbers side by side.
 
 use std::ops::{Add, Div, Mul, Sub};
 

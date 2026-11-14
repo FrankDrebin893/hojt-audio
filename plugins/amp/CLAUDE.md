@@ -268,7 +268,8 @@ How it behaves:
   about the length of the response after a short or built-in cabinet, two blocks after another
   long one. The cabinet before plays on meanwhile
 - The clippers work on two samples at a time (`dsp/pair.rs`), the same to the bit as one by one.
-  That path is only compiled in optimised x86-64 builds: run `cargo test -p amp --release` too
+  That path is only compiled in x86-64 builds without debug assertions (`--release`; the plain
+  `cargo test` is optimised but keeps them): run `cargo test -p amp --release` too
   when touching the clippers
 - `hound` is the amp's one dependency besides nih-plug; it reads the WAV files
 - Each amp remembers its own six dials: the nameplate on the head stores them under the amp that
