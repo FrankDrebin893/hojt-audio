@@ -1,0 +1,1166 @@
+use super::*;
+use crate::dsp::BUS_CLIP_KNEE;
+use crate::test_util::{
+    band_rms, brightness, decay_time_s, peak, rms, spectrum_fill, spectrum_fill_by,
+    zero_crossing_freq,
+};
+
+const SAMPLE_RATE: f32 = 44100.0;
+
+const KICK: u8 = 36;
+const SNARE: u8 = 38;
+const FLOOR_TOM: u8 = 41;
+const HAT_CLOSED: u8 = 42;
+const HAT_OPEN: u8 = 46;
+const CRASH: u8 = 49;
+const ALL_NOTES: [u8; 21] =
+    [35, 36, 37, 38, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 55, 57, 59];
+const PIECES: [(&str, u8); 18] = [
+    ("kick", 36),
+    ("side stick", 37),
+    ("snare", 38),
+    ("tom 1 (floor)", 41),
+    ("tom 2", 43),
+    ("tom 3", 45),
+    ("tom 4", 47),
+    ("tom 5", 48),
+    ("tom 6 (high)", 50),
+    ("hat closed", 42),
+    ("hat pedal", 44),
+    ("hat open", 46),
+    ("crash 1", 49),
+    ("crash 2", 57),
+    ("ride", 51),
+    ("ride bell", 53),
+    ("china", 52),
+    ("splash", 55),
+];
+// Index into `PIECES` of the first cymbal
+const FIRST_CYMBAL_PIECE: usize = 9;
+
+/// Dry kit, so measurements are of the voices and not the room
+fn dry_kit(kit: Kit, sample_rate: f32) -> DrumKit {
+    let mut drums = DrumKit::new();
+    drums.set_sample_rate(sample_rate);
+    drums.set_kit(kit);
+    drums.mix.room = 0.0;
+    drums
+}
+
+fn render(drums: &mut DrumKit, num_samples: usize) -> (Vec<f32>, Vec<f32>) {
+    let output = (0..num_samples).map(|_| drums.process()).unzip();
+    drums.set_time(drums.now + num_samples as u64);
+    output
+}
+
+fn render_mono(drums: &mut DrumKit, seconds: f32) -> Vec<f32> {
+    let (left, right) = render(drums, (seconds * SAMPLE_RATE) as usize);
+    left.iter().zip(&right).map(|(l, r)| (l + r) * 0.5).collect()
+}
+
+fn render_note(kit: Kit, note: u8, velocity: f32, seconds: f32) -> Vec<f32> {
+    let mut drums = dry_kit(kit, SAMPLE_RATE);
+    drums.note_on(note, velocity);
+    render_mono(&mut drums, seconds)
+}
+
+fn seconds(samples: &[f32], from: f32, to: f32) -> &[f32] {
+    &samples[(from * SAMPLE_RATE) as usize..(to * SAMPLE_RATE) as usize]
+}
+
+/// How evenly 1.5 to 4 kHz is filled 15 Hz at a time, 0.3 to 1.3 s after a hit at the
+/// start of `output`: 1 is noise, low a comb of long tones, which beat (a chorus)
+fn comb(output: &[f32]) -> f32 {
+    spectrum_fill_by(seconds(output, 0.3, 1.3), SAMPLE_RATE, 1500.0, 4000.0, 15.0)
+}
+
+/// The 2 to 10 kHz level of the first 30 ms of a hit at the start of `output` over that of
+/// 150 to 300 ms: how far the stroke stands out of its own ring
+fn ping(output: &[f32]) -> f32 {
+    band_rms(seconds(output, 0.0, 0.03), SAMPLE_RATE, 2000.0, 10000.0)
+        / band_rms(seconds(output, 0.15, 0.3), SAMPLE_RATE, 2000.0, 10000.0).max(1e-9)
+}
+
+/// The ride in swung eighths at 160 bpm, velocity 0.8, dry: the comb of seconds 2 to 4,
+/// where the strokes have built up
+fn ride_pattern_comb(kit: Kit) -> f32 {
+    let mut drums = dry_kit(kit, SAMPLE_RATE);
+    let samples_per_beat = SAMPLE_RATE * 60.0 / 160.0;
+    let mut output = Vec::new();
+    for beat in 0..12 {
+        for offset in [0.0, 2.0 / 3.0] {
+            let at = ((beat as f32 + offset) * samples_per_beat) as usize;
+            let (left, right) = render(&mut drums, at - output.len());
+            output.extend(left.iter().zip(&right).map(|(l, r)| (l + r) * 0.5));
+            drums.note_on(51, 0.8);
+        }
+    }
+    spectrum_fill_by(seconds(&output, 2.0, 4.0), SAMPLE_RATE, 1500.0, 4000.0, 15.0)
+}
+
+fn render_stems(drums: &mut DrumKit, num_samples: usize) -> Vec<((f32, f32), Stems)> {
+    let output = (0..num_samples)
+        .map(|_| {
+            let mut stems = Stems::default();
+            (drums.process_stems(&mut stems), stems)
+        })
+        .collect();
+    drums.set_time(drums.now + num_samples as u64);
+    output
+}
+
+fn energy(frames: &[((f32, f32), Stems)], stem: usize) -> f32 {
+    frames.iter().map(|(_, s)| s.pairs[stem].0.powi(2) + s.pairs[stem].1.powi(2)).sum()
+}
+
+#[test]
+fn test_stems_of_the_modal_kits_add_up_to_the_stereo_mix() {
+    for kit in [Kit::Rock, Kit::Jazz] {
+        let mut drums = DrumKit::new();
+        drums.set_sample_rate(SAMPLE_RATE);
+        drums.set_kit(kit);
+        for (note, velocity) in [(36, 0.8), (38, 0.7), (45, 0.6), (42, 0.5), (49, 0.6), (51, 0.5)] {
+            drums.note_on(note, velocity);
+        }
+        let frames = render_stems(&mut drums, SAMPLE_RATE as usize);
+        let mut largest = 0.0f32;
+        for ((left, right), stems) in &frames {
+            let (sum_left, sum_right) =
+                stems.pairs.iter().fold((0.0, 0.0), |(l, r), p| (l + p.0, r + p.1));
+            // The bus clipper is the only thing between the stems and the mix
+            assert!((bus_clip(sum_left) - left).abs() < 1e-5, "{kit:?} left");
+            assert!((bus_clip(sum_right) - right).abs() < 1e-5, "{kit:?} right");
+            largest = largest.max(left.abs());
+        }
+        assert!(largest > 0.1, "{kit:?} played nothing");
+        assert!(energy(&frames, ROOM_STEM) > 0.0, "{kit:?} has no room stem");
+    }
+}
+
+#[test]
+fn test_a_piece_is_only_in_its_own_stem_and_the_room() {
+    let pieces = [
+        (36, KICK_STEM),
+        (38, SNARE_STEM),
+        (37, SNARE_STEM),
+        (45, TOMS_STEM),
+        (42, HAT_STEM),
+        (46, HAT_STEM),
+        (49, CYMBALS_STEM),
+        (51, CYMBALS_STEM),
+        (52, CYMBALS_STEM),
+    ];
+    for kit in Kit::ALL {
+        for (note, stem) in pieces {
+            let mut drums = DrumKit::new();
+            drums.set_sample_rate(SAMPLE_RATE);
+            drums.set_kit(kit);
+            drums.note_on(note, 0.8);
+            let frames = render_stems(&mut drums, SAMPLE_RATE as usize / 2);
+            assert!(energy(&frames, stem) > 1e-4, "{kit:?} note {note} is not in its stem");
+            for other in (0..STEM_COUNT).filter(|&other| other != stem && other != ROOM_STEM) {
+                assert_eq!(energy(&frames, other), 0.0, "{kit:?} note {note} bleeds into {other}");
+            }
+        }
+    }
+}
+
+#[test]
+fn test_the_room_stem_is_the_tail_and_follows_the_room_dial() {
+    for kit in Kit::ALL {
+        let mut drums = dry_kit(kit, SAMPLE_RATE);
+        drums.note_on(38, 0.9);
+        let dry = render_stems(&mut drums, SAMPLE_RATE as usize / 2);
+        assert_eq!(energy(&dry, ROOM_STEM), 0.0, "{kit:?} room at zero");
+
+        let mut drums = dry_kit(kit, SAMPLE_RATE);
+        drums.mix.room = 0.5;
+        drums.note_on(38, 0.9);
+        let wet = render_stems(&mut drums, SAMPLE_RATE as usize / 2);
+        assert!(energy(&wet, ROOM_STEM) > 1e-4, "{kit:?} room at half");
+    }
+}
+
+#[test]
+fn test_the_stems_of_metal_and_groove_are_clean_of_the_bus_drive() {
+    // The stems are taken before the bus drive, so for a loud hit they add up to more
+    // than the driven stereo mix has
+    for kit in [Kit::Metal, Kit::Groove] {
+        let mut drums = dry_kit(kit, SAMPLE_RATE);
+        drums.note_on(36, 1.0);
+        drums.note_on(38, 1.0);
+        let frames = render_stems(&mut drums, SAMPLE_RATE as usize / 4);
+        let mix_peak = frames.iter().map(|((l, _), _)| l.abs()).fold(0.0, f32::max);
+        let stems_peak = frames
+            .iter()
+            .map(|(_, s)| s.pairs.iter().map(|p| p.0).sum::<f32>().abs())
+            .fold(0.0, f32::max);
+        assert!(mix_peak > 0.05 && stems_peak > 0.05, "{kit:?}");
+        assert!(
+            (stems_peak - mix_peak).abs() > 1e-3,
+            "{kit:?}: stems {stems_peak}, mix {mix_peak}"
+        );
+    }
+}
+
+#[test]
+fn test_silent_before_any_note() {
+    let mut drums = DrumKit::new();
+    drums.set_sample_rate(SAMPLE_RATE);
+
+    let (left, right) = render(&mut drums, 2048);
+
+    assert!(left.iter().chain(&right).all(|&s| s == 0.0));
+}
+
+#[test]
+fn test_every_mapped_note_sounds_in_every_kit() {
+    for kit in Kit::ALL {
+        for note in ALL_NOTES {
+            // The quietest is Groove's pedal hi-hat, a soft chick
+            let output = render_note(kit, note, 1.0, 0.2);
+            assert!(peak(&output) > 0.02, "{:?} note {} peak: {}", kit, note, peak(&output));
+        }
+    }
+}
+
+#[test]
+fn test_unmapped_notes_and_zero_velocity_are_ignored() {
+    let mut drums = dry_kit(Kit::Rock, SAMPLE_RATE);
+
+    for note in [0, 34, 39, 54, 60, 127] {
+        drums.note_on(note, 1.0);
+    }
+    drums.note_on(KICK, 0.0);
+    let output = render_mono(&mut drums, 0.1);
+
+    assert!(output.iter().all(|&s| s == 0.0));
+}
+
+#[test]
+fn test_groove_has_a_shaker_and_the_other_kits_do_not() {
+    for kit in Kit::ALL {
+        for note in [69, 70, 82] {
+            let sounds = peak(&render_note(kit, note, 1.0, 0.2)) > 0.01;
+            assert_eq!(sounds, kit == Kit::Groove, "{:?} note {}", kit, note);
+        }
+    }
+}
+
+#[test]
+fn test_default_tune_and_damping_leave_the_engines_alone() {
+    // A hit is the same whether the two controls were never touched or set to nothing
+    for kit in [Kit::Metal, Kit::Groove] {
+        let plain = render_note(kit, SNARE, 0.9, 0.3);
+        let mut drums = dry_kit(kit, SAMPLE_RATE);
+        drums.set_tune(0.0);
+        drums.set_damping(0.0);
+        drums.note_on(SNARE, 0.9);
+        assert_eq!(plain, render_mono(&mut drums, 0.3), "{:?}", kit);
+    }
+}
+
+#[test]
+fn test_engine_kits_follow_tune_damping_and_levels() {
+    for kit in [Kit::Metal, Kit::Groove] {
+        let tom = |semitones: f32, damping: f32, level: f32| {
+            let mut drums = dry_kit(kit, SAMPLE_RATE);
+            drums.set_tune(semitones);
+            drums.set_damping(damping);
+            drums.mix.toms = level;
+            drums.note_on(FLOOR_TOM, 1.0);
+            render_mono(&mut drums, 3.0)
+        };
+        let pitch = |output: &[f32]| zero_crossing_freq(seconds(output, 0.3, 0.6), SAMPLE_RATE);
+        let (plain, high, damped, quiet) =
+            (tom(0.0, 0.0, 1.0), tom(6.0, 0.0, 1.0), tom(0.0, 1.0, 1.0), tom(0.0, 0.0, 0.5));
+
+        let ratio = pitch(&high) / pitch(&plain);
+        assert!(
+            (ratio / semitones_to_ratio(6.0) - 1.0).abs() < 0.05,
+            "{:?} tune ratio {}",
+            kit,
+            ratio
+        );
+        let decay = |output: &[f32]| decay_time_s(output, SAMPLE_RATE, -40.0);
+        assert!(
+            decay(&damped) < decay(&plain) * 0.5,
+            "{:?}: {} vs {}",
+            kit,
+            decay(&damped),
+            decay(&plain)
+        );
+        assert!(peak(&quiet) < peak(&plain) * 0.7, "{:?}", kit);
+    }
+}
+
+#[test]
+fn test_engines_ring_on_under_another_kit_and_then_rest() {
+    let mut drums = dry_kit(Kit::Metal, SAMPLE_RATE);
+    drums.note_on(CRASH, 1.0);
+    let before = render_mono(&mut drums, 0.1);
+
+    drums.set_kit(Kit::Rock);
+    let after = render_mono(&mut drums, 0.1);
+    let ratio = rms(&after) / rms(&before);
+    assert!((0.3..1.0).contains(&ratio), "Level ratio across kit change: {}", ratio);
+
+    render_mono(&mut drums, 12.0);
+    assert!(render_mono(&mut drums, 0.1).iter().all(|&sample| sample == 0.0));
+}
+
+#[test]
+fn test_full_kit_decays_to_silence() {
+    // Half the usual sample rate keeps this long render quick
+    let sample_rate = 22050.0;
+    for kit in Kit::ALL {
+        let mut drums = DrumKit::new();
+        drums.set_sample_rate(sample_rate);
+        drums.set_kit(kit);
+        drums.mix.room = 1.0;
+
+        for note in ALL_NOTES {
+            drums.note_on(note, 1.0);
+        }
+        let (left, _) = render(&mut drums, sample_rate as usize * 20);
+
+        let tail = &left[left.len() - sample_rate as usize / 2..];
+        assert!(peak(tail) < 0.0001, "{:?} is still ringing: {}", kit, peak(tail));
+    }
+}
+
+#[test]
+fn test_output_bounded_and_finite() {
+    for &sample_rate in &[22050.0, 44100.0, 48000.0, 96000.0, 192000.0] {
+        for kit in Kit::ALL {
+            let mut drums = DrumKit::new();
+            drums.set_sample_rate(sample_rate);
+            drums.set_kit(kit);
+            drums.mix.room = 1.0;
+
+            // Everything at once, twice, is far more than any real pattern
+            let mut output = Vec::new();
+            for _ in 0..2 {
+                for note in ALL_NOTES {
+                    drums.note_on(note, 1.0);
+                }
+                let (left, right) = render(&mut drums, (sample_rate * 0.15) as usize);
+                output.extend(left);
+                output.extend(right);
+            }
+
+            assert!(output.iter().all(|s| s.is_finite()));
+            assert!(peak(&output) <= 1.0, "Peak {} at {} Hz", peak(&output), sample_rate);
+        }
+    }
+}
+
+#[test]
+fn test_single_hits_stay_below_the_bus_clipper() {
+    for kit in Kit::ALL {
+        for (name, note) in PIECES {
+            let level = peak(&render_note(kit, note, 1.0, 0.5));
+            assert!(level < BUS_CLIP_KNEE, "{:?} {} peaks at {}", kit, name, level);
+        }
+    }
+}
+
+#[test]
+fn test_velocity_raises_level_and_brightness() {
+    for note in [KICK, SNARE, CRASH] {
+        let soft = render_note(Kit::Rock, note, 0.3, 0.5);
+        let hard = render_note(Kit::Rock, note, 1.0, 0.5);
+
+        assert!(peak(&hard) > peak(&soft) * 2.0, "Note {} level", note);
+        assert!(brightness(&hard) > brightness(&soft) * 1.2, "Note {} brightness", note);
+    }
+}
+
+#[test]
+fn test_consecutive_hits_differ() {
+    let mut drums = dry_kit(Kit::Rock, SAMPLE_RATE);
+
+    drums.note_on(SNARE, 0.8);
+    let first = render_mono(&mut drums, 2.0);
+    drums.note_on(SNARE, 0.8);
+    let second = render_mono(&mut drums, 2.0);
+
+    assert_ne!(first, second);
+    // Different, but still the same drum
+    let level_ratio = rms(&second) / rms(&first);
+    assert!((0.7..1.4).contains(&level_ratio), "Level ratio: {}", level_ratio);
+}
+
+#[test]
+fn test_closed_hat_chokes_open_hat() {
+    for kit in Kit::ALL {
+        let open = render_note(kit, HAT_OPEN, 1.0, 0.5);
+
+        let mut drums = dry_kit(kit, SAMPLE_RATE);
+        drums.note_on(HAT_OPEN, 1.0);
+        let mut choked = render_mono(&mut drums, 0.1);
+        drums.note_on(HAT_CLOSED, 0.5);
+        choked.extend(render_mono(&mut drums, 0.4));
+
+        let ringing = rms(seconds(&open, 0.3, 0.5));
+        let after_choke = rms(seconds(&choked, 0.3, 0.5));
+        assert!(ringing > 0.001, "{:?} open hat does not ring: {}", kit, ringing);
+        assert!(after_choke < ringing * 0.1, "{:?}: {} vs {}", kit, after_choke, ringing);
+    }
+}
+
+/// The hi-hat struck on 46 with the pedal held at `openness`
+fn render_hat(kit: Kit, openness: Option<f32>, seconds: f32) -> Vec<f32> {
+    let mut drums = dry_kit(kit, SAMPLE_RATE);
+    if let Some(openness) = openness {
+        drums.set_hat_openness(openness);
+    }
+    drums.note_on(HAT_OPEN, 1.0);
+    render_mono(&mut drums, seconds)
+}
+
+#[test]
+fn test_hat_pedal_sets_how_open_a_hat_on_46_rings() {
+    for kit in Kit::ALL {
+        let decay = |hat: &[f32]| decay_time_s(hat, SAMPLE_RATE, -40.0);
+        let never_moved = render_hat(kit, None, 2.0);
+        let (open, half, shut) = (
+            render_hat(kit, Some(1.0), 2.0),
+            render_hat(kit, Some(0.5), 2.0),
+            render_hat(kit, Some(0.0), 2.0),
+        );
+        // Open is the hat as it was before the pedal, to the bit
+        assert!(open.iter().zip(&never_moved).all(|(a, b)| a.to_bits() == b.to_bits()));
+
+        let closed = render_note(kit, HAT_CLOSED, 1.0, 2.0);
+        let times = [decay(&open), decay(&half), decay(&shut), decay(&closed)];
+        assert!(times[0] > times[1] && times[1] > times[2], "{kit:?}: {times:?}");
+        assert!((times[2] / times[3] - 1.0).abs() < 0.1, "{kit:?}: {times:?}");
+    }
+}
+
+#[test]
+fn test_shutting_the_pedal_chokes_a_ringing_hat() {
+    for kit in Kit::ALL {
+        let open = render_note(kit, HAT_OPEN, 1.0, 0.5);
+
+        let mut drums = dry_kit(kit, SAMPLE_RATE);
+        drums.note_on(HAT_OPEN, 1.0);
+        let mut choked = render_mono(&mut drums, 0.1);
+        drums.set_hat_openness(0.0);
+        choked.extend(render_mono(&mut drums, 0.4));
+
+        let ringing = rms(seconds(&open, 0.2, 0.3));
+        let after_choke = rms(seconds(&choked, 0.2, 0.3));
+        assert!(ringing > 0.001, "{kit:?} open hat does not ring: {ringing}");
+        assert!(after_choke < ringing * 0.1, "{kit:?}: {after_choke} vs {ringing}");
+    }
+}
+
+#[test]
+fn test_moving_the_pedal_without_shutting_it_leaves_the_hat_alone() {
+    // Half way down is not a choke, and neither is a pedal that was already shut
+    for kit in Kit::ALL {
+        let open = render_note(kit, HAT_OPEN, 1.0, 0.5);
+        let mut drums = dry_kit(kit, SAMPLE_RATE);
+        drums.note_on(HAT_OPEN, 1.0);
+        let mut moved = render_mono(&mut drums, 0.1);
+        drums.set_hat_openness(0.5);
+        moved.extend(render_mono(&mut drums, 0.4));
+        assert!(open.iter().zip(&moved).all(|(a, b)| a.to_bits() == b.to_bits()), "{kit:?}");
+
+        let mut drums = dry_kit(kit, SAMPLE_RATE);
+        drums.set_hat_openness(0.0);
+        drums.note_on(HAT_CLOSED, 1.0);
+        let mut held = render_mono(&mut drums, 0.01);
+        drums.set_hat_openness(0.05);
+        held.extend(render_mono(&mut drums, 0.2));
+        let closed = render_note(kit, HAT_CLOSED, 1.0, 0.21);
+        assert!(closed.iter().zip(&held).all(|(a, b)| a.to_bits() == b.to_bits()), "{kit:?}");
+    }
+}
+
+const CYMBAL_NOTES: [u8; 7] = [49, 51, 52, 53, 55, 57, 59];
+
+/// A cymbal note held for `held_s` and let go, then `after_s` more
+fn render_choked(kit: Kit, note: u8, held_s: f32, after_s: f32) -> Vec<f32> {
+    let mut drums = dry_kit(kit, SAMPLE_RATE);
+    drums.note_on(note, 1.0);
+    let mut output = render_mono(&mut drums, held_s);
+    drums.note_off(note);
+    output.extend(render_mono(&mut drums, after_s));
+    output
+}
+
+#[test]
+fn test_a_note_off_after_a_hold_grabs_the_cymbal() {
+    for kit in Kit::ALL {
+        for note in CYMBAL_NOTES {
+            let free = render_note(kit, note, 1.0, 0.8);
+            let choked = render_choked(kit, note, 0.3, 0.5);
+            let ringing = rms(seconds(&free, 0.4, 0.5));
+            let after = rms(seconds(&choked, 0.4, 0.5));
+            assert!(ringing > 0.0005, "{kit:?} {note} does not ring: {ringing}");
+            assert!(after < ringing * 0.1, "{kit:?} {note}: {after} vs {ringing}");
+        }
+    }
+}
+
+#[test]
+fn test_a_note_off_soon_after_the_hit_is_ignored() {
+    // A drawn sixteenth: the crash rings out, to the bit
+    for kit in Kit::ALL {
+        for note in CYMBAL_NOTES {
+            let free = render_note(kit, note, 1.0, 0.8);
+            let short = render_choked(kit, note, 0.05, 0.75);
+            assert!(
+                free.iter().zip(&short).all(|(a, b)| a.to_bits() == b.to_bits()),
+                "{kit:?} {note}"
+            );
+        }
+    }
+}
+
+#[test]
+fn test_note_off_leaves_the_rest_of_the_kit_alone() {
+    // Hi-hats are the pedal's, and the other pieces ring out by themselves
+    for kit in Kit::ALL {
+        for note in [35, 38, 41, 42, 44, 46, 69] {
+            let free = render_note(kit, note, 1.0, 0.8);
+            let off = render_choked(kit, note, 0.3, 0.5);
+            assert!(
+                free.iter().zip(&off).all(|(a, b)| a.to_bits() == b.to_bits()),
+                "{kit:?} {note}"
+            );
+        }
+    }
+}
+
+#[test]
+fn test_kits_differ() {
+    let kick_freq =
+        |kit| zero_crossing_freq(seconds(&render_note(kit, KICK, 1.0, 0.5), 0.1, 0.3), SAMPLE_RATE);
+    let decay = |kit, note| decay_time_s(&render_note(kit, note, 1.0, 4.0), SAMPLE_RATE, -40.0);
+    let crash_brightness = |kit| brightness(&render_note(kit, CRASH, 1.0, 1.0));
+
+    // Jazz kick is tuned high and open, metal kick is short
+    assert!(kick_freq(Kit::Jazz) > kick_freq(Kit::Rock) * 1.2);
+    assert!(decay(Kit::Metal, KICK) < decay(Kit::Rock, KICK));
+    assert!(decay(Kit::Rock, KICK) < decay(Kit::Jazz, KICK));
+    // Metal snare and toms are tight, jazz ones ring
+    assert!(decay(Kit::Metal, SNARE) < decay(Kit::Jazz, SNARE));
+    assert!(decay(Kit::Metal, FLOOR_TOM) < decay(Kit::Jazz, FLOOR_TOM));
+    // Jazz cymbals are dark, and Groove's darker still
+    assert!(crash_brightness(Kit::Rock) > crash_brightness(Kit::Jazz) * 1.1);
+    assert!(crash_brightness(Kit::Jazz) > crash_brightness(Kit::Groove) * 2.0);
+    // Groove is round and open where Metal is tight
+    assert!(decay(Kit::Metal, KICK) < decay(Kit::Groove, KICK) * 0.6);
+    assert!(decay(Kit::Metal, FLOOR_TOM) < decay(Kit::Groove, FLOOR_TOM));
+}
+
+#[test]
+fn test_jazz_ride_strokes_ping_over_a_wash_that_does_not_beat() {
+    // Long modes a few tens of hertz apart beat, under strokes that hardly stood out of
+    // their own ring: 0.30 in the pattern and a ping of 1.36 when the modes went to 5 kHz
+    let pattern = ride_pattern_comb(Kit::Jazz);
+    assert!(pattern > 0.65, "Jazz ride comb in the pattern: {}", pattern);
+    let ping = ping(&render_note(Kit::Jazz, 51, 0.8, 1.5));
+    assert!(ping >= 1.7, "Jazz ride ping: {}", ping);
+}
+
+#[test]
+fn test_jazz_open_hat_and_crash_tails_are_even() {
+    // 0.80 and 0.86 when the modes went to 6.5 and 5 kHz and rang 1.3 times as long
+    for (name, note) in [("open hat", HAT_OPEN), ("crash", CRASH)] {
+        let comb = comb(&render_note(Kit::Jazz, note, 0.8, 1.5));
+        assert!(comb > 0.85, "Jazz {} comb: {}", name, comb);
+    }
+}
+
+#[test]
+fn test_tune_shifts_drum_pitch() {
+    let kick_freq = |semitones| {
+        let mut drums = dry_kit(Kit::Jazz, SAMPLE_RATE);
+        drums.set_tune(semitones);
+        drums.note_on(KICK, 1.0);
+        zero_crossing_freq(seconds(&render_mono(&mut drums, 0.6), 0.15, 0.55), SAMPLE_RATE)
+    };
+
+    let ratio = kick_freq(6.0) / kick_freq(0.0);
+    let expected = semitones_to_ratio(6.0);
+    assert!((ratio / expected - 1.0).abs() < 0.05, "Ratio {}, expected {}", ratio, expected);
+}
+
+#[test]
+fn test_damping_shortens_decay() {
+    for note in [FLOOR_TOM, CRASH] {
+        let decay = |damping| {
+            let mut drums = dry_kit(Kit::Rock, SAMPLE_RATE);
+            drums.set_damping(damping);
+            drums.note_on(note, 1.0);
+            decay_time_s(&render_mono(&mut drums, 5.0), SAMPLE_RATE, -40.0)
+        };
+
+        assert!(
+            decay(1.0) < decay(0.0) * 0.5,
+            "Note {}: {} s vs {} s",
+            note,
+            decay(1.0),
+            decay(0.0)
+        );
+    }
+}
+
+#[test]
+fn test_stereo_placement() {
+    let levels = |note| {
+        let mut drums = dry_kit(Kit::Rock, SAMPLE_RATE);
+        drums.note_on(note, 1.0);
+        let (left, right) = render(&mut drums, 8820);
+        (rms(&left), rms(&right))
+    };
+
+    // From the drummer's seat: hi-hat on the left, floor tom on the right
+    let (left, right) = levels(HAT_CLOSED);
+    assert!(left > right * 1.5);
+    let (left, right) = levels(FLOOR_TOM);
+    assert!(right > left * 1.5);
+    let (left, right) = levels(KICK);
+    assert!((left / right - 1.0).abs() < 0.001);
+}
+
+#[test]
+fn test_room_adds_a_stereo_tail() {
+    let snare_hit = |room| {
+        let mut drums = dry_kit(Kit::Rock, SAMPLE_RATE);
+        drums.mix.room = room;
+        drums.note_on(SNARE, 1.0);
+        render(&mut drums, SAMPLE_RATE as usize)
+    };
+
+    // Every kit starts from the same noise seeds, so the difference is the room alone
+    let (dry_left, dry_right) = snare_hit(0.0);
+    let (wet_left, wet_right) = snare_hit(1.0);
+    let room_left: Vec<f32> = wet_left.iter().zip(&dry_left).map(|(wet, dry)| wet - dry).collect();
+    let room_right: Vec<f32> =
+        wet_right.iter().zip(&dry_right).map(|(wet, dry)| wet - dry).collect();
+
+    let ratio = rms(&room_left) / rms(&dry_left);
+    assert!((0.2..1.5).contains(&ratio), "Room level relative to the dry snare: {}", ratio);
+    assert!(decay_time_s(&room_left, SAMPLE_RATE, -40.0) > 0.2);
+    // The snare is dead centre, so any difference between the channels is the room
+    assert_ne!(room_left, room_right);
+}
+
+#[test]
+fn test_kit_change_does_not_cut_ringing_voices() {
+    let mut drums = dry_kit(Kit::Rock, SAMPLE_RATE);
+    drums.note_on(CRASH, 1.0);
+    let before = render_mono(&mut drums, 0.1);
+
+    drums.set_kit(Kit::Metal);
+    let after = render_mono(&mut drums, 0.1);
+
+    let ratio = rms(&after) / rms(&before);
+    assert!((0.3..1.0).contains(&ratio), "Level ratio across kit change: {}", ratio);
+}
+
+/// Prints level, decay and brightness of every piece in every kit:
+///   cargo test -p drums --release kit_report -- --ignored --nocapture
+///
+/// Compare before and after changing a preset or a voice.
+#[test]
+#[ignore]
+fn kit_report() {
+    // rms and brightness are of the first 200 ms, crack is the level of the first 50 ms,
+    // >4k the level above 4 kHz in the first 200 ms. For cymbals: low tail is the share
+    // of the energy under 1 kHz from half a second on, fill how evenly 4 to 12 kHz is
+    // filled (1 is noise, 0 a few sines), fine the same in 15 Hz steps from 5 to 7 kHz, which
+    // tells noise from a bank of resonators, comb the same from 1.5 to 4 kHz in the tail (0.3
+    // to 1.3 s), ping the 2 to 10 kHz level of the first 30 ms over that of 150 to 300 ms
+    for velocity in [0.6, 1.0] {
+        for kit in Kit::ALL {
+            println!("\n{:?}, velocity {}", kit, velocity);
+            println!(
+                "{:<16}{:>8}{:>8}{:>8}{:>8}{:>11}{:>12}{:>10}{:>7}{:>7}{:>7}{:>7}",
+                "piece",
+                "peak",
+                "rms",
+                "crack",
+                ">4k",
+                "decay (s)",
+                "brightness",
+                "low tail",
+                "fill",
+                "fine",
+                "comb",
+                "ping"
+            );
+            for (index, (name, note)) in PIECES.into_iter().enumerate() {
+                let output = render_note(kit, note, velocity, 12.0);
+                let start = seconds(&output, 0.0, 0.2);
+                print!(
+                    "{:<16}{:>8.3}{:>8.3}{:>8.3}{:>8.3}{:>11.2}{:>12.3}",
+                    name,
+                    peak(&output),
+                    rms(start),
+                    rms(seconds(&output, 0.0, 0.05)),
+                    band_rms(start, SAMPLE_RATE, 4000.0, SAMPLE_RATE),
+                    decay_time_s(&output, SAMPLE_RATE, -40.0),
+                    brightness(start),
+                );
+                if index >= FIRST_CYMBAL_PIECE {
+                    let tail = seconds(&output, 0.5, 1.5);
+                    let low = band_rms(tail, SAMPLE_RATE, 20.0, 1000.0) / rms(tail).max(1e-9);
+                    let fill =
+                        spectrum_fill(seconds(&output, 0.1, 0.3), SAMPLE_RATE, 4000.0, 12000.0);
+                    let fine = spectrum_fill_by(
+                        seconds(&output, 0.1, 0.4),
+                        SAMPLE_RATE,
+                        5000.0,
+                        7000.0,
+                        15.0,
+                    );
+                    print!(
+                        "{:>10.3}{:>7.2}{:>7.2}{:>7.2}{:>7.2}",
+                        low * low,
+                        fill,
+                        fine,
+                        comb(&output),
+                        ping(&output)
+                    );
+                }
+                println!();
+            }
+        }
+    }
+
+    // Cost of the cymbals, the only voices with more than a handful of oscillators
+    let mut drums = dry_kit(Kit::Rock, 48000.0);
+    let ring_all = |drums: &mut DrumKit| {
+        for note in [46, 49, 57, 51, 53, 52, 55] {
+            drums.note_on(note, 1.0);
+        }
+    };
+    ring_all(&mut drums);
+    let frames = 48000;
+    let started = std::time::Instant::now();
+    let mut sum = 0.0;
+    for _ in 0..frames {
+        sum += drums.process().0;
+    }
+    let per_frame_ns = started.elapsed().as_nanos() as f64 / frames as f64;
+    let hits = 1000;
+    let started = std::time::Instant::now();
+    for _ in 0..hits {
+        drums.note_on(CRASH, 0.8);
+    }
+    let per_hit_us = started.elapsed().as_nanos() as f64 / hits as f64 / 1000.0;
+    println!(
+            "\nEvery cymbal ringing at 48 kHz: {:.0} ns per frame ({:.1} % of a core), one crash hit {:.1} us ({})",
+            per_frame_ns,
+            per_frame_ns * 48000.0 / 1e7,
+            per_hit_us,
+            sum.is_finite()
+        );
+}
+
+/// Writes WAV files to target/renders for listening:
+///   cargo test -p drums --release render_wavs -- --ignored
+///
+/// Per kit: every piece at three velocities, and a short groove in the style.
+///
+/// Set DRUMS_INPUT_MID to the path of a MIDI file to render that drum part as well,
+/// through every kit (drums_<kit>_input.wav).
+#[test]
+#[ignore]
+fn render_wavs() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/renders");
+    std::fs::create_dir_all(&dir).unwrap();
+    let part = std::env::var("DRUMS_INPUT_MID").ok().map(|path| {
+        let bytes = std::fs::read(&path).expect("Could not open DRUMS_INPUT_MID");
+        midi_pattern(&bytes).unwrap_or_else(|problem| panic!("DRUMS_INPUT_MID: {problem}"))
+    });
+
+    for kit in Kit::ALL {
+        let name = format!("{:?}", kit).to_lowercase();
+
+        let mut pieces = Vec::new();
+        for (i, (_, note)) in PIECES.iter().enumerate() {
+            for (j, velocity) in [0.4, 0.7, 1.0].into_iter().enumerate() {
+                pieces.push(((i * 3 + j) as f32, *note, velocity));
+            }
+        }
+        write_wav(
+            &dir.join(format!("drums_{}_pieces.wav", name)),
+            &render_pattern(kit, &pieces, 100.0),
+        );
+
+        let (groove, bpm) = groove(kit);
+        write_wav(
+            &dir.join(format!("drums_{}_groove.wav", name)),
+            &render_pattern(kit, &groove, bpm),
+        );
+
+        write_wav(&dir.join(format!("drums_{}_hat_pedal.wav", name)), &render_hat_pedal(kit));
+        write_wav(&dir.join(format!("drums_{}_choke.wav", name)), &render_choke(kit));
+
+        if let Some((part, bpm)) = &part {
+            write_wav(
+                &dir.join(format!("drums_{}_input.wav", name)),
+                &render_pattern(kit, part, *bpm),
+            );
+        }
+    }
+    println!("Wrote renders to {}", dir.display());
+}
+
+/// A pattern is a list of (beat, note, velocity)
+type Pattern = Vec<(f32, u8, f32)>;
+
+/// The drum part of a MIDI file as a pattern and its tempo: the note-ons of every track
+/// and channel. A pattern has one tempo, so a file whose tempo changes is refused; one
+/// that names no tempo is at 120, as the format says.
+fn midi_pattern(bytes: &[u8]) -> Result<(Pattern, f32), String> {
+    use midly::{MetaMessage, MidiMessage, Timing, TrackEventKind};
+
+    let file = midly::Smf::parse(bytes).map_err(|error| format!("not a MIDI file ({error})"))?;
+    let ticks_per_beat = match file.header.timing {
+        Timing::Metrical(ticks) => ticks.as_int() as f64,
+        Timing::Timecode(..) => return Err("timed in frames, not in beats".to_string()),
+    };
+
+    let mut pattern = Pattern::new();
+    let mut beat_us: Option<u32> = None;
+    for track in &file.tracks {
+        let mut tick = 0u64;
+        for event in track {
+            tick += event.delta.as_int() as u64;
+            match event.kind {
+                TrackEventKind::Midi { message: MidiMessage::NoteOn { key, vel }, .. }
+                    if vel.as_int() > 0 =>
+                {
+                    let beat = (tick as f64 / ticks_per_beat) as f32;
+                    pattern.push((beat, key.as_int(), vel.as_int() as f32 / 127.0));
+                }
+                TrackEventKind::Meta(MetaMessage::Tempo(tempo)) => {
+                    if beat_us.is_some_and(|first| first != tempo.as_int()) {
+                        return Err(
+                            "the tempo changes: a part is rendered at one tempo".to_string()
+                        );
+                    }
+                    beat_us = Some(tempo.as_int());
+                }
+                _ => {}
+            }
+        }
+    }
+    if pattern.is_empty() {
+        return Err("no notes".to_string());
+    }
+    Ok((pattern, 60e6 / beat_us.unwrap_or(500_000) as f32))
+}
+
+/// A MIDI file of one track, 480 ticks to the beat, from (ticks since the event before, event)
+fn midi_file(events: &[(u32, midly::TrackEventKind<'static>)]) -> Vec<u8> {
+    let header =
+        midly::Header::new(midly::Format::SingleTrack, midly::Timing::Metrical(480.into()));
+    let mut file = midly::Smf::new(header);
+    let mut track: Vec<midly::TrackEvent> = events
+        .iter()
+        .map(|&(delta, kind)| midly::TrackEvent { delta: delta.into(), kind })
+        .collect();
+    track.push(midly::TrackEvent {
+        delta: 0.into(),
+        kind: midly::TrackEventKind::Meta(midly::MetaMessage::EndOfTrack),
+    });
+    file.tracks.push(track);
+    let mut bytes = Vec::new();
+    file.write_std(&mut bytes).unwrap();
+    bytes
+}
+
+fn midi_tempo(bpm: f32) -> midly::TrackEventKind<'static> {
+    midly::TrackEventKind::Meta(midly::MetaMessage::Tempo(((60e6 / bpm) as u32).into()))
+}
+
+fn midi_note(on: bool, note: u8, velocity: u8) -> midly::TrackEventKind<'static> {
+    let (key, vel) = (note.into(), velocity.into());
+    let message = if on {
+        midly::MidiMessage::NoteOn { key, vel }
+    } else {
+        midly::MidiMessage::NoteOff { key, vel }
+    };
+    midly::TrackEventKind::Midi { channel: 9.into(), message }
+}
+
+#[test]
+fn test_midi_part_keeps_beats_notes_velocities_and_tempo() {
+    let bytes = midi_file(&[
+        (0, midi_tempo(100.0)),
+        (0, midi_note(true, 36, 127)),
+        (0, midi_note(true, 42, 64)),
+        (240, midi_note(false, 36, 0)),
+        // A note-on of velocity 0 is a note-off
+        (0, midi_note(true, 42, 0)),
+        (240, midi_note(true, 38, 100)),
+        (720, midi_note(true, 36, 1)),
+    ]);
+    let (pattern, bpm) = midi_pattern(&bytes).unwrap();
+    assert_eq!(bpm, 100.0);
+    assert_eq!(
+        pattern,
+        vec![
+            (0.0, 36, 1.0),
+            (0.0, 42, 64.0 / 127.0),
+            (1.0, 38, 100.0 / 127.0),
+            (2.5, 36, 1.0 / 127.0)
+        ]
+    );
+}
+
+#[test]
+fn test_midi_part_without_tempo_is_at_120() {
+    let (_, bpm) = midi_pattern(&midi_file(&[(0, midi_note(true, 36, 100))])).unwrap();
+    assert_eq!(bpm, 120.0);
+}
+
+#[test]
+fn test_midi_part_that_cannot_be_a_pattern_is_refused() {
+    let changing = midi_file(&[
+        (0, midi_tempo(100.0)),
+        (0, midi_note(true, 36, 100)),
+        (480, midi_tempo(140.0)),
+    ]);
+    assert!(midi_pattern(&changing).unwrap_err().contains("tempo"));
+    // The same tempo written again is no change
+    let repeated = midi_file(&[
+        (0, midi_tempo(100.0)),
+        (0, midi_note(true, 36, 100)),
+        (480, midi_tempo(100.0)),
+    ]);
+    assert!(midi_pattern(&repeated).is_ok());
+
+    assert!(midi_pattern(&midi_file(&[(0, midi_tempo(100.0))])).is_err());
+    assert!(midi_pattern(b"RIFF").is_err());
+}
+
+/// Four bars in the style of the kit, and the tempo
+fn groove(kit: Kit) -> (Pattern, f32) {
+    let mut pattern = Pattern::new();
+    match kit {
+        Kit::Rock => {
+            for bar in 0..4 {
+                let start = bar as f32 * 4.0;
+                pattern.push((start, if bar == 0 { 49 } else { 42 }, 0.9));
+                for eighth in 1..8 {
+                    let velocity = if eighth % 2 == 0 { 0.75 } else { 0.5 };
+                    pattern.push((start + eighth as f32 * 0.5, 42, velocity));
+                }
+                pattern.extend([(start, 36, 0.95), (start + 2.0, 36, 0.9), (start + 2.5, 36, 0.8)]);
+                pattern.push((start + 1.0, 38, 0.95));
+                if bar < 3 {
+                    pattern.push((start + 3.0, 38, 0.95));
+                }
+            }
+            // Fill down the toms, then land on a crash
+            for (i, note) in [50, 50, 48, 47, 45, 45, 43, 41].into_iter().enumerate() {
+                pattern.push((15.0 + i as f32 * 0.125, note, 0.8 + 0.02 * i as f32));
+            }
+            pattern.extend([(16.0, 36, 1.0), (16.0, 57, 1.0)]);
+            (pattern, 110.0)
+        }
+        Kit::Jazz => {
+            for bar in 0..4 {
+                let start = bar as f32 * 4.0;
+                // Swing ride pattern with the hi-hat foot on two and four
+                for (beat, velocity) in
+                    [(0.0, 0.7), (1.0, 0.8), (1.667, 0.5), (2.0, 0.7), (3.0, 0.8), (3.667, 0.5)]
+                {
+                    pattern.push((start + beat, 51, velocity));
+                }
+                pattern.extend([(start + 1.0, 44, 0.7), (start + 3.0, 44, 0.7)]);
+                // Feathered kick and snare comping
+                pattern.push((start, 36, 0.35));
+                pattern.push((start + 1.667, 38, 0.25));
+                if bar % 2 == 1 {
+                    pattern.extend([(start + 2.667, 38, 0.6), (start + 3.667, 36, 0.55)]);
+                }
+            }
+            pattern.extend([(14.667, 47, 0.5), (15.0, 45, 0.55), (15.667, 43, 0.6)]);
+            pattern.extend([(16.0, 36, 0.6), (16.0, 49, 0.7), (17.0, 53, 0.6)]);
+            (pattern, 140.0)
+        }
+        Kit::Metal => {
+            for bar in 0..4 {
+                let start = bar as f32 * 4.0;
+                // Double bass sixteenths under china quarters
+                for sixteenth in 0..16 {
+                    if bar < 3 || sixteenth < 12 {
+                        pattern.push((start + sixteenth as f32 * 0.25, 36, 0.95));
+                    }
+                }
+                for beat in 0..4 {
+                    pattern.push((
+                        start + beat as f32,
+                        if bar == 0 && beat == 0 { 49 } else { 52 },
+                        0.9,
+                    ));
+                }
+                pattern.push((start + 1.0, 38, 1.0));
+                if bar < 3 {
+                    pattern.push((start + 3.0, 38, 1.0));
+                }
+            }
+            for (i, note) in
+                [38, 38, 50, 50, 48, 48, 45, 45, 43, 43, 41, 41].into_iter().enumerate()
+            {
+                pattern.push((15.0 + i as f32 / 12.0, note, 0.95));
+            }
+            pattern.extend([(16.0, 36, 1.0), (16.0, 49, 1.0), (16.0, 57, 1.0)]);
+            (pattern, 180.0)
+        }
+        Kit::Groove => {
+            for bar in 0..4 {
+                let start = bar as f32 * 4.0;
+                // Sixteenth hi-hats, loud on the beat and soft between, a shaker on the offbeats
+                for sixteenth in 0..16 {
+                    let velocity = [0.75, 0.3, 0.5, 0.3][sixteenth % 4];
+                    let open = bar % 2 == 1 && sixteenth == 14;
+                    pattern.push((
+                        start + sixteenth as f32 * 0.25,
+                        if open { 46 } else { 42 },
+                        velocity,
+                    ));
+                }
+                for beat in 0..4 {
+                    pattern.push((start + beat as f32 + 0.5, 70, 0.6));
+                }
+                // A laid back kick, the snare on two and four with ghost notes around it
+                pattern.extend([(start, 36, 0.9), (start + 1.75, 36, 0.6), (start + 2.5, 36, 0.8)]);
+                pattern.extend([(start + 1.0, 38, 0.85), (start + 3.0, 38, 0.9)]);
+                pattern.extend([
+                    (start + 1.5, 38, 0.2),
+                    (start + 2.25, 38, 0.25),
+                    (start + 3.75, 38, 0.2),
+                ]);
+                if bar == 2 {
+                    pattern.push((start + 3.5, 37, 0.7));
+                }
+            }
+            pattern.extend([(15.5, 47, 0.6), (15.75, 43, 0.65)]);
+            pattern.extend([(16.0, 36, 0.9), (16.0, 49, 0.8), (17.0, 53, 0.6), (18.0, 51, 0.6)]);
+            (pattern, 88.0)
+        }
+    }
+}
+
+/// Renders a pattern with the default mix, plus a tail. Returns interleaved stereo.
+fn render_pattern(kit: Kit, pattern: &Pattern, bpm: f32) -> Vec<f32> {
+    let mut drums = DrumKit::new();
+    drums.set_sample_rate(SAMPLE_RATE);
+    drums.set_kit(kit);
+
+    let samples_per_beat = SAMPLE_RATE * 60.0 / bpm;
+    let mut events: Vec<(usize, u8, f32)> = pattern
+        .iter()
+        .map(|&(beat, note, velocity)| ((beat * samples_per_beat) as usize, note, velocity))
+        .collect();
+    events.sort_by_key(|event| event.0);
+    let length = events.last().map_or(0, |event| event.0) + SAMPLE_RATE as usize * 3;
+
+    let mut output = Vec::with_capacity(length * 2);
+    let mut next = 0;
+    for sample in 0..length {
+        while next < events.len() && events[next].0 <= sample {
+            drums.note_on(events[next].1, events[next].2);
+            next += 1;
+        }
+        let (left, right) = drums.process();
+        output.push(left);
+        output.push(right);
+    }
+    output
+}
+
+/// Eighths on 46 at 120 while the hi-hat pedal opens slowly and closes again, then four
+/// open hits that the pedal shuts half a second later. Stereo, interleaved
+fn render_hat_pedal(kit: Kit) -> Vec<f32> {
+    let mut drums = DrumKit::new();
+    drums.set_sample_rate(SAMPLE_RATE);
+    drums.set_kit(kit);
+    let eighth = (SAMPLE_RATE * 0.25) as usize;
+    // The pedal is read as an electronic kit sends it, every 10 ms
+    let every = (SAMPLE_RATE * 0.01) as usize;
+    let mut output = Vec::new();
+    let mut play = |drums: &mut DrumKit, samples: usize| {
+        for _ in 0..samples {
+            let (left, right) = drums.process();
+            output.extend([left, right]);
+        }
+    };
+
+    let sweep = 32 * eighth;
+    for sample in (0..sweep).step_by(every) {
+        let through = sample as f32 / sweep as f32;
+        drums.set_hat_openness(1.0 - (2.0 * through - 1.0).abs());
+        if sample % eighth < every {
+            drums.note_on(HAT_OPEN, 0.8);
+        }
+        play(&mut drums, every);
+    }
+    for _ in 0..4 {
+        drums.set_hat_openness(1.0);
+        drums.note_on(HAT_OPEN, 0.9);
+        play(&mut drums, 2 * eighth);
+        drums.set_hat_openness(0.0);
+        play(&mut drums, 2 * eighth);
+    }
+    play(&mut drums, 4 * eighth);
+    output
+}
+
+/// Each cymbal struck and held 0.5, 1 and 2 s before the note-off, then 2 s of what is
+/// left, one after the other, and a crash let go after 50 ms, which rings out. Stereo,
+/// interleaved
+fn render_choke(kit: Kit) -> Vec<f32> {
+    let mut drums = DrumKit::new();
+    drums.set_sample_rate(SAMPLE_RATE);
+    drums.set_kit(kit);
+    let mut output = Vec::new();
+    let mut play = |drums: &mut DrumKit, seconds: f32| {
+        let samples = (seconds * SAMPLE_RATE) as usize;
+        for _ in 0..samples {
+            let (left, right) = drums.process();
+            output.extend([left, right]);
+        }
+        drums.set_time(drums.now + samples as u64);
+    };
+    for (note, held) in
+        [(49, 0.5), (49, 1.0), (49, 2.0), (51, 1.0), (53, 1.0), (52, 1.0), (55, 0.5)]
+    {
+        drums.note_on(note, 0.9);
+        play(&mut drums, held);
+        drums.note_off(note);
+        play(&mut drums, 2.0);
+    }
+    drums.note_on(49, 0.9);
+    play(&mut drums, 0.05);
+    drums.note_off(49);
+    play(&mut drums, 3.0);
+    output
+}
+
+fn write_wav(path: &std::path::Path, interleaved: &[f32]) {
+    let spec = hound::WavSpec {
+        channels: 2,
+        sample_rate: SAMPLE_RATE as u32,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+    };
+    let mut writer = hound::WavWriter::create(path, spec).unwrap();
+    for &sample in interleaved {
+        writer.write_sample((sample.clamp(-1.0, 1.0) * 32767.0) as i16).unwrap();
+    }
+    writer.finalize().unwrap();
+}

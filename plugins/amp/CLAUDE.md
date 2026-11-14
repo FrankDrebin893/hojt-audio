@@ -566,7 +566,7 @@ How it behaves:
 
 Dials are stored 0.0-1.0 and shown as 0.0-10.0.
 
-Amp tests sit next to the code. The ones for the whole chain are in `chain.rs`. These ignored
+Amp tests sit next to the code. The ones for the whole chain are in `chain/tests.rs`, the editor's in `editor/tests.rs`. These ignored
 tests are the tools for working on the sound:
 
 ```bash
