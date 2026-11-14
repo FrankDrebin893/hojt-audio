@@ -66,8 +66,9 @@ installs to), nothing that is only in `CHANGELOG.md` under `Unreleased`.
      control a player sees, named as the window names it, with the range the parameter really
      has. MIDI tables match the note map in the plugin's `CLAUDE.md`
    - **Points and counts** (kits, voices, pedals, presets, latency) match the code
-   - **Listen** lists exactly the examples `scripts/site-audio.sh` makes for that plugin, with
-     their files in `site/audio/`. A plugin with none yet has no Listen heading
+   - **Listen** exists only for recordings made in a DAW with the plugin (today the Pitch
+     Shifter's four). Rendered examples are not on the page (Rasmus, 2026-11-14); a plugin with
+     none has no Listen heading
 2. **Screenshots.** A new plugin, or one whose look changed, needs a screenshot in `site/img/`:
    run `scripts/screenshots.ps1 <plugin>` (Windows, display at 100 % scaling) and look at every
    picture it took. Every plugin section has its figure. Where the script cannot run, leave the

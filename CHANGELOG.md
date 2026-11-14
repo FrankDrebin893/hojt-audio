@@ -5,6 +5,8 @@ GitHub release.
 
 ## Unreleased
 
+## 0.4.0
+
 ### Update notice
 
 - A quiet line of label tape in every plugin's window and standalone program says when a newer

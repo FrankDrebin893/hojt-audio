@@ -7,9 +7,8 @@ out; the HØJT name and logo are kept out of it (`NOTICE.md`).
 1. Set the version in `Cargo.toml` (`[workspace.package]`) and run `cargo check --workspace` so
    `Cargo.lock` follows
 2. Add a `## <version>` section to `CHANGELOG.md`: it becomes the text of the release
-3. For every plugin whose sound changed in that section, run `scripts/site-audio.sh <plugin>`
-   (`drums`, `amp`, `pitch_shifter`, `bass`, `pad`, `bells`) and listen to what changed in `site/audio/`. If a plugin's
-   look changed, or it is new, run `scripts/screenshots.ps1 <plugin>` and look at what it took
+3. Rendered sound examples are dropped (2026-11-14): the page has none, so `scripts/site-audio.sh` is not run.
+   If a plugin's look changed, or it is new, run `scripts/screenshots.ps1 <plugin>` and look at what it took
 4. Run `/page release <version>` so the page describes exactly that version: new plugins,
    controls tables, sound examples
 5. Commit on a branch `release/<version>` and merge it through a pull request (`main` is
