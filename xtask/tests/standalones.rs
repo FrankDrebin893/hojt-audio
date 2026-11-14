@@ -1,7 +1,7 @@
 //! The six standalone programs ship in the Windows installer: each has the HØJT icon in its exe
 //! (the same badge, drawn once by `scripts/make-icon.py`), a component and a Start menu entry in
 //! `installer/hojt-dsp.iss`, and is built and started in the Windows job of `release.yml`.
-//! ASIO is not part of it: that stays a build by hand (`plugins/amp/CLAUDE.md`)
+//! They are built with ASIO from the SDK vendored in `third_party/asiosdk` (GPLv3 alternative)
 
 use std::path::Path;
 
@@ -100,4 +100,21 @@ fn test_the_windows_job_builds_and_starts_every_standalone() {
         "build-installer.sh does not read target/standalone"
     );
     assert!(read("installer/test-installer.ps1").contains("Assert-Standalones"));
+}
+
+#[test]
+fn test_every_standalone_has_the_asio_feature_and_the_build_uses_the_vendored_sdk() {
+    for (package, _) in bundles() {
+        let cargo = read(&format!("plugins/{package}/Cargo.toml"));
+        assert!(
+            cargo.contains("asio = [\"standalone\", \"nih_plug/asio\"]"),
+            "{package} has no asio feature"
+        );
+    }
+    let build = read("scripts/build-standalones.sh");
+    assert!(build.contains("third_party/asiosdk") && build.contains("standalone,asio"));
+    for file in ["common/asio.h", "common/asio.cpp", "host/asiodrivers.cpp", "host/pc/asiolist.cpp", "LICENSE.txt"]
+    {
+        assert!(root().join("third_party/asiosdk").join(file).is_file(), "missing {file}");
+    }
 }

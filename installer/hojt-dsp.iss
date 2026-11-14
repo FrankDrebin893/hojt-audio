@@ -10,8 +10,8 @@
 ;                          Common Files, and leaves the machine's plugin folders alone
 ; NumericVersion is the four-part x.y.z.0 of the file properties.
 ; Each plugin also has its standalone program (target/standalone/<BundleName>.exe, built by
-; scripts/build-standalones.sh) in the app folder, with a Start menu entry: WASAPI only, ASIO is
-; built by hand (plugins/amp/CLAUDE.md).
+; scripts/build-standalones.sh) in the app folder, with a Start menu entry: ASIO (from third_party/asiosdk)
+; beside WASAPI.
 ; Every bundle in bundler.toml has its lines below (xtask/tests/installer.rs holds that).
 
 #ifndef AppVersion
