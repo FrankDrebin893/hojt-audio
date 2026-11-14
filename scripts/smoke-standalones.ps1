@@ -5,7 +5,10 @@
 #
 #   scripts\smoke-standalones.ps1 [-Dir target\standalone] [-Seconds 3]
 #
-# An exe that exits at once, or has no icon, fails the run. One that ignores the close request is
+# An exe that exits at once, or has no icon, fails the run, and its stdout and stderr are printed
+# (a Rust panic says why). The one exit tolerated, with a NOTE, is a panic of the graphics
+# context ("gpu backend failed to initialize", or baseview's gl/win.rs), which is what a runner
+# without a GPU gives; a display that cannot open an OpenGL context is not a fault of the program. One that ignores the close request is
 # stopped and only reported, since a runner's desktop session may not deliver it.
 param(
     [string]$Dir = 'target/standalone',
@@ -26,11 +29,23 @@ foreach ($exe in $exes) {
         $failures++
     }
 
-    $p = Start-Process -FilePath $exe.FullName -ArgumentList @('--backend', 'dummy') -PassThru
+    $out = Join-Path ([System.IO.Path]::GetTempPath()) "$($exe.BaseName).out.txt"
+    $err = Join-Path ([System.IO.Path]::GetTempPath()) "$($exe.BaseName).err.txt"
+    $p = Start-Process -FilePath $exe.FullName -ArgumentList @('--backend', 'dummy') -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+    $null = $p.Handle  # keeps the process object able to report its exit code
     Start-Sleep -Seconds $Seconds
     if ($p.HasExited) {
-        Write-Host "FAIL: $($exe.Name) exited by itself with $($p.ExitCode)" -ForegroundColor Red
-        $failures++
+        $text = ((Get-Content -LiteralPath $out, $err -Raw -ErrorAction SilentlyContinue) -join "`n")
+        Write-Host "---- output of $($exe.Name) ----"
+        Write-Host $text
+        Write-Host '----'
+        if ($text -match 'gpu backend failed to initialize|gl[\\/]win\.rs') {
+            Write-Host "NOTE: $($exe.Name) exited with $($p.ExitCode) because this machine has no usable graphics (OpenGL context); not a failure" -ForegroundColor Yellow
+        }
+        else {
+            Write-Host "FAIL: $($exe.Name) exited by itself with $($p.ExitCode)" -ForegroundColor Red
+            $failures++
+        }
         continue
     }
     [void]$p.CloseMainWindow()
