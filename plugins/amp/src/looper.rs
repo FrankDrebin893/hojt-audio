@@ -7,10 +7,6 @@
 //! fade at the ends of a recorded loop and of an overdub takes the click out of the seam.
 //! The editor reaches it through [`LooperControl`], atomics only, so nothing locks.
 
-// Nothing in the editor presses a button until the plate is built (milestone 2 of #280): the
-// control's calls are used by the tests only until then
-#![allow(dead_code)]
-
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU8, Ordering};
 use std::sync::Arc;
 
@@ -71,6 +67,7 @@ pub struct LooperControl {
     state: AtomicU8,
     length: AtomicU32,
     position: AtomicU32,
+    capacity: AtomicU32,
 }
 
 impl LooperControl {
@@ -96,6 +93,31 @@ impl LooperControl {
     /// The loop's length in samples (what has been recorded so far, while recording)
     pub fn length(&self) -> u32 {
         self.length.load(Ordering::Relaxed)
+    }
+
+    /// The most samples a loop can hold at the plugin's sample rate: what the plate's ring
+    /// fills against while recording
+    pub fn capacity(&self) -> u32 {
+        self.capacity.load(Ordering::Relaxed)
+    }
+
+    /// Sets what the editor reads, for the editor's own tests
+    #[cfg(test)]
+    pub(crate) fn show(&self, state: State, length: u32, position: u32, capacity: u32) {
+        self.length.store(length, Ordering::Relaxed);
+        self.position.store(position, Ordering::Relaxed);
+        self.capacity.store(capacity, Ordering::Relaxed);
+        self.state.store(state as u8, Ordering::Release);
+    }
+
+    /// The commands the audio has not taken yet: presses, stop, clear
+    #[cfg(test)]
+    pub(crate) fn pending(&self) -> (u8, bool, bool) {
+        (
+            self.presses.load(Ordering::Acquire),
+            self.stop.load(Ordering::Acquire),
+            self.clear.load(Ordering::Acquire),
+        )
     }
 
     /// Where the loop is, in samples from its start
@@ -185,6 +207,7 @@ impl Looper {
         self.control.clone()
     }
 
+    #[cfg(test)]
     pub fn state(&self) -> State {
         self.state
     }
@@ -211,6 +234,7 @@ impl Looper {
             self.left = vec![0.0; capacity];
             self.right = vec![0.0; capacity];
         }
+        self.control.capacity.store(capacity as u32, Ordering::Relaxed);
         self.fade = ((FADE_SECONDS * sample_rate) as usize).max(1);
         self.level_coef = 1.0 - (-1.0 / (LEVEL_SECONDS * sample_rate)).exp();
         self.empty();

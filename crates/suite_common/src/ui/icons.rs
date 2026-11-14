@@ -20,6 +20,8 @@ pub enum Icon {
     Tuner,
     /// A sun with rays: the settings
     Settings,
+    /// A small ring of dots round a dot: the looper
+    Looper,
 }
 
 /// The room an icon takes, across and down, from its middle: the click target
@@ -96,6 +98,16 @@ pub fn paint_icon(painter: &Painter, center: Pos2, icon: Icon, color: Color32) {
                 stroke,
             ));
             painter.line_segment([at(0.0, 7.0), at(0.0, HALF)], Stroke::new(3.2_f32, color));
+        }
+        Icon::Looper => {
+            // Twelve dots on a ring, the first eight bigger (a loop part way round), and a dot
+            // in the middle: the plate's ring and its footswitch
+            for dot in 0..12 {
+                let angle = dot as f32 * std::f32::consts::TAU / 12.0;
+                let radius = if dot < 8 { 2.4 } else { 1.6 };
+                painter.circle_filled(at(angle.cos() * 12.5, angle.sin() * 12.5), radius, color);
+            }
+            painter.circle_filled(center, 4.5, color);
         }
         Icon::Settings => {
             painter.circle_stroke(center, 5.5, stroke);

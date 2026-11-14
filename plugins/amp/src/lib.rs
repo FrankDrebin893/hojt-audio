@@ -998,6 +998,7 @@ impl Plugin for GuitarAmpPlugin {
             self.chain.tuner_reading(),
             self.chain.lamp_reading(),
             self.metronome.reading(),
+            self.looper.control(),
             self.cab_loader.clone(),
             async_executor,
         )

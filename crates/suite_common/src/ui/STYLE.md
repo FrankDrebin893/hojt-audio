@@ -37,6 +37,7 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
   with captions under them, model number and logo, no screws) and `mini_pedal` (small enclosure with only a title), each
   mini pedal described by a `MiniStyle`; `coupler` and `patch_cable` carry the signal between them
 - `sheet.rs` - the sheet that rises from below and the plus, the cross and the dashed place of a rig's chain
+- `ring.rs` - `lamp_ring`: 32 lamps on a circle round a control, from the top clockwise, for a loop. A `Ring` says what burns: nothing, the first part filled (red while a loop is recorded) or a head with one dimmer lamp behind it (green playing, amber overdubbing). It is a display, never a control; the amp's looper stands its footswitch in it
 - `plate.rs`, `icons.rs` - `plate` (a hardware plate in a layer above the window, closing on a click outside it or escape; the caller owns which is open) and `icon_switch` (a drawing that opens a plate, with a lamp and a chrome switch where the thing can be on or off)
 - `update_line.rs` - `update_line`: the one line of label tape that says a newer version is out ("0.4.0 IS OUT",
   an underlined DOWNLOAD that opens the page, OFF, and a cross), drawn from an `update::UpdateCheck`; nothing when there is

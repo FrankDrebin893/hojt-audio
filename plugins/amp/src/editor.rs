@@ -23,6 +23,7 @@ use crate::cab_stage::{CabLoader, CabStatus, NO_FILES_SHOWN};
 use crate::dial_memory;
 use crate::lamps::{LampReading, LampView};
 use crate::looks;
+use crate::looper::{LooperControl, State as LoopState};
 use crate::metronome::{BeatReading, ClickOut, Sound, TapTempo, TimeSignature, BPM_MAX, BPM_MIN};
 use crate::order::Zone;
 use crate::presets::{self, PRESETS};
@@ -124,15 +125,18 @@ const BANK_SHOWN_CHARS: usize = 9;
 // How long the display says what Save did
 const SAVE_NOTE_S: f64 = 1.5;
 
-// The icons stand in the middle of the strip, a pitch apart. The two with a switch have the lamp
-// and the switch to the right of the icon
-const ICON_PITCH: f32 = 240.0;
+// The icons stand in the middle of the strip, a pitch apart: the metronome, the looper, the tuner
+// and the settings. The three with a switch have the lamp and the switch to the right of the icon.
+// Four icons take the room three did (524 points from the first icon's left to the last one's
+// right), so every other part of the strip stays where it was
+const ICON_PITCH: f32 = 160.0;
 const PRESET_END: f32 = PRESET_X + PRESET_WIDTH / 2.0;
-const ICONS_SPAN: f32 = 2.0 * ICON_PITCH + 2.0 * ui::icons::ICON_REACH;
+const ICONS_SPAN: f32 = 3.0 * ICON_PITCH + 2.0 * ui::icons::ICON_REACH;
 // The icons stand in the room between the preset display and the output knob, an equal room each side
 const METRONOME_X: f32 =
     (PRESET_END + OUTPUT_KNOB.x - KNOB_REACH) / 2.0 - ICONS_SPAN / 2.0 + ui::icons::ICON_REACH;
-const TUNER_X: f32 = METRONOME_X + ICON_PITCH;
+const LOOPER_X: f32 = METRONOME_X + ICON_PITCH;
+const TUNER_X: f32 = LOOPER_X + ICON_PITCH;
 const SETTINGS_X: f32 = TUNER_X + ICON_PITCH;
 
 // The update line (`ui::update_line`) stands on the strip in the room between the settings icon
@@ -159,8 +163,8 @@ const OUTPUT_METER: Vec2 =
     vec2(CLIP_LAMP.x - CLIP_LAMP_REACH - 3.0 * STRIP_GAP - METER_REACH, METER_Y);
 const OUTPUT_KNOB: Vec2 = vec2(OUTPUT_METER.x - METER_REACH - STRIP_GAP - KNOB_REACH, STRIP_Y);
 
-// The plates open under the strip: the presets' under the display, the metronome's under its
-// icon, the settings' under theirs
+// The plates open under the strip: the presets' under the display, the metronome's and the
+// looper's under their icons, the settings' under theirs
 const PLATE_TOP: f32 = BENCH_MARGIN + SLIM_STRIP_HEIGHT + 4.0;
 // The list the preset plate holds: the banks in the first column and the presets of the bank that
 // is listed in the second
@@ -181,6 +185,24 @@ const FOOT_BUTTON_SPREAD: f32 = 40.0;
 // (the caret takes one place)
 const NEW_PRESET_CHARS: usize = 24;
 const NEW_PRESET_SHOWN: usize = FOOT_CHARS - 1;
+
+// The looper's plate (#280, the Ring picked on the issue): the footswitch stands in a ring of
+// lamps that is the loop (it fills red while recording, then a head goes round), the state printed
+// in the ring over the switch and what a press does next under it; Stop (it reads Mute while the
+// loop plays, Resume while it is muted) and Clear in a column on the left, the Level knob on the
+// right. Every place is from the plate's top left corner
+const LOOPER_WIDTH: f32 = 500.0;
+const LOOPER_HEIGHT: f32 = 214.0;
+const LOOPER_RING: Vec2 = vec2(250.0, 116.0);
+const LOOPER_RING_RADIUS: f32 = 70.0;
+const LOOPER_STATE_DY: f32 = -50.0;
+const LOOPER_NEXT_DY: f32 = 54.0;
+const LOOPER_BUTTONS_X: f32 = 70.0;
+// Caption, button, for Stop and then Clear
+const LOOPER_STOP: [f32; 2] = [78.0, 106.0];
+const LOOPER_CLEAR: [f32; 2] = [140.0, 168.0];
+const LOOPER_LEVEL: Vec2 = vec2(430.0, 118.0);
+const LOOPER_LEVEL_RADIUS: f32 = 26.0;
 
 // The metronome's plate: the tempo display (drag or scroll it, or tap the Tap button), the sound
 // over the time signature and the click's output, each on a stepper, the click's volume, and the
@@ -1036,6 +1058,8 @@ pub(crate) enum Open {
     Presets(Menu),
     /// The metronome's settings, under its icon
     Metronome,
+    /// The looper, under its icon
+    Looper,
     /// The settings, under their icon: the cabinet files and, in the standalone program, the
     /// machine's audio, which is the choice held here while the plate is open
     Settings(Option<AudioChoice>),
@@ -1046,6 +1070,7 @@ pub(crate) enum Open {
 pub(crate) enum Plates {
     Presets,
     Metronome,
+    Looper,
     Settings,
 }
 
@@ -1054,6 +1079,7 @@ impl Open {
         match self {
             Open::Presets(_) => Plates::Presets,
             Open::Metronome => Plates::Metronome,
+            Open::Looper => Plates::Looper,
             Open::Settings(_) => Plates::Settings,
         }
     }
@@ -1813,12 +1839,14 @@ pub(crate) fn neighbour_mic(mic: MicType, step: Step) -> MicType {
     }]
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn create(
     params: Arc<GuitarAmpParams>,
     editor_state: Arc<EguiState>,
     tuner: Arc<TunerReading>,
     lamp_reading: Arc<LampReading>,
     beats: Arc<BeatReading>,
+    looper: Arc<LooperControl>,
     cab_loader: Arc<CabLoader>,
     async_executor: AsyncExecutor<GuitarAmpPlugin>,
 ) -> Option<Box<dyn Editor>> {
@@ -1870,6 +1898,7 @@ pub fn create(
                 tuner: &tuner,
                 lamp_reading: &lamp_reading,
                 beats: &beats,
+                looper: &looper,
                 cab_loader: &cab_loader,
                 load_cabinet: &load_cabinet,
                 audio_host: standalone::host(),
@@ -1912,6 +1941,8 @@ struct Shared<'a> {
     tuner: &'a TunerReading,
     lamp_reading: &'a LampReading,
     beats: &'a BeatReading,
+    /// The looper's buttons and what it says of itself
+    looper: &'a LooperControl,
     cab_loader: &'a CabLoader,
     /// Has the chosen cabinet read in the background
     load_cabinet: &'a dyn Fn(),
@@ -2037,6 +2068,27 @@ fn draw(
         if metronome.switch.is_some_and(|switch| switch.clicked()) {
             set(setter, &params.metronome_on, !params.metronome_on.value());
         }
+        // The looper's switch is the plate's big button: the same press. Its lamp: cream while it
+        // records, dim amber while it plays, amber while it overdubs, dark otherwise
+        let loop_state = shared.looper.state();
+        let looper = ui::icon_switch(
+            ui,
+            origin + vec2(LOOPER_X, STRIP_Y) + middle,
+            ui::Icon::Looper,
+            view.is_open(Plates::Looper),
+            Some(loop_lamp(loop_state)),
+            "looper",
+        );
+        if looper.icon.clicked() {
+            view.toggle_plate(Plates::Looper, host, || Open::Looper);
+        }
+        if looper.switch.is_some_and(|switch| switch.clicked()) {
+            shared.looper.press();
+        }
+        if loop_state == LoopState::Recording {
+            // It closes by itself when the buffer is full
+            ui.ctx().request_repaint_after(std::time::Duration::from_millis(50));
+        }
         let tuner = ui::icon_switch(
             ui,
             origin + vec2(TUNER_X, STRIP_Y) + middle,
@@ -2122,6 +2174,7 @@ fn draw(
             now,
             metronome.icon.rect,
         );
+        looper_plate(ui, setter, params, origin + middle, view, shared, looper.icon.rect);
         settings_plate(ui, setter, params, origin + middle, view, shared, settings.icon.rect);
     });
 }
@@ -2168,6 +2221,116 @@ fn beat_shown(
         (true, false, _) => Beat::Armed,
         (true, true, false) => Beat::Regular,
         (true, true, true) => Beat::Downbeat,
+    }
+}
+
+/// What the lamp beside the looper's icon shows
+fn loop_lamp(state: LoopState) -> Beat {
+    match state {
+        LoopState::Empty | LoopState::Stopped => Beat::Dark,
+        LoopState::Recording => Beat::Downbeat,
+        LoopState::Playing => Beat::Armed,
+        LoopState::Overdubbing => Beat::Regular,
+    }
+}
+
+/// What the ring of the looper's plate shows, from what the looper says of itself: it fills red
+/// against the buffer while recording, then a head goes round the loop, green while it plays and
+/// amber while it overdubs; dark when empty or muted
+fn loop_ring(state: LoopState, length: u32, position: u32, capacity: u32) -> ui::Ring {
+    let share = |part: u32, whole: u32| if whole == 0 { 0.0 } else { part as f32 / whole as f32 };
+    match state {
+        LoopState::Empty | LoopState::Stopped => ui::Ring::Dark,
+        LoopState::Recording => {
+            ui::Ring::Filled { fraction: share(length, capacity), color: ui::RING_RED }
+        }
+        LoopState::Playing => {
+            ui::Ring::Head { fraction: share(position, length), color: ui::RING_GREEN }
+        }
+        LoopState::Overdubbing => {
+            ui::Ring::Head { fraction: share(position, length), color: ui::RING_AMBER }
+        }
+    }
+}
+
+/// What the state is called in the ring, and what the big button does next
+fn loop_words(state: LoopState) -> (&'static str, &'static str) {
+    match state {
+        LoopState::Empty => ("Empty", "Record"),
+        LoopState::Recording => ("Recording", "Play"),
+        LoopState::Playing => ("Playing", "Overdub"),
+        LoopState::Overdubbing => ("Overdub", "Play"),
+        LoopState::Stopped => ("Muted", "Play"),
+    }
+}
+
+/// What the Stop button is called: Mute while the loop sounds, Resume while it is muted
+fn stop_word(state: LoopState) -> &'static str {
+    match state {
+        LoopState::Playing | LoopState::Overdubbing => "Mute",
+        LoopState::Stopped => "Resume",
+        LoopState::Empty | LoopState::Recording => "Stop",
+    }
+}
+
+/// The looper's plate under its icon, while it is the plate that is open: the footswitch in its
+/// ring, Stop and Clear, and the Level knob
+fn looper_plate(
+    ui: &mut Ui,
+    setter: &ParamSetter,
+    params: &GuitarAmpParams,
+    origin: Pos2,
+    view: &mut View,
+    shared: &Shared,
+    anchor: Rect,
+) {
+    if !view.is_open(Plates::Looper) {
+        return;
+    }
+    let host = shared.audio_host;
+    let rect = Rect::from_min_size(
+        origin + vec2(LOOPER_X - ui::icons::ICON_REACH, PLATE_TOP),
+        vec2(LOOPER_WIDTH, LOOPER_HEIGHT),
+    );
+    let control = shared.looper;
+    let state = control.state();
+    if matches!(state, LoopState::Recording | LoopState::Playing | LoopState::Overdubbing) {
+        // The head goes round and the fill grows: look again 30 times a second
+        ui.ctx().request_repaint_after(std::time::Duration::from_millis(33));
+    }
+    let close = ui::plate(ui, rect, "looper", anchor, |ui, rect| {
+        ui::plate::plate_title(ui.painter(), rect, "Looper");
+        let at = |x: f32, y: f32| rect.min + vec2(x, y);
+        let centre = rect.min + LOOPER_RING;
+        let ring = loop_ring(state, control.length(), control.position(), control.capacity());
+        ui::lamp_ring(ui.painter(), centre, LOOPER_RING_RADIUS, ring);
+        if ui::footswitch(ui, centre, "looper-press").clicked() {
+            control.press();
+        }
+        let (named, next) = loop_words(state);
+        silk_label(ui.painter(), centre + vec2(0.0, LOOPER_STATE_DY), named, 12.0);
+        silk_label(ui.painter(), centre + vec2(0.0, LOOPER_NEXT_DY), next, 12.0);
+
+        silk_label(ui.painter(), at(LOOPER_BUTTONS_X, LOOPER_STOP[0]), stop_word(state), 13.0);
+        if chrome_button(ui, at(LOOPER_BUTTONS_X, LOOPER_STOP[1]), "looper-stop").clicked() {
+            control.stop();
+        }
+        silk_label(ui.painter(), at(LOOPER_BUTTONS_X, LOOPER_CLEAR[0]), "Clear", 13.0);
+        if chrome_button(ui, at(LOOPER_BUTTONS_X, LOOPER_CLEAR[1]), "looper-clear").clicked() {
+            control.clear();
+        }
+        param_knob(
+            ui,
+            setter,
+            &params.looper_level,
+            rect.min + LOOPER_LEVEL,
+            LOOPER_LEVEL_RADIUS,
+            "Level",
+            None,
+        );
+    });
+    if close.asked() {
+        view.close_plate(host);
     }
 }
 
@@ -2489,6 +2652,24 @@ mod tests {
         assert!(STYLE.art == Some(ui::artwork::AMP), "the pedal has lost its art");
     }
 
+    #[cfg(target_os = "linux")]
+    thread_local! {
+        /// The looper the window of this test reads: empty until a test shows another state
+        static LOOPER: Arc<LooperControl> = Arc::new(LooperControl::default());
+    }
+
+    /// The looper the window of this test is drawn with
+    #[cfg(target_os = "linux")]
+    fn test_looper() -> Arc<LooperControl> {
+        LOOPER.with(Arc::clone)
+    }
+
+    /// The editor's tests that draw the window have the looper in this state
+    #[cfg(target_os = "linux")]
+    fn loop_shows(state: LoopState, length: u32, position: u32, capacity: u32) {
+        test_looper().show(state, length, position, capacity);
+    }
+
     /// A view as the window has it after it opened: nothing open, the bank the params name
     fn fresh_view(params: &GuitarAmpParams, lamp_reading: &LampReading) -> View {
         View {
@@ -2578,6 +2759,7 @@ mod tests {
                 tuner: &tuner,
                 lamp_reading: &lamp_reading,
                 beats: &BeatReading::default(),
+                looper: &test_looper(),
                 cab_loader: &cab_loader,
                 load_cabinet: &|| {},
                 audio_host,
@@ -2634,6 +2816,7 @@ mod tests {
                     tuner: &tuner,
                     lamp_reading: &lamp_reading,
                     beats: &BeatReading::default(),
+                    looper: &test_looper(),
                     cab_loader: &cab_loader,
                     load_cabinet: &|| {},
                     audio_host: None,
@@ -3212,6 +3395,162 @@ mod tests {
             .snapshot("metronome");
     }
 
+    /// The looper's plate open with the looper in `state`, for the pictures: a 40 second buffer,
+    /// recording 12 seconds of it, or a 10 second loop three tenths of the way round
+    #[cfg(target_os = "linux")]
+    fn looper_picture(name: &str, state: LoopState) {
+        let rate = 48_000;
+        let (length, position) = match state {
+            LoopState::Recording => (12 * rate, 0),
+            LoopState::Empty => (0, 0),
+            _ => (10 * rate, 10 * rate * 3 / 10),
+        };
+        loop_shows(state, length, position, 40 * rate);
+        let params = GuitarAmpParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        harness_of(&params, &setter, None, |view| view.plate = Some(Open::Looper)).snapshot(name);
+    }
+
+    // The looper's plate open, in each state it can be in: the ring, the words in it and under
+    // the switch, Stop's name, and the lamp of the strip's icon
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_looper_looks_as_it_did_empty() {
+        looper_picture("looper_empty", LoopState::Empty);
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_looper_looks_as_it_did_recording() {
+        looper_picture("looper_recording", LoopState::Recording);
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_looper_looks_as_it_did_playing() {
+        looper_picture("looper_playing", LoopState::Playing);
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_looper_looks_as_it_did_overdubbing() {
+        looper_picture("looper_overdubbing", LoopState::Overdubbing);
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_looper_looks_as_it_did_muted() {
+        looper_picture("looper_muted", LoopState::Stopped);
+    }
+
+    // The plate's buttons are the looper's commands: the big switch presses, Stop stops, Clear
+    // clears, and the strip icon's own switch presses as the big one does
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_looper_plates_buttons_and_the_icons_switch_send_the_commands() {
+        let params = GuitarAmpParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let plate = Pos2::new(LOOPER_X - ui::icons::ICON_REACH, PLATE_TOP);
+        let (mut harness, _) =
+            harness_shared(&params, &setter, None, None, |view| view.plate = Some(Open::Looper));
+        let control = test_looper();
+        assert_eq!(control.pending(), (0, false, false));
+        click(&mut harness, plate + LOOPER_RING);
+        assert_eq!(control.pending(), (1, false, false), "the big switch");
+        click(&mut harness, plate + vec2(LOOPER_BUTTONS_X, LOOPER_STOP[1]));
+        assert_eq!(control.pending(), (1, true, false), "Stop");
+        click(&mut harness, plate + vec2(LOOPER_BUTTONS_X, LOOPER_CLEAR[1]));
+        assert_eq!(control.pending(), (1, true, true), "Clear");
+        // The strip's switch is the same press (and, being outside the plate, closes it)
+        click(&mut harness, Pos2::new(LOOPER_X + ui::icons::SWITCH_DX, STRIP_Y));
+        assert_eq!(control.pending().0, 2, "the icon's switch");
+    }
+
+    // What the plate says of each state: the ring, the two words and Stop's name
+    #[test]
+    fn test_the_looper_plate_says_what_the_loop_is_doing_and_what_a_press_does_next() {
+        use LoopState::*;
+        let all = [Empty, Recording, Playing, Overdubbing, Stopped];
+        // A press walks Record, Play, Overdub and back to Play
+        let next: Vec<_> = all.iter().map(|&state| loop_words(state).1).collect();
+        assert_eq!(next, ["Record", "Play", "Overdub", "Play", "Play"]);
+        assert_eq!(stop_word(Playing), "Mute");
+        assert_eq!(stop_word(Overdubbing), "Mute");
+        assert_eq!(stop_word(Stopped), "Resume");
+        assert_eq!(stop_word(Empty), "Stop");
+        // Nothing burns when there is nothing to hear; a recording fills against the buffer
+        assert_eq!(loop_ring(Empty, 0, 0, 100), ui::Ring::Dark);
+        assert_eq!(loop_ring(Stopped, 50, 10, 100), ui::Ring::Dark);
+        assert_eq!(
+            loop_ring(Recording, 25, 0, 100),
+            ui::Ring::Filled { fraction: 0.25, color: ui::RING_RED }
+        );
+        // A loop that plays has its head where its position is, in its length
+        assert_eq!(
+            loop_ring(Playing, 100, 50, 400),
+            ui::Ring::Head { fraction: 0.5, color: ui::RING_GREEN }
+        );
+        assert_eq!(
+            loop_ring(Overdubbing, 100, 25, 400),
+            ui::Ring::Head { fraction: 0.25, color: ui::RING_AMBER }
+        );
+        // No length, no capacity: no dividing by nothing
+        assert_eq!(
+            loop_ring(Playing, 0, 0, 0),
+            ui::Ring::Head { fraction: 0.0, color: ui::RING_GREEN }
+        );
+        // The strip's lamp: only a loop that sounds or records lights it
+        assert_eq!(loop_lamp(Empty), Beat::Dark);
+        assert_eq!(loop_lamp(Stopped), Beat::Dark);
+        assert_ne!(loop_lamp(Recording), loop_lamp(Playing));
+        assert_ne!(loop_lamp(Playing), loop_lamp(Overdubbing));
+    }
+
+    // Nothing on the looper's plate runs into anything else or over the plate's edge: the ring
+    // with its lamps and the switch in it, the buttons with their captions, the knob
+    #[test]
+    fn test_the_looper_plate_stands_clear_of_itself_and_of_its_edges() {
+        let ring_reach = LOOPER_RING_RADIUS + ui::ring::RING_LAMP_RADIUS;
+        let around = |at: Vec2, half: Vec2| Rect::from_center_size(at.to_pos2(), 2.0 * half);
+        let parts = [
+            ("the ring", around(LOOPER_RING, Vec2::splat(ring_reach))),
+            ("the stop caption", around(vec2(LOOPER_BUTTONS_X, LOOPER_STOP[0]), vec2(24.0, 7.0))),
+            (
+                "the stop button",
+                around(vec2(LOOPER_BUTTONS_X, LOOPER_STOP[1]), Vec2::splat(BUTTON)),
+            ),
+            ("the clear caption", around(vec2(LOOPER_BUTTONS_X, LOOPER_CLEAR[0]), vec2(24.0, 7.0))),
+            (
+                "the clear button",
+                around(vec2(LOOPER_BUTTONS_X, LOOPER_CLEAR[1]), Vec2::splat(BUTTON)),
+            ),
+            (
+                "the level knob and its tape",
+                Rect::from_min_max(
+                    (LOOPER_LEVEL - Vec2::splat(LOOPER_LEVEL_RADIUS + TICKS)).to_pos2(),
+                    (LOOPER_LEVEL + vec2(LOOPER_LEVEL_RADIUS + TICKS, LOOPER_LEVEL_RADIUS + 46.0))
+                        .to_pos2(),
+                ),
+            ),
+        ];
+        let plate = Rect::from_min_size(Pos2::ZERO, vec2(LOOPER_WIDTH, LOOPER_HEIGHT));
+        for (index, (name, rect)) in parts.iter().enumerate() {
+            for (other, other_rect) in &parts[index + 1..] {
+                assert!(!rect.expand(2.0).intersects(*other_rect), "{name} runs into {other}");
+            }
+            assert!(plate.shrink(6.0).contains_rect(*rect), "{name} is over the plate's edge");
+        }
+        // The state's word is in the ring over the switch (74 across), the next action's under
+        // it, both inside the ring's lamps
+        const { assert!(-LOOPER_STATE_DY > 37.0 && LOOPER_NEXT_DY > 37.0) };
+        const { assert!(-LOOPER_STATE_DY + 7.0 < LOOPER_RING_RADIUS - 3.6) };
+        const { assert!(LOOPER_NEXT_DY + 7.0 < LOOPER_RING_RADIUS - 3.6) };
+        // The title is above the ring
+        assert!(LOOPER_RING.y - ring_reach > ui::plate::PLATE_TITLE_HEIGHT - 4.0);
+    }
+
     /// The presets folder of a test: one that is not there, so the banks are the two every player
     /// has, whatever is on this machine
     #[cfg(target_os = "linux")]
@@ -3319,6 +3658,7 @@ mod tests {
                 around(vec2(PRESET_X, STRIP_Y), vec2(PRESET_WIDTH / 2.0, LED_HEIGHT / 2.0)),
             ),
             ("the metronome", icon(METRONOME_X + middle.x, true)),
+            ("the looper", icon(LOOPER_X + middle.x, true)),
             ("the tuner", icon(TUNER_X + middle.x, true)),
             ("the settings", icon(SETTINGS_X + middle.x, false)),
             ("the output knob", knob(OUTPUT_KNOB + right)),
@@ -3358,6 +3698,7 @@ mod tests {
             "the Input knob",
             "the preset display",
             "the metronome",
+            "the looper",
             "the tuner",
             "the settings",
             "the output knob",
@@ -3429,14 +3770,17 @@ mod tests {
         let before = METRONOME_X - ui::icons::ICON_REACH - PRESET_END;
         let after = OUTPUT_KNOB.x - KNOB_REACH - (SETTINGS_X + ui::icons::ICON_REACH);
         assert!((before - after).abs() < 0.01 && before > 40.0, "{before} {after}");
-        assert_eq!(TUNER_X - METRONOME_X, SETTINGS_X - TUNER_X);
+        assert_eq!(LOOPER_X - METRONOME_X, ICON_PITCH);
+        assert_eq!(TUNER_X - LOOPER_X, SETTINGS_X - TUNER_X);
+        assert_eq!(TUNER_X - LOOPER_X, ICON_PITCH);
         // An icon with a switch reaches the next icon's room, no further
-        const { assert!(METRONOME_X + ui::icons::SWITCH_REACH + 4.0 < TUNER_X - ui::icons::ICON_REACH) };
+        const { assert!(METRONOME_X + ui::icons::SWITCH_REACH + 4.0 < LOOPER_X - ui::icons::ICON_REACH) };
+        const { assert!(LOOPER_X + ui::icons::SWITCH_REACH + 4.0 < TUNER_X - ui::icons::ICON_REACH) };
         const { assert!(TUNER_X + ui::icons::SWITCH_REACH + 4.0 < SETTINGS_X - ui::icons::ICON_REACH) };
     }
 
     /// The plate each of the three opens, where it stands in the window
-    fn plate_rects() -> [(&'static str, Rect, Rect); 3] {
+    fn plate_rects() -> [(&'static str, Rect, Rect); 4] {
         let preset_plate_width =
             DROP_BANK_WIDTH + DROP_PRESET_WIDTH + 2.0 * (5.0 + 4.0) + 12.0 + 20.0;
         let below = |left: f32, width: f32, height: f32| {
@@ -3456,6 +3800,14 @@ mod tests {
                 below(METRONOME_X - ui::icons::ICON_REACH, METRONOME_WIDTH, METRONOME_HEIGHT),
                 Rect::from_center_size(
                     Pos2::new(METRONOME_X, STRIP_Y),
+                    Vec2::splat(ui::icons::ICON_SIZE),
+                ),
+            ),
+            (
+                "the looper's plate",
+                below(LOOPER_X - ui::icons::ICON_REACH, LOOPER_WIDTH, LOOPER_HEIGHT),
+                Rect::from_center_size(
+                    Pos2::new(LOOPER_X, STRIP_Y),
                     Vec2::splat(ui::icons::ICON_SIZE),
                 ),
             ),
@@ -3614,7 +3966,13 @@ mod tests {
         let params = GuitarAmpParams::default();
         let mut view = fresh_view(&params, &LampReading::new());
         assert!(view.plate.is_none());
-        for which in [Plates::Presets, Plates::Metronome, Plates::Settings, Plates::Metronome] {
+        for which in [
+            Plates::Presets,
+            Plates::Metronome,
+            Plates::Looper,
+            Plates::Settings,
+            Plates::Metronome,
+        ] {
             let open = |which| {
                 move || match which {
                     Plates::Presets => Open::Presets(Menu {
@@ -3623,12 +3981,13 @@ mod tests {
                         naming: None,
                     }),
                     Plates::Metronome => Open::Metronome,
+                    Plates::Looper => Open::Looper,
                     Plates::Settings => Open::Settings(None),
                 }
             };
             view.toggle_plate(which, None, open(which));
             // It is the plate that is open, and no other
-            for other in [Plates::Presets, Plates::Metronome, Plates::Settings] {
+            for other in [Plates::Presets, Plates::Metronome, Plates::Looper, Plates::Settings] {
                 assert_eq!(view.is_open(other), other == which, "{other:?} after {which:?}");
             }
         }
@@ -3647,6 +4006,7 @@ mod tests {
         match plate {
             Plates::Presets => Pos2::new(PRESET_X, STRIP_Y),
             Plates::Metronome => Pos2::new(METRONOME_X, STRIP_Y),
+            Plates::Looper => Pos2::new(LOOPER_X, STRIP_Y),
             Plates::Settings => Pos2::new(SETTINGS_X, STRIP_Y),
         }
     }
@@ -3663,7 +4023,7 @@ mod tests {
         let setter = ParamSetter::new(&host);
         let (mut harness, view) = harness_shared(&params, &setter, None, None, |_| {});
         let open = |view: &Rc<RefCell<View>>| -> Vec<Plates> {
-            [Plates::Presets, Plates::Metronome, Plates::Settings]
+            [Plates::Presets, Plates::Metronome, Plates::Looper, Plates::Settings]
                 .into_iter()
                 .filter(|&plate| view.borrow().is_open(plate))
                 .collect()
@@ -3671,6 +4031,7 @@ mod tests {
         assert!(open(&view).is_empty());
         for plate in [
             Plates::Metronome,
+            Plates::Looper,
             Plates::Settings,
             Plates::Presets,
             Plates::Metronome,

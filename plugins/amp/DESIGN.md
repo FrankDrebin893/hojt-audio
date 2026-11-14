@@ -207,6 +207,24 @@ The reasons behind choices that the code alone does not explain. What it does is
   stands under the sound beside the meter, because the column had no room for a third row
   without growing the strip; the strip's gaps gave up 10.5 points each instead
 
+## Looper
+
+- #280, milestone 2 (the look): the plate was explored in three directions (a deck with a display, a
+  loop pedal with three state lamps, a ring) and the owner picked the ring: the footswitch stands in
+  a ring of 32 lamps (`ui::ring`) that is the loop itself. While recording the ring fills red against
+  the buffer (the loop is as long as the part of the 60 s, or 40 s above 96 kHz, it has used), because
+  the loop has no length yet; once it plays, one lamp goes round in the loop's own length with one
+  dimmer lamp behind it, green playing and amber overdubbing. Empty and muted it is dark. The state is
+  printed in the ring over the switch and what a press does next under it, so a player never has to
+  guess what the big button will do. Stop reads Mute while the loop sounds and Resume while it is
+  muted. The strip icon is a small ring of dots; its lamp is cream while recording, dim amber playing,
+  amber overdubbing and dark otherwise, and its switch is the big button's press
+- The strip now holds four icons (metronome, looper, tuner, settings) in the room three had: the
+  pitch is 160 instead of 240, so no other part of the strip moved. A plate is 500 wide, the metronome's
+  width, under the looper's icon
+- Gave up: the plate is the tallest (214), and the playhead is a small lamp rather than a position
+  on a display, so a player reads where in the loop they are by its colour and place, not by a number
+
 ## Wah
 
 - #240, #243: a wah on the board, in front of the amp (and behind the cabinet since #268; `wah_pedal` is the rocker, 0 heel to
