@@ -1075,6 +1075,7 @@ impl Plugin for GuitarAmpPlugin {
             level: looper::level_gain(self.params.looper_level.value()),
             muted: self.params.tuner_on.value(),
             bar_samples,
+            downbeat_samples: self.metronome.samples_to_downbeat(&metronome),
         };
         match buffer.as_slice() {
             [left, right] => self.looper.process(&looping, left, Some(&mut **right)),
@@ -1537,7 +1538,7 @@ mod tests {
     fn pressed(block: usize, amp: &GuitarAmpPlugin) {
         let control = amp.looper.control();
         match block {
-            2 | 40 | 80 | 120 | 200 => control.press(),
+            0 | 40 | 80 | 120 | 200 => control.press(),
             // Record 3 to 40, play, overdub 80 to 120, play, stop 160, resume 180, press at
             // 200 overdubs, clear at 240, record again from 260
             160 | 180 => control.stop(),
@@ -1568,7 +1569,7 @@ mod tests {
         let mut used = clicking(true, ClickOut::Mixed);
         let (handled, _) =
             play_driven(&mut used, 340, false, PluginApi::Vst3, |block, amp| match block {
-                2 | 40 | 80 => amp.looper.control().press(),
+                0 | 40 | 80 => amp.looper.control().press(),
                 120 => amp.looper.control().clear(),
                 _ => {}
             });
@@ -1586,7 +1587,8 @@ mod tests {
         let record = |click: bool| {
             let mut amp = clicking(click, ClickOut::Mixed);
             let (heard, _) = play_driven(&mut amp, 60, false, PluginApi::Vst3, |block, amp| {
-                if block == 2 || block == 40 {
+                // From block 0, the downbeat: with the click on a first record waits for it
+                if block == 0 || block == 40 {
                     amp.looper.control().press();
                 }
             });
@@ -1607,6 +1609,38 @@ mod tests {
         // And the loop is in the sound: with it playing, the output is not the plain amp's
         let (plain, _) = play(&mut clicking(false, ClickOut::Mixed), 60, false);
         assert_ne!(heard_without, plain);
+    }
+
+    #[test]
+    fn test_with_the_click_on_the_loop_starts_on_the_downbeat_and_closes_on_a_whole_bar() {
+        // 120 bpm in 4/4: a bar is 96000 samples, 200 blocks of 480
+        let bars = |close_after: usize| {
+            let mut amp = clicking(true, ClickOut::Mixed);
+            let mut seen = Vec::new();
+            play_driven(&mut amp, 200 + close_after + 5, false, PluginApi::Vst3, |block, amp| {
+                let control = amp.looper.control();
+                if block == 30 || block == 200 + close_after {
+                    control.press();
+                }
+                if [100, 199, 201].contains(&block) {
+                    seen.push((block, control.state()));
+                }
+            });
+            (amp.looper.control().length(), seen)
+        };
+        // Pressed at 30, in the middle of the first bar: waiting, then recording from block 200
+        let (length, seen) = bars(290);
+        assert_eq!(
+            seen,
+            [
+                (100, looper::State::Empty),
+                (199, looper::State::Empty),
+                (201, looper::State::Recording)
+            ]
+        );
+        assert_eq!(length, 96_000, "1.45 bars is one");
+        assert_eq!(bars(310).0, 192_000, "1.55 bars is two");
+        assert_eq!(bars(20).0, 96_000, "a fifth of a bar is one, never none");
     }
 
     #[test]
@@ -1641,6 +1675,33 @@ mod tests {
         for state in [Empty, Recording, Playing, Overdubbing, Stopped] {
             assert!(seen.contains(&state), "the test did not reach {state:?}");
         }
+    }
+
+    #[test]
+    fn test_process_while_the_first_record_waits_for_the_downbeat_allocates_nothing() {
+        use suite_common::host;
+        let mut amp = clicking(true, ClickOut::Mixed);
+        let control = amp.looper.control();
+        let (mut left, mut right) = (vec![0.1f32; 480], vec![0.1f32; 480]);
+        for block in 0..260 {
+            // Pressed in the middle of the bar: waits from block 30 to the downbeat at 200
+            if block == 30 {
+                control.press();
+            }
+            let mut buffer = Buffer::default();
+            // SAFETY: the slices are the vectors above, which outlive the buffer, 480 long
+            unsafe {
+                buffer.set_slices(480, |slices| {
+                    slices.clear();
+                    slices.extend([&mut left[..], &mut right[..]]);
+                });
+            }
+            let mut aux = AuxiliaryBuffers { inputs: &mut [], outputs: &mut [] };
+            host::assert_allocates_nothing("The looper waiting for the downbeat", || {
+                amp.process(&mut buffer, &mut aux, &mut PlainHost(PluginApi::Vst3));
+            });
+        }
+        assert_eq!(control.state(), looper::State::Recording);
     }
 
     /// What `process` answers after `blocks` blocks of silence
