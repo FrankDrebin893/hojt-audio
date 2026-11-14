@@ -3,7 +3,7 @@
 What each script in this folder does, and the detail behind the rules in `CLAUDE.md`.
 
 - `install.ps1` - Builds the VST3 bundles from this checkout and installs them on Windows (see Install)
-- `check.sh` - What CI runs, run before a push (see Testing); `quick` is format and clippy
+- `check.sh` - What CI runs, run before a push (see Testing); `quick` is the script modes, format and clippy
 - `make-art.py` - Makes the pedals' artwork in `crates/suite_common/assets/art/`
 - `make-icon.py` - Makes the standalone amp's icon, `plugins/amp/assets/amp.ico`, from the badge's geometry, one
   drawing per size (16 to 256); `make-icon.py <out.ico>` also writes a PNG per size beside it, for looking
@@ -88,6 +88,10 @@ none. The renders before and after are the run's `renders` artifact.
 that are missing. A hook (`.claude/settings.json`) runs `scripts/check.sh quick` before every
 `git commit` and stops a commit that fails it. A step added to `ci.yml` is added to `scripts/check.sh` too, which
 `xtask/tests/check_mirrors_ci.rs` holds.
+Every tracked `scripts/*.sh` must be mode 100755 in git's index (`check.sh modes`, part of `quick` and a step of
+CI's lint job): make a new one so with `git update-index --chmod=+x scripts/<name>.sh`. `check.sh` prints
+`== <command>` as each step starts, so a session waiting on it reads the output file with one `tail` and does not
+poll; the long step is `cargo test --workspace`, which shows no progress of its own until it ends.
 Lints that clash with DSP code are allowed in the root `Cargo.toml`, each with its reason.
 
 Each editor's snapshot test draws it into `plugins/<name>/tests/snapshots/` on Linux (it needs
