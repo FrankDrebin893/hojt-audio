@@ -491,7 +491,17 @@ pub fn board(
             }
             let here = (gap.zone, gap.place);
             let opened_here = origin == Some(here);
-            let hot = board.plus == Some(here) || (browsing && pointer_over(&gap));
+            // The plus is wider than the gap: the pointer on the plus itself keeps it, but only
+            // there, or it would hold itself up for ever
+            let reaching = board.plus == Some(here)
+                && ui::pointer_over(
+                    ui,
+                    Rect::from_center_size(
+                        window + vec2(gap.x, PEDAL_TOP + PLUG_Y),
+                        vec2(1.0, 1.0) * (2.0 * ui::PLUS_RADIUS + 8.0),
+                    ),
+                );
+            let hot = reaching || (browsing && pointer_over(&gap));
             if !(hot && browsing) && !opened_here {
                 continue;
             }
