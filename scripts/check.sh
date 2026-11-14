@@ -3,7 +3,8 @@
 #
 #   scripts/check.sh            every step of CI: format, clippy, the tests, the amp's tests
 #                               optimised. Exits 1 at the first step that fails
-#   scripts/check.sh quick      format and clippy only
+#   scripts/check.sh quick      the script modes, format and clippy only
+#   scripts/check.sh modes      only that every tracked scripts/*.sh is executable in git's index
 #   scripts/check.sh hook       the Claude Code PreToolUse hook (.claude/settings.json): the quick
 #                               part before a `git commit`, blocking the commit when it fails
 #
@@ -59,8 +60,23 @@ step() {
     }
 }
 
+# Every tracked scripts/*.sh has mode 100755 in the index, so it runs without `bash` in front. Read from
+# the index (`git ls-files -s`), not the file system, so it holds on Windows too.
+script_modes() {
+    local bad=0 mode path
+    while read -r mode _ _ path; do
+        if [[ "$mode" != 100755 ]]; then
+            echo "scripts/check.sh: $path is mode $mode, not 100755; fix it with: git update-index --chmod=+x $path" >&2
+            bad=1
+        fi
+    done < <(git ls-files -s -- 'scripts/*.sh')
+    ((bad == 0)) || exit 1
+    echo "== Every scripts/*.sh is executable"
+}
+
 quick() {
     local tc
+    script_modes
     tc="$(lint_toolchain)"
     step cargo $tc fmt --all --check
     step cargo $tc clippy --workspace --all-targets --locked -- -D warnings
@@ -96,9 +112,10 @@ hook() {
 case "${1:-}" in
 "") full ;;
 quick) quick ;;
+modes) script_modes ;;
 hook) hook ;;
 *)
-    echo "usage: scripts/check.sh [quick|hook]" >&2
+    echo "usage: scripts/check.sh [quick|modes|hook]" >&2
     exit 64
     ;;
 esac

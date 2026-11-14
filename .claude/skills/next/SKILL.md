@@ -149,7 +149,10 @@ What every sub-session is asked to do, for issue `<n>`:
 3. **Build** to the spec and the conventions in CLAUDE.md. A decision the spec did not cover:
    ask on the issue, report the question and stop; do not guess. If it turns out larger than
    the spec said, or needs something only a person at the machine can do, say so on the issue
-   and stop the same way.
+   and stop the same way. When a fetch gets a proxy 403 or "repository is not configured for this
+   session", read `mcp__claude-code-remote__read_documentation` topic `environment.network` once, and
+   ask for `add_repo` once if a repo is the need; do not probe hosts with curl or repeated searches. If it
+   stays blocked, take the spec's fallback if it has one, or stop with a question on the issue.
 4. **Gates**, all before the pull request:
    - `scripts/check.sh`: every step of CI (format, clippy, the tests, the amp's tests optimised)
    - The reports named in the spec, before (on `main`) and after
