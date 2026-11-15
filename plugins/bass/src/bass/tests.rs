@@ -678,8 +678,11 @@ fn test_two_plucks_in_a_row_are_not_copies() {
                 let alike = correlation(&pair[0], &pair[1]);
                 let apart_db = 20.0 * (rms(&pair[1]) / rms(&pair[0])).log10();
                 assert!(alike < 0.98, "{:?} note {}: two plucks correlate {}", voice, midi, alike);
+                // 1.5 dB on Metal, not 1: its drive no longer clips the note itself, which
+                // evened out what the pick's jitter does to the level
+                let most = if voice == Voice::Metal { 1.5 } else { 1.0 };
                 assert!(
-                    apart_db.abs() < 1.0,
+                    apart_db.abs() < most,
                     "{:?} note {}: two plucks {} dB apart",
                     voice,
                     midi,
@@ -709,6 +712,42 @@ fn test_metals_drive_lets_the_note_die() {
             at_output,
             on_string
         );
+    }
+}
+
+/// The harmonics (2 to 9) that Metal's output stage adds to a sine at its input, in dB against
+/// the sine, at Drive 100 % and as hot as the drive is at a pluck
+fn metal_distortion_db(freq_hz: f32, amplitude: f32) -> f32 {
+    let mut bass = bass(Voice::Metal, SAMPLE_RATE);
+    bass.set(&BassSettings { drive: 1.0, ..Voice::Metal.settings() });
+    bass.held = true;
+    let output: Vec<f32> = (0..(0.6 * SAMPLE_RATE) as usize)
+        .map(|index| {
+            bass.drive_env = 1.0;
+            let phase = std::f32::consts::TAU * freq_hz * index as f32 / SAMPLE_RATE;
+            bass.metal_stage(amplitude * phase.sin())
+        })
+        .collect();
+    // Once the filters have settled
+    let settled = &output[(0.1 * SAMPLE_RATE) as usize..];
+    let level = |harmonic: usize| tone_level(settled, SAMPLE_RATE, harmonic as f32 * freq_hz);
+    let harmonics = (2..=9).map(|harmonic| level(harmonic).powi(2)).sum::<f32>().sqrt();
+    20.0 * (harmonics / level(1)).log10()
+}
+
+#[test]
+fn test_metals_drive_distorts_the_strings_harmonics_and_not_the_note() {
+    // The fundamentals of the bass, and the harmonics next over them, are most of what the
+    // string gives: a drive that clips them makes a square wave of every low note. They
+    // come out as they went in, at the level of a hard pluck
+    for freq_hz in [36.7, 41.2, 73.4, 110.0, 146.8] {
+        let added = metal_distortion_db(freq_hz, 0.3);
+        assert!(added < -30.0, "{} Hz: the drive adds {} dB to a low note", freq_hz, added);
+    }
+    // And the string's harmonics are distorted, at a third of that level
+    for freq_hz in [400.0, 700.0, 1000.0] {
+        let added = metal_distortion_db(freq_hz, 0.1);
+        assert!(added > -20.0, "{} Hz: the drive adds only {} dB", freq_hz, added);
     }
 }
 
@@ -1373,4 +1412,80 @@ fn render_wavs() {
         }
     }
     println!("Wrote renders to {}", dir.display());
+}
+
+/// Plays a score, a text file, and writes what comes out as a 32-bit float WAV: a tool for
+/// hearing and measuring a real bass line with its own settings. One thing per line: a setting
+/// (`voice metal`, `drive 0.4`, `brightness`, `sub`, `tone`, `sustain`, `slide`, `transpose`,
+/// `volume`, the rest as the voice has them), or a note (`note <start s> <length s> <midi>
+/// <velocity 1-127>`). A note let go where the next starts is let go first, as a DAW sends it.
+///   BASS_SCORE=line.txt BASS_OUT=line.wav cargo test -p bass --release render_score -- --ignored
+#[test]
+#[ignore]
+fn render_score() {
+    let (Ok(score), Ok(out)) = (std::env::var("BASS_SCORE"), std::env::var("BASS_OUT")) else {
+        println!("Set BASS_SCORE and BASS_OUT");
+        return;
+    };
+    let text = std::fs::read_to_string(score).unwrap();
+    let mut settings = Voice::Metal.settings();
+    // (sample, 0 for letting go and 1 for a pluck, note, velocity)
+    let mut events: Vec<(usize, u8, u8, f32)> = Vec::new();
+    for line in text.lines() {
+        let words: Vec<&str> = line.split_whitespace().collect();
+        let number = |index: usize| words[index].parse::<f32>().unwrap();
+        match words.first().copied() {
+            Some("voice") => {
+                let voice = if words[1] == "groove" { Voice::Groove } else { Voice::Metal };
+                settings = voice.settings();
+            }
+            Some("drive") => settings.drive = number(1),
+            Some("brightness") => settings.brightness = number(1),
+            Some("sub") => settings.sub = number(1),
+            Some("tone") => settings.tone_hz = number(1),
+            Some("sustain") => settings.sustain_s = number(1),
+            Some("slide") => settings.slide_ms = number(1),
+            Some("transpose") => settings.transpose = number(1),
+            Some("volume") => settings.volume_db = number(1),
+            Some("note") => {
+                // In f64, so that a note that ends where the next starts ends on its sample
+                let seconds = |index: usize| words[index].parse::<f64>().unwrap();
+                let at = |seconds: f64| (seconds * SAMPLE_RATE as f64).round() as usize;
+                let midi = number(3) as u8;
+                events.push((at(seconds(1)), 1, midi, number(4) / 127.0));
+                events.push((at(seconds(1) + seconds(2)), 0, midi, 0.0));
+            }
+            _ => {}
+        }
+    }
+    events.sort_by_key(|event| (event.0, event.1));
+    let length = events.last().map_or(0, |event| event.0) + 2 * SAMPLE_RATE as usize;
+    let volume = 10.0f32.powf(settings.volume_db / 20.0);
+
+    let mut bass = Bass::new();
+    bass.set_sample_rate(SAMPLE_RATE);
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate: SAMPLE_RATE as u32,
+        bits_per_sample: 32,
+        sample_format: hound::SampleFormat::Float,
+    };
+    let mut writer = hound::WavWriter::create(out, spec).unwrap();
+    let mut next = 0;
+    for sample in 0..length {
+        if sample % 64 == 0 {
+            bass.set(&settings);
+        }
+        while next < events.len() && events[next].0 <= sample {
+            let (_, pluck, midi, velocity) = events[next];
+            if pluck == 1 {
+                bass.note_on(midi, velocity);
+            } else {
+                bass.note_off(midi);
+            }
+            next += 1;
+        }
+        writer.write_sample(bass.process() * volume).unwrap();
+    }
+    writer.finalize().unwrap();
 }

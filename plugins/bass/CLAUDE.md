@@ -27,7 +27,8 @@ How it behaves:
   reset put the wheel back at centre. At centre the string is exactly as it was without it
 - Slide at 0 ms plucks every note. Above 0, a note that starts while another is held slides
   to it without a new pluck, in the Slide time
-- Tone is the low-pass behind the string on Groove, and behind the drive on Metal
+- Tone is the low-pass behind the string on Groove, and on Metal of all that is above the
+  crossover: the string and the drive over it
 - Letting go of the key damps the string (70 ms on Metal, 120 ms on Groove), and so does all
   notes off. All sound off stops it at once
 - A note that is ringing keeps the string it was plucked with when the voice changes; what
@@ -94,7 +95,14 @@ How it behaves:
 - Sub is a sine that starts in phase with what the pickup reads of the fundamental, at a level
   against it (1.5 times it at 100 %), and dies with T60s of 0.85 of the string's, held and let go
 - Metal splits the lows from the mids at 120 Hz with a low-pass and what it leaves, which sum
-  to the input. The drive's gain follows the note down from the pluck (it falls by 60 dB in a
+  to the input, and both stay as the string gave them. What the drive distorts is laid over
+  them: the string from `DRIVE_FROM_HZ` (300 Hz) up, through a steep high-pass (24 dB an octave),
+  so its harmonics and the pick, never the note itself. Until #382 the drive was fed all that is
+  above the crossover, whose slope lets the note through: four fifths of what it clipped on a low
+  line was below 120 Hz, which made a square wave of every low note, the same buzz whatever was
+  played (`test_metals_drive_distorts_the_strings_harmonics_and_not_the_note`: a sine from 37 to
+  147 Hz comes out with its harmonics 30 dB under it at Drive 100 %; they were 10 to 12 dB under).
+  The drive's gain follows the note down from the pluck (it falls by 60 dB in a
   quarter of Sustain, or of the release once let go), and three quarters of what it loses is
   made up after it: the mids break up on the attack and clean up as the note rings, so the top
   dies with the string and the fundamental rings as long at the output as on the string
@@ -117,9 +125,14 @@ How it behaves:
 | Transpose (`transpose`) | -24 to +24 st | 0 | 0 | |
 | Bend (`bend`) | 1-12 st | 2 | 2 | How far the pitch-bend wheel goes at its end; no voice sets it |
 
-Tests sit next to the code (`bass/tests.rs`): tuning at several rates, envelopes, the two voices, the pitch-bend wheel (its range, back to centre, a pluck and a slide while bent, no zipper, Sustain on a bent note), bounded output with everything up and the wheel at both ends, and the tone: the top dies before the fundamental, the same note sounds the same while two plucks in a row are not copies, a hard pluck starts sharp and settles, Metal's drive lets the note die, Groove has harmonics, the sine does not take over a held note and sits under the string (what it adds to the fundamental, the fundamental's share of the harmonics' power and their centroid, at 50 ms), the pickup's notch moves with the fret, the string is stiff (the low E's 10th partial 8 to 30 cents sharp, the 5th less, and every note within 1 cent of its pitch from 44.1 to 192 kHz), a held note's level from 1 to 3 s is 0.5 to 3 dB off a straight line, Groove has more energy above 1 kHz in its first 5 ms than before its finger attack, letting go of a note makes a sound 30 to 45 dB under its peak, and a new pluck does not click. Two ignored tests are tools for working on the sound:
+Tests sit next to the code (`bass/tests.rs`): tuning at several rates, envelopes, the two voices, the pitch-bend wheel (its range, back to centre, a pluck and a slide while bent, no zipper, Sustain on a bent note), bounded output with everything up and the wheel at both ends, and the tone: the top dies before the fundamental, the same note sounds the same while two plucks in a row are not copies, a hard pluck starts sharp and settles, Metal's drive lets the note die, Groove has harmonics, the sine does not take over a held note and sits under the string (what it adds to the fundamental, the fundamental's share of the harmonics' power and their centroid, at 50 ms), the pickup's notch moves with the fret, the string is stiff (the low E's 10th partial 8 to 30 cents sharp, the 5th less, and every note within 1 cent of its pitch from 44.1 to 192 kHz), a held note's level from 1 to 3 s is 0.5 to 3 dB off a straight line, Groove has more energy above 1 kHz in its first 5 ms than before its finger attack, letting go of a note makes a sound 30 to 45 dB under its peak, and a new pluck does not click. Three ignored tests are tools for working on the sound:
 
 ```bash
+# A real bass line with its own settings, as a 32-bit float WAV: a text file of settings
+# (`voice metal`, `drive 0.4`, `sub 0.25`...) and notes (`note <start s> <length s> <midi>
+# <velocity 1-127>`), which is how a line out of a DAW project is rendered and measured
+BASS_SCORE=line.txt BASS_OUT=line.wav cargo test -p bass --release render_score -- --ignored
+
 # Level, tuning and brightness per note; with Sub at 0, from what the pickup reads before the
 # output stage ("string"), the T60 of the fundamental and of the partial nearest 1.5 kHz and the
 # levels of harmonics 2 and 3, and the same two T60s at the output ("out"); at velocity 0.8 with
