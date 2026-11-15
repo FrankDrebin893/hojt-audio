@@ -126,6 +126,15 @@ const SUB_GAIN: f32 = 1.5;
 const SUB_DECAY: f32 = 0.85;
 // Where Metal splits the clean lows from the driven mids
 const CROSSOVER_HZ: f32 = 120.0;
+// What Metal's drive distorts is the string's harmonics from here up, not the note itself: a
+// clipper fed the fundamental and the two harmonics over it, which are most of the string,
+// makes a square wave of them, the buzz of a synth, the same on every note. The string stays
+// under the drive, undistorted, as a bass's own signal does beside a distortion pedal
+const DRIVE_FROM_HZ: f32 = 300.0;
+// How hot the drive is at Drive 100 %, on what is left above `DRIVE_FROM_HZ`, and how loud
+// it is laid over the string at 100 % (a quarter of that at 0 %, and more with Drive)
+const DRIVE_GAIN: f32 = 30.0;
+const DRIVE_LEVEL: f32 = 0.3;
 // The cabinet after each voice's output stage, the same for both: a low-mid lift for the note's
 // body, a presence rise for its definition and a gentle cut where a bass speaker stops, as
 // (Hz, Q, dB) for the two lifts and (Hz, Q) for the cut; and its gain, which keeps the voices
@@ -399,6 +408,8 @@ pub struct Bass {
     pickup: Svf,
     // Metal's output stage
     split_low: Svf,
+    drive_from: Svf,
+    drive_from_steep: Svf,
     drive_lp: Svf,
     mid_peak: Svf,
     // Groove's
@@ -475,6 +486,8 @@ impl Bass {
             declick_decay: 0.0,
             pickup: Svf::new(),
             split_low: Svf::new(),
+            drive_from: Svf::new(),
+            drive_from_steep: Svf::new(),
             drive_lp: Svf::new(),
             mid_peak: Svf::new(),
             tone: Svf::new(),
@@ -501,6 +514,9 @@ impl Bass {
         self.pickup.set(2800.0, 1.2, sample_rate);
         // Critically damped: the lows and what is left over sum to the input
         self.split_low.set(CROSSOVER_HZ, 0.5, sample_rate);
+        // Steep (24 dB an octave), so that the harmonics next over a low note stay out of it
+        self.drive_from.set(DRIVE_FROM_HZ, 0.541, sample_rate);
+        self.drive_from_steep.set(DRIVE_FROM_HZ, 1.307, sample_rate);
         self.mid_peak.set(900.0, 1.0, sample_rate);
         self.cabinet_body.set(CABINET_BODY.0, CABINET_BODY.1, sample_rate);
         self.cabinet_presence.set(CABINET_PRESENCE.0, CABINET_PRESENCE.1, sample_rate);
@@ -539,6 +555,8 @@ impl Bass {
         for filter in [
             &mut self.pickup,
             &mut self.split_low,
+            &mut self.drive_from,
+            &mut self.drive_from_steep,
             &mut self.drive_lp,
             &mut self.mid_peak,
             &mut self.tone,
@@ -1111,23 +1129,7 @@ impl Bass {
 
         let settings = &self.settings;
         match settings.voice {
-            Voice::Metal => {
-                // The lows stay clean; what is over them is distorted and laid on top
-                let low = self.split_low.process(raw).low;
-                let high = raw - low;
-                // Hot on the attack, cleaner as the string falls, so the top dies with it; with
-                // three quarters of the gain it loses made up after it
-                let most = 1.0 + settings.drive * 14.0;
-                let gain = 1.0 + settings.drive * 14.0 * self.drive_env;
-                self.drive_env *=
-                    if self.held { self.drive_decay_held } else { self.drive_decay_released };
-                let lost = most / gain;
-                let driven = (high * gain).tanh() * (lost * lost.sqrt()).sqrt();
-                let driven = self.drive_lp.process(driven).low;
-                let driven = driven + self.mid_peak.process(driven).band * 0.6;
-                let mixed = low * 1.1 + driven * (0.25 + settings.drive * 0.9) * 0.5;
-                (self.dc.process(mixed).high * 1.2).tanh() * 0.8
-            }
+            Voice::Metal => self.metal_stage(raw),
             Voice::Groove => {
                 let gain = 1.0 + settings.drive * 3.0;
                 let warm = self.tone.process(raw).low;
@@ -1135,6 +1137,30 @@ impl Bass {
                 self.dc.process(driven).high * 0.9
             }
         }
+    }
+}
+
+impl Bass {
+    /// One sample of Metal's output stage: the string, clean, with its harmonics above
+    /// `DRIVE_FROM_HZ` distorted and laid over it. Tone is the low-pass of all that is above
+    /// the crossover
+    fn metal_stage(&mut self, raw: f32) -> f32 {
+        let drive = self.settings.drive;
+        let low = self.split_low.process(raw).low;
+        let high = raw - low;
+        // Hot on the attack, cleaner as the string falls, so the top dies with it; with
+        // three quarters of the gain it loses made up after it
+        let most = 1.0 + drive * DRIVE_GAIN;
+        let gain = 1.0 + drive * DRIVE_GAIN * self.drive_env;
+        self.drive_env *= if self.held { self.drive_decay_held } else { self.drive_decay_released };
+        let lost = most / gain;
+        let top = self.drive_from.process(raw).high;
+        let top = self.drive_from_steep.process(top).high;
+        let driven = (top * gain).tanh() * (lost * lost.sqrt()).sqrt();
+        let driven = driven + self.mid_peak.process(driven).band * 0.6;
+        let over = high + driven * (0.25 + drive * 0.75) * DRIVE_LEVEL;
+        let mixed = low * 1.1 + self.drive_lp.process(over).low;
+        (self.dc.process(mixed).high * 1.2).tanh() * 0.8
     }
 }
 

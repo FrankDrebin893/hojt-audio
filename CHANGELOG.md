@@ -12,6 +12,14 @@ GitHub release.
   installed programs had left it out, since it had only been built by hand. The ASIO SDK is built from
   its GPLv3 licence, the same as the plugins.
 
+### Bass Synth
+
+- Metal no longer turns low notes into a buzz. Its distortion used to work on the note itself,
+  which made the same square, synthetic tone of every low note, most of all in fast lines on the
+  lowest strings. Now the note stays clean and the distortion works on the string's harmonics and
+  the pick over it, so a riff sounds like a string being played: clearer, with more of each note's
+  attack. Drive and Tone have the ranges they had; a project that uses Metal sounds different.
+
 ## 0.4.0
 
 ### Update notice
