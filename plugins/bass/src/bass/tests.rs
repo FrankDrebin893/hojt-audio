@@ -678,10 +678,11 @@ fn test_two_plucks_in_a_row_are_not_copies() {
                 let alike = correlation(&pair[0], &pair[1]);
                 let apart_db = 20.0 * (rms(&pair[1]) / rms(&pair[0])).log10();
                 assert!(alike < 0.98, "{:?} note {}: two plucks correlate {}", voice, midi, alike);
-                // 1.5 dB, not 1: Metal's drive no longer clips the note itself, which evened
-                // out what the pick's jitter does to the level
+                // 1.5 dB on Metal, not 1: its drive no longer clips the note itself, which
+                // evened out what the pick's jitter does to the level
+                let most = if voice == Voice::Metal { 1.5 } else { 1.0 };
                 assert!(
-                    apart_db.abs() < 1.5,
+                    apart_db.abs() < most,
                     "{:?} note {}: two plucks {} dB apart",
                     voice,
                     midi,

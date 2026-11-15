@@ -70,7 +70,7 @@ pub struct BassSettings {
     pub brightness: f32,
     /// 0.0-1.0: level of the sine under the string
     pub sub: f32,
-    /// The low-pass behind the string (Groove) or behind the drive (Metal)
+    /// The low-pass behind the string (Groove), or of all that is above the crossover (Metal)
     pub tone_hz: f32,
     /// Time for a held note to fall by 60 dB
     pub sustain_s: f32,
@@ -586,7 +586,13 @@ impl Bass {
         self.set_voice_filters();
         if voice_changed {
             // The other voice's filters start from rest
-            for filter in [&mut self.drive_lp, &mut self.tone, &mut self.dc] {
+            for filter in [
+                &mut self.drive_from,
+                &mut self.drive_from_steep,
+                &mut self.drive_lp,
+                &mut self.tone,
+                &mut self.dc,
+            ] {
                 filter.reset();
             }
         }
