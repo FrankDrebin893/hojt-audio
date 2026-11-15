@@ -332,7 +332,9 @@ its quick part before each commit. The details, and the sound reports of a pull 
   callback that never waits, the buffer size taken from the driver, and only the channels the plugin uses
   opened, then a cpal callback longer than the buffer size processed in chunks, for WASAPI's shared mode,
   #250, then `nih_standalone_reconfigure`, which changes the audio devices and channels while it
-  runs, #247, with a capture callback that never waits for room; the pin is that branch's tip). To move to a
+  runs, #247, with a capture callback that never waits for room, then a sample rate that defaults to the
+  output device's own and a period size brought into the device's range, with the backend resolving the
+  config the plugin is told its `BufferConfig` from, #356, commit `7396eada`; the pin is that branch's tip). To move to a
   newer upstream, rebase those commits onto it and pin the result
 - An editor paints only when something asks for it, not every frame: anything an editor shows
   that changes on its own asks for a repaint in the frame that draws the change. The rule is in
