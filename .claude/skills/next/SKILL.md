@@ -34,6 +34,10 @@ goes on to the next issue, with no further prompt, until the list is done. Words
      or `state:review` (left over: an earlier session ended, or a milestone merged and more are
      left); or a sub-issue with no state label whose body says `Parent: #<p>` and whose parent has
      an approval on record (step 2 reads the parent)
+   - **A Progress comment's "Blocked" line is not a block once what it waits on is closed.** When it
+     names a "Check: ..." issue that is now closed, read that issue's last comment: the result is
+     the answer, and the issue is buildable again, with that result taken into the spec (a failed
+     probe means the spec's stated fallback). Only an open `needs:engineer` is a block
    - **Never:** an active issue; one labelled `needs:engineer`; one whose body has a sentence
      `Waits for ...` while any issue number in that sentence (`#190`, `#170`) is still open; a
      parent (an issue that sub-issues name with `Parent: #<p>`, open or closed: its sub-issues are
