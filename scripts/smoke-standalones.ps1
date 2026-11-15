@@ -6,7 +6,7 @@
 #   scripts\smoke-standalones.ps1 [-Dir target\standalone] [-Seconds 3]
 #
 # An exe that exits at once, or has no icon, fails the run, and its stdout and stderr are printed
-# (a Rust panic says why). The one exit tolerated, with a NOTE, is a panic of the graphics
+# (a Rust panic says why, with RUST_BACKTRACE=1). The one exit tolerated, with a NOTE, is a panic of the graphics
 # context ("gpu backend failed to initialize", or baseview's gl/win.rs), which is what a runner
 # without a GPU gives; a display that cannot open an OpenGL context is not a fault of the program. One that ignores the close request is
 # stopped and only reported, since a runner's desktop session may not deliver it.
@@ -29,6 +29,8 @@ foreach ($exe in $exes) {
         $failures++
     }
 
+    # a panic's backtrace goes into the captured stderr, printed below on a failure
+    $env:RUST_BACKTRACE = '1'
     $out = Join-Path ([System.IO.Path]::GetTempPath()) "$($exe.BaseName).out.txt"
     $err = Join-Path ([System.IO.Path]::GetTempPath()) "$($exe.BaseName).err.txt"
     $p = Start-Process -FilePath $exe.FullName -ArgumentList @('--backend', 'dummy') -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
@@ -39,7 +41,10 @@ foreach ($exe in $exes) {
         Write-Host "---- output of $($exe.Name) ----"
         Write-Host $text
         Write-Host '----'
-        if ($text -match 'gpu backend failed to initialize|gl[\\/]win\.rs') {
+        # only the panic message decides, never the backtrace after it: a frame of gl/win.rs in the
+        # stack of some other panic must not make it a "cannot test here"
+        $message = ($text -split 'stack backtrace:')[0]
+        if ($message -match 'gpu backend failed to initialize|gl[\\/]win\.rs') {
             Write-Host "NOTE: $($exe.Name) exited with $($p.ExitCode) because this machine has no usable graphics (OpenGL context); not a failure" -ForegroundColor Yellow
         }
         else {
