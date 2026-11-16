@@ -136,33 +136,50 @@ pub fn assert_process_allocates_nothing<P: Plugin>(
 ) where
     PluginNoteEvent<P>: Copy,
 {
+    assert_process_allocates_nothing_at(name, plugin, SAMPLE_RATE, BLOCKS[0], blocks, events);
+}
+
+/// [`assert_process_allocates_nothing`] at another sample rate and largest block: it initialises
+/// `plugin` again with them, as a host does when the audio settings change while the plugin
+/// lives (the standalone host's change of rate or buffer size), and plays it. The blocks are
+/// those of [`BLOCKS`] cut to `max_block`.
+pub fn assert_process_allocates_nothing_at<P: Plugin>(
+    name: &str,
+    plugin: &mut P,
+    sample_rate: f32,
+    max_block: usize,
+    blocks: usize,
+    events: &[(usize, PluginNoteEvent<P>)],
+) where
+    PluginNoteEvent<P>: Copy,
+{
     let layout = P::AUDIO_IO_LAYOUTS[0];
     let channels = layout.main_output_channels.map_or(0, |n| n.get() as usize);
     let config = BufferConfig {
-        sample_rate: SAMPLE_RATE,
+        sample_rate,
         min_buffer_size: None,
-        max_buffer_size: BLOCKS[0] as u32,
+        max_buffer_size: max_block as u32,
         process_mode: ProcessMode::Realtime,
     };
     assert!(plugin.initialize(&layout, &config, &mut Host), "{name} did not initialize");
     plugin.reset();
 
-    let mut audio = vec![vec![0.0f32; BLOCKS[0]]; channels];
+    let mut audio = vec![vec![0.0f32; max_block]; channels];
     // The layout's auxiliary outputs, which a host gives too. They are not
     // counted as the plugin having made a sound
     let mut aux_audio: Vec<Vec<Vec<f32>>> = layout
         .aux_output_ports
         .iter()
-        .map(|ports| vec![vec![0.0f32; BLOCKS[0]]; ports.get() as usize])
+        .map(|ports| vec![vec![0.0f32; max_block]; ports.get() as usize])
         .collect();
     let mut played = 0;
     let mut loudest = 0.0f32;
     for block in 0..blocks {
-        let len = BLOCKS[block % BLOCKS.len()];
+        let len = BLOCKS[block % BLOCKS.len()].min(max_block);
         for channel in &mut audio {
             for (i, sample) in channel[..len].iter_mut().enumerate() {
                 *sample = if layout.main_input_channels.is_some() {
-                    let t = (played + i) as f32 / SAMPLE_RATE;
+                    let t = (played + i) as f32 / sample_rate;
                     0.5 * (std::f32::consts::TAU * 110.0 * t).sin()
                 } else {
                     0.0

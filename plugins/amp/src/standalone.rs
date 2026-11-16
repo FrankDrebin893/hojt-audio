@@ -1137,6 +1137,67 @@ mod tests {
         assert_eq!(host.restarts.load(std::sync::atomic::Ordering::SeqCst), 1);
     }
 
+    /// A host that decides as the program's does: live when `changes_live` says so, and noting
+    /// the choices it was asked to open
+    struct Deciding {
+        launch: Prefs,
+        asked: Mutex<Vec<Prefs>>,
+        restarts: std::sync::atomic::AtomicU32,
+    }
+    impl Host for Deciding {
+        fn drivers(&self) -> Vec<String> {
+            vec!["wasapi".into(), "asio".into()]
+        }
+        fn devices(&self, _: &str) -> DriverDevices {
+            DriverDevices { inputs: vec!["Mic".into()], outputs: vec!["Speakers".into()] }
+        }
+        fn reconfigure(&self, prefs: &Prefs) -> Reconfigure {
+            if !prefs.changes_live(&self.launch) {
+                return Reconfigure::Unsupported;
+            }
+            self.asked.lock().unwrap().push(prefs.clone());
+            let (sender, receiver) = std::sync::mpsc::channel();
+            sender.send(Ok(())).unwrap();
+            Reconfigure::Opening(receiver)
+        }
+        fn restart(&self, _: &Prefs) -> std::io::Result<()> {
+            self.restarts.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn test_a_new_buffer_size_or_sample_rate_reaches_reconfigure_and_not_restart() {
+        let restarts = |host: &Deciding| host.restarts.load(std::sync::atomic::Ordering::SeqCst);
+        // Row 5 is the buffer size and row 6 the sample rate (see `rows`)
+        for row in [5, 6] {
+            let host = Deciding {
+                launch: wasapi(),
+                asked: Default::default(),
+                restarts: Default::default(),
+            };
+            let mut choice = AudioChoice::open(&host, wasapi());
+            choice.step(&host, row, true);
+            let chosen = choice.prefs.clone();
+            assert_ne!(chosen, wasapi(), "the row changed a setting");
+            assert_eq!(choice.apply(&host), Applied::Opening, "row {row}");
+            assert_eq!(*host.asked.lock().unwrap(), vec![chosen], "row {row}: the host is asked");
+            assert_eq!(restarts(&host), 0, "row {row}: no restart");
+            assert!(!choice.poll() && choice.applied);
+        }
+        // ASIO still restarts for the same change, and so does another driver
+        let host = Deciding {
+            launch: Prefs { backend: "asio".into(), ..Prefs::default() },
+            asked: Default::default(),
+            restarts: Default::default(),
+        };
+        let mut choice = AudioChoice::open(&host, host.launch.clone());
+        choice.step(&host, 5, true);
+        assert_eq!(choice.apply(&host), Applied::Restarting);
+        assert_eq!(restarts(&host), 1);
+        assert!(host.asked.lock().unwrap().is_empty());
+    }
+
     #[test]
     fn test_the_choice_is_kept_only_after_the_devices_open() {
         let kept = Arc::new(std::sync::atomic::AtomicU32::new(0));

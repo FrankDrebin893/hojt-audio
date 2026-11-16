@@ -14,35 +14,31 @@ fn test_process_allocates_nothing() {
 }
 
 /// The standalone program changes the sample rate and the buffer size while the amp plays: its
-/// host initialises the plugin again in the gap with no stream running, then processes on. The
-/// work of `initialize` may allocate (it is not the audio thread); every `process` after it
-/// may not, at each rate the Audio panel offers and a smaller buffer
+/// host initialises the plugin again in the gap with no stream running (the fork's `reinit`, which
+/// calls `Plugin::initialize` with the new `BufferConfig`), then processes on. The work of
+/// `initialize` may allocate (it is not the audio thread); every `process` after it may not.
+/// One plugin plays, is initialised again at each rate and buffer size the Audio panel offers,
+/// in turn and in both directions, and plays on after each
 #[test]
-fn test_process_allocates_nothing_after_initialising_again_at_another_rate() {
-    // The plugin as the host plays it, initialised again by the helper on a plugin that has played
+fn test_process_allocates_nothing_after_the_standalone_changes_rate_and_buffer() {
     let mut plugin = GuitarAmpPlugin::default();
     host::assert_process_allocates_nothing("Guitar Amp", &mut plugin, 60, &[]);
-    host::assert_process_allocates_nothing("Guitar Amp, initialised again", &mut plugin, 60, &[]);
-
-    // The chain at each rate in turn, as `initialize` sets it: the rate changes outside the
-    // check, the blocks inside it, the last of them as short as the smallest buffer offered
-    let mut chain = AmpChain::new();
-    let settings = PRESETS[0].settings();
-    let mut left = vec![0.0f32; host::BLOCKS[0]];
-    let mut right = vec![0.0f32; host::BLOCKS[0]];
-    for rate in [48_000.0, 96_000.0, 44_100.0, 88_200.0, 48_000.0] {
-        chain.set_sample_rate(rate);
-        chain.reset();
-        host::assert_allocates_nothing(&format!("The chain at {rate} Hz"), || {
-            for block in 0..60 {
-                let len = [512, 256, 128, 64][block % 4];
-                for i in 0..len {
-                    left[i] = (i as f32 * 0.0144).sin() * 0.5;
-                    right[i] = left[i];
-                }
-                chain.process(&settings, &mut left[..len], Some(&mut right[..len]));
-            }
-        });
+    for (rate, buffer) in [
+        (96_000.0, 64),
+        (44_100.0, 128),
+        (88_200.0, 256),
+        (48_000.0, 512),
+        (44_100.0, 64),
+        (96_000.0, 512),
+    ] {
+        host::assert_process_allocates_nothing_at(
+            &format!("Guitar Amp at {rate} Hz, buffer {buffer}"),
+            &mut plugin,
+            rate,
+            buffer,
+            60,
+            &[],
+        );
     }
 }
 
