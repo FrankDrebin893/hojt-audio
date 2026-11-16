@@ -13,6 +13,39 @@ fn test_process_allocates_nothing() {
     host::assert_process_allocates_nothing("Guitar Amp", &mut GuitarAmpPlugin::default(), 200, &[]);
 }
 
+/// The standalone program changes the sample rate and the buffer size while the amp plays: its
+/// host initialises the plugin again in the gap with no stream running, then processes on. The
+/// work of `initialize` may allocate (it is not the audio thread); every `process` after it
+/// may not, at each rate the Audio panel offers and a smaller buffer
+#[test]
+fn test_process_allocates_nothing_after_initialising_again_at_another_rate() {
+    // The plugin as the host plays it, initialised again by the helper on a plugin that has played
+    let mut plugin = GuitarAmpPlugin::default();
+    host::assert_process_allocates_nothing("Guitar Amp", &mut plugin, 60, &[]);
+    host::assert_process_allocates_nothing("Guitar Amp, initialised again", &mut plugin, 60, &[]);
+
+    // The chain at each rate in turn, as `initialize` sets it: the rate changes outside the
+    // check, the blocks inside it, the last of them as short as the smallest buffer offered
+    let mut chain = AmpChain::new();
+    let settings = PRESETS[0].settings();
+    let mut left = vec![0.0f32; host::BLOCKS[0]];
+    let mut right = vec![0.0f32; host::BLOCKS[0]];
+    for rate in [48_000.0, 96_000.0, 44_100.0, 88_200.0, 48_000.0] {
+        chain.set_sample_rate(rate);
+        chain.reset();
+        host::assert_allocates_nothing(&format!("The chain at {rate} Hz"), || {
+            for block in 0..60 {
+                let len = [512, 256, 128, 64][block % 4];
+                for i in 0..len {
+                    left[i] = (i as f32 * 0.0144).sin() * 0.5;
+                    right[i] = left[i];
+                }
+                chain.process(&settings, &mut left[..len], Some(&mut right[..len]));
+            }
+        });
+    }
+}
+
 /// The defaults leave most pedals off: every factory preset, which between them turn every
 /// pedal and every amp on, through the chain itself, in stereo and in mono
 #[test]

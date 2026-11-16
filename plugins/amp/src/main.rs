@@ -69,7 +69,7 @@ impl standalone::Host for Machine {
 
     fn reconfigure(&self, prefs: &Prefs) -> Reconfigure {
         let launch = standalone::launch();
-        // Only the devices and their channels can change while the amp plays, and not with ASIO
+        // Everything but the driver can change while the amp plays, and not with ASIO
         if !prefs.changes_live(&launch) {
             return Reconfigure::Unsupported;
         }
@@ -82,6 +82,10 @@ impl standalone::Host for Machine {
             output_device: devices.output_device.clone(),
             input_channel: devices.input_channel,
             output_channel: devices.output_channel,
+            // None is what the program asks for with no argument: the output device's own rate,
+            // the host's default buffer size
+            sample_rate: devices.sample_rate.map(|rate| rate as f32),
+            period_size: devices.period_size,
         }) else {
             return Reconfigure::Unsupported;
         };

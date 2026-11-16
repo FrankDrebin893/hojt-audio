@@ -3,9 +3,10 @@
 //!
 //! nih-plug's standalone host opens its audio streams from its command line. So the program
 //! (`main.rs`) turns the saved choices into that command line when it starts. The window's
-//! Audio panel then changes the devices and their channels while the program runs (the fork's
-//! host closes its streams and opens the new ones, the window stays); a new driver, buffer size
-//! or sample rate still saves the choices and starts the program again. In a DAW nothing here
+//! Audio panel then changes the devices, their channels, the buffer size and the sample rate
+//! while the program runs (the fork's host closes its streams and opens the new ones, and
+//! initialises the amp again when the rate or the buffer size changed; the window stays); a new
+//! driver, and anything with ASIO, still saves the choices and starts the program again. In a DAW nothing here
 //! is used: no host is installed and the editor shows no Audio button.
 
 use std::path::{Path, PathBuf};
@@ -53,20 +54,19 @@ impl Default for Prefs {
 }
 
 impl Prefs {
-    /// Do the two open the same stream, so that only the devices and their channels differ?
-    /// Those can be changed while the program plays; a new driver, buffer size or sample rate
-    /// needs it to start again
-    pub fn same_stream(&self, other: &Prefs) -> bool {
+    /// Do the two use the same driver? The devices, channels, buffer size and sample rate can
+    /// be changed while the program plays; another driver needs it to start again
+    pub fn same_driver(&self, other: &Prefs) -> bool {
         self.backend == other.backend
-            && self.period_size == other.period_size
-            && self.sample_rate == other.sample_rate
     }
 
-    /// Can the program that plays on `running` change to these devices while it plays? Only
-    /// with the same stream, and not with ASIO: its driver cannot be opened again in the same
-    /// process (the Focusrite's would not), so ASIO always starts the program again
+    /// Can the program that plays on `running` change to these choices while it plays? Only
+    /// with the same driver, and not with ASIO: its driver cannot be opened again in the same
+    /// process (the Focusrite's would not), so ASIO always starts the program again. A new
+    /// buffer size or sample rate is the same change as a new device: the streams are closed
+    /// and opened again, and the amp is initialised again for them
     pub fn changes_live(&self, running: &Prefs) -> bool {
-        self.same_stream(running) && self.backend != "asio" && running.backend != "asio"
+        self.same_driver(running) && self.backend != "asio" && running.backend != "asio"
     }
 
     /// The saved choices, or the defaults for a missing or unreadable file. Values the
@@ -371,8 +371,7 @@ pub type Answer = Receiver<Result<(), String>>;
 /// What the program says to a request to change the devices while it plays
 #[derive(Debug)]
 pub enum Reconfigure {
-    /// It cannot (another driver, buffer size or sample rate; or a driver that cannot): the
-    /// program has to start again
+    /// It cannot (another driver, or a driver that cannot): the program has to start again
     Unsupported,
     /// It is opening them: the answer comes on the receiver, `Ok` when the new devices play
     /// and `Err` with what went wrong when they would not open (the old ones then play again)
@@ -1045,26 +1044,29 @@ mod tests {
     }
 
     #[test]
-    fn test_only_the_devices_and_channels_can_change_while_playing() {
+    fn test_everything_but_the_driver_can_change_while_playing() {
         let base = wasapi();
-        let other_device =
-            Prefs { output_device: Some("Speakers".into()), output_channel: 3, ..base.clone() };
-        assert!(base.same_stream(&other_device));
-        for different in [
-            Prefs { backend: "asio".into(), ..base.clone() },
+        for same in [
+            Prefs { output_device: Some("Speakers".into()), output_channel: 3, ..base.clone() },
             Prefs { period_size: Some(64), ..base.clone() },
             Prefs { sample_rate: Some(96_000), ..base.clone() },
+            Prefs { period_size: Some(128), sample_rate: Some(44_100), ..base.clone() },
         ] {
-            assert!(!base.same_stream(&different));
+            assert!(base.same_driver(&same) && same.changes_live(&base));
         }
+        let other_driver = Prefs { backend: "alsa".into(), ..base.clone() };
+        assert!(!base.same_driver(&other_driver) && !other_driver.changes_live(&base));
     }
 
     #[test]
     fn test_an_asio_choice_always_starts_the_amp_again() {
         let asio = Prefs { backend: "asio".into(), ..Prefs::default() };
         let other = Prefs { output_device: Some("Speakers".into()), ..asio.clone() };
-        // Same stream, but ASIO cannot be opened again while it plays
-        assert!(asio.same_stream(&other) && !other.changes_live(&asio));
+        // Same driver, but ASIO cannot be opened again while it plays
+        assert!(asio.same_driver(&other) && !other.changes_live(&asio));
+        // Not for a buffer size or a rate either, which WASAPI changes live
+        let rate = Prefs { sample_rate: Some(96_000), ..asio.clone() };
+        assert!(!rate.changes_live(&asio));
         // Machine::reconfigure says Unsupported for it, and `apply` then restarts the amp
         assert!(wasapi().changes_live(&wasapi()));
     }
@@ -1162,7 +1164,7 @@ mod tests {
     }
 
     #[test]
-    fn test_the_resolved_launch_is_the_same_stream_as_the_choice_opened_on_it() {
+    fn test_the_resolved_launch_is_the_same_driver_as_the_choice_opened_on_it() {
         // `main` puts the resolved settings in `set_launch`, the panel opens on them and Apply
         // compares what it chose with them: resolving changes devices, never the stream
         let drivers = ["auto".to_string(), "wasapi".to_string()];
@@ -1180,11 +1182,11 @@ mod tests {
             &["Speakers".into()],
             Some("Mic".into()),
         );
-        assert!(launch.same_stream(&saved));
+        assert!(launch.same_driver(&saved));
         let host = Live::new(true, Ok(()));
         let choice = AudioChoice::open(&host, launch.clone());
         assert!(
-            choice.prefs.same_stream(&launch),
+            choice.prefs.same_driver(&launch),
             "the panel changes no stream setting on opening"
         );
         // Only another driver on this machine is changed by resolving, and then it is the
@@ -1192,6 +1194,6 @@ mod tests {
         let other = Prefs { backend: "alsa".into(), ..saved };
         let launch = resolve(other, &drivers, &[], &[], None);
         assert_eq!(launch.backend, "auto");
-        assert!(AudioChoice::open(&host, launch.clone()).prefs.same_stream(&launch));
+        assert!(AudioChoice::open(&host, launch.clone()).prefs.same_driver(&launch));
     }
 }
