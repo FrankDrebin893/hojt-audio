@@ -90,6 +90,7 @@ full() {
     # cost bound only means something optimised
     step cargo test -p amp -p bass --profile optimised --locked
     [[ "$(uname -s)" == Linux ]] && step bash scripts/test-linux-install.sh
+    step bash scripts/test-macos-pkg.sh
     echo "== All of CI's steps pass"
 }
 

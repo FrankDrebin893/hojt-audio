@@ -14,6 +14,9 @@ What each script in this folder does, and the detail behind the rules in `CLAUDE
 - `test-linux-install.sh` - Packs stand-in bundles with `package.sh linux`, unpacks `HojtDSP-linux.zip` (the suite zip
   with `installer/linux/install.sh`), installs it into a temporary `HOME`, checks `--only`, `--ask` and `--uninstall`,
   and runs `shellcheck` when it is installed; CI runs it on Linux (`ci.yml`, `release.yml`) and `check.sh` too
+- `test-macos-pkg.sh` - Runs `installer/macos/build-pkg.sh` over stand-in bundles with stand-ins for `pkgbuild` and
+  `productbuild`, checks their calls, the `distribution.xml` (`xmllint`) and `installer/macos/check-payload.sh` on good and bad
+  payload lists; CI runs it on Linux (`ci.yml`) and `check.sh` too. The real package is built by the macOS job of `release.yml`
 - `build-installer.sh` - Builds `dist/HojtDSP-Setup.exe` from the bundles with Inno Setup (Installer below)
 - `build-standalones.sh` - Builds the six standalone programs to `target/standalone/<BundleName>.exe`; `smoke-standalones.ps1` starts each with the dummy backend (`RUST_BACKTRACE=1`) and checks its icon, printing a program's output when it exits at start; a graphics-context panic (a runner without OpenGL) is a NOTE, any other start-up panic fails (Windows job of `release.yml`)
 - `checksums.sh` - Writes `SHA256SUMS.txt` for the files of a folder, as `release.yml` does for a release

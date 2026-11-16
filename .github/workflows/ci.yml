@@ -102,6 +102,11 @@ jobs:
         if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
         run: bash scripts/test-linux-install.sh
 
+      # The macOS package's build script, over stand-ins for Apple's tools (the real build is in release.yml)
+      - name: Test the macOS package script
+        if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
+        run: bash scripts/test-macos-pkg.sh
+
   lint:
     name: Format and clippy
     needs: changes
