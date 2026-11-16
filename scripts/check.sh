@@ -7,6 +7,7 @@
 #   scripts/check.sh modes      only that every tracked scripts/*.sh is executable in git's index
 #   scripts/check.sh hook       the Claude Code PreToolUse hook (.claude/settings.json): the quick
 #                               part before a `git commit`, blocking the commit when it fails
+#                               in the tree the commit is made in (a worktree's own, not this checkout's)
 #
 # On Linux it first says which of the packages CI installs are missing. Format and clippy run on
 # the Rust that ci.yml pins when rustup has it, as CI does; otherwise it says so and uses the default.
@@ -97,12 +98,24 @@ full() {
 # Claude Code passes the tool call (Bash or PowerShell) as JSON on stdin; only a `git commit`
 # (or `git -C <dir> commit`) is checked, not `git commit-tree`. Exit 2 blocks the commit and hands
 # what failed back to the agent.
+#
+# The tree that is checked is the one the commit is made in: `git -C <dir>` when the command names
+# one, otherwise the tool's working directory (`cwd`). A session in a worktree has this script's
+# own checkout as its project directory, and that one may hold another branch altogether.
 hook() {
-    grep -Eq '"command".*git( +-C +[^ ]+)? +commit([^-a-z]|$)' || exit 0
-    local out
+    local input out dir top
+    input="$(cat)"
+    grep -Eq '"command".*git( +-C +[^ ]+)? +commit([^-a-z]|$)' <<< "$input" || exit 0
+    dir="$(sed -nE 's/.*"command".*git +-C +\\?"?([^ "\\]+).* +commit([^-a-z].*|$)/\1/p' <<< "$input" | head -1)"
+    [[ -n "$dir" ]] || dir="$(sed -nE 's/.*"cwd" *: *"(([^"\\]|\\.)*)".*/\1/p' <<< "$input" | head -1)"
+    dir="${dir//\\\\//}" # JSON writes a Windows path's backslash twice; Git Bash takes D:/a/b
+    if [[ -n "$dir" ]] && top="$(git -C "$dir" rev-parse --show-toplevel 2> /dev/null)" &&
+        [[ -f "$top/scripts/check.sh" && -f "$top/$ci" ]]; then
+        cd "$top"
+    fi
     if ! out="$(quick 2>&1)"; then
         {
-            echo "scripts/check.sh quick failed, so the commit was stopped. Fix this, then commit again"
+            echo "scripts/check.sh quick failed in $PWD, so the commit was stopped. Fix this, then commit again"
             echo "(\`cargo fmt --all\` fixes the format):"
             echo "$out" | tail -n 60
         } >&2
