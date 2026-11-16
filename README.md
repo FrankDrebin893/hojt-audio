@@ -56,8 +56,10 @@ the `.vst3` or the `.clap` to its folder:
 | macOS | `~/Library/Audio/Plug-Ins/VST3` | `~/Library/Audio/Plug-Ins/CLAP` |
 | Linux | `~/.vst3` | `~/.clap` |
 
-On macOS, run `xattr -dr com.apple.quarantine <the file you copied>` once afterwards. The macOS
-and Linux builds come from the build server and have not been tried in a DAW yet.
+On macOS, run `xattr -dr com.apple.quarantine <the file you copied>` once afterwards, or use
+`HojtDSP-macos.pkg` from the release (unsigned: Open Anyway in Privacy & Security; untested, nobody has
+installed it on a Mac yet). The macOS and Linux builds come from the build server and have not been
+tried in a DAW yet.
 
 ## Build from source
 

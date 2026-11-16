@@ -444,6 +444,23 @@
     <p>The same works for a zip: use its name. On macOS and Linux the command is
       <code>shasum -a 256 &lt;file&gt;</code> and <code>sha256sum &lt;file&gt;</code>.</p>
 
+    <h3>macOS: one package</h3>
+    <p class="note-once">Untested: nobody has installed this on a Mac yet.</p>
+    <p>One package puts every plugin in place. You tick which plugins you want, and VST3, CLAP or both.
+      VST3 goes to <code>/Library/Audio/Plug-Ins/VST3</code> and CLAP to
+      <code>/Library/Audio/Plug-Ins/CLAP</code>, for every user of the Mac. It runs on Intel and Apple Silicon.</p>
+    <p><a class="button" href="https://github.com/FrankDrebin893/hojt-audio/releases/latest/download/HojtDSP-macos.pkg">Download for macOS<small>HojtDSP-macos.pkg, untested</small></a></p>
+    <ol class="steps">
+      <li>Close your DAW, then open <code>HojtDSP-macos.pkg</code>. macOS will say it cannot open it,
+        because the package is not signed yet.</li>
+      <li>Open <b>System Settings</b>, then <b>Privacy &amp; Security</b>, scroll down to the message about
+        <code>HojtDSP-macos.pkg</code> and click <b>Open Anyway</b>. Confirm with your password.</li>
+      <li>Click through, ticking what you want, then let the DAW scan for plugins. They are listed under <b>Hojt Audio</b>.</li>
+    </ol>
+    <p>If you try it, tell us how it went in an
+      <a href="https://github.com/FrankDrebin893/hojt-audio/issues/new?template=bug.yml">issue on GitHub</a>.
+      The zips below still work, with the Terminal step further down.</p>
+
     <h3>Just one plugin, or macOS and Linux</h3>
     <p>Each plugin is also a zip of its own, for every system.</p>
     <table class="matrix">

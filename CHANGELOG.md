@@ -5,6 +5,14 @@ GitHub release.
 
 ## Unreleased
 
+### Installer
+
+- macOS: a package, `HojtDSP-macos.pkg`, puts the plugins in place for every user: you tick which plugins
+  and VST3, CLAP or both, and VST3 goes to `/Library/Audio/Plug-Ins/VST3` and CLAP to
+  `/Library/Audio/Plug-Ins/CLAP`. It is not signed, so macOS asks you to use Open Anyway in Privacy &
+  Security first, and it is untested: nobody has installed it on a Mac yet. The zips of each plugin
+  are still there.
+
 ### Fixed
 
 - The standalone programs now play at the sample rate the output device runs at, so one started from the

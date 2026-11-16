@@ -49,7 +49,7 @@ detail lives. Each detail is next to what it governs.
   `site-design/DESIGN.md` - the site's look: its tokens, named rules, voice and references; not published
 - `installer/` - The Windows installer (`hojt-dsp.iss`, Inno Setup) and its test (`test-installer.ps1`);
   `scripts/build-installer.sh` builds `HojtDSP-Setup.exe` in the Windows job of `release.yml`, which
-  installs, upgrades and uninstalls it on the runner before anything is published
+  installs, upgrades and uninstalls it on the runner before anything is published; `installer/macos/` builds the unsigned, untested macOS `HojtDSP-macos.pkg` (macOS job; `scripts/test-macos-pkg.sh` tests its scripts on Linux)
 - `scripts/` - Build, install, check, page and release tools; see `scripts/README.md`
 - `.claude/skills/` - The repo's own skills, one folder each with a `SKILL.md`: `/issue`, `/spec`, `/groom`, `/next`,
   `/specwriter`, `/scout`, `/design`, `/feedback`, `/retrospective`, `/page`, `/release`, `/release-prep`,

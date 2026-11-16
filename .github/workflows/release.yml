@@ -2,7 +2,7 @@ name: Release
 
 # A tag vX.Y.Z builds the plugins for the three systems and publishes them as a GitHub release.
 # Run by hand, or from a pull request that touches the packaging or the installer, it only builds:
-# the zips and the Windows installer are then under the run's artifacts, and the installer has been
+# the zips, the Windows installer and the macOS package are then under the run's artifacts, and the installer has been
 # installed, upgraded and uninstalled on the runner.
 on:
   push:
@@ -16,6 +16,7 @@ on:
       - scripts/build-standalones.sh
       - scripts/smoke-standalones.ps1
       - scripts/checksums.sh
+      - scripts/test-macos-pkg.sh
       - installer/**
 
 env:
@@ -101,6 +102,19 @@ jobs:
         if: runner.os == 'Linux'
         run: bash scripts/test-linux-install.sh
 
+      # The macOS installer, HojtDSP-macos.pkg, from the bundles just built (installer/macos). Unsigned.
+      # UNTESTED on a Mac: CI lists its payload against bundler.toml and does not install it
+      # (scripts/test-macos-pkg.sh tests the build script in ci.yml, over stand-ins for Apple's tools)
+      - name: Build the macOS package
+        if: runner.os == 'macOS'
+        run: bash installer/macos/build-pkg.sh
+
+      - name: List the macOS package's payload
+        if: runner.os == 'macOS'
+        run: |
+          pkgutil --payload-files dist/HojtDSP-macos.pkg || true
+          bash installer/macos/check-payload.sh dist/HojtDSP-macos.pkg
+
       # The six standalone programs (with ASIO from third_party/asiosdk, WASAPI and the dummy backend),
       # each started for a few seconds with the dummy backend to see that its window opens
       - name: Build the standalone programs
@@ -145,6 +159,7 @@ jobs:
           path: |
             dist/*.zip
             dist/*.exe
+            dist/*.pkg
           if-no-files-found: error
 
   publish:
@@ -179,7 +194,16 @@ jobs:
             exit 1
           fi
 
-      # One SHA256SUMS.txt for every file of the release (the zips and the installer)
+      # The macOS package has never been installed on a Mac: the release says so until somebody has
+      - name: Mark the macOS package untested
+        run: |
+          {
+            echo
+            echo "**HojtDSP-macos.pkg is untested.** Nobody has installed it on a Mac or tried the plugins in a DAW there yet."
+            echo "It is unsigned: if macOS refuses to open it, use Open Anyway in System Settings, Privacy & Security."
+          } >> notes.md
+
+      # One SHA256SUMS.txt for every file of the release (the zips, the installers and the macOS package)
       - name: Checksums
         run: bash scripts/checksums.sh dist
 
@@ -188,6 +212,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -l dist
-          gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.exe dist/SHA256SUMS.txt \
+          gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.exe dist/*.pkg dist/SHA256SUMS.txt \
             --title "HØJT DSP ${GITHUB_REF_NAME#v}" \
             --notes-file notes.md
