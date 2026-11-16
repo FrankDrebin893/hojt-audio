@@ -13,6 +13,35 @@ fn test_process_allocates_nothing() {
     host::assert_process_allocates_nothing("Guitar Amp", &mut GuitarAmpPlugin::default(), 200, &[]);
 }
 
+/// The standalone program changes the sample rate and the buffer size while the amp plays: its
+/// host initialises the plugin again in the gap with no stream running (the fork's `reinit`, which
+/// calls `Plugin::initialize` with the new `BufferConfig`), then processes on. The work of
+/// `initialize` may allocate (it is not the audio thread); every `process` after it may not.
+/// One plugin plays, is initialised again at each rate and buffer size the Audio panel offers,
+/// in turn and in both directions, and plays on after each
+#[test]
+fn test_process_allocates_nothing_after_the_standalone_changes_rate_and_buffer() {
+    let mut plugin = GuitarAmpPlugin::default();
+    host::assert_process_allocates_nothing("Guitar Amp", &mut plugin, 60, &[]);
+    for (rate, buffer) in [
+        (96_000.0, 64),
+        (44_100.0, 128),
+        (88_200.0, 256),
+        (48_000.0, 512),
+        (44_100.0, 64),
+        (96_000.0, 512),
+    ] {
+        host::assert_process_allocates_nothing_at(
+            &format!("Guitar Amp at {rate} Hz, buffer {buffer}"),
+            &mut plugin,
+            rate,
+            buffer,
+            60,
+            &[],
+        );
+    }
+}
+
 /// The defaults leave most pedals off: every factory preset, which between them turn every
 /// pedal and every amp on, through the chain itself, in stereo and in mono
 #[test]

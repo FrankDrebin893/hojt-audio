@@ -89,13 +89,19 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   `amp-standalone.json` in the system's settings folder or `HOJT_CONFIG_DIR`), the `Host` trait
   `main.rs` implements with cpal to list devices and restart, and the Audio panel's choices. The
   panel itself is the rows of the settings plate in `editor.rs` (`settings_plate`). nih-plug's host opens its streams from its
-  command line; with WASAPI (and the other cpal drivers but ASIO) Apply changes the devices and channels while the program plays (`Host::reconfigure`
+  command line; with WASAPI (and the other cpal drivers but ASIO) Apply changes the devices, channels, buffer size and sample rate while the program plays (`Host::reconfigure`
   -> the fork's `nih_standalone_reconfigure`: it closes the cpal streams, opens the new ones with the
-  same process callback, no `initialize`; a failure opens the old ones again and the panel shows the
+  same process callback; when the rate or the buffer size is not the one that played, the fork
+  initialises the amp again in the gap with the streams closed (`Backend::run`'s `reinit` ->
+  `Wrapper::reinitialize`: smoothers set for the rate, `initialize`, `reset`), so the chain, the metronome
+  and the looper (a new rate empties its loop) are made for it off the audio thread and `no_alloc`
+  still holds; a failure, devices that would not open or an `initialize` that said no, opens the old
+  ones again, initialised with their rate and buffer, and the panel shows the
   error, and the panel gives up on an audio that does not answer in `ANSWER_TIMEOUT`, 10 s;
-  `AudioChoice::apply`, `poll`). ASIO still restarts (its driver cannot be opened again in the same
-  process, tried on a Focusrite; `Prefs::changes_live`), and so does a new driver, buffer size or
-  sample rate (`Prefs::same_stream`): Apply saves and starts the program again, as `Host::restart`; no host is installed in a DAW and
+  `AudioChoice::apply`, `poll`). A `None` rate or buffer is what the command line leaves out: the
+  output device's own rate, the default 512. ASIO still restarts (its driver cannot be opened again in the same
+  process, tried on a Focusrite; `Prefs::changes_live`), and so does a new driver
+  (`Prefs::same_driver`): Apply saves and starts the program again, as `Host::restart`; no host is installed in a DAW and
   the editor then shows no Audio button. Eight rows: Driver, Input, Input channels, Output,
   Output channels, Buffer, Sample rate, Test tone. Channels are the amp's stereo pair (the first
   layout) out of the device's, counted from 1 (`--input-channel`/`--output-channel` of the fork's

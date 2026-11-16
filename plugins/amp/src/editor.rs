@@ -2472,7 +2472,7 @@ fn metronome_plate(
 }
 
 /// The settings plate under its icon, while it is the plate that is open: the cabinet files and,
-/// in the standalone program, the machine's audio, which Apply restarts the amp on
+/// in the standalone program, the machine's audio, which Apply opens while the amp plays (or starts the amp again on)
 fn settings_plate(
     ui: &mut Ui,
     _setter: &ParamSetter,
