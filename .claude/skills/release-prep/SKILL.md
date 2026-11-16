@@ -56,6 +56,8 @@ to do with `gh`, and read with REST (`gh api` or the tools); GraphQL is blocked.
      needs a Windows display at 100 % scaling), and a look at each
    - The bundles on Windows, and installing them (`cargo xtask bundle ...`, `cargo xtask
      check-art`) if the plugins changed
+   - Every open line of the standing issue "Checks on a real machine", copied as it stands with its
+     link: a release is when the machine is at hand, and a line ticked there is ticked on that issue too
    - After the merge: tag the merge commit `v<version>` and push the tag, which makes
      `release.yml` build and publish. Say so in the pull request; this run does not
 7. **Open the pull request** `release/<version>` into `main`, with the template's headings, and

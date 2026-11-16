@@ -110,9 +110,11 @@ goes on to the next issue, with no further prompt, until the list is done. Words
    - **Accept**: turn on GitHub auto-merge (`ccd_pr` `set_auto_merge`, squash, or
      `gh pr merge <pr> --auto --squash`) and tell Rasmus in a line what to listen to or look at,
      which the builder names. Never merge by hand. If the builder names something only
-     he can do (look, try on a machine, or a milestone that waits on his pick), the issue
-     gets `needs:engineer` and a comment saying exactly what, or, when the issue is closed by the
-     pull request, a new issue "Check: <what>" labelled `needs:engineer`. A listen is not such a thing: it is a line
+     he can do (a look, or a milestone that waits on his pick), the issue
+     gets `needs:engineer` and a comment saying exactly what. A try on a real machine is not such a thing: it is a
+     checkbox line on the standing issue "Checks on a real machine" (CLAUDE.md, "Rules for every run"), and the issue
+     closes with its last pull request; only a probe whose result decides what is built next is asked on the issue.
+     Nor is a listen: it is a line
      in the pull request and the report, never a label and never a "Check" issue, and it never holds the next milestone
 6. **Go on.** Back to step 1 at once; the pull request merges when CI passes, and Auto-fix in
    its sub-session mends a failure (one it cannot mend is reported like a question). One run

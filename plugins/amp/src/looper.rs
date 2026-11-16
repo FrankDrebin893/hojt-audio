@@ -103,6 +103,7 @@ impl LooperControl {
 
     /// Sets what the editor reads, for the editor's own tests
     #[cfg(test)]
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))] // its tests draw, and run on Linux alone
     pub(crate) fn show(&self, state: State, length: u32, position: u32, capacity: u32) {
         self.length.store(length, Ordering::Relaxed);
         self.position.store(position, Ordering::Relaxed);
@@ -112,6 +113,7 @@ impl LooperControl {
 
     /// The commands the audio has not taken yet: presses, stop, clear
     #[cfg(test)]
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))] // its tests draw, and run on Linux alone
     pub(crate) fn pending(&self) -> (u8, bool, bool) {
         (
             self.presses.load(Ordering::Acquire),
