@@ -13,7 +13,16 @@ names=$(sed -n 's/^name = "\(.*\)"$/\1/p' "$root/bundler.toml")
 id_prefix=net.hojte.hojtaudio
 
 # HojtGuitarAmp -> Guitar Amp
-title() { echo "${1#Hojt}" | sed 's/\([a-z]\)\([A-Z]\)/\1 \2/g'; }
+title() {
+    local rest="${1#Hojt}" out="" i c prev=""
+    for ((i = 0; i < ${#rest}; i++)); do
+        c="${rest:i:1}"
+        if [[ $prev =~ [a-z] && $c =~ [A-Z] ]]; then out+=" "; fi
+        out+="$c"
+        prev="$c"
+    done
+    echo "$out"
+}
 
 echo '<?xml version="1.0" encoding="utf-8"?>'
 echo '<installer-gui-script minSpecVersion="2">'

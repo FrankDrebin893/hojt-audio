@@ -18,15 +18,18 @@ if [ "${1:-}" = --list ]; then
     cp "${2:?usage: check-payload.sh --list <file>}" "$tmp/list"
 else
     pkg="${1:?usage: check-payload.sh <pkg> | --list <file>}"
-    pkgutil --payload-files "$pkg" > "$tmp/list" || true
-    if ! grep -q 'vst3\|clap' "$tmp/list"; then
-        # A product archive may list nothing: unpack it and read each component's payload
-        pkgutil --expand "$pkg" "$tmp/expanded"
-        : > "$tmp/list"
-        for payload in "$tmp"/expanded/*.pkg/Payload; do
-            gzip -dc "$payload" | cpio -it 2> /dev/null >> "$tmp/list" || true
-        done
-    fi
+    # `pkgutil --payload-files` on a product archive lists only its first component, so the product is
+    # always unpacked and the payload of every component package is listed and joined
+    pkgutil --expand "$pkg" "$tmp/expanded"
+    : > "$tmp/list"
+    count=0
+    for payload in "$tmp"/expanded/*.pkg/Payload; do
+        [ -e "$payload" ] || continue
+        count=$((count + 1))
+        gzip -dc "$payload" | cpio -it >> "$tmp/list" 2> /dev/null
+    done
+    echo "read the payload of $count component packages"
+    [ "$count" -gt 0 ] || { echo "no component package with a payload in $pkg" >&2; exit 1; }
 fi
 
 # The first path component, "./" dropped: what sits at the install location

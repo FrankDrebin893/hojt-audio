@@ -123,4 +123,37 @@ if bash "$root/installer/macos/check-payload.sh" --list "$tmp/missing.txt" > /de
 { cat "$good"; echo "./Stray.vst3/Contents/x"; } > "$tmp/extra.txt"
 if bash "$root/installer/macos/check-payload.sh" --list "$tmp/extra.txt" > /dev/null 2>&1; then fail "check-payload.sh accepts a payload with a stray bundle"; fi
 
+# The same from a product archive of twelve components, as pkgutil unpacks one. A stand-in pkgutil lists
+# only the first components with --payload-files, as the real one does on a product, so reading that
+# would miss most bundles
+command -v cpio > /dev/null || fail "cpio is not installed (the payload check needs it, as macOS has it)"
+# make_product <dir> [skip]: <dir>/<Name>-<format>.pkg/Payload (gzip of cpio) for every component but skip
+make_product() {
+    local dir="$1" skip="${2:-}" name format comp
+    for name in $names; do
+        for format in vst3 clap; do
+            comp="$name-$format"
+            [ "$comp" = "$skip" ] && continue
+            mkdir -p "$dir/$comp.pkg"
+            (cd "$bundled" && find "$name.$format" | sed 's|^|./|' | cpio -o -H odc 2> /dev/null | gzip > "$dir/$comp.pkg/Payload")
+        done
+    done
+    echo "<pkg-info/>" > "$dir/Distribution"
+}
+make_product "$tmp/product-good"
+make_product "$tmp/product-missing" "$first-clap"
+cat > "$shims/pkgutil" << 'EOF'
+#!/usr/bin/env bash
+case "$1" in
+    --expand) cp -R "$SHIM_PRODUCT" "$3" ;;
+    --payload-files) gzip -dc "$SHIM_PRODUCT"/*.pkg/Payload | cpio -it 2> /dev/null | head -4 ;;
+esac
+EOF
+chmod +x "$shims/pkgutil"
+SHIM_PRODUCT="$tmp/product-good" PATH="$shims:$PATH" bash "$root/installer/macos/check-payload.sh" "$tmp/x.pkg" > /dev/null \
+    || fail "check-payload.sh refuses a good product archive"
+if SHIM_PRODUCT="$tmp/product-missing" PATH="$shims:$PATH" bash "$root/installer/macos/check-payload.sh" "$tmp/x.pkg" > /dev/null 2>&1; then
+    fail "check-payload.sh accepts a product archive without $first.clap"
+fi
+
 echo "macOS package script OK"
