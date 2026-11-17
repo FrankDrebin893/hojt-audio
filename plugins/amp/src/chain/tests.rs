@@ -1601,10 +1601,10 @@ fn run_switch(
 
 /// How much steeper than once it has settled an amp may be right after it was switched
 /// to. Klar starts from rest with the whole headroom of its power stage, which holds
-/// its peaks, and has lost an eighth of it to the sag 20 ms later. Træ's and Smæld's power
-/// stages hold their peaks the same way
+/// its peaks, and has lost an eighth of it to the sag 20 ms later. Træ's power stage holds
+/// its peaks the same way
 fn from_rest(amp: Amp) -> f32 {
-    if matches!(amp, Amp::Klar | Amp::Trae | Amp::Smaeld) {
+    if matches!(amp, Amp::Klar | Amp::Trae) {
         1.35
     } else {
         1.2
@@ -1699,10 +1699,9 @@ fn test_switching_amps_with_the_pedals_on_does_not_click() {
             // more to give way than Torden does (3.1 against 2.7). From Træ to Klar the same
             // start of Klar's (the same step as from Brøl, to the third digit) is held
             // against two amps that hardly step at all on a held note, and reads 5.9. From
-            // Smæld to Klar is Klar's own first note: Smæld leaves the power stage further
-            // from its ceiling than any other amp, so Klar starts as it does after silence,
-            // where its first 20 ms are 12 times as steep as what it settles at under these
-            // pedals (the pedals turn a held note far down)
+            // Smæld to Klar likewise: the step into Klar is as large as from Brøl, Torden or
+            // Skarp (0.06), but Smæld and Klar both play the held note smoothly under these
+            // pedals (own steps of about 0.006), so it reads 9.6
             let limit = match (from, to) {
                 (Amp::Trae, Amp::Klar) => 6.2,
                 (Amp::Smaeld, Amp::Klar) => 10.0,
@@ -1710,10 +1709,11 @@ fn test_switching_amps_with_the_pedals_on_does_not_click() {
                 // Its power stage holds its peaks as Klar's does, pushed by the same pedals,
                 // and it sags far less, so it takes longer to settle: 4.5 from Klar
                 (_, Amp::Trae) => 4.8,
-                // Smæld's power stage holds its peaks as Klar's does, from a lower knee (0.7
-                // against 0.9): pushed by these pedals it rounds over a longer stretch before
-                // it gives way (3.5 from Klar)
-                (_, Amp::Smaeld) => 3.8,
+                // The same the other way: the step into Smæld from Klar is as large as from
+                // Brøl or Torden (0.023), held against two smooth amps it reads 3.5; from Træ,
+                // the other smooth one, 2.5 (with its open cabinet's allowance on top)
+                (Amp::Klar, Amp::Smaeld) => 3.8,
+                (Amp::Trae, Amp::Smaeld) => 2.0,
                 _ => from_rest(to),
             } * out_of_an_open_cabinet(from);
             assert!(ratio < limit, "{:?} to {:?}: step {} times its own", from, to, ratio);
@@ -1752,32 +1752,19 @@ fn test_switching_back_and_forth_quickly_does_not_click() {
     let input = sine(220.0, 0.178, SAMPLE_RATE, 48_000);
     let mut chain = new_chain(SAMPLE_RATE);
     let mut output = input.clone();
-    let amp_at = |index: usize| {
-        if (150..450).contains(&index) {
+    for (index, block) in output.chunks_mut(BLOCK).enumerate() {
+        let amp = if (150..450).contains(&index) {
             Amp::ALL[(index / 2) % Amp::ALL.len()]
         } else {
             Amp::Torden
-        }
-    };
-    for (index, block) in output.chunks_mut(BLOCK).enumerate() {
-        chain.process(&with_amp(amp_at(index), 0.7), block, None);
+        };
+        chain.process(&with_amp(amp, 0.7), block, None);
     }
-    // Against Torden, which plays before and after, and the two amps on either side of the
-    // steepest step, each settled by itself: a switch may be as steep as the amps it is
-    // between. Which pair falls on the steepest step moves with the number of amps in the
-    // cycle (with eleven it is Drøn to Knald)
-    let start = 150 * BLOCK - 1;
-    let at = (start..output.len() - 1)
-        .max_by(|&a, &b| {
-            (output[a + 1] - output[a]).abs().total_cmp(&(output[b + 1] - output[b]).abs())
-        })
-        .unwrap();
-    let settled = |amp: Amp| largest_step(&run(&with_amp(amp, 0.7), &input, SAMPLE_RATE)[4800..]);
-    let own_step = largest_step(&output[4800..150 * BLOCK])
-        .max(settled(amp_at(at / BLOCK)))
-        .max(settled(amp_at((at / BLOCK).saturating_sub(1))));
-    let step = largest_step(&output[start..]);
-    assert!(step < own_step * 1.2, "Step of {} against {}", step, own_step);
+    let own_step = largest_step(&output[4800..150 * BLOCK]);
+    let step = largest_step(&output[150 * BLOCK - 1..]);
+    // 1.2 until Træ was one of them: Torden, with the smallest steps of all, is held
+    // against what the others give in the 3 ms they get through Træ's open cabinet
+    assert!(step < own_step * 1.3, "Step of {} against {}", step, own_step);
 
     let reference = run(&with_amp(Amp::Torden, 0.7), &input, SAMPLE_RATE);
     let difference = output[43_200..]
@@ -2517,13 +2504,14 @@ fn test_cabinet_switches_without_a_click_and_keeps_its_level() {
         let without =
             run(&AmpSettings { cab_on: false, ..with_amp(amp, 0.5) }, &chords, SAMPLE_RATE);
         let fizz = |output: &[f32]| band_level_db(output, SAMPLE_RATE, Some(8000.0), None);
-        // Klar and Glød keep their tops dark in the stages themselves, Træ's cabinet is the
-        // body of an acoustic guitar, which lets the top through, and Smæld's own cabinet lets
-        // the top through on purpose (it takes 5.4 dB off above 8 kHz here)
-        if !matches!(amp, Amp::Klar | Amp::Glod | Amp::Trae | Amp::Smaeld) {
+        // Klar and Glød keep their tops dark in the stages themselves, and Træ's cabinet is
+        // the body of an acoustic guitar, which lets the top through. Smæld's own cabinet
+        // lets more of the top through on purpose: 5.4 dB come off above 8 kHz here
+        if !matches!(amp, Amp::Klar | Amp::Glod | Amp::Trae) {
             let (with, without) = (fizz(&with), fizz(&without));
+            let least = if amp == Amp::Smaeld { 4.0 } else { 6.0 };
             assert!(
-                without > with + 6.0,
+                without > with + least,
                 "{:?}: {:.1} dB and {:.1} dB above 8 kHz",
                 amp,
                 with,
@@ -6916,7 +6904,8 @@ fn test_smaeld_keeps_the_attack_better_than_every_other_amp() {
 }
 
 /// The clean amps side by side: distortion of a held note per Gain, crest of clean playing,
-/// the bite, the air and the lows:
+/// the bite, the air and the lows, loudness, what two notes played together make between
+/// them (chord blur) at the reference level and 6 dB hotter, peaks, and the top:
 /// cargo test -p amp --release clean_report -- --ignored --nocapture
 #[test]
 #[ignore]

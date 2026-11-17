@@ -30,7 +30,7 @@ GitHub release.
 
 ### Guitar Amp
 
-- A new amp, **Træ** (TR-15), the last on the head's nameplate: it makes an electric guitar sound like an
+- A new amp, **Træ** (TR-15), on the head's nameplate: it makes an electric guitar sound like an
   acoustic one. Where the other amps have a speaker cabinet it has the body of a guitar, with the low
   mids of a magnetic pickup taken out and the strings' top let through, and nothing in it distorts. Two
   notes held together come out as those two notes, with nothing between them, at the level a guitar is
