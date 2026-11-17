@@ -7,6 +7,8 @@ use super::line::ModLine;
 use super::{middle, Dial, Fade, TURNS_APART};
 use crate::delay::SILENCE;
 use crate::dsp::filters::{OnePoleHp, OnePoleLp};
+use crate::effect::{Effect, EffectSettings, Rates};
+use crate::order::Zone;
 
 pub const RATE_MIN_HZ: f32 = 0.1;
 pub const RATE_MAX_HZ: f32 = 6.0;
@@ -223,6 +225,36 @@ impl Chorus {
     #[cfg(test)]
     pub(crate) fn buffers(&self) -> Vec<(usize, usize)> {
         vec![self.line.buffer()]
+    }
+}
+
+impl EffectSettings for ChorusSettings {
+    fn is_on(&self) -> bool {
+        self.on
+    }
+}
+
+impl Effect for Chorus {
+    type Settings = ChorusSettings;
+
+    fn new() -> Self {
+        Chorus::new()
+    }
+
+    fn set_up(&mut self, zone: Zone, rates: Rates) {
+        self.set_sample_rate(rates.in_zone(zone));
+    }
+
+    fn is_idle(&self) -> bool {
+        self.is_idle()
+    }
+
+    fn process_front(&mut self, settings: &ChorusSettings, block: &mut [f32]) {
+        self.process_mono(settings, block);
+    }
+
+    fn process_back(&mut self, settings: &ChorusSettings, left: &mut [f32], right: &mut [f32]) {
+        self.process_stereo(settings, left, right);
     }
 }
 

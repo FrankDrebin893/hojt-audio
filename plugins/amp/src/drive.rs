@@ -3,6 +3,8 @@ use crate::dsp::oversample::{factor_for, Oversampler, MAX_FACTOR};
 use crate::dsp::pair::Pair;
 use crate::dsp::shaper::AsymClipper;
 use crate::dsp::{curve, db_to_gain, lerp, Ramp};
+use crate::effect::{Effect, EffectSettings, Rates};
+use crate::order::Zone;
 
 // Only what is above this corner is amplified and clipped: the low end stays out of the
 // clipping and passes underneath it, clean
@@ -303,6 +305,82 @@ impl BackDrive {
                 return;
             }
         }
+    }
+}
+
+/// What a drive on a slot is told: the switch and the three dials, 0.0 to 1.0
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
+pub struct DriveSettings {
+    pub on: bool,
+    pub drive: f32,
+    pub tone: f32,
+    pub level: f32,
+}
+
+impl EffectSettings for DriveSettings {
+    fn is_on(&self) -> bool {
+        self.on
+    }
+}
+
+/// The drive as the chain plays it: one instance for each side, the one behind the cabinet
+/// raising the rate itself
+pub struct DriveEffect {
+    front: Drive,
+    back: BackDrive,
+}
+
+impl Effect for DriveEffect {
+    type Settings = DriveSettings;
+
+    fn new() -> Self {
+        DriveEffect { front: Drive::new(), back: BackDrive::new() }
+    }
+
+    fn set_sample_rate(&mut self, rates: Rates) {
+        self.front.configure(rates.oversampled);
+        self.back.configure(rates.host);
+    }
+
+    fn set_up(&mut self, _zone: Zone, _rates: Rates) {
+        self.front.reset();
+        self.back.reset();
+        self.front.set_on(false);
+        self.back.set_on(false);
+        self.front.snap();
+        self.back.snap();
+    }
+
+    /// No tail: always idle, as the pedal counts in `AmpChain::is_idle`
+    fn is_idle(&self) -> bool {
+        true
+    }
+
+    fn tell(&mut self, settings: Option<&DriveSettings>, zone: Zone, steps: u32, snap: bool) {
+        match settings {
+            Some(&DriveSettings { on, drive, tone, level }) => {
+                self.front.set_on(on && zone == Zone::Front);
+                self.back.set_on(on && zone == Zone::Back);
+                self.front.set(drive, tone, level, steps);
+                self.back.set(drive, tone, level, steps);
+                if snap {
+                    self.front.snap();
+                    self.back.snap();
+                }
+            }
+            None => {
+                self.front.set_on(false);
+                self.back.set_on(false);
+            }
+        }
+    }
+
+    fn process_front(&mut self, _settings: &DriveSettings, block: &mut [f32]) {
+        self.front.process(block);
+    }
+
+    fn process_back(&mut self, _settings: &DriveSettings, left: &mut [f32], right: &mut [f32]) {
+        self.back.process_stereo(left, right);
     }
 }
 

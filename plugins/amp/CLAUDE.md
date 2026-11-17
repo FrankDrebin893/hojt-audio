@@ -56,9 +56,16 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   `Layout::of`: `Voice::Home(pedal)` for a block on its pedal's own slot (the pedal plays from its
   own parameters, as it always did) and `Voice::Slot { kind, slot, rank }` for any other. A pedal
   the chain does not hold is not in it, so it is not played, whatever its switch says
-- `src/extras.rs` - The effects that play from a slot's parameters (#268): `BlockSettings` (what
-  a block is told, one variant a kind), `Unit` (one effect, made for either side as the pedals
-  are) and `Pool` (`MAX_PER_KIND` units of each of the 13 kinds, made with the chain by
+- `src/effect.rs`, `src/effects.rs` - One seam for a pedal (#371, milestone 1): `Effect` (the trait: `new`,
+  `set_sample_rate`, `set_up`, `reset`, `is_idle`, `tell`, `process_front`, `process_back`, and its
+  `Settings`), implemented next to each pedal's own code (a pedal with an instance a side keeps both inside
+  its `Effect` type: `DriveEffect`, `PitchEffect`, `WahEffect`, `DelayEffect`, `ReverbEffect`), and the
+  `effects!` table of `effects.rs`, one line a pedal, from which `BlockSettings`, `Body` and the dispatch
+  (a `match`: no `dyn`, no heap) are made. A new pedal is its module with its `Effect` impl and one line
+  in the table (and its parameters in `lib.rs`, its paint in `editor.rs`). Only the slot pool plays through
+  it so far; `AmpChain` still holds its own pedals, to move in milestone 2
+- `src/extras.rs` - The effects that play from a slot's parameters (#268): `Unit` (one effect of the table,
+  made for either side as the pedals are, with where it stands) and `Pool` (`MAX_PER_KIND` units of each of the 13 kinds, made with the chain by
   `AmpChain::set_sample_rate`, so putting a block in the chain allocates nothing). Units are
   assigned by the layout (`Pool::follow`): one that is put in or moves to the other side starts
   from rest
@@ -601,6 +608,10 @@ cargo test -p amp --release render_voices -- --ignored
 # One number per amp, Gain and pedal that changes with any bit of the output. Save the lines
 # before and after a change that must leave a sound as it is, and compare them.
 cargo test -p amp --release fingerprint_report -- --ignored --nocapture
+
+# The same for every effect as a block on a slot (#371), on each side, switched off and on again and
+# crossed to the other side: one number per kind, side and rate. Save before and after, compare.
+cargo test -p amp --release slot_fingerprint_report -- --ignored --nocapture
 
 # Delay and reverb by themselves: echo times, decay times, density, width, cost.
 cargo test -p amp --release effects_report -- --ignored --nocapture

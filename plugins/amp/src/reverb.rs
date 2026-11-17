@@ -1,9 +1,12 @@
 //! Stereo reverb behind the delay: a smooth, dark tail that leaves the attack and the low
 //! notes of the guitar alone
 
+use crate::chain::AmpChain;
 use crate::delay::{read_cubic, soft_limit, SILENCE};
 use crate::dsp::filters::{Biquad, BiquadCoeffs, ANTI_DENORMAL};
 use crate::dsp::smoothing_coeff;
+use crate::effect::{Effect, EffectSettings, Rates};
+use crate::order::Zone;
 use std::f64::consts::TAU;
 
 pub const DECAY_MIN_S: f32 = 0.3;
@@ -502,6 +505,56 @@ impl Reverb {
             }
         }
         left.len()
+    }
+}
+
+impl EffectSettings for ReverbSettings {
+    fn is_on(&self) -> bool {
+        self.on
+    }
+}
+
+/// The reverb as the chain plays it: one instance for the oversampled rate in front of the amp
+/// (on one channel), one for the host's rate behind the cabinet
+pub struct ReverbEffect {
+    front: Reverb,
+    back: Reverb,
+}
+
+impl Effect for ReverbEffect {
+    type Settings = ReverbSettings;
+
+    fn new() -> Self {
+        ReverbEffect { front: Reverb::new(), back: Reverb::new() }
+    }
+
+    fn set_sample_rate(&mut self, rates: Rates) {
+        self.front.set_sample_rate(rates.oversampled);
+        self.back.set_sample_rate(rates.host);
+    }
+
+    /// Nothing that is idle is cleared: that would only cost time
+    fn set_up(&mut self, _zone: Zone, _rates: Rates) {
+        if !self.front.is_idle() {
+            self.front.reset();
+        }
+        if !self.back.is_idle() {
+            self.back.reset();
+        }
+    }
+
+    fn is_idle(&self) -> bool {
+        self.front.is_idle() && self.back.is_idle()
+    }
+
+    fn process_front(&mut self, settings: &ReverbSettings, block: &mut [f32]) {
+        if settings.on || !self.front.is_idle() {
+            AmpChain::mono_through_stereo(block, |l, r| self.front.process(settings, l, r));
+        }
+    }
+
+    fn process_back(&mut self, settings: &ReverbSettings, left: &mut [f32], right: &mut [f32]) {
+        self.back.process(settings, left, right);
     }
 }
 

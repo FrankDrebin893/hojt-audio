@@ -5,6 +5,8 @@
 
 use crate::dsp::filters::{BiquadCoeffs, GlidingBiquad};
 use crate::dsp::lerp;
+use crate::effect::{Effect, EffectSettings, Rates};
+use crate::order::Zone;
 
 /// What a band does with its dial at either end, in dB: the dial's middle is flat
 pub const GAIN_DB: f32 = 12.0;
@@ -225,6 +227,36 @@ impl Eq {
                 samples[index] = if self.mix >= 1.0 { wet } else { dry + self.mix * (wet - dry) };
             }
         }
+    }
+}
+
+impl EffectSettings for EqSettings {
+    fn is_on(&self) -> bool {
+        self.on
+    }
+}
+
+impl Effect for Eq {
+    type Settings = EqSettings;
+
+    fn new() -> Self {
+        Eq::new()
+    }
+
+    fn set_up(&mut self, zone: Zone, rates: Rates) {
+        self.set_sample_rate(rates.in_zone(zone));
+    }
+
+    fn is_idle(&self) -> bool {
+        true
+    }
+
+    fn process_front(&mut self, settings: &EqSettings, block: &mut [f32]) {
+        self.process_mono(settings, block);
+    }
+
+    fn process_back(&mut self, settings: &EqSettings, left: &mut [f32], right: &mut [f32]) {
+        self.process_stereo(settings, left, right);
     }
 }
 

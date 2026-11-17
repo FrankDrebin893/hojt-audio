@@ -14,6 +14,8 @@ mod dial_memory;
 mod drive;
 mod dsp;
 mod editor;
+mod effect;
+mod effects;
 mod eq;
 mod extras;
 mod fuzz;
