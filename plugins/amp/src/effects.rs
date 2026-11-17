@@ -1,10 +1,12 @@
 //! The table of the pedals (#371): one line a pedal, and everything that has to name each of
 //! them is made from it.
 //!
-//! A line gives the pedal's `EffectKind` (the variant of the same name), the `Pedal` that has
-//! parameters of its own for it (`None` for the gate, which is no pedal of the order), its
-//! `Effect` type, that type's settings and how they are read from `AmpSettings` and the dials
-//! the chain is at (`home`). The macro makes from it:
+//! A line gives the pedal's `EffectKind` (the variant of the same name), what a saved project
+//! calls it (`id`, frozen), how many of a slot's knobs it uses (`knobs`) and how a slot's
+//! switch and knobs make its settings (`slot`), the `Pedal` that has parameters of its own for
+//! it (`None` for the gate, which is no pedal of the order), its `Effect` type, that type's
+//! settings and how they are read from `AmpSettings` and the dials the chain is at (`home`).
+//! The lines stand in the order of the effects bank's cards. The macro makes from it:
 //!
 //! - `BlockSettings`: what a block of the chain is told, one variant a kind
 //! - `Body`: the effect itself, one variant a kind
@@ -12,7 +14,9 @@
 //!   `process_front` and `process_back`, and the same for the pedal on its own parameters
 //!   (`set_up_home`, `put_away`, `rest`, `rest_with_amp`, `tell_home`): a `match` on the enum,
 //!   so it is static (no `dyn`, no heap) and a kind left out of the table does not compile
-//! - `home_settings`, what a pedal on its own parameters is told, and `kind_of`
+//! - `home_settings`, what a pedal on its own parameters is told, `pedal_of` and `kind_of`
+//! - `id_of`, `knobs_of` and `slot_settings`, read by `slots.rs` (and `order.rs`: a pedal's id
+//!   is its kind's), and `CARDS`, the effects bank's cards
 //!
 //! A new pedal is its module with its `Effect` impl and one line here (and its parameters in
 //! `lib.rs`, its paint in the editor).
@@ -32,11 +36,16 @@ use crate::mods::tremolo::{Tremolo, TremoloSettings};
 use crate::order::{Pedal, Zone};
 use crate::pitch::{PitchEffect, PitchSettings};
 use crate::reverb::{ReverbEffect, ReverbSettings};
-use crate::slots::EffectKind;
+use crate::slots::{EffectKind, KNOBS};
 use crate::wah::{WahEffect, WahSettings};
+use crate::GuitarAmpParams;
+use nih_plug::prelude::Param;
 
 macro_rules! effects {
     ($($kind:ident {
+        id: $id:expr,
+        knobs: $knobs:expr,
+        slot: $slot:expr,
         pedal: $pedal:expr,
         effect: $effect:ty,
         settings: $settings:ty,
@@ -205,13 +214,61 @@ macro_rules! effects {
             }
         }
 
-        /// The pedal that has parameters of its own for `kind` (read by `slots.rs` from
-        /// milestone 3 on)
-        pub fn pedal_of(kind: EffectKind) -> Option<Pedal> {
+        /// The pedal that has parameters of its own for `kind`
+        pub const fn pedal_of(kind: EffectKind) -> Option<Pedal> {
             match kind {
                 $(EffectKind::$kind => $pedal,)*
             }
         }
+
+        /// What a saved project calls `kind`. Frozen
+        pub const fn id_of(kind: EffectKind) -> &'static str {
+            match kind {
+                $(EffectKind::$kind => $id,)*
+            }
+        }
+
+        /// How many of a slot's `KNOBS` the kind uses
+        pub const fn knobs_of(kind: EffectKind) -> usize {
+            match kind {
+                $(EffectKind::$kind => $knobs,)*
+            }
+        }
+
+        /// What a block of `kind` is told from a switch and knobs at these positions (0.0 to
+        /// 1.0): the parameters give each knob its range
+        pub fn slot_settings(
+            kind: EffectKind,
+            params: &GuitarAmpParams,
+            on: bool,
+            knobs: [f32; KNOBS],
+            tempo_bpm: Option<f64>,
+        ) -> BlockSettings {
+            match kind {
+                $(EffectKind::$kind => {
+                    let read: fn(&GuitarAmpParams, bool, [f32; KNOBS], Option<f64>) -> $settings =
+                        $slot;
+                    BlockSettings::$kind(read(params, on, knobs, tempo_bpm))
+                })*
+            }
+        }
+
+        /// The cards of the effects bank, in the order the table lists the kinds: every kind
+        /// that is a pedal, the gate (the line's own first piece) having none
+        pub const CARDS: [EffectKind; Pedal::ALL.len()] = {
+            let kinds = [$(EffectKind::$kind,)*];
+            let mut cards = [EffectKind::Gate; Pedal::ALL.len()];
+            let (mut at, mut next) = (0, 0);
+            while at < kinds.len() {
+                if pedal_of(kinds[at]).is_some() {
+                    cards[next] = kinds[at];
+                    next += 1;
+                }
+                at += 1;
+            }
+            assert!(next == cards.len());
+            cards
+        };
 
         /// The kind of effect that plays for `pedal`
         pub fn kind_of(pedal: Pedal) -> EffectKind {
@@ -236,7 +293,7 @@ macro_rules! effects {
         }
 
         /// The settings of a block of `kind` that is switched off
-        #[allow(dead_code)]
+        #[cfg(test)]
         pub fn off_of(kind: EffectKind) -> BlockSettings {
             match kind {
                 $(EffectKind::$kind => BlockSettings::$kind(Default::default()),)*
@@ -247,10 +304,63 @@ macro_rules! effects {
 
 effects! {
     Gate {
+        id: "gate", knobs: 2,
+        slot: |p, on, [k1, k2, ..], _| GateSettings {
+            on,
+            threshold_db: p.gate_thresh.preview_plain(k1),
+            release_ms: p.gate_release.preview_plain(k2),
+        },
         pedal: None, effect: Gate, settings: GateSettings,
         home: |_, _| GateSettings::default()
     },
+    Pitch {
+        id: "pitch", knobs: 3,
+        slot: |p, on, [k1, k2, k3, ..], _| PitchSettings {
+            on,
+            semitones: p.pitch_semitones.preview_plain(k1),
+            blend: p.pitch_blend.preview_plain(k2),
+            latency_ms: p.pitch_latency.preview_plain(k3),
+        },
+        pedal: Some(Pedal::Pitch), effect: PitchEffect, settings: PitchSettings,
+        home: |s, _| s.pitch
+    },
+    Wah {
+        id: "wah", knobs: 4,
+        slot: |p, on, [k1, k2, k3, k4, _], _| WahSettings {
+            on,
+            mode: p.wah_mode.preview_plain(k3),
+            pedal: p.wah_pedal.preview_plain(k1),
+            bite: p.wah_q.preview_plain(k2),
+            sens: p.wah_sens.preview_plain(k4),
+        },
+        pedal: Some(Pedal::Wah), effect: WahEffect, settings: WahSettings, home: |s, _| s.wah
+    },
+    Comp {
+        id: "comp", knobs: 2,
+        slot: |p, on, [k1, k2, ..], _| CompSettings {
+            on,
+            sustain: p.comp_sustain.preview_plain(k1),
+            level: p.comp_level.preview_plain(k2),
+        },
+        pedal: Some(Pedal::Comp), effect: Comp, settings: CompSettings, home: |s, _| s.comp
+    },
+    Fuzz {
+        id: "fuzz", knobs: 2,
+        slot: |p, on, [k1, k2, ..], _| FuzzSettings {
+            on,
+            fuzz: p.fuzz_fuzz.preview_plain(k1),
+            tone: p.fuzz_tone.preview_plain(k2),
+        },
+        pedal: Some(Pedal::Fuzz), effect: Fuzz, settings: FuzzSettings, home: |s, _| s.fuzz
+    },
     Drive {
+        id: "drive", knobs: 3,
+        slot: |p, on, [k1, k2, k3, ..], _| DriveSettings {
+            on,
+            drive: p.drive_gain.preview_plain(k1),
+            tone: p.drive_tone.preview_plain(k2),
+            level: p.drive_level.preview_plain(k3),
+        },
         pedal: Some(Pedal::Drive), effect: DriveEffect, settings: DriveSettings,
         home: |s, d| DriveSettings {
             on: s.drive_on,
@@ -259,37 +369,80 @@ effects! {
             level: d.drive_level,
         }
     },
-    Comp { pedal: Some(Pedal::Comp), effect: Comp, settings: CompSettings, home: |s, _| s.comp },
-    Fuzz { pedal: Some(Pedal::Fuzz), effect: Fuzz, settings: FuzzSettings, home: |s, _| s.fuzz },
-    Pitch {
-        pedal: Some(Pedal::Pitch), effect: PitchEffect, settings: PitchSettings,
-        home: |s, _| s.pitch
+    Eq {
+        id: "eq", knobs: 4,
+        slot: |p, on, [k1, k2, k3, k4, _], _| EqSettings {
+            on,
+            low: p.eq_low.preview_plain(k1),
+            mid: p.eq_mid.preview_plain(k2),
+            freq: p.eq_freq.preview_plain(k3),
+            high: p.eq_high.preview_plain(k4),
+        },
+        pedal: Some(Pedal::Eq), effect: Eq, settings: EqSettings, home: |s, _| s.eq
     },
-    Wah {
-        pedal: Some(Pedal::Wah), effect: WahEffect, settings: WahSettings, home: |s, _| s.wah
+    Phaser {
+        id: "phaser", knobs: 2,
+        slot: |p, on, [k1, k2, ..], _| PhaserSettings {
+            on,
+            rate_hz: p.phaser_rate.preview_plain(k1),
+            depth: p.phaser_depth.preview_plain(k2),
+        },
+        pedal: Some(Pedal::Phaser), effect: Phaser, settings: PhaserSettings,
+        home: |s, _| s.phaser
     },
-    Eq { pedal: Some(Pedal::Eq), effect: Eq, settings: EqSettings, home: |s, _| s.eq },
     Chorus {
+        id: "chorus", knobs: 2,
+        slot: |p, on, [k1, k2, ..], _| ChorusSettings {
+            on,
+            rate_hz: p.chorus_rate.preview_plain(k1),
+            depth: p.chorus_depth.preview_plain(k2),
+        },
         pedal: Some(Pedal::Chorus), effect: Chorus, settings: ChorusSettings,
         home: |s, _| s.chorus
     },
     Flanger {
+        id: "flanger", knobs: 2,
+        slot: |p, on, [k1, k2, ..], _| FlangerSettings {
+            on,
+            rate_hz: p.flanger_rate.preview_plain(k1),
+            depth: p.flanger_depth.preview_plain(k2),
+        },
         pedal: Some(Pedal::Flanger), effect: Flanger, settings: FlangerSettings,
         home: |s, _| s.flanger
     },
-    Phaser {
-        pedal: Some(Pedal::Phaser), effect: Phaser, settings: PhaserSettings,
-        home: |s, _| s.phaser
-    },
     Tremolo {
+        id: "tremolo", knobs: 2,
+        slot: |p, on, [k1, k2, ..], _| TremoloSettings {
+            on,
+            rate_hz: p.trem_rate.preview_plain(k1),
+            depth: p.trem_depth.preview_plain(k2),
+        },
         pedal: Some(Pedal::Tremolo), effect: Tremolo, settings: TremoloSettings,
         home: |s, _| s.tremolo
     },
     Delay {
+        id: "delay", knobs: 5,
+        slot: |p, on, [k1, k2, k3, k4, k5], tempo_bpm| DelaySettings {
+            on,
+            time_ms: crate::delay_time_ms(
+                p.delay_time.preview_plain(k1),
+                p.delay_sync.preview_plain(k4),
+                p.delay_note.preview_plain(k5),
+                tempo_bpm,
+            ),
+            feedback: p.delay_feedback.preview_plain(k2),
+            mix: p.delay_mix.preview_plain(k3),
+        },
         pedal: Some(Pedal::Delay), effect: DelayEffect, settings: DelaySettings,
         home: |s, _| s.delay
     },
     Reverb {
+        id: "reverb", knobs: 2,
+        slot: |p, on, [k1, k2, ..], _| ReverbSettings {
+            on,
+            decay_s: p.reverb_decay.preview_plain(k1),
+            mix: p.reverb_mix.preview_plain(k2),
+        },
         pedal: Some(Pedal::Reverb), effect: ReverbEffect, settings: ReverbSettings,
         home: |s, _| s.reverb
     },
@@ -336,6 +489,41 @@ mod tests {
                 EffectKind::ALL.iter().filter(|&&kind| pedal_of(kind) == Some(pedal)).count();
             assert_eq!(rows, 1, "{pedal:?} has {rows} rows");
         }
+    }
+
+    /// What the table now answers for `slots.rs`, `order.rs` and the bank is what those files
+    /// held in matches of their own (frozen: saved projects and the look of the bank)
+    #[test]
+    fn test_the_tables_facts_are_the_ones_that_were_frozen() {
+        use EffectKind::*;
+        let ids = [
+            (Gate, "gate", 2),
+            (Drive, "drive", 3),
+            (Comp, "comp", 2),
+            (Fuzz, "fuzz", 2),
+            (Pitch, "pitch", 3),
+            (Wah, "wah", 4),
+            (Eq, "eq", 4),
+            (Chorus, "chorus", 2),
+            (Flanger, "flanger", 2),
+            (Phaser, "phaser", 2),
+            (Tremolo, "tremolo", 2),
+            (Delay, "delay", 5),
+            (Reverb, "reverb", 2),
+        ];
+        assert_eq!(ids.map(|(kind, ..)| kind), EffectKind::ALL);
+        for (kind, id, knobs) in ids {
+            assert_eq!((id_of(kind), knobs_of(kind)), (id, knobs), "{kind:?}");
+            assert!(knobs <= KNOBS);
+        }
+        for pedal in Pedal::ALL {
+            assert_eq!(pedal.id(), id_of(kind_of(pedal)));
+        }
+        // The bank's cards: two rows of six, as drawn since the bank was made
+        assert_eq!(
+            CARDS,
+            [Pitch, Wah, Comp, Fuzz, Drive, Eq, Phaser, Chorus, Flanger, Tremolo, Delay, Reverb]
+        );
     }
 
     /// A body told the settings of another kind (which the chain never does) plays as if it

@@ -61,8 +61,15 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   `Settings`), implemented next to each pedal's own code (a pedal with an instance a side keeps both inside
   its `Effect` type: `DriveEffect`, `PitchEffect`, `WahEffect`, `DelayEffect`, `ReverbEffect`), and the
   `effects!` table of `effects.rs`, one line a pedal, from which `BlockSettings`, `Body` and the dispatch
-  (a `match`: no `dyn`, no heap) are made. A new pedal is its module with its `Effect` impl and one line
-  in the table (and its parameters in `lib.rs`, its paint in `editor.rs`). From milestone 2 `AmpChain`
+  (a `match`: no `dyn`, no heap) are made. **To add a pedal:** its own module with its `Effect` impl, one
+  line in the table (its `id`, knob count, how a slot's knobs make its settings, how its own parameters
+  do, its `Pedal` and `EffectKind`), its parameters in `lib.rs` (the nih-plug derive needs the fields),
+  its paint in `editor.rs` with its picture, and its tests. Nothing in `chain.rs`, `extras.rs`,
+  `layout.rs`, `order.rs`, `slots.rs`'s dispatch or `no_alloc.rs` (the table walk there covers it).
+  The table also gives `slots.rs` an effect kind's id, knob count, pedal and settings from a slot
+  (`effects::id_of`, `knobs_of`, `pedal_of`, `slot_settings`), `order.rs` a pedal's id and `bank.rs` its
+  `CARDS` (the table's order is the cards' order; the frozen `ALL` orders of `Pedal` and `EffectKind`
+  stay where they are, with their tests). From milestone 2 `AmpChain`
   holds its twelve pedals through it too (`homes` and `home_settings`, by `Pedal::index`; a row of the table also
   says how the pedal's settings are read from `AmpSettings`, `home`), and `Voice::Home` and `Voice::Slot` play
   through the same `Body::process_front` and `process_back`. What a pedal on its own parameters does differently
