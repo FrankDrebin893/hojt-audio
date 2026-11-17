@@ -1425,7 +1425,14 @@ pub mod tests {
             let level = |freq: f32| to_db(ir.magnitude(freq, 48000.0));
             let mids = level(1000.0);
             assert!(level(30.0) < mids - 15.0, "{} keeps sub bass", name);
-            assert!(level(10000.0) < mids - 20.0, "{} keeps fizz", name);
+            if cab.rolloff_hz < 8000.0 {
+                assert!(level(10000.0) < mids - 20.0, "{} keeps fizz", name);
+            } else {
+                // Not a speaker but the body of an acoustic guitar (Træ's): the strings' own
+                // top is what makes it one, so it is open up there
+                assert!(level(7000.0) > mids - 3.0, "{} loses its top", name);
+                assert!(level(16000.0) < mids - 20.0, "{} keeps hiss", name);
+            }
             assert!(level(cab.resonance_hz) > mids - 8.0, "{} has no low end", name);
         }
     }

@@ -25,6 +25,18 @@ GitHub release.
   installed programs had left it out, since it had only been built by hand. The ASIO SDK is built from
   its GPLv3 licence, the same as the plugins.
 
+### Guitar Amp
+
+- A new amp, **Træ** (TR-15), the last on the head's nameplate: it makes an electric guitar sound like an
+  acoustic one. Where the other amps have a speaker cabinet it has the body of a guitar, with the low
+  mids of a magnetic pickup taken out and the strings' top let through, and nothing in it distorts. Two
+  notes held together come out as those two notes, with nothing between them, at the level a guitar is
+  usually recorded at and anywhere up to Gain 7.5; past that it starts to round off the hardest
+  strums. It looks the part: honey-coloured spruce, a dark wood panel and gold knobs. Two factory
+  presets come with it, Gran (strummed chords) and Lejr (fingerpicking with the compressor and a longer
+  hall). It is the one amp that follows the guitar's level dB for dB, so a quieter guitar is quieter
+  through it than through the others.
+
 ### Bass Synth
 
 - Metal no longer turns low notes into a buzz. Its distortion used to work on the note itself,

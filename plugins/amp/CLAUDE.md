@@ -5,13 +5,15 @@ reasons behind the amp's design are in `DESIGN.md` next to this file; open work 
 `plugin:amp` issues.
 
 A guitar amp with a full signal chain, all our own designs: own names, no real makers' names,
-trademarks or circuit names anywhere (code, comments, docs, commit messages). Ten amps, each
+trademarks or circuit names anywhere (code, comments, docs, commit messages). Eleven amps, each
 with its own cabinet: Klar (clean, glassy), Brøl (mid-forward crunch), Torden (modern tight high
 gain), Glød (warm edge of breakup, between Klar and Brøl), Sang (a smooth, compressed singing
 lead), Drøn (a big, loose, dark amp with the low end let through), and, from #263, Knald (thick,
 warm, slightly woolly mid-gain), Gnist (its bright, chimey cousin), Skarp (crisp, tight modern high
-gain with a bite at 3 kHz and deep sag) and Hvas (dense, hot-rodded high gain, looser low end). They
-share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_ids_are_frozen`).
+gain with a bite at 3 kHz and deep sag) and Hvas (dense, hot-rodded high gain, looser low end),
+and Træ (#400: an electric guitar made to sound acoustic, its "cabinet" the body of a guitar open to
+9 kHz, nothing clipping at the reference level up to Gain 7.5; `trae_report` and
+`chain/tests/acoustic.rs`). They share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_ids_are_frozen`).
 
 - `src/lib.rs` - Plugin entry point, parameters. Reads them once per block into `AmpSettings`
 - `src/chain.rs` - `AmpChain`: the whole chain, dial smoothing, bypass crossfade, amp switching
@@ -534,7 +536,7 @@ How it behaves:
 | Pitch Blend (`pitch_blend`) | 0-100 % | 100 % | The guitar as it comes in (0) to the shifted guitar alone (100). The dry part is not delayed |
 | Pitch Tracking (`pitch_latency`) | 2-50 ms | 15 ms | The most the shifted guitar may lag behind the input. The lag is fixed, whatever the note: the largest of 5.3, 10.7, 21 and 43 ms that fits (5.3 ms under that). Longer is cleaner |
 | Fuzz Tone (`fuzz_tone`) | 0.0-10.0 | 5.0 | Dark (a low-pass at 650 Hz) to bright (a high-pass at 1.1 kHz), the mids scooped in between |
-| Amp (`amp`) | Klar / Brøl / Torden / Glød / Sang / Drøn | Brøl | Amp and its cabinet. Variant ids `klar`, `brol`, `torden`, `glod`, `sang`, `dron`. New amps go at the end: a project remembers its amp by its number |
+| Amp (`amp`) | Klar / Brøl / Torden / Glød / Sang / Drøn / Knald / Gnist / Skarp / Hvas / Træ | Brøl | Amp and its cabinet. Variant ids `klar`, `brol`, `torden`, `glod`, `sang`, `dron`, `knald`, `gnist`, `skarp`, `hvas`, `trae`. New amps go at the end: a project remembers its amp by its number |
 | Gain, Bass, Mid, Treble, Presence, Master (`gain`, `bass`, `mid`, `treble`, `presence`, `master`) | 0.0-10.0 | 5.0 | The amp's dials |
 | Amp 2 (`amp2_on`) | on / off | off | The second amp, beside the first behind the same front pedals. Off, it is not run at all |
 | Amp 2 Model (`amp2`) | the same six, same variant ids as `amp` | Klar | The second amp's own choice |
@@ -591,6 +593,10 @@ cargo test -p amp --release amp_report -- --ignored --nocapture
 # How loud each amp is heard (LUFS), its peaks and crest per Gain, for guitars recorded from
 # -36 to -12 dBFS RMS, and the distortion of a held note at those levels.
 cargo test -p amp --release loudness_report -- --ignored --nocapture
+
+# Træ, the acoustic amp (#400), against Klar: loudness, peaks and crest per Gain, what it adds
+# between two held notes per level (the blur of a chord), its response to a quiet sine, aliasing
+cargo test -p amp --release trae_report -- --ignored --nocapture
 
 # The four amps of #263 against the others: total preamp gain, loudness, octave bands, the bite
 # at 3 to 5 kHz, the fizz above 7 kHz, aliasing, palm mutes. render_voices writes each next to its
