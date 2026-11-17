@@ -37,8 +37,8 @@ check_linux_packages() {
     done
     if ((${#missing[@]})); then
         echo "Missing Linux packages, which the build needs:" >&2
-        echo "  or: scripts/check.sh deps" >&2
         echo "  sudo apt-get install -y ${missing[*]}" >&2
+        echo "  or: scripts/check.sh deps" >&2
         exit 1
     fi
 }
