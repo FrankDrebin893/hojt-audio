@@ -15,6 +15,7 @@ on:
       - scripts/build-installer.sh
       - scripts/build-standalones.sh
       - scripts/smoke-standalones.ps1
+      - scripts/fetch-mesa.ps1
       - scripts/checksums.sh
       - scripts/test-macos-pkg.sh
       - installer/**
@@ -122,10 +123,18 @@ jobs:
         shell: bash
         run: bash scripts/build-standalones.sh
 
+      # The runner has no GPU, only OpenGL 1.1: a pinned Mesa software OpenGL (SHA-256 checked, used
+      # for the next step only, never shipped) lets the real window open. The graphics NOTE of the
+      # smoke script stays as the fallback
+      - name: Fetch Mesa software OpenGL
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: scripts/fetch-mesa.ps1
+
       - name: Start the standalone programs
         if: runner.os == 'Windows'
         shell: pwsh
-        run: scripts/smoke-standalones.ps1
+        run: scripts/smoke-standalones.ps1 -MesaDir target/mesa
 
       # The Windows installer, from the bundles just built. Unsigned: to sign, set
       # HOJT_SIGN_COMMAND (a command that signs the file it is given last) in this step's env

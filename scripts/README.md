@@ -18,7 +18,7 @@ What each script in this folder does, and the detail behind the rules in `CLAUDE
   `productbuild`, checks their calls, the `distribution.xml` (`xmllint`) and `installer/macos/check-payload.sh` on good and bad
   payload lists; CI runs it on Linux (`ci.yml`) and `check.sh` too. The real package is built by the macOS job of `release.yml`
 - `build-installer.sh` - Builds `dist/HojtDSP-Setup.exe` from the bundles with Inno Setup (Installer below)
-- `build-standalones.sh` - Builds the six standalone programs to `target/standalone/<BundleName>.exe`; `smoke-standalones.ps1` starts each with the dummy backend (`RUST_BACKTRACE=1`) and checks its icon, printing a program's output when it exits at start; a graphics-context panic (a runner without OpenGL) is a NOTE, any other start-up panic fails (Windows job of `release.yml`)
+- `build-standalones.sh` - Builds the six standalone programs to `target/standalone/<BundleName>.exe`; `smoke-standalones.ps1` starts each with the dummy backend (`RUST_BACKTRACE=1`) and checks its icon, printing a program's output when it exits at start; with `-MesaDir` (from `fetch-mesa.ps1`, a pinned and SHA-256-checked Mesa software OpenGL, used for that step only) each program runs from a temp copy beside Mesa's DLLs with `GALLIUM_DRIVER=llvmpipe`, so a runner without a GPU still opens the real window; without it a graphics-context panic (a runner without OpenGL) is a NOTE, any other start-up panic fails (Windows job of `release.yml`)
 - `checksums.sh` - Writes `SHA256SUMS.txt` for the files of a folder, as `release.yml` does for a release
 - `site-audio.sh` - Makes the page's sound examples from the render tests
 - `sound-reports.sh` - The sound reports without their timings, for comparing two builds; they run side by side,
