@@ -1838,9 +1838,10 @@ fn test_switching_amps_with_all_six_dials_jumping_does_not_click() {
                 let output = run_change(&before, &after, &input, at);
                 let ratio = step_ratio(&output, at);
                 // Smæld with its dials low leaves the power stage nearest to rest, so the
-                // amp after it starts a little steeper than after any other
-                let limit = (after_a_jump(to) * out_of_an_open_cabinet(from))
-                    .max(if from == Amp::Smaeld { 1.4 } else { 0.0 });
+                // amp after it starts a little steeper than after any other: Sang and Drøn
+                // read 3 and 2 percent over their own limits
+                let out_of_smaeld = if from == Amp::Smaeld { 1.05 } else { 1.0 };
+                let limit = after_a_jump(to) * out_of_an_open_cabinet(from) * out_of_smaeld;
                 assert!(
                     ratio < limit,
                     "{:?} to {:?}, dials to {}: step {} times its own",
@@ -2509,7 +2510,7 @@ fn test_cabinet_switches_without_a_click_and_keeps_its_level() {
         // lets more of the top through on purpose: 5.4 dB come off above 8 kHz here
         if !matches!(amp, Amp::Klar | Amp::Glod | Amp::Trae) {
             let (with, without) = (fizz(&with), fizz(&without));
-            let least = if amp == Amp::Smaeld { 4.0 } else { 6.0 };
+            let least = if amp == Amp::Smaeld { 5.0 } else { 6.0 };
             assert!(
                 without > with + least,
                 "{:?}: {:.1} dB and {:.1} dB above 8 kHz",

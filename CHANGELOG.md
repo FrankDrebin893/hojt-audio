@@ -46,9 +46,6 @@ GitHub release.
   - `2X12 CHIME`: two 12"s in an open back, a full low end, scooped low mids and a chime high up
   - `FULL RANGE`: a woofer and a tweeter as in an amp for an acoustic guitar, 60 Hz to 12 kHz. It does not
     hide the fizz of a distorted amp, so it is for clean sounds
-
-### Guitar Amp
-
 - A new amp at the end of the Amp stepper (and the second amp's): Smæld (SM-20), a clean amp with
   a snap. Bright, tight and quick, for single coils and chords where every string and the pick on
   it should be heard. It stays clean all the way up the Gain dial, which adds level more than
