@@ -30,7 +30,7 @@ GitHub release.
 
 ### Guitar Amp
 
-- A new amp, **Træ** (TR-15), the last on the head's nameplate: it makes an electric guitar sound like an
+- A new amp, **Træ** (TR-15), on the head's nameplate: it makes an electric guitar sound like an
   acoustic one. Where the other amps have a speaker cabinet it has the body of a guitar, with the low
   mids of a magnetic pickup taken out and the strings' top let through, and nothing in it distorts. Two
   notes held together come out as those two notes, with nothing between them, at the level a guitar is
@@ -46,6 +46,15 @@ GitHub release.
   - `2X12 CHIME`: two 12"s in an open back, a full low end, scooped low mids and a chime high up
   - `FULL RANGE`: a woofer and a tweeter as in an amp for an acoustic guitar, 60 Hz to 12 kHz. It does not
     hide the fizz of a distorted amp, so it is for clean sounds
+- A new amp at the end of the Amp stepper (and the second amp's): Smæld (SM-20), a clean amp with
+  a snap. Bright, tight and quick, for single coils and chords where every string and the pick on
+  it should be heard. It stays clean all the way up the Gain dial, which adds level more than
+  grit, keeps the low end short so nothing booms under a chord, and its power stage leaves two
+  notes played together apart, where the other amps blur them a little. Its own cabinet is one
+  12" in an open back with the top let through. Its head is butterscotch with a silver cloth, a
+  black panel and chrome knobs. Two factory presets: Knips (the clean snap with a small room) and
+  Kvik (a compressor, a short slap and a room, for quick picking). The other amps sound exactly
+  as they did, and projects keep their amp.
 
 ### Bass Synth
 

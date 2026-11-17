@@ -96,7 +96,7 @@ const USUAL_ORDER: &[&str] = &[
 // the gate starts to close on the tail of every mute. The gate closes 3 dB under its
 // threshold, so that is -60 dB, which was -54 dB with the 6 dB it had before. How fast a
 // gate shuts in a rest is its release, not its threshold: 8 dB of threshold are 9 ms
-pub static PRESETS: [Preset; 37] = [
+pub static PRESETS: [Preset; 39] = [
     Preset {
         name: "Init",
         amp: Amp::Brol,
@@ -717,6 +717,40 @@ pub static PRESETS: [Preset; 37] = [
         cab: (ON, [4.5, 5.5]),
         delay: (OFF, 350.0, 30.0, 20.0),
         reverb: (ON, 2.0, 18.0),
+        comp: (ON, [4.0, 3.5]),
+        fuzz: FUZZ_OFF,
+        mods: MODS_OFF,
+        order: USUAL_ORDER,
+    },
+    // Smæld. The clean snap by itself: the top a little up, a short room and nothing else,
+    // so every string of a chord and the pick on it are heard
+    Preset {
+        name: "Knips",
+        amp: Amp::Smaeld,
+        second: NO_SECOND,
+        dials: [4.5, 4.5, 4.5, 5.5, 4.5, 5.0],
+        gate: (ON, -60.0, 100.0),
+        drive: (OFF, [3.0, 5.0, 5.0]),
+        cab: (ON, [5.0, 5.0]),
+        delay: (OFF, 350.0, 30.0, 20.0),
+        reverb: (ON, 1.0, 10.0),
+        comp: COMP_OFF,
+        fuzz: FUZZ_OFF,
+        mods: MODS_OFF,
+        order: USUAL_ORDER,
+    },
+    // Smæld. Quick picking: a compressor that evens the notes out, one short slap behind
+    // each of them and a small room
+    Preset {
+        name: "Kvik",
+        amp: Amp::Smaeld,
+        second: NO_SECOND,
+        dials: [5.0, 5.0, 5.0, 5.5, 5.0, 5.0],
+        gate: (ON, -60.0, 100.0),
+        drive: (OFF, [3.0, 5.0, 5.0]),
+        cab: (ON, [5.0, 5.0]),
+        delay: (ON, 110.0, 8.0, 16.0),
+        reverb: (ON, 1.0, 8.0),
         comp: (ON, [4.0, 3.5]),
         fuzz: FUZZ_OFF,
         mods: MODS_OFF,
