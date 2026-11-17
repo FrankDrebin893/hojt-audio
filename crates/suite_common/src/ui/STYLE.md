@@ -45,6 +45,13 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
   editor gives it a place of its own where no control, caption or art detail is under it: on a pedal between the jack
   captions (`UPDATE_LINE_AT`, 33 px down), on the amp's strip in the room between the settings icon and the output knob
   (`update_line_at`). Each editor has a test that it is drawn when a newer version is known and not when off or closed
+- `audio_lamp.rs` - `audio_lamp`: the red `signal_lamp` with NO AUDIO in a `silk_label` under it (18 px down), drawn from a
+  `ui::AudioNotice` (`AudioNotice::current()` reads the fork's `nih_standalone_audio_status()`: `Some` only while the standalone
+  runs on the dummy backend). The reason is the hover hint, never a pop-up; nothing is drawn with audio or in a DAW. The
+  status is set before the window opens and does not change in it, so the lamp is still and asks for no repaint. Each editor
+  gives it a place of its own: on a pedal beside the footswitches (`NO_AUDIO_AT`, left of the first one), on the amp's strip right of
+  the settings icon (`AUDIO_LAMP`), where a click opens the Audio panel and the update line gives it room (and on the
+  narrowest strips gives way to it, `update_line_fits`). Each editor has a test that it is drawn on the dummy and not otherwise
 - `raster.rs` - Per-pixel lit surfaces (signed distance field + one fixed light; `paint_box_wide` for a long strip, one picture whose middle is stretched, never over 8192 px): `box_image`, `knob_image`
   (a `KnobCap`: `Fluted`, the pedals' knob, `ChickenHead`, `CreamChickenHead`, `GoldTop`, `ChromeSkirt`), `screw_image`, and for the
   half stack `tolex_image` (`Tolex`), `grille_image` (`Grille`, cloth or mesh with the speakers behind it) and

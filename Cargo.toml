@@ -13,9 +13,9 @@ license = "GPL-3.0-or-later"
 # hojt-vst3-infinite-tail; tag hojt-1 keeps the commit, never delete it). VST3 hosts that
 # read the tail length once, before the first block, would otherwise see 0 and may cut
 # delay and reverb tails (#20)
-nih_plug = { git = "https://github.com/FrankDrebin893/nih-plug.git", rev = "f7b1196b266961c70528c7bb3737b9069c13b238" }
-nih_plug_egui = { git = "https://github.com/FrankDrebin893/nih-plug.git", rev = "f7b1196b266961c70528c7bb3737b9069c13b238" }
-nih_plug_xtask = { git = "https://github.com/FrankDrebin893/nih-plug.git", rev = "f7b1196b266961c70528c7bb3737b9069c13b238" }
+nih_plug = { git = "https://github.com/FrankDrebin893/nih-plug.git", rev = "7a32a6e665140f9252e869d5422c62d02e9d952b" }
+nih_plug_egui = { git = "https://github.com/FrankDrebin893/nih-plug.git", rev = "7a32a6e665140f9252e869d5422c62d02e9d952b" }
+nih_plug_xtask = { git = "https://github.com/FrankDrebin893/nih-plug.git", rev = "7a32a6e665140f9252e869d5422c62d02e9d952b" }
 # Only for its `windows_keyboard_workaround` feature, which nih_plug_egui does not turn on:
 # a plugin's editor is a child window of the host's, and on Windows nothing ever gives it the
 # keyboard focus, so a name typed on a label tape was never heard. With the feature on,

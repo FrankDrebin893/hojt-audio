@@ -12,6 +12,9 @@ use crate::kit::Kit;
 use crate::DrumSynthParams;
 
 const UPDATE_LINE_AT: Vec2 = vec2(WINDOW_WIDTH as f32 / 2.0, 33.0);
+// The no-audio lamp (`ui::audio_lamp`), where the audio is the dummy backend: beside the
+// footswitches, with its caption under it, clear of the art and the model number
+const NO_AUDIO_AT: Vec2 = vec2(44.0, 480.0);
 const WINDOW_WIDTH: u32 = 660;
 const WINDOW_HEIGHT: u32 = 600;
 
@@ -59,15 +62,25 @@ pub fn create(
                 update.on_result(move || ctx.request_repaint());
             }
         },
-        move |egui_ctx, setter, _state| draw(egui_ctx, setter, &params, &update),
+        move |egui_ctx, setter, _state| {
+            draw(egui_ctx, setter, &params, &update, ui::AudioNotice::current().as_ref())
+        },
     )
 }
 
 /// The whole window, once the fonts are in: what the plugin shows and its snapshot test draws
-fn draw(ctx: &Context, setter: &ParamSetter, params: &DrumSynthParams, update: &UpdateCheck) {
+fn draw(
+    ctx: &Context,
+    setter: &ParamSetter,
+    params: &DrumSynthParams,
+    update: &UpdateCheck,
+    audio: Option<&ui::AudioNotice>,
+) {
     ui::pedal(ctx, &STYLE, |ui, origin| {
         // The update line, between the jack captions, when a newer version is out
         ui::update_line(ui, origin + UPDATE_LINE_AT, update);
+        // And the no-audio lamp, when the standalone has no audio
+        ui::audio_lamp(ui, origin + NO_AUDIO_AT, audio);
         // Overall sound
         let sound_y = 98.0;
         // Five knobs, evenly across the frame, the middle one over the Mixer's middle one
@@ -146,10 +159,12 @@ mod tests {
         let host = NoHost;
         let setter = ParamSetter::new(&host);
         let picture = |check: &UpdateCheck| {
-            pedal_harness(WINDOW_WIDTH, WINDOW_HEIGHT, |ctx| draw(ctx, &setter, &params, check))
-                .render()
-                .unwrap()
-                .into_raw()
+            pedal_harness(WINDOW_WIDTH, WINDOW_HEIGHT, |ctx| {
+                draw(ctx, &setter, &params, check, None)
+            })
+            .render()
+            .unwrap()
+            .into_raw()
         };
         let none = picture(&UpdateCheck::resting(params.update.clone()));
         assert_ne!(picture(&newer_version()), none, "no line with a newer version known");
@@ -170,8 +185,9 @@ mod tests {
         let host = NoHost;
         let setter = ParamSetter::new(&host);
         let check = newer_version();
-        let mut harness =
-            pedal_harness(WINDOW_WIDTH, WINDOW_HEIGHT, |ctx| draw(ctx, &setter, &params, &check));
+        let mut harness = pedal_harness(WINDOW_WIDTH, WINDOW_HEIGHT, |ctx| {
+            draw(ctx, &setter, &params, &check, None)
+        });
         harness.snapshot("editor_update");
     }
 
@@ -185,8 +201,53 @@ mod tests {
         let host = NoHost;
         let setter = ParamSetter::new(&host);
         let update = UpdateCheck::resting(params.update.clone());
-        let mut harness =
-            pedal_harness(WINDOW_WIDTH, WINDOW_HEIGHT, |ctx| draw(ctx, &setter, &params, &update));
+        let mut harness = pedal_harness(WINDOW_WIDTH, WINDOW_HEIGHT, |ctx| {
+            draw(ctx, &setter, &params, &update, None)
+        });
         harness.snapshot("editor");
+    }
+
+    // The no-audio lamp is drawn when the audio is the dummy backend, and only then: with the audio
+    // running (or in a DAW, which has no status) the window is the one it was (pixel for pixel)
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_no_audio_lamp_is_drawn_when_the_audio_is_the_dummy() {
+        let params = crate::DrumSynthParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let update = UpdateCheck::resting(params.update.clone());
+        let picture = |audio: Option<&ui::AudioNotice>| {
+            pedal_harness(WINDOW_WIDTH, WINDOW_HEIGHT, |ctx| {
+                draw(ctx, &setter, &params, &update, audio)
+            })
+            .render()
+            .unwrap()
+            .into_raw()
+        };
+        let none = picture(None);
+        let dummy = ui::AudioNotice { reason: Some("48000 Hz not offered".into()) };
+        assert_ne!(picture(Some(&dummy)), none, "no lamp on the dummy backend");
+        assert_ne!(
+            picture(Some(&ui::AudioNotice { reason: None })),
+            none,
+            "no lamp for a dummy backend that was asked for"
+        );
+        // The status of the host is not set here, so the window as it opens has none
+        assert!(picture(ui::AudioNotice::current().as_ref()) == none, "a lamp with audio");
+    }
+
+    // The window with the lamp, against tests/snapshots/editor_no_audio.png
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_the_editor_with_the_no_audio_lamp_looks_as_it_did() {
+        let params = crate::DrumSynthParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let update = UpdateCheck::resting(params.update.clone());
+        let notice = ui::AudioNotice { reason: Some("48000 Hz not offered".into()) };
+        let mut harness = pedal_harness(WINDOW_WIDTH, WINDOW_HEIGHT, |ctx| {
+            draw(ctx, &setter, &params, &update, Some(&notice))
+        });
+        harness.snapshot("editor_no_audio");
     }
 }

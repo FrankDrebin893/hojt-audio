@@ -348,7 +348,8 @@ its quick part before each commit. The details, and the sound reports of a pull 
   output device's own and a period size brought into the device's range, with the backend resolving the
   config the plugin is told its `BufferConfig` from, #356, then a reconfigure that also takes a sample rate and
   a period size and initialises the plugin again, in the gap, with the new `BufferConfig`
-  (`Backend::run`'s `reinit`), #247, commit `f7b1196b`; the pin is that branch's tip). To move to a
+  (`Backend::run`'s `reinit`), #247, then a process-wide `nih_standalone_audio_status()`, `Running { backend }`
+  or `Dummy { reason }`, for an editor to say when the audio is the dummy, #356, commit `7a32a6e6`; the pin is that branch's tip). To move to a
   newer upstream, rebase those commits onto it and pin the result
 - An editor paints only when something asks for it, not every frame: anything an editor shows
   that changes on its own asks for a repaint in the frame that draws the change. The rule is in
