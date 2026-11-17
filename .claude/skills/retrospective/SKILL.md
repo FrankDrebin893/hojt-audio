@@ -72,10 +72,7 @@ Three good findings beat ten weak ones; none is a valid result ("Nothing to add"
 
 ## 3. Record
 
-1. **The retro issue.** While 5 or more `from:retro` issues are open, file none: add the findings as
-   one comment on the newest open retro issue instead, and say so in the report. File an issue only when
-   a Proposed fix is a concrete check, rule or tool that no open issue covers; a run whose only content
-   is session friction already listed in an open retro is "Nothing to add". File one issue per run with `/issue`, titled `Retro: <pull request title>`,
+1. **The retro issue.** File one issue per run with `/issue`, titled `Retro: <pull request title>`,
    labels `from:retro` and `kind:chore` and the state `state:idea`, and this body (the old log
    file is gone: an issue never conflicts with another pull request, and the next run finds it by
    its label). "Nothing to add" files no issue:
