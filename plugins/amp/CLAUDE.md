@@ -564,7 +564,7 @@ How it behaves:
 | Amp (`amp`) | Klar / Brøl / Torden / Glød / Sang / Drøn / Knald / Gnist / Skarp / Hvas / Træ | Brøl | Amp and its cabinet. Variant ids `klar`, `brol`, `torden`, `glod`, `sang`, `dron`, `knald`, `gnist`, `skarp`, `hvas`, `trae`. New amps go at the end: a project remembers its amp by its number |
 | Gain, Bass, Mid, Treble, Presence, Master (`gain`, `bass`, `mid`, `treble`, `presence`, `master`) | 0.0-10.0 | 5.0 | The amp's dials |
 | Amp 2 (`amp2_on`) | on / off | off | The second amp, beside the first behind the same front pedals. Off, it is not run at all |
-| Amp 2 Model (`amp2`) | the same six, same variant ids as `amp` | Klar | The second amp's own choice |
+| Amp 2 Model (`amp2`) | the same eleven, same variant ids as `amp` | Klar | The second amp's own choice |
 | Amp 2 Gain, Bass, Mid, Treble, Presence, Master (`amp2_gain`, `amp2_bass`, `amp2_mid`, `amp2_treble`, `amp2_presence`, `amp2_master`) | 0.0-10.0 | 5.0 | The second amp's dials |
 | Amp Blend (`amp_blend`) | 0.0-10.0 | 5.0 | 0 is the first amp alone, 10 the second alone. Not heard while Amp 2 is off |
 | EQ (`eq_on`) | on / off | off | EQ pedal, either side of the amp |

@@ -653,7 +653,7 @@ const HVAS_CAB: CabModel = CabModel {
 /// Træ's own, and not a speaker: the body of an acoustic guitar as a microphone in front of
 /// it hears it. The air in the box at 100 Hz and the top at 200 Hz, the mids of a magnetic
 /// pickup taken out, the strings' own top let through all the way up, and the wood: narrow
-/// peaks and notches from 250 Hz on, which ring twice as long as a cone's
+/// peaks and notches from 1 to 7 kHz, which ring twice as long as a cone's
 const TRAE_CAB: CabModel = CabModel {
     resonance_hz: 85.0,
     resonance_q: 0.8,
@@ -1533,7 +1533,7 @@ static HVAS: AmpModel = AmpModel {
 /// off a string struck hard at the top of the Gain dial, and a power stage that is straight
 /// up to its knee. What makes the sound is the frequency response: a treble lift in front
 /// that gives back what a magnetic pickup loses, the mids scooped at the dials' centre, and a
-/// "cabinet" that is the body of a guitar, open to 15 kHz
+/// "cabinet" that is the body of a guitar, open to 9 kHz
 static TRAE: AmpModel = AmpModel {
     name: "Træ",
     model_number: "TR-15",
