@@ -136,6 +136,18 @@ pub struct PitchEffect {
     back: [Pitch; 2],
 }
 
+#[cfg(test)]
+impl PitchEffect {
+    /// Address and capacity of every buffer, for checking that nothing is allocated anew
+    pub(crate) fn buffers(&self) -> Vec<(usize, usize)> {
+        let mut layout = self.front.buffers();
+        for side in &self.back {
+            layout.extend(side.buffers());
+        }
+        layout
+    }
+}
+
 impl Effect for PitchEffect {
     type Settings = PitchSettings;
 
@@ -149,6 +161,19 @@ impl Effect for PitchEffect {
     }
 
     fn set_up(&mut self, _zone: Zone, _rates: Rates) {
+        self.front.reset();
+        self.back.iter_mut().for_each(Pitch::reset);
+    }
+
+    /// The side the pedal is not on is put to rest: the one it is on was when it was left
+    fn set_up_home(&mut self, zone: Zone, _rates: Rates) {
+        match zone {
+            Zone::Front => self.back.iter_mut().for_each(Pitch::reset),
+            Zone::Back => self.front.reset(),
+        }
+    }
+
+    fn put_away(&mut self) {
         self.front.reset();
         self.back.iter_mut().for_each(Pitch::reset);
     }

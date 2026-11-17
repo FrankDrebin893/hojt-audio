@@ -77,14 +77,10 @@ impl Unit {
         self.body.tell(settings, zone, steps, snap);
     }
 
-    /// In front of the amp: one channel, at the oversampled rate. Does not allocate
-    pub fn process_front(&mut self, settings: &BlockSettings, high: &mut [f32]) {
-        self.body.process_front(settings, high);
-    }
-
-    /// Behind the cabinet: two channels, at the host's rate. Does not allocate
-    pub fn process_back(&mut self, settings: &BlockSettings, left: &mut [f32], right: &mut [f32]) {
-        self.body.process_back(settings, left, right);
+    /// The effect itself, which plays through the same call as a pedal on its own parameters
+    /// (`Body::process_front` and `process_back`)
+    pub fn body_mut(&mut self) -> &mut Body {
+        &mut self.body
     }
 }
 

@@ -1,11 +1,10 @@
 //! Stereo reverb behind the delay: a smooth, dark tail that leaves the attack and the low
 //! notes of the guitar alone
 
-use crate::chain::AmpChain;
 use crate::delay::{read_cubic, soft_limit, SILENCE};
 use crate::dsp::filters::{Biquad, BiquadCoeffs, ANTI_DENORMAL};
 use crate::dsp::smoothing_coeff;
-use crate::effect::{Effect, EffectSettings, Rates};
+use crate::effect::{mono_through_stereo, Effect, EffectSettings, Rates};
 use crate::order::Zone;
 use std::f64::consts::TAU;
 
@@ -521,6 +520,16 @@ pub struct ReverbEffect {
     back: Reverb,
 }
 
+#[cfg(test)]
+impl ReverbEffect {
+    /// Address and capacity of every buffer, for checking that nothing is allocated anew
+    pub(crate) fn buffers(&self) -> Vec<(usize, usize)> {
+        let mut layout = self.front.buffers();
+        layout.extend(self.back.buffers());
+        layout
+    }
+}
+
 impl Effect for ReverbEffect {
     type Settings = ReverbSettings;
 
@@ -543,13 +552,37 @@ impl Effect for ReverbEffect {
         }
     }
 
+    /// The chain's own way: the instance of the side the pedal is not on is put to rest, where
+    /// it is not idle or is. The one it is on was put to rest when it was left
+    fn set_up_home(&mut self, zone: Zone, _rates: Rates) {
+        match zone {
+            Zone::Front => self.back.reset(),
+            Zone::Back => self.front.reset(),
+        }
+    }
+
+    fn put_away(&mut self) {
+        self.front.reset();
+        self.back.reset();
+    }
+
+    /// Nothing that is idle is cleared: that would only cost time
+    fn rest(&mut self) {
+        if !self.front.is_idle() {
+            self.front.reset();
+        }
+        if !self.back.is_idle() {
+            self.back.reset();
+        }
+    }
+
     fn is_idle(&self) -> bool {
         self.front.is_idle() && self.back.is_idle()
     }
 
     fn process_front(&mut self, settings: &ReverbSettings, block: &mut [f32]) {
         if settings.on || !self.front.is_idle() {
-            AmpChain::mono_through_stereo(block, |l, r| self.front.process(settings, l, r));
+            mono_through_stereo(block, |l, r| self.front.process(settings, l, r));
         }
     }
 

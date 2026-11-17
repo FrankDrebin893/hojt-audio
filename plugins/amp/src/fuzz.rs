@@ -402,6 +402,10 @@ impl Effect for Fuzz {
         self.set_sample_rate(rates.in_zone(zone), zone == Zone::Back);
     }
 
+    fn put_away(&mut self) {
+        self.reset();
+    }
+
     fn is_idle(&self) -> bool {
         true
     }

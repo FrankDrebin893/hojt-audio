@@ -330,6 +330,14 @@ pub struct DriveEffect {
     back: BackDrive,
 }
 
+#[cfg(test)]
+impl DriveEffect {
+    /// Whether the pedal behind the cabinet is off and has faded out
+    pub(crate) fn back_is_idle(&self) -> bool {
+        self.back.is_idle()
+    }
+}
+
 impl Effect for DriveEffect {
     type Settings = DriveSettings;
 
@@ -349,6 +357,46 @@ impl Effect for DriveEffect {
         self.back.set_on(false);
         self.front.snap();
         self.back.snap();
+    }
+
+    /// The side the pedal is not on is put to rest (the chain then tells it its switch, see
+    /// `tell_home`)
+    fn set_up_home(&mut self, zone: Zone, _rates: Rates) {
+        match zone {
+            Zone::Front => self.back.reset(),
+            Zone::Back => self.front.reset(),
+        }
+    }
+
+    fn put_away(&mut self) {
+        self.front.reset();
+        self.back.reset();
+    }
+
+    /// The one in front of the amp is put to rest with the amp's stages (`rest_with_amp`)
+    fn rest(&mut self) {
+        self.back.reset();
+    }
+
+    fn rest_with_amp(&mut self) {
+        self.front.reset();
+    }
+
+    fn amp_fade_steps(&self) -> u32 {
+        self.front.fade_steps()
+    }
+
+    /// The switch follows the side the pedal is on; the dials are told wherever it stands
+    fn tell_home(&mut self, settings: &DriveSettings, zone: Option<Zone>, steps: u32, snap: bool) {
+        let DriveSettings { on, drive, tone, level } = *settings;
+        self.front.set_on(on && zone == Some(Zone::Front));
+        self.back.set_on(on && zone == Some(Zone::Back));
+        self.front.set(drive, tone, level, steps);
+        self.back.set(drive, tone, level, steps);
+        if snap {
+            self.front.snap();
+            self.back.snap();
+        }
     }
 
     /// No tail: always idle, as the pedal counts in `AmpChain::is_idle`

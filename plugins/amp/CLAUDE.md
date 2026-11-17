@@ -62,8 +62,14 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
   its `Effect` type: `DriveEffect`, `PitchEffect`, `WahEffect`, `DelayEffect`, `ReverbEffect`), and the
   `effects!` table of `effects.rs`, one line a pedal, from which `BlockSettings`, `Body` and the dispatch
   (a `match`: no `dyn`, no heap) are made. A new pedal is its module with its `Effect` impl and one line
-  in the table (and its parameters in `lib.rs`, its paint in `editor.rs`). Only the slot pool plays through
-  it so far; `AmpChain` still holds its own pedals, to move in milestone 2
+  in the table (and its parameters in `lib.rs`, its paint in `editor.rs`). From milestone 2 `AmpChain`
+  holds its twelve pedals through it too (`homes` and `home_settings`, by `Pedal::index`; a row of the table also
+  says how the pedal's settings are read from `AmpSettings`, `home`), and `Voice::Home` and `Voice::Slot` play
+  through the same `Body::process_front` and `process_back`. What a pedal on its own parameters does differently
+  from the same pedal as a slot's block is in its `Effect` impl, kept as it was and never tidied (`set_up_home`,
+  `put_away`, `rest`, `rest_with_amp`, `tell_home`). `chain.rs`, `layout.rs` and `extras.rs` name no pedal type
+  and nothing there is a `dyn` or a `Box` (`tests/rules.rs`)
+- `src/settings.rs` - `AmpSettings`, what the plugin tells the chain once per block (it was in `chain.rs`)
 - `src/extras.rs` - The effects that play from a slot's parameters (#268): `Unit` (one effect of the table,
   made for either side as the pedals are, with where it stands) and `Pool` (`MAX_PER_KIND` units of each of the 13 kinds, made with the chain by
   `AmpChain::set_sample_rate`, so putting a block in the chain allocates nothing). Units are
@@ -398,7 +404,8 @@ How it behaves:
   was, to the bit. A project saved before a pedal existed gets it where the default has it (the
   wah behind the pitch shifter, wherever the project put that). `Pedal::ALL` only ever grows at the
   end: the order is saved as a number of four bits a pedal too
-- **Delay and reverb in front of the amp** (#268, `AmpChain::front_delay`, `front_reverb`): one
+- **Delay and reverb in front of the amp** (#268, the `front` instance inside `DelayEffect` and
+  `ReverbEffect`, played from `AmpChain::homes`): one
   more `Delay` and `Reverb` made for the oversampled rate, so a pedal that changes sides
   allocates nothing (about 3 MB of lines for the delay at 192 kHz). Only the instance of the side
   the pedal stands on runs; the other is reset when the pedal crosses (`set_up_pedal`), so
@@ -427,8 +434,8 @@ How it behaves:
   pedal does (`AmpChain::driven`). A pedal absent from the chain is put to rest and not run.
   `slot_report` prints, for each kind and side, whether it is the pedal's sound, its level,
   latency and cost
-- **Drive, wah and pitch shifter behind the cabinet** (#268, `AmpChain::back_drive`,
-  `back_wah`, `back_pitch`): made for the host's rate next to the ones in front, so a pedal that
+- **Drive, wah and pitch shifter behind the cabinet** (#268, the `back` instances
+  inside `DriveEffect`, `WahEffect` and `PitchEffect`, played from `AmpChain::homes`): made for the host's rate next to the ones in front, so a pedal that
   changes sides allocates nothing (the pitch shifter's buffers, about 1 MB, once a channel).
   Only the instance of the side the pedal stands on runs; the other is reset when it crosses,
   from rest. The wah and the pitch shifter are one instance a channel with the same settings,
