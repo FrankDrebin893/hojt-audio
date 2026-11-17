@@ -168,12 +168,13 @@ const STIFF_POLE_MAX: f64 = 0.995;
 // `PLANE_T60` times as long. Held together they beat, and the decay is two lines, not one.
 // The second plane pulls the note's pitch up, as the spectral peak of the sum is read; the first
 // is tuned `PLANE_FLAT_HZ` flat to take that back. The pull is a fixed number of Hz at every
-// pitch, measured with `PLANE_FLAT_HZ` at 0 as +0.03 to +0.04 Hz (1.5 cents on the low E, 0.4 on
-// the G above it). It is not the amplitude-weighted 0.4 * 0.15 / 1.15 = 0.052 Hz, which tunes the
-// low E 1.4 cents flat, nor the power-weighted 0.009 Hz; `bass_report` and the tuning test hold it
+// pitch. With the second plane plucked a quarter of the whole way round later (#389) it is
+// 0.054 Hz, near the amplitude-weighted 0.4 * 0.15 / 1.15 = 0.052 Hz, and every note of the tuning
+// test is within 0.06 cents; with a quarter of the delay line alone, a shorter offset, it was
+// 0.03 Hz. `bass_report` and the tuning test hold it
 const PLANE_LEVEL: f32 = 0.15;
 const PLANE_BEAT_HZ: f32 = 0.4;
-const PLANE_FLAT_HZ: f32 = 0.03;
+const PLANE_FLAT_HZ: f32 = 0.054;
 const PLANE_T60: f32 = 1.2;
 // What the hand makes on the string besides the pluck, each a few ms long. A pick scrapes it
 // (Metal): noise over `SCRAPE_S` that swells and dies, at this level against the click it

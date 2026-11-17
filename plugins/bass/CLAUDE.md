@@ -81,9 +81,11 @@ How it behaves:
   lands, and `touch_noise` draws what the hand and the finger make, so that a longer scrape
   does not move the jitter of the plucks after it. `STRING_GAIN` went from 0.7 to 0.62: a level trim
   for the second plane, which adds about 1.3 dB to the first, so the voices stay about as loud
-- Tuning: the second plane pulls the spectral peak of the sum up by a fixed 0.03 to 0.04 Hz, so
-  `PLANE_FLAT_HZ` (0.03) takes it back; the amplitude-weighted 0.052 Hz is too much (low E 1.4
-  cents flat). Milestone 3 moved three tests: the sine test's centroid factor is 1.4, not 1.5
+- Tuning: the second plane pulls the spectral peak of the sum up by a fixed number of Hz,
+  0.054 since it starts a quarter of the whole way round later (#389), so `PLANE_FLAT_HZ` (0.054)
+  takes it back and every note of the tuning test is within 0.06 cents. With 0.03, the pull of the
+  second plane started a quarter of the delay line later, the low E was 0.97 to 1.02 cents sharp,
+  over the test's limit on Linux. Milestone 3 moved three tests: the sine test's centroid factor is 1.4, not 1.5
   (Groove's G, note 43, is at 224 to 226 Hz against 233 before the planes, 1.45 times; the quarter
   period puts the planes' 2nd harmonics against each other, which lifts the fundamental's share);
   Metal against Groove's brightness is 1.7 times, not 2 (it was 2.14: Groove's finger knock is
