@@ -9,6 +9,8 @@
 //! the largest of 5, 11, 21 and 43 ms that fits under it, whatever the note; longer is
 //! cleaner), and 2 samples of the oversampled rate at a shift of 0.
 
+use crate::effect::{Effect, EffectSettings, Rates};
+use crate::order::Zone;
 use suite_common::dsp::pitch::PitchShifter;
 
 /// The Semitones knob, from down an octave to up one
@@ -118,6 +120,75 @@ impl Pitch {
             self.idle = self.mix == 0.0;
         }
         self.mix
+    }
+}
+
+impl EffectSettings for PitchSettings {
+    fn is_on(&self) -> bool {
+        self.on
+    }
+}
+
+/// The pitch as the chain plays it: one instance in front of the amp, one a channel behind
+/// the cabinet
+pub struct PitchEffect {
+    front: Pitch,
+    back: [Pitch; 2],
+}
+
+#[cfg(test)]
+impl PitchEffect {
+    /// Address and capacity of every buffer, for checking that nothing is allocated anew
+    pub(crate) fn buffers(&self) -> Vec<(usize, usize)> {
+        let mut layout = self.front.buffers();
+        for side in &self.back {
+            layout.extend(side.buffers());
+        }
+        layout
+    }
+}
+
+impl Effect for PitchEffect {
+    type Settings = PitchSettings;
+
+    fn new() -> Self {
+        PitchEffect { front: Pitch::new(), back: [Pitch::new(), Pitch::new()] }
+    }
+
+    fn set_sample_rate(&mut self, rates: Rates) {
+        self.front.set_sample_rate(rates.oversampled);
+        self.back.iter_mut().for_each(|side| side.set_sample_rate(rates.host));
+    }
+
+    fn set_up(&mut self, _zone: Zone, _rates: Rates) {
+        self.front.reset();
+        self.back.iter_mut().for_each(Pitch::reset);
+    }
+
+    /// The side the pedal is not on is put to rest: the one it is on was when it was left
+    fn set_up_home(&mut self, zone: Zone, _rates: Rates) {
+        match zone {
+            Zone::Front => self.back.iter_mut().for_each(Pitch::reset),
+            Zone::Back => self.front.reset(),
+        }
+    }
+
+    fn put_away(&mut self) {
+        self.front.reset();
+        self.back.iter_mut().for_each(Pitch::reset);
+    }
+
+    fn is_idle(&self) -> bool {
+        self.front.is_idle() && self.back.iter().all(Pitch::is_idle)
+    }
+
+    fn process_front(&mut self, settings: &PitchSettings, block: &mut [f32]) {
+        self.front.process_mono(settings, block);
+    }
+
+    fn process_back(&mut self, settings: &PitchSettings, left: &mut [f32], right: &mut [f32]) {
+        self.back[0].process_mono(settings, left);
+        self.back[1].process_mono(settings, right);
     }
 }
 

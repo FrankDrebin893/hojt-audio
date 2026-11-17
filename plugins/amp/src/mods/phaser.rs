@@ -6,6 +6,8 @@ use super::lfo::Lfo;
 use super::{Dial, Fade, TURNS_APART};
 use crate::delay::SILENCE;
 use crate::dsp::db_to_gain;
+use crate::effect::{Effect, EffectSettings, Rates};
+use crate::order::Zone;
 
 pub const RATE_MIN_HZ: f32 = 0.1;
 pub const RATE_MAX_HZ: f32 = 8.0;
@@ -218,6 +220,40 @@ impl Phaser {
     #[cfg(test)]
     pub(crate) fn buffers(&self) -> Vec<(usize, usize)> {
         Vec::new()
+    }
+}
+
+impl EffectSettings for PhaserSettings {
+    fn is_on(&self) -> bool {
+        self.on
+    }
+}
+
+impl Effect for Phaser {
+    type Settings = PhaserSettings;
+
+    fn new() -> Self {
+        Phaser::new()
+    }
+
+    fn set_up(&mut self, zone: Zone, rates: Rates) {
+        self.set_sample_rate(rates.in_zone(zone));
+    }
+
+    fn put_away(&mut self) {
+        self.reset();
+    }
+
+    fn is_idle(&self) -> bool {
+        self.is_idle()
+    }
+
+    fn process_front(&mut self, settings: &PhaserSettings, block: &mut [f32]) {
+        self.process_mono(settings, block);
+    }
+
+    fn process_back(&mut self, settings: &PhaserSettings, left: &mut [f32], right: &mut [f32]) {
+        self.process_stereo(settings, left, right);
     }
 }
 

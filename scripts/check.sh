@@ -3,10 +3,13 @@
 #
 #   scripts/check.sh            every step of CI: format, clippy, the tests, the amp's tests
 #                               optimised. Exits 1 at the first step that fails
-#   scripts/check.sh quick      the script modes, format and clippy only
+#   scripts/check.sh quick      the package check, the script modes, format and clippy only
+#   scripts/check.sh deps       installs the Linux packages CI installs that are missing (sudo apt-get, no sudo
+#                               as root); quick and the full run only name them when they are missing
 #   scripts/check.sh modes      only that every tracked scripts/*.sh is executable in git's index
 #   scripts/check.sh hook       the Claude Code PreToolUse hook (.claude/settings.json): the quick
 #                               part before a `git commit`, blocking the commit when it fails
+#                               in the tree the commit is made in (a worktree's own, not this checkout's)
 #
 # On Linux it first says which of the packages CI installs are missing. Format and clippy run on
 # the Rust that ci.yml pins when rustup has it, as CI does; otherwise it says so and uses the default.
@@ -35,8 +38,35 @@ check_linux_packages() {
     if ((${#missing[@]})); then
         echo "Missing Linux packages, which the build needs:" >&2
         echo "  sudo apt-get install -y ${missing[*]}" >&2
+        echo "  or: scripts/check.sh deps" >&2
         exit 1
     fi
+}
+
+# Installs the packages CI installs that are missing (sudo unless already root). Never run on its own by
+# another mode: an unasked apt-get before every commit would be a surprise.
+deps() {
+    if [[ "$(uname -s)" != Linux ]] || ! command -v apt-get > /dev/null; then
+        echo "scripts/check.sh deps: needs a Debian-like Linux with apt-get" >&2
+        exit 1
+    fi
+    local missing=() sudo=""
+    for p in $(linux_packages); do
+        dpkg-query -W -f='${Status}' "$p" 2> /dev/null | grep -q 'install ok installed' || missing+=("$p")
+    done
+    if ((${#missing[@]} == 0)); then
+        echo "== All of CI's Linux packages are installed"
+        return 0
+    fi
+    if [[ "$(id -u)" != 0 ]]; then
+        command -v sudo > /dev/null || {
+            echo "scripts/check.sh deps: not root and no sudo; install as root: apt-get install -y ${missing[*]}" >&2
+            exit 1
+        }
+        sudo=sudo
+    fi
+    step $sudo apt-get update -qq
+    DEBIAN_FRONTEND=noninteractive step $sudo apt-get install -y -qq --no-install-recommends "${missing[@]}"
 }
 
 # The toolchain of the lint job ("dtolnay/rust-toolchain@1.99.1"), as `+1.99.1` if rustup has it.
@@ -47,7 +77,8 @@ lint_toolchain() {
         echo "+$version"
     else
         echo "Rust $version, which CI lints with, is not installed (rustup toolchain install $version" \
-            "--component rustfmt clippy); format and clippy run on the default toolchain" >&2
+            "--component rustfmt clippy); format and clippy run on the default toolchain, whose clippy may" \
+            "report lints CI does not" >&2
     fi
 }
 
@@ -76,6 +107,7 @@ script_modes() {
 
 quick() {
     local tc
+    check_linux_packages
     script_modes
     tc="$(lint_toolchain)"
     step cargo $tc fmt --all --check
@@ -83,7 +115,6 @@ quick() {
 }
 
 full() {
-    check_linux_packages
     quick
     step cargo test --workspace --locked
     # The clippers' two-at-a-time path is only compiled in optimised x86-64 builds, and the bass's
@@ -91,18 +122,31 @@ full() {
     step cargo test -p amp -p bass --profile optimised --locked
     [[ "$(uname -s)" == Linux ]] && step bash scripts/test-linux-install.sh
     step bash scripts/test-macos-pkg.sh
+    step bash scripts/test-pin-nih-plug.sh
     echo "== All of CI's steps pass"
 }
 
 # Claude Code passes the tool call (Bash or PowerShell) as JSON on stdin; only a `git commit`
 # (or `git -C <dir> commit`) is checked, not `git commit-tree`. Exit 2 blocks the commit and hands
 # what failed back to the agent.
+#
+# The tree that is checked is the one the commit is made in: `git -C <dir>` when the command names
+# one, otherwise the tool's working directory (`cwd`). A session in a worktree has this script's
+# own checkout as its project directory, and that one may hold another branch altogether.
 hook() {
-    grep -Eq '"command".*git( +-C +[^ ]+)? +commit([^-a-z]|$)' || exit 0
-    local out
+    local input out dir top
+    input="$(cat)"
+    grep -Eq '"command".*git( +-C +[^ ]+)? +commit([^-a-z]|$)' <<< "$input" || exit 0
+    dir="$(sed -nE 's/.*"command".*git +-C +\\?"?([^ "\\]+).* +commit([^-a-z].*|$)/\1/p' <<< "$input" | head -1)"
+    [[ -n "$dir" ]] || dir="$(sed -nE 's/.*"cwd" *: *"(([^"\\]|\\.)*)".*/\1/p' <<< "$input" | head -1)"
+    dir="${dir//\\\\//}" # JSON writes a Windows path's backslash twice; Git Bash takes D:/a/b
+    if [[ -n "$dir" ]] && top="$(git -C "$dir" rev-parse --show-toplevel 2> /dev/null)" &&
+        [[ -f "$top/scripts/check.sh" && -f "$top/$ci" ]]; then
+        cd "$top"
+    fi
     if ! out="$(quick 2>&1)"; then
         {
-            echo "scripts/check.sh quick failed, so the commit was stopped. Fix this, then commit again"
+            echo "scripts/check.sh quick failed in $PWD, so the commit was stopped. Fix this, then commit again"
             echo "(\`cargo fmt --all\` fixes the format):"
             echo "$out" | tail -n 60
         } >&2
@@ -114,9 +158,10 @@ case "${1:-}" in
 "") full ;;
 quick) quick ;;
 modes) script_modes ;;
+deps) deps ;;
 hook) hook ;;
 *)
-    echo "usage: scripts/check.sh [quick|modes|hook]" >&2
+    echo "usage: scripts/check.sh [quick|modes|deps|hook]" >&2
     exit 64
     ;;
 esac

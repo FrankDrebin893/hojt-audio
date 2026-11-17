@@ -5,9 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+# A newer push to a pull request cancels the run of the older one. A run on `main` is never
+# cancelled: each merge gets its own verdict (a cancelled run hides a merge that broke `main`),
+# and its jobs save the build cache every pull request starts from
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CARGO_TERM_COLOR: always
@@ -107,6 +110,11 @@ jobs:
         if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
         run: bash scripts/test-macos-pkg.sh
 
+      # The script that moves the nih-plug fork's pin, on a temporary copy of the files it edits
+      - name: Test the nih-plug pin script
+        if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
+        run: bash scripts/test-pin-nih-plug.sh
+
   lint:
     name: Format and clippy
     needs: changes
@@ -136,6 +144,27 @@ jobs:
       - name: Format
         if: needs.changes.outputs.code == 'true'
         run: cargo fmt --all --check
+
+      - name: Clippy
+        if: needs.changes.outputs.code == 'true'
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+  # The same clippy on Windows, where the commit hook (scripts/check.sh hook) runs it on the
+  # engineer's machine: code that is only used by tests that run on Linux alone is dead code
+  # there, and a hook that cannot pass stops every commit. Not a required check
+  lint-windows:
+    name: Clippy (Windows)
+    needs: changes
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@1.99.1
+        if: needs.changes.outputs.code == 'true'
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        if: needs.changes.outputs.code == 'true'
 
       - name: Clippy
         if: needs.changes.outputs.code == 'true'

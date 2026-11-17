@@ -7,6 +7,8 @@ use super::line::ModLine;
 use super::{middle, Dial, Fade, TURNS_APART};
 use crate::delay::SILENCE;
 use crate::dsp::filters::{OnePoleHp, OnePoleLp};
+use crate::effect::{Effect, EffectSettings, Rates};
+use crate::order::Zone;
 
 pub const RATE_MIN_HZ: f32 = 0.05;
 pub const RATE_MAX_HZ: f32 = 5.0;
@@ -250,6 +252,47 @@ impl Flanger {
     #[cfg(test)]
     pub(crate) fn buffers(&self) -> Vec<(usize, usize)> {
         self.lines.iter().map(|line| line.buffer()).collect()
+    }
+}
+
+impl EffectSettings for FlangerSettings {
+    fn is_on(&self) -> bool {
+        self.on
+    }
+}
+
+impl Effect for Flanger {
+    type Settings = FlangerSettings;
+
+    fn new() -> Self {
+        Flanger::new()
+    }
+
+    fn set_up(&mut self, zone: Zone, rates: Rates) {
+        self.set_sample_rate(rates.in_zone(zone));
+    }
+
+    fn put_away(&mut self) {
+        self.reset();
+    }
+
+    /// An idle pedal is left alone
+    fn rest(&mut self) {
+        if !self.is_idle() {
+            self.reset();
+        }
+    }
+
+    fn is_idle(&self) -> bool {
+        self.is_idle()
+    }
+
+    fn process_front(&mut self, settings: &FlangerSettings, block: &mut [f32]) {
+        self.process_mono(settings, block);
+    }
+
+    fn process_back(&mut self, settings: &FlangerSettings, left: &mut [f32], right: &mut [f32]) {
+        self.process_stereo(settings, left, right);
     }
 }
 

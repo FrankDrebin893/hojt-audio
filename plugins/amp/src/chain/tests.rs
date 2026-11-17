@@ -3,16 +3,30 @@ use crate::amp::model::speaker_index;
 use crate::cab::tests::{design_ms, off_the_design_rate};
 use crate::cab::{user_ir_len, MAX_USER_IR_LEN, USER_IR_MS};
 use crate::cab_stage::{CabLoader, CabStatus};
+use crate::comp::CompSettings;
+use crate::delay::DelaySettings;
 use crate::drive::tests::new_drive;
+use crate::drive::DriveSettings;
 use crate::dsp::shaper::{asym_clip, AsymClipper};
+use crate::effects::{BlockSettings, Body};
+use crate::eq::EqSettings;
+use crate::fuzz::FuzzSettings;
 use crate::gate::tests::{decaying_note, gain_trace, hiss, transitions as gate_changes};
-use crate::order::ChainOrder;
+use crate::gate::GateSettings;
+use crate::mods::chorus::ChorusSettings;
+use crate::mods::flanger::FlangerSettings;
+use crate::mods::phaser::PhaserSettings;
+use crate::mods::tremolo::TremoloSettings;
+use crate::order::{ChainOrder, Pedal};
+use crate::pitch::PitchSettings;
+use crate::reverb::ReverbSettings;
+use crate::second::SecondSettings;
 use crate::slots::Chain;
 use crate::test_util::*;
 use crate::tuner::tests::{note_hz as tuner_note_hz, string as tuner_string};
 use crate::user_cab::tests::{test_dir, whole_response, write_ir_wav};
 use crate::user_cab::{self, Recording};
-use crate::wah::WahMode;
+use crate::wah::{WahMode, WahSettings};
 use std::sync::Mutex;
 use std::time::Instant;
 
@@ -196,13 +210,20 @@ fn buffer_layout(chain: &AmpChain) -> Vec<(usize, usize)> {
     layout.extend(chain.cabinet.buffers());
     layout.extend(chain.second.cabinet.buffers());
     layout.extend(chain.cab_stage.buffer());
-    layout.extend(chain.pitch.buffers());
-    for pitch in &chain.back_pitch {
-        layout.extend(pitch.buffers());
+    for body in &chain.homes {
+        match body {
+            Body::Pitch(effect) => layout.extend(effect.buffers()),
+            Body::Delay(effect) => layout.extend(effect.buffers()),
+            Body::Reverb(effect) => layout.extend(effect.buffers()),
+            _ => {}
+        }
     }
-    layout.extend(chain.delay.buffers());
-    layout.extend(chain.reverb.buffers());
     layout
+}
+
+/// A pedal of the chain, on its own parameters
+fn home(chain: &AmpChain, pedal: Pedal) -> &Body {
+    &chain.homes[pedal.index()]
 }
 
 /// Energy of a clipped sine that is not at its harmonics, relative to the total, in dB
@@ -296,7 +317,11 @@ fn stage_times_ns(settings: &AmpSettings, input: &[f32], sample_rate: f32) -> Ve
             chain.oversampler.upsample(chunk, high_chunk);
         }
     });
-    timed(&mut || high.chunks_mut(CHUNK * factor).for_each(|chunk| chain.drive.process(chunk)));
+    let drive = Pedal::Drive.index();
+    timed(&mut || {
+        high.chunks_mut(CHUNK * factor)
+            .for_each(|chunk| chain.homes[drive].process_front(&chain.home_settings[drive], chunk))
+    });
     timed(&mut || high.chunks_mut(CHUNK * factor).for_each(|chunk| chain.preamp.process(chunk)));
     timed(&mut || high.chunks_mut(CHUNK * factor).for_each(|chunk| chain.tone.process(chunk)));
     timed(&mut || high.chunks_mut(CHUNK * factor).for_each(|chunk| chain.power.process(chunk)));
@@ -323,12 +348,20 @@ fn stage_times_ns(settings: &AmpSettings, input: &[f32], sample_rate: f32) -> Ve
     let split_ns = start.elapsed().as_secs_f64() * 1e9 / len as f64;
     timed(&mut || {
         for (l, r) in left.chunks_mut(CHUNK).zip(right.chunks_mut(CHUNK)) {
-            chain.delay.process(&settings.delay, l, r);
+            chain.homes[Pedal::Delay.index()].process_back(
+                &BlockSettings::Delay(settings.delay),
+                l,
+                r,
+            );
         }
     });
     timed(&mut || {
         for (l, r) in left.chunks_mut(CHUNK).zip(right.chunks_mut(CHUNK)) {
-            chain.reverb.process(&settings.reverb, l, r);
+            chain.homes[Pedal::Reverb.index()].process_back(
+                &BlockSettings::Reverb(settings.reverb),
+                l,
+                r,
+            );
         }
     });
     timed(&mut || {
@@ -594,7 +627,7 @@ fn test_wah_off_leaves_the_amp_alone_to_the_bit() {
     assert!(
         largest_difference(&gone[tail.clone()], &alone[tail.clone()]) < 0.001 * peak(&alone[tail])
     );
-    assert!(chain.wah.is_idle());
+    assert!(home(&chain, Pedal::Wah).is_idle());
 }
 
 #[test]
@@ -679,7 +712,7 @@ fn test_pitch_shifter_off_leaves_the_amp_alone_to_the_bit() {
     assert!(
         largest_difference(&gone[tail.clone()], &alone[tail.clone()]) < 0.001 * peak(&alone[tail])
     );
-    assert!(chain.pitch.is_idle());
+    assert!(home(&chain, Pedal::Pitch).is_idle());
 }
 
 #[test]
@@ -3047,7 +3080,8 @@ fn test_drive_wah_and_pitch_behind_the_cabinet_start_from_rest_and_fall_idle() {
                 < 0.001 * peak(&alone.0[tail]),
             "{pedal:?} does not leave the amp alone after it is switched off"
         );
-        assert!(chain.is_idle() && chain.back_drive.is_idle(), "{pedal:?} is not idle");
+        let Body::Drive(drive) = home(&chain, Pedal::Drive) else { unreachable!() };
+        assert!(chain.is_idle() && drive.back_is_idle(), "{pedal:?} is not idle");
     }
 }
 
@@ -3780,6 +3814,7 @@ fn test_speakers_sound_apart_and_about_as_loud() {
     // through the amp's own, and every two are heard apart: at least 3 dB apart in
     // one octave band of a guitar, where the amps' own cabinets are 1 to 2 dB apart
     let input = guitar_di(SAMPLE_RATE);
+    let mut alike = Vec::new();
     for amp in Amp::ALL {
         let settings = with_amp(amp, 0.5);
         let own_level = loudness_lufs(&[&run(&settings, &input, SAMPLE_RATE)], SAMPLE_RATE);
@@ -3807,17 +3842,16 @@ fn test_speakers_sound_apart_and_about_as_loud() {
                     .iter()
                     .zip(&bands)
                     .fold(0.0f32, |top, (a, b)| top.max((a - b).abs()));
-                assert!(
-                    apart > 3.0,
-                    "{:?}: {} and {} are {:.1} dB apart",
-                    amp,
-                    SPEAKERS[speaker].id,
-                    SPEAKERS[other].id,
-                    apart
-                );
+                if apart <= 3.0 {
+                    alike.push(format!(
+                        "{:?}: {} and {} are {:.1} dB apart",
+                        amp, SPEAKERS[speaker].id, SPEAKERS[other].id, apart
+                    ));
+                }
             }
         }
     }
+    assert!(alike.is_empty(), "{alike:#?}");
 }
 
 #[test]
@@ -6797,8 +6831,12 @@ fn line_of(kind: EffectKind, zone: Zone, home: bool) -> Layout {
 /// What each kind is told to make it clearly heard
 fn block_on(kind: EffectKind) -> BlockSettings {
     match kind {
-        EffectKind::Gate => BlockSettings::Gate { on: true, threshold_db: -20.0, release_ms: 50.0 },
-        EffectKind::Drive => BlockSettings::Drive { on: true, drive: 0.7, tone: 0.4, level: 0.6 },
+        EffectKind::Gate => {
+            BlockSettings::Gate(GateSettings { on: true, threshold_db: -20.0, release_ms: 50.0 })
+        }
+        EffectKind::Drive => {
+            BlockSettings::Drive(DriveSettings { on: true, drive: 0.7, tone: 0.4, level: 0.6 })
+        }
         EffectKind::Comp => {
             BlockSettings::Comp(CompSettings { on: true, sustain: 0.8, level: 0.7 })
         }
@@ -6827,12 +6865,8 @@ fn block_on(kind: EffectKind) -> BlockSettings {
 
 fn block_off(kind: EffectKind) -> BlockSettings {
     match block_on(kind) {
-        BlockSettings::Gate { threshold_db, release_ms, .. } => {
-            BlockSettings::Gate { on: false, threshold_db, release_ms }
-        }
-        BlockSettings::Drive { drive, tone, level, .. } => {
-            BlockSettings::Drive { on: false, drive, tone, level }
-        }
+        BlockSettings::Gate(s) => BlockSettings::Gate(GateSettings { on: false, ..s }),
+        BlockSettings::Drive(s) => BlockSettings::Drive(DriveSettings { on: false, ..s }),
         BlockSettings::Comp(s) => BlockSettings::Comp(CompSettings { on: false, ..s }),
         BlockSettings::Fuzz(s) => BlockSettings::Fuzz(FuzzSettings { on: false, ..s }),
         BlockSettings::Pitch(s) => BlockSettings::Pitch(PitchSettings { on: false, ..s }),
@@ -6852,8 +6886,8 @@ fn block_off(kind: EffectKind) -> BlockSettings {
 fn on_its_own(base: AmpSettings, block: BlockSettings) -> AmpSettings {
     let mut settings = base;
     match block {
-        BlockSettings::None | BlockSettings::Gate { .. } => {}
-        BlockSettings::Drive { on, drive, tone, level } => {
+        BlockSettings::None | BlockSettings::Gate(_) => {}
+        BlockSettings::Drive(DriveSettings { on, drive, tone, level }) => {
             settings.drive_on = on;
             settings.drive_gain = drive;
             settings.drive_tone = tone;
@@ -7003,6 +7037,71 @@ fn test_effects_on_slots_do_not_depend_on_the_block_size() {
             run_stereo_blocks(&mut chain, &settings, &input, block) == reference,
             "blocks of {block}"
         );
+    }
+}
+
+/// One number per kind, side and rate for every effect as a block that plays from a slot (#371):
+/// the same bits in as out, whether it stays where it is (`steady`), is switched off and on
+/// again (`switched`) or crosses to the other side of the amp (`crossed`, where the kind may
+/// stand on both). For a change that must leave every sound as it is: save the lines before and
+/// after and compare them.
+///   cargo test -p amp --release slot_fingerprint_report -- --ignored --nocapture
+#[test]
+#[ignore]
+fn slot_fingerprint_report() {
+    for sample_rate in [48000.0, 96000.0] {
+        let input = power_chords(sample_rate, 2.0);
+        let third = input.len() / 3;
+        for kind in EffectKind::ALL {
+            let zones = zones_of(kind);
+            let on = block_on(kind);
+            let off = block_off(kind);
+            let steady = |zone: Zone| {
+                let settings = on_the_spare_slot(line_of(kind, zone, false), on);
+                run_stereo(&settings, &input, sample_rate)
+            };
+            let phases = |first: (Zone, BlockSettings), second: (Zone, BlockSettings)| {
+                let mut chain = new_chain(sample_rate);
+                let (mut left, mut right) = (input.to_vec(), input.to_vec());
+                for (index, (l, r)) in
+                    left.chunks_mut(BLOCK).zip(right.chunks_mut(BLOCK)).enumerate()
+                {
+                    let (zone, block) = if index * BLOCK < third {
+                        first
+                    } else if index * BLOCK < 2 * third {
+                        second
+                    } else {
+                        first
+                    };
+                    let settings = on_the_spare_slot(line_of(kind, zone, false), block);
+                    chain.process(&settings, l, Some(r));
+                }
+                (left, right)
+            };
+            for zone in &zones {
+                let side = if *zone == Zone::Front { "front" } else { "behind" };
+                let (l, r) = steady(*zone);
+                println!(
+                    "slot {sample_rate:>6} {:<8} {side:<6} steady   {:016x}",
+                    kind.id(),
+                    fingerprint(&[&l, &r])
+                );
+                let (l, r) = phases((*zone, on), (*zone, off));
+                println!(
+                    "slot {sample_rate:>6} {:<8} {side:<6} switched {:016x}",
+                    kind.id(),
+                    fingerprint(&[&l, &r])
+                );
+            }
+            if zones.len() == 2 {
+                let (l, r) = phases((Zone::Front, on), (Zone::Back, on));
+                println!(
+                    "slot {sample_rate:>6} {:<8} both   crossed  {:016x}",
+                    kind.id(),
+                    fingerprint(&[&l, &r])
+                );
+            }
+        }
     }
 }
 
@@ -7162,4 +7261,130 @@ fn render_slots() {
         );
     }
     println!("Wrote renders to {}", dir.display());
+}
+
+// Two held notes a major third apart, on bins of the transform `clarity` takes: what a
+// clipper makes of them falls between their harmonics, and is what blurs a chord
+const CLARITY_SIZE: usize = 65536;
+const CLARITY_BINS: [usize; 2] = [268, 337];
+
+/// Two held notes a major third apart (196 and 247 Hz), each with the harmonics of a string
+fn two_notes(sample_rate: f32, len: usize) -> Vec<f32> {
+    let mut notes = vec![0.0f32; len];
+    for bin in CLARITY_BINS {
+        let freq = bin as f64 * sample_rate as f64 / CLARITY_SIZE as f64;
+        let mut harmonic = 1;
+        while freq * (harmonic as f64) < 5000.0 {
+            let level = 1.0 / (harmonic as f64).powf(1.3);
+            for (index, sample) in notes.iter_mut().enumerate() {
+                let phase = std::f64::consts::TAU * freq * harmonic as f64 * index as f64
+                    / sample_rate as f64;
+                *sample += (level * (phase + harmonic as f64).sin()) as f32;
+            }
+            harmonic += 1;
+        }
+    }
+    at_rms_db(&notes, REFERENCE_DI_DB)
+}
+
+/// Of the last `CLARITY_SIZE` samples of two notes played through something: the level of
+/// what lies between the notes' harmonics, against the harmonics, in dB, in the whole and
+/// below 400 Hz, from 400 Hz to 2 kHz and above
+fn between_the_notes_db(output: &[f32]) -> [f32; 4] {
+    let tail = &output[output.len() - CLARITY_SIZE..];
+    let windowed: Vec<f32> = tail
+        .iter()
+        .enumerate()
+        .map(|(index, &sample)| {
+            let phase = std::f32::consts::TAU * index as f32 / CLARITY_SIZE as f32;
+            sample * (0.5 - 0.5 * phase.cos())
+        })
+        .collect();
+    let mut fft = crate::dsp::fft::RealFft::new(CLARITY_SIZE);
+    let mut re = vec![0.0; fft.bins()];
+    let mut im = vec![0.0; fft.bins()];
+    fft.forward(&windowed, &mut re, &mut im);
+    let hz_per_bin = SAMPLE_RATE / CLARITY_SIZE as f32;
+    let mut notes = 0.0f64;
+    let mut between = [0.0f64; 4];
+    for bin in (20.0 / hz_per_bin) as usize..(12000.0 / hz_per_bin) as usize {
+        let power = (re[bin] as f64).powi(2) + (im[bin] as f64).powi(2);
+        let on_a_note = CLARITY_BINS.iter().any(|&note| {
+            let off = bin % note;
+            off.min(note - off) <= 3 && bin + 3 >= note
+        });
+        if on_a_note {
+            notes += power;
+        } else {
+            let freq = bin as f32 * hz_per_bin;
+            between[0] += power;
+            between[if freq < 400.0 {
+                1
+            } else if freq < 2000.0 {
+                2
+            } else {
+                3
+            }] += power;
+        }
+    }
+    between.map(|power| (10.0 * (power / notes).max(1e-12).log10()) as f32)
+}
+
+/// Prints what makes a sound clear or blurred, for each amp at Gain 3, 5 and 7 through its
+/// own cabinet, without a cabinet and through each built-in one: the octave bands of a
+/// guitar, and how much of two notes played together lies between their harmonics:
+///   cargo test -p amp --release clarity_report -- --ignored --nocapture
+#[test]
+#[ignore]
+fn clarity_report() {
+    let riffs = at_rms_db(&guitar_di(SAMPLE_RATE), REFERENCE_DI_DB);
+    let notes = two_notes(SAMPLE_RATE, 2 * CLARITY_SIZE);
+    let header = || {
+        print!("{:<22}", "");
+        for edges in BAND_EDGES_HZ.windows(2) {
+            print!("{:>7.0}", (edges[0] * edges[1]).sqrt());
+        }
+        println!("   between the notes: all   <400  <2000  above");
+    };
+    let row = |name: &str, settings: &AmpSettings, speaker: Option<usize>| {
+        let play = |input: &[f32]| {
+            let mut chain = new_chain(SAMPLE_RATE);
+            if let Some(speaker) = speaker {
+                chain.cab_stage().offer_speaker(speaker, SAMPLE_RATE);
+            }
+            run_blocks(&mut chain, settings, input, BLOCK)
+        };
+        print!("{:<22}", name);
+        band_levels_db(&play(&riffs), SAMPLE_RATE)
+            .iter()
+            .for_each(|level| print!("{:>7.1}", level));
+        let between = between_the_notes_db(&play(&notes));
+        println!(
+            "   {:>22.1}{:>7.1}{:>7.1}{:>7.1}",
+            between[0], between[1], between[2], between[3]
+        );
+    };
+    header();
+    print!("{:<22}", "the guitar itself");
+    band_levels_db(&riffs, SAMPLE_RATE).iter().for_each(|level| print!("{:>7.1}", level));
+    println!();
+    for amp in Amp::ALL {
+        for gain in [0.3, 0.5, 0.7] {
+            let settings = with_amp(amp, gain);
+            row(&format!("{amp:?} {:.0} own", gain * 10.0), &settings, None);
+            row(
+                &format!("{amp:?} {:.0} no cab", gain * 10.0),
+                &AmpSettings { cab_on: false, ..settings },
+                None,
+            );
+        }
+    }
+    for (amp, gain) in [(Amp::Klar, 0.5), (Amp::Brol, 0.5), (Amp::Torden, 0.5)] {
+        println!();
+        header();
+        row(&format!("{amp:?} own"), &with_amp(amp, gain), None);
+        for (index, speaker) in SPEAKERS.iter().enumerate() {
+            row(&format!("{amp:?} {}", speaker.id), &with_amp(amp, gain), Some(index));
+        }
+    }
 }

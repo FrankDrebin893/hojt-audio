@@ -110,9 +110,11 @@ goes on to the next issue, with no further prompt, until the list is done. Words
    - **Accept**: turn on GitHub auto-merge (`ccd_pr` `set_auto_merge`, squash, or
      `gh pr merge <pr> --auto --squash`) and tell Rasmus in a line what to listen to or look at,
      which the builder names. Never merge by hand. If the builder names something only
-     he can do (look, try on a machine, or a milestone that waits on his pick), the issue
-     gets `needs:engineer` and a comment saying exactly what, or, when the issue is closed by the
-     pull request, a new issue "Check: <what>" labelled `needs:engineer`. A listen is not such a thing: it is a line
+     he can do (a look, or a milestone that waits on his pick), the issue
+     gets `needs:engineer` and a comment saying exactly what. A try on a real machine is not such a thing: it is a
+     checkbox line on the standing issue "Checks on a real machine" (CLAUDE.md, "Rules for every run"), and the issue
+     closes with its last pull request; only a probe whose result decides what is built next is asked on the issue.
+     Nor is a listen: it is a line
      in the pull request and the report, never a label and never a "Check" issue, and it never holds the next milestone
 6. **Go on.** Back to step 1 at once; the pull request merges when CI passes, and Auto-fix in
    its sub-session mends a failure (one it cannot mend is reported like a question). One run
@@ -158,8 +160,12 @@ What every sub-session is asked to do, for issue `<n>`:
    session", read `mcp__claude-code-remote__read_documentation` topic `environment.network` once, and
    ask for `add_repo` once if a repo is the need; do not probe hosts with curl or repeated searches. If it
    stays blocked, take the spec's fallback if it has one, or stop with a question on the issue.
+   A change that belongs in the nih-plug fork follows `plugins/README.md`, "A change in the nih-plug fork"
+   (clone into the scratchpad, plain git commands, `scripts/pin-nih-plug.sh <rev>`).
 4. **Gates**, all before the pull request:
-   - `scripts/check.sh`: every step of CI (format, clippy, the tests, the amp's tests optimised)
+   - `scripts/check.sh`: every step of CI (format, clippy, the tests, the amp's tests optimised). Run it
+     once, in the background, and wait for it (it prints `== <step>` as each starts; the time is in
+     `scripts/README.md`, Testing); a cloud session's start hook has already installed CI's packages
    - The reports named in the spec, before (on `main`) and after
    - The standalone window looked at, if an editor changed
    - `CHANGELOG.md` under `Unreleased` says what a player will notice

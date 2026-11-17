@@ -11,7 +11,7 @@ crate-type = ["cdylib", "lib"]
 # Runs the plugin as a program, for working on the editor without a DAW:
 # cargo run -p amp --features standalone
 [features]
-standalone = ["nih_plug/standalone", "dep:cpal"]
+standalone = ["nih_plug/standalone", "suite_common/standalone", "dep:cpal"]
 # ASIO as a driver of the standalone program (Windows). Needs the Steinberg ASIO SDK at build
 # time: set CPAL_ASIO_DIR to its folder. Not part of the workspace's own checks
 asio = ["standalone", "nih_plug/asio"]

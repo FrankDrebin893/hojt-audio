@@ -480,9 +480,11 @@ fn test_the_chain_model_allocates_nothing() {
 fn block_at(kind: crate::slots::EffectKind, dial: f32, on: bool) -> crate::extras::BlockSettings {
     use crate::comp::CompSettings;
     use crate::delay::DelaySettings;
+    use crate::drive::DriveSettings;
     use crate::eq::EqSettings;
     use crate::extras::BlockSettings;
     use crate::fuzz::FuzzSettings;
+    use crate::gate::GateSettings;
     use crate::mods::chorus::ChorusSettings;
     use crate::mods::flanger::FlangerSettings;
     use crate::mods::phaser::PhaserSettings;
@@ -492,13 +494,13 @@ fn block_at(kind: crate::slots::EffectKind, dial: f32, on: bool) -> crate::extra
     use crate::slots::EffectKind;
     use crate::wah::{WahMode, WahSettings};
     match kind {
-        EffectKind::Gate => BlockSettings::Gate {
+        EffectKind::Gate => BlockSettings::Gate(GateSettings {
             on,
             threshold_db: -80.0 + 60.0 * dial,
             release_ms: 20.0 + 480.0 * dial,
-        },
+        }),
         EffectKind::Drive => {
-            BlockSettings::Drive { on, drive: dial, tone: 1.0 - dial, level: dial }
+            BlockSettings::Drive(DriveSettings { on, drive: dial, tone: 1.0 - dial, level: dial })
         }
         EffectKind::Comp => {
             BlockSettings::Comp(CompSettings { on, sustain: dial, level: 1.0 - dial })
@@ -640,5 +642,41 @@ fn test_effects_on_slots_allocate_nothing() {
                 chain.process(&settings, &mut left[..len], None);
             }
         });
+    }
+}
+
+/// Every effect of the table (#371), on both sides, switched on: the dispatch of `effects.rs`
+/// itself, below the chain, at the rates that oversample 4 and 2 times. A line added to the table
+/// is walked here with no test of its own
+#[test]
+fn test_every_effect_of_the_table_allocates_nothing_on_either_side() {
+    use crate::effect::Rates;
+    use crate::effects::Body;
+    use crate::order::Zone;
+    use crate::slots::EffectKind;
+    for (host_rate, factor) in [(44_100.0, 4.0), (96_000.0, 2.0)] {
+        let rates = Rates { host: host_rate, oversampled: host_rate * factor };
+        for kind in EffectKind::ALL {
+            let mut body = Body::new(kind);
+            body.set_sample_rate(rates);
+            let settings = block_at(kind, 0.7, true);
+            let mut left: Vec<f32> = (0..64).map(|i| (i as f32 * 0.1).sin() * 0.5).collect();
+            let mut right = left.clone();
+            host::assert_allocates_nothing(&format!("{kind:?} of the table"), || {
+                for zone in [Zone::Front, Zone::Back, Zone::Front] {
+                    body.set_up(zone, rates);
+                    body.tell(&settings, zone, 32, true);
+                    for _ in 0..40 {
+                        body.tell(&settings, zone, 32, false);
+                        match zone {
+                            Zone::Front => body.process_front(&settings, &mut left),
+                            Zone::Back => body.process_back(&settings, &mut left, &mut right),
+                        }
+                    }
+                    body.reset(zone, rates);
+                    body.is_idle();
+                }
+            });
+        }
     }
 }

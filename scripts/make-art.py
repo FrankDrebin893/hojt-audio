@@ -385,13 +385,42 @@ def bells(w=1320, h=1200):
     return compose(layers, w, h)
 
 
+# Where a pedal prints the no-audio lamp, its caption and the model number, the art is left out:
+# a window's rectangle in points (left, top, right, bottom) per picture, with its window size. The
+# picture covers the window less the bench margin (`BENCH_MARGIN`, 10 points); the edge fades out
+# over 10 points
+BENCH_MARGIN = 10
+CLEAR = {
+    "pitch_shifter": ((400, 600), [(10, 470, 122, 600)]),
+    "bass": ((660, 600), [(10, 470, 122, 600)]),
+}
+
+
+def clear_zones(name, rgb, alpha):
+    """The art with its clear zones taken out"""
+    if name not in CLEAR:
+        return rgb, alpha
+    (ww, wh), zones = CLEAR[name]
+    h, w = alpha.shape
+    sx, sy = w / (ww - 2 * BENCH_MARGIN), h / (wh - 2 * BENCH_MARGIN)
+    x, y = grid(w, h)
+    keep = np.ones((h, w), np.float32)
+    for left, top, right, bottom in zones:
+        inside = np.minimum(
+            np.minimum(x - (left - BENCH_MARGIN) * sx, (right - BENCH_MARGIN) * sx - x),
+            np.minimum(y - (top - BENCH_MARGIN) * sy, (bottom - BENCH_MARGIN) * sy - y),
+        )
+        keep *= 1 - smooth(-5 * sx, 5 * sx, inside)
+    return rgb, alpha * keep
+
+
 ART = {"mini": mini, "pitch_shifter": pitch_shifter, "amp": amp, "drums": drums, "bass": bass, "pad": pad, "bells": bells}
 
 
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     for name in sys.argv[1:] or ART:
-        rgb, alpha = ART[name]()
+        rgb, alpha = clear_zones(name, *ART[name]())
         # PNG holds straight (not premultiplied) colour
         straight = np.where(alpha[..., None] > 1e-4, rgb / np.maximum(alpha[..., None], 1e-4), 0)
         data = np.dstack([np.clip(straight, 0, 255), np.clip(alpha * 255, 0, 255)]).astype(np.uint8)

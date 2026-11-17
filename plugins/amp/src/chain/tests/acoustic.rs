@@ -161,7 +161,9 @@ fn trae_report() {
     ] {
         println!("{:>7} Hz {:>6.1}", freq_hz, level(freq_hz) - reference);
     }
-    println!("\nAliasing at Gain 10, 44.1 kHz, dB below the whole: plain, drive flat out, fuzz flat out");
+    println!(
+        "\nAliasing at Gain 10, 44.1 kHz, dB below the whole: plain, drive flat out, fuzz flat out"
+    );
     for freq_hz in ALIAS_TONES_HZ {
         println!(
             "{:>5} Hz {:>7.1} {:>7.1} {:>7.1}",
@@ -176,4 +178,3 @@ fn trae_report() {
         );
     }
 }
-

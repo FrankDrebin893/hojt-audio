@@ -58,9 +58,33 @@ and Træ (#400: an electric guitar made to sound acoustic, its "cabinet" the bod
   `Layout::of`: `Voice::Home(pedal)` for a block on its pedal's own slot (the pedal plays from its
   own parameters, as it always did) and `Voice::Slot { kind, slot, rank }` for any other. A pedal
   the chain does not hold is not in it, so it is not played, whatever its switch says
-- `src/extras.rs` - The effects that play from a slot's parameters (#268): `BlockSettings` (what
-  a block is told, one variant a kind), `Unit` (one effect, made for either side as the pedals
-  are) and `Pool` (`MAX_PER_KIND` units of each of the 13 kinds, made with the chain by
+- `src/effect.rs`, `src/effects.rs` - One seam for a pedal (#371, milestone 1): `Effect` (the trait: `new`,
+  `set_sample_rate`, `set_up`, `reset`, `is_idle`, `tell`, `process_front`, `process_back`, and its
+  `Settings`), implemented next to each pedal's own code (a pedal with an instance a side keeps both inside
+  its `Effect` type: `DriveEffect`, `PitchEffect`, `WahEffect`, `DelayEffect`, `ReverbEffect`), and the
+  `effects!` table of `effects.rs`, one line a pedal, from which `BlockSettings`, `Body` and the dispatch
+  (a `match`: no `dyn`, no heap) are made. **To add a pedal** (seven production files, one new; a scratch pedal showed it): its own module with its
+  `Effect` impl; one line in the table (its `id`, knob count, how a slot's knobs make its settings, how its own
+  parameters do, its `Pedal` and `EffectKind`; the line's position sets its bank card's position); its
+  parameters in `lib.rs` (the nih-plug derive needs the fields) and its field in `settings.rs`'s `AmpSettings`;
+  in `slots.rs` its `EffectKind` variant, its place in `ALL` and its row in `pedal_params`; in `order.rs` its
+  `Pedal` variant, its place in `ALL` and in the default order (these lists are frozen ids and orders, each
+  held by its `ids` test, so they stay outside the table); its look in `editor.rs` (two `match`es on the kind,
+  and its picture); and its tests, where the helpers of `no_alloc.rs` and `chain/tests.rs` that name every
+  kind need one arm each (by design: exhaustive matches, a forgotten pedal fails to compile). `chain.rs`,
+  `extras.rs`, `layout.rs` and `bank.rs` stay untouched.
+  The table also gives `slots.rs` an effect kind's id, knob count, pedal and settings from a slot
+  (`effects::id_of`, `knobs_of`, `pedal_of`, `slot_settings`), `order.rs` a pedal's id and `bank.rs` its
+  `CARDS`. From milestone 2 `AmpChain`
+  holds its twelve pedals through it too (`homes` and `home_settings`, by `Pedal::index`; a row of the table also
+  says how the pedal's settings are read from `AmpSettings`, `home`), and `Voice::Home` and `Voice::Slot` play
+  through the same `Body::process_front` and `process_back`. What a pedal on its own parameters does differently
+  from the same pedal as a slot's block is in its `Effect` impl, kept as it was and never tidied (`set_up_home`,
+  `put_away`, `rest`, `rest_with_amp`, `tell_home`). `chain.rs`, `layout.rs` and `extras.rs` name no pedal type
+  and nothing there is a `dyn` or a `Box` (`tests/rules.rs`)
+- `src/settings.rs` - `AmpSettings`, what the plugin tells the chain once per block (it was in `chain.rs`)
+- `src/extras.rs` - The effects that play from a slot's parameters (#268): `Unit` (one effect of the table,
+  made for either side as the pedals are, with where it stands) and `Pool` (`MAX_PER_KIND` units of each of the 13 kinds, made with the chain by
   `AmpChain::set_sample_rate`, so putting a block in the chain allocates nothing). Units are
   assigned by the layout (`Pool::follow`): one that is put in or moves to the other side starts
   from rest
@@ -257,9 +281,9 @@ How it behaves:
   of the detector, which pull a string within 2 Hz of them by a few cents; without hum they
   are off and the readings are unchanged. A loaded
   project never opens with the tuner on
-- Besides its own cabinet an amp can play through any of the ten built-in cabinets
+- Besides its own cabinet an amp can play through any of the fourteen built-in cabinets
   (`SPEAKERS` in `amp/model.rs`: `1X10 SMALL`, `1X12 OPEN`, `2X12 OPEN`, `4X10 CRISP`,
-  `4X12 MID`, `4X12 TIGHT`, `1X15 DEEP`, `1X8 TINY`, `2X12 PUNCH`, `4X12 HEAVY`; designs of their own, not the amps'), picked on the
+  `4X12 MID`, `4X12 TIGHT`, `1X15 DEEP`, `1X8 TINY`, `2X12 PUNCH`, `4X12 HEAVY`, and the clear ones of the cabinets work that followed the ten: `1X12 CLEAR`, `1X10 SNAP`, `2X12 CHIME` and `FULL RANGE`, a woofer and a tweeter for clean and acoustic sounds, the one that is no guitar speaker; designs of their own, not the amps'), picked on the
   lane's `Cabinet` stepper after `OWN` (the second amp's has no file, only its own amp's
   cabinet and these). A built-in cabinet is stored as `speaker:<id>` in the cabinet choice;
   the ids are frozen (a test holds them), the order may change. One this build does not have
@@ -393,7 +417,8 @@ How it behaves:
   was, to the bit. A project saved before a pedal existed gets it where the default has it (the
   wah behind the pitch shifter, wherever the project put that). `Pedal::ALL` only ever grows at the
   end: the order is saved as a number of four bits a pedal too
-- **Delay and reverb in front of the amp** (#268, `AmpChain::front_delay`, `front_reverb`): one
+- **Delay and reverb in front of the amp** (#268, the `front` instance inside `DelayEffect` and
+  `ReverbEffect`, played from `AmpChain::homes`): one
   more `Delay` and `Reverb` made for the oversampled rate, so a pedal that changes sides
   allocates nothing (about 3 MB of lines for the delay at 192 kHz). Only the instance of the side
   the pedal stands on runs; the other is reset when the pedal crosses (`set_up_pedal`), so
@@ -422,8 +447,8 @@ How it behaves:
   pedal does (`AmpChain::driven`). A pedal absent from the chain is put to rest and not run.
   `slot_report` prints, for each kind and side, whether it is the pedal's sound, its level,
   latency and cost
-- **Drive, wah and pitch shifter behind the cabinet** (#268, `AmpChain::back_drive`,
-  `back_wah`, `back_pitch`): made for the host's rate next to the ones in front, so a pedal that
+- **Drive, wah and pitch shifter behind the cabinet** (#268, the `back` instances
+  inside `DriveEffect`, `WahEffect` and `PitchEffect`, played from `AmpChain::homes`): made for the host's rate next to the ones in front, so a pedal that
   changes sides allocates nothing (the pitch shifter's buffers, about 1 MB, once a channel).
   Only the instance of the side the pedal stands on runs; the other is reset when it crosses,
   from rest. The wah and the pitch shifter are one instance a channel with the same settings,
@@ -608,6 +633,10 @@ cargo test -p amp --release render_voices -- --ignored
 # before and after a change that must leave a sound as it is, and compare them.
 cargo test -p amp --release fingerprint_report -- --ignored --nocapture
 
+# The same for every effect as a block on a slot (#371), on each side, switched off and on again and
+# crossed to the other side: one number per kind, side and rate. Save before and after, compare.
+cargo test -p amp --release slot_fingerprint_report -- --ignored --nocapture
+
 # Delay and reverb by themselves: echo times, decay times, density, width, cost.
 cargo test -p amp --release effects_report -- --ignored --nocapture
 
@@ -648,13 +677,19 @@ cargo test -p amp --release user_cab_report -- --ignored --nocapture
 # Long cabinets: direct FIR against the tail, per length and rate; error, evenness, swaps.
 cargo test -p amp --release convolver_report -- --ignored --nocapture
 
-# How far apart the ten built-in cabinets are: octave bands of a guitar through Klar and
+# How far apart the built-in cabinets are: octave bands of a guitar through Klar and
 # Torden and each one, and the difference of every pair. render_speakers writes the same
 # as WAV files in target/renders (amp_cab_*.wav), to hear them side by side.
 cargo test -p amp --release speaker_report -- --ignored --nocapture
 cargo test -p amp --release render_speakers -- --ignored
 
-# The amps' own and the ten built-in cabinets as 48 kHz WAV files in
+# What makes a sound clear or blurred: octave bands of a guitar, and how much of two notes a
+# major third apart lies between their harmonics (what a clipper adds to a chord), for each amp
+# at Gain 3, 5 and 7 with and without its cabinet, and for Klar, Brøl and Torden through each
+# built-in cabinet. A cabinet only re-weights what the amp made: it moves the figure by a few dB.
+cargo test -p amp --release clarity_report -- --ignored --nocapture
+
+# The amps' own and the built-in cabinets as 48 kHz WAV files in
 # target/renders/cabinets (cab_report prints their levels per frequency).
 cargo test -p amp --release export_cabinets -- --ignored --nocapture
 
@@ -783,6 +818,10 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   | `1X8 TINY` | walnut tweed | faded brown cloth | one 8", set high | none |
   | `2X12 PUNCH` | green bronco | basketweave | two 12" | none |
   | `4X12 HEAVY` | black, smooth | dark felt | four 12" | none |
+  | `1X12 CLEAR` | pale blue, smooth | salt-and-pepper cloth | one 12" | none |
+  | `1X10 SNAP` | red levant | salt-and-pepper cloth | one 10", set high | none |
+  | `2X12 CHIME` | pale tweed | silver cloth | two 12" | none |
+  | `FULL RANGE` | grey, smooth | perforated steel | one 12" | none |
   | a WAV file | charcoal, smooth | grey felt | one 12", a shadow behind the felt | none |
 
   A choice shown with `?` (missing, or a built-in cabinet of another build) or a file shown

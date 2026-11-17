@@ -1,5 +1,11 @@
 use crate::dsp::filters::ANTI_DENORMAL;
 use crate::dsp::{db_to_gain, smoothing_coeff};
+use crate::effect::{Effect, EffectSettings, Rates, OVERSAMPLED_CHUNK};
+use crate::order::Zone;
+
+// The limits of the gate's settings. The parameters in `lib.rs` take their ranges from these
+pub const GATE_THRESHOLD_DB: [f32; 2] = [-80.0, -20.0];
+pub const GATE_RELEASE_MS: [f32; 2] = [20.0, 500.0];
 
 // From closed to fully open. Short enough to keep the pick attack, long enough not to click
 const ATTACK_MS: f32 = 0.5;
@@ -157,6 +163,71 @@ impl Gate {
             *sample *= self.gain;
         }
     }
+}
+
+/// What the gate is told: the switch and the two dials, as the chain reads them
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
+pub struct GateSettings {
+    pub on: bool,
+    pub threshold_db: f32,
+    pub release_ms: f32,
+}
+
+impl EffectSettings for GateSettings {
+    fn is_on(&self) -> bool {
+        self.on
+    }
+}
+
+impl Effect for Gate {
+    type Settings = GateSettings;
+
+    fn new() -> Self {
+        Gate::new()
+    }
+
+    /// The gate stands in front of the amp only: its one instance runs at the oversampled rate
+    fn set_sample_rate(&mut self, rates: Rates) {
+        self.set_sample_rate(rates.oversampled);
+    }
+
+    fn set_up(&mut self, _zone: Zone, _rates: Rates) {
+        self.reset();
+        self.snap();
+    }
+
+    fn put_away(&mut self) {
+        self.reset();
+    }
+
+    fn is_idle(&self) -> bool {
+        true
+    }
+
+    fn tell(&mut self, settings: Option<&GateSettings>, _zone: Zone, _steps: u32, snap: bool) {
+        match settings {
+            Some(GateSettings { on, threshold_db, release_ms }) => {
+                self.set(
+                    *on,
+                    threshold_db.clamp(GATE_THRESHOLD_DB[0], GATE_THRESHOLD_DB[1]),
+                    release_ms.clamp(GATE_RELEASE_MS[0], GATE_RELEASE_MS[1]),
+                );
+                if snap {
+                    self.snap();
+                }
+            }
+            None => self.set(false, GATE_THRESHOLD_DB[0], GATE_RELEASE_MS[0]),
+        }
+    }
+
+    fn process_front(&mut self, _settings: &GateSettings, block: &mut [f32]) {
+        let mut detector = [0.0f32; OVERSAMPLED_CHUNK];
+        detector[..block.len()].copy_from_slice(block);
+        self.process(&detector[..block.len()], block);
+    }
+
+    /// The gate stands in front of the amp only
+    fn process_back(&mut self, _settings: &GateSettings, _left: &mut [f32], _right: &mut [f32]) {}
 }
 
 #[cfg(test)]

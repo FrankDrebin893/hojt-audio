@@ -34,21 +34,10 @@ use nih_plug::prelude::*;
 use std::sync::atomic::{fence, AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 
-use crate::comp::CompSettings;
-use crate::delay::DelaySettings;
-use crate::eq::EqSettings;
-use crate::extras::BlockSettings;
-use crate::fuzz::FuzzSettings;
+use crate::effects::{self, BlockSettings};
 use crate::layout::{Layout, Voice};
-use crate::mods::chorus::ChorusSettings;
-use crate::mods::flanger::FlangerSettings;
-use crate::mods::phaser::PhaserSettings;
-use crate::mods::tremolo::TremoloSettings;
 use crate::order::{ChainOrder, Pedal, Zone, AMP_ID};
-use crate::pitch::PitchSettings;
 use crate::presets::{set_together, Edit};
-use crate::reverb::ReverbSettings;
-use crate::wah::WahSettings;
 use crate::GuitarAmpParams;
 
 /// Effect slots in a chain
@@ -101,23 +90,9 @@ impl EffectKind {
         EffectKind::Reverb,
     ];
 
-    /// Frozen: what a saved project calls the kind
+    /// Frozen: what a saved project calls the kind (one line of the table, `effects.rs`)
     pub fn id(self) -> &'static str {
-        match self {
-            EffectKind::Gate => "gate",
-            EffectKind::Drive => "drive",
-            EffectKind::Comp => "comp",
-            EffectKind::Fuzz => "fuzz",
-            EffectKind::Pitch => "pitch",
-            EffectKind::Wah => "wah",
-            EffectKind::Eq => "eq",
-            EffectKind::Chorus => "chorus",
-            EffectKind::Flanger => "flanger",
-            EffectKind::Phaser => "phaser",
-            EffectKind::Tremolo => "tremolo",
-            EffectKind::Delay => "delay",
-            EffectKind::Reverb => "reverb",
-        }
+        effects::id_of(self)
     }
 
     fn from_id(id: &str) -> Option<EffectKind> {
@@ -132,46 +107,17 @@ impl EffectKind {
     /// How many knobs the kind uses of the `KNOBS` a slot has (Sync and Note of the delay,
     /// and the wah's mode, count as knobs)
     pub fn knob_count(self) -> usize {
-        match self {
-            EffectKind::Gate => 2,
-            EffectKind::Drive => 3,
-            EffectKind::Comp => 2,
-            EffectKind::Fuzz => 2,
-            EffectKind::Pitch => 3,
-            EffectKind::Wah => 4,
-            EffectKind::Eq => 4,
-            EffectKind::Chorus | EffectKind::Flanger | EffectKind::Phaser => 2,
-            EffectKind::Tremolo => 2,
-            EffectKind::Delay => 5,
-            EffectKind::Reverb => 2,
-        }
+        effects::knobs_of(self)
     }
 
     /// The pedal the amp had before it had a chain. `None` for the gate, which stood in front
     /// of the chain and was never part of its order
     pub fn pedal(self) -> Option<Pedal> {
-        Some(match self {
-            EffectKind::Gate => return None,
-            EffectKind::Drive => Pedal::Drive,
-            EffectKind::Comp => Pedal::Comp,
-            EffectKind::Fuzz => Pedal::Fuzz,
-            EffectKind::Pitch => Pedal::Pitch,
-            EffectKind::Wah => Pedal::Wah,
-            EffectKind::Eq => Pedal::Eq,
-            EffectKind::Chorus => Pedal::Chorus,
-            EffectKind::Flanger => Pedal::Flanger,
-            EffectKind::Phaser => Pedal::Phaser,
-            EffectKind::Tremolo => Pedal::Tremolo,
-            EffectKind::Delay => Pedal::Delay,
-            EffectKind::Reverb => Pedal::Reverb,
-        })
+        effects::pedal_of(self)
     }
 
     pub fn of_pedal(pedal: Pedal) -> EffectKind {
-        EffectKind::ALL
-            .into_iter()
-            .find(|kind| kind.pedal() == Some(pedal))
-            .unwrap_or(EffectKind::Comp)
+        effects::kind_of(pedal)
     }
 
     /// The gate listens to the guitar as it arrives, so it only stands in front of the amps;
@@ -911,87 +857,7 @@ impl GuitarAmpParams {
         knobs: [f32; KNOBS],
         tempo_bpm: Option<f64>,
     ) -> BlockSettings {
-        let [k1, k2, k3, k4, k5] = knobs;
-        let p = self;
-        match kind {
-            EffectKind::Gate => BlockSettings::Gate {
-                on,
-                threshold_db: p.gate_thresh.preview_plain(k1),
-                release_ms: p.gate_release.preview_plain(k2),
-            },
-            EffectKind::Drive => BlockSettings::Drive {
-                on,
-                drive: p.drive_gain.preview_plain(k1),
-                tone: p.drive_tone.preview_plain(k2),
-                level: p.drive_level.preview_plain(k3),
-            },
-            EffectKind::Comp => BlockSettings::Comp(CompSettings {
-                on,
-                sustain: p.comp_sustain.preview_plain(k1),
-                level: p.comp_level.preview_plain(k2),
-            }),
-            EffectKind::Fuzz => BlockSettings::Fuzz(FuzzSettings {
-                on,
-                fuzz: p.fuzz_fuzz.preview_plain(k1),
-                tone: p.fuzz_tone.preview_plain(k2),
-            }),
-            EffectKind::Pitch => BlockSettings::Pitch(PitchSettings {
-                on,
-                semitones: p.pitch_semitones.preview_plain(k1),
-                blend: p.pitch_blend.preview_plain(k2),
-                latency_ms: p.pitch_latency.preview_plain(k3),
-            }),
-            EffectKind::Wah => BlockSettings::Wah(WahSettings {
-                on,
-                mode: p.wah_mode.preview_plain(k3),
-                pedal: p.wah_pedal.preview_plain(k1),
-                bite: p.wah_q.preview_plain(k2),
-                sens: p.wah_sens.preview_plain(k4),
-            }),
-            EffectKind::Eq => BlockSettings::Eq(EqSettings {
-                on,
-                low: p.eq_low.preview_plain(k1),
-                mid: p.eq_mid.preview_plain(k2),
-                freq: p.eq_freq.preview_plain(k3),
-                high: p.eq_high.preview_plain(k4),
-            }),
-            EffectKind::Chorus => BlockSettings::Chorus(ChorusSettings {
-                on,
-                rate_hz: p.chorus_rate.preview_plain(k1),
-                depth: p.chorus_depth.preview_plain(k2),
-            }),
-            EffectKind::Flanger => BlockSettings::Flanger(FlangerSettings {
-                on,
-                rate_hz: p.flanger_rate.preview_plain(k1),
-                depth: p.flanger_depth.preview_plain(k2),
-            }),
-            EffectKind::Phaser => BlockSettings::Phaser(PhaserSettings {
-                on,
-                rate_hz: p.phaser_rate.preview_plain(k1),
-                depth: p.phaser_depth.preview_plain(k2),
-            }),
-            EffectKind::Tremolo => BlockSettings::Tremolo(TremoloSettings {
-                on,
-                rate_hz: p.trem_rate.preview_plain(k1),
-                depth: p.trem_depth.preview_plain(k2),
-            }),
-            EffectKind::Delay => BlockSettings::Delay(DelaySettings {
-                on,
-                time_ms: crate::delay_time_ms(
-                    p.delay_time.preview_plain(k1),
-                    p.delay_sync.preview_plain(k4),
-                    p.delay_note.preview_plain(k5),
-                    tempo_bpm,
-                ),
-                feedback: p.delay_feedback.preview_plain(k2),
-                mix: p.delay_mix.preview_plain(k3),
-            }),
-            EffectKind::Reverb => BlockSettings::Reverb(ReverbSettings {
-                on,
-                decay_s: p.reverb_decay.preview_plain(k1),
-                mix: p.reverb_mix.preview_plain(k2),
-            }),
-        }
+        effects::slot_settings(kind, self, on, knobs, tempo_bpm)
     }
 }
 
@@ -1527,8 +1393,8 @@ mod tests {
     fn numbers(told: BlockSettings) -> Vec<f32> {
         match told {
             BlockSettings::None => vec![],
-            BlockSettings::Gate { threshold_db, release_ms, .. } => vec![threshold_db, release_ms],
-            BlockSettings::Drive { drive, tone, level, .. } => vec![drive, tone, level],
+            BlockSettings::Gate(s) => vec![s.threshold_db, s.release_ms],
+            BlockSettings::Drive(s) => vec![s.drive, s.tone, s.level],
             BlockSettings::Comp(s) => vec![s.sustain, s.level],
             BlockSettings::Fuzz(s) => vec![s.fuzz, s.tone],
             BlockSettings::Pitch(s) => vec![s.semitones as f32, s.blend, s.latency_ms],

@@ -51,6 +51,8 @@ detail lives. Each detail is next to what it governs.
   `scripts/build-installer.sh` builds `HojtDSP-Setup.exe` in the Windows job of `release.yml`, which
   installs, upgrades and uninstalls it on the runner before anything is published; `installer/macos/` builds the unsigned, untested macOS `HojtDSP-macos.pkg` (macOS job; `scripts/test-macos-pkg.sh` tests its scripts on Linux)
 - `scripts/` - Build, install, check, page and release tools; see `scripts/README.md`
+- `.claude/hooks/session-start.sh` - What a cloud session installs when it starts (the Linux packages and the
+  pinned Rust of `ci.yml`, shellcheck), so `scripts/check.sh` runs there in full; it does nothing elsewhere
 - `.claude/skills/` - The repo's own skills, one folder each with a `SKILL.md`: `/issue`, `/spec`, `/groom`, `/next`,
   `/specwriter`, `/scout`, `/design`, `/feedback`, `/retrospective`, `/page`, `/release`, `/release-prep`,
   `/release-review`, and the piano viz's `/piano-release` and `/piano-readme`. Everything general (`/tdd`,
@@ -233,8 +235,18 @@ checkable instruction in the place an agent reads when it does the work:
   (Scout, Specwriter, Builder, Stall check, Release Manager, Release Analyst, the dashboard digest)
 - A listen (a sound or a render to hear) never blocks work and never gets `needs:engineer`: the pull request says what
   to listen to and merges on green CI, the next milestone is built, and no "Check: listen to ..." issue is filed. If a
-  listen turns up a problem, he files it as a bug. A check that needs his Windows machine is different: it can still
-  be asked
+  listen turns up a problem, he files it as a bug
+- A check on a real machine (Windows, a Mac, an audio device, a DAW) never holds an issue open. When the code of an
+  issue is merged and only such a try is left, the last pull request says `Closes`, and the check is one checkbox
+  line (what to do, what should happen, a link to the issue) on the standing issue "Checks on a real machine". It
+  gets no `needs:engineer` and no "Check: ..." issue; a check that finds a problem becomes a bug. The one exception
+  is a probe whose result decides what is built next: that is a question on the issue, with `needs:engineer`
+- What a session cannot reach is not yet a question for the engineer. Try, in this order, and say in the comment
+  what was tried: the web fetch tool, which reads public pages the session's network proxy refuses (another
+  repository's releases and their checksums, a vendor's licence page); a step in CI on the pull request, whose
+  runners have an open network, Windows and macOS (download it there, verify a checksum there, read the log); the
+  engineer's PC through the device tools, when the thread has it linked. Only what is still out of reach gets
+  `needs:engineer`
 - `needs:engineer` goes on only once the question can be answered: the explore renders are posted, or the
   question is written out in the comment. A step the agent can do itself (the explore) is done first, then asked
 
@@ -336,7 +348,8 @@ its quick part before each commit. The details, and the sound reports of a pull 
   output device's own and a period size brought into the device's range, with the backend resolving the
   config the plugin is told its `BufferConfig` from, #356, then a reconfigure that also takes a sample rate and
   a period size and initialises the plugin again, in the gap, with the new `BufferConfig`
-  (`Backend::run`'s `reinit`), #247, commit `f7b1196b`; the pin is that branch's tip). To move to a
+  (`Backend::run`'s `reinit`), #247, then a process-wide `nih_standalone_audio_status()`, `Running { backend }`
+  or `Dummy { reason }`, for an editor to say when the audio is the dummy, #356, commit `a919da2b`; the pin is that branch's tip). To move to a
   newer upstream, rebase those commits onto it and pin the result
 - An editor paints only when something asks for it, not every frame: anything an editor shows
   that changes on its own asks for a repaint in the frame that draws the change. The rule is in

@@ -11,7 +11,7 @@ crate-type = ["cdylib", "lib"]
 # Runs the plugin as a program, for working on the editor without a DAW:
 # cargo run -p drums --features standalone
 [features]
-standalone = ["nih_plug/standalone"]
+standalone = ["nih_plug/standalone", "suite_common/standalone"]
 # ASIO as a driver of the standalone program (Windows): needs CPAL_ASIO_DIR, see scripts/build-standalones.sh
 asio = ["standalone", "nih_plug/asio"]
 

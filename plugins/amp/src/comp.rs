@@ -3,6 +3,8 @@
 
 use crate::dsp::filters::OnePoleHp;
 use crate::dsp::{curve, db_to_gain, lerp, smoothing_coeff};
+use crate::effect::{Effect, EffectSettings, Rates};
+use crate::order::Zone;
 
 /// The Level dial turns the output down and up by this much around its middle, in dB
 pub const LEVEL_DB: f32 = 12.0;
@@ -316,6 +318,40 @@ fn follow(value: f32, target: f32, coeff: f32) -> f32 {
         target
     } else {
         next
+    }
+}
+
+impl EffectSettings for CompSettings {
+    fn is_on(&self) -> bool {
+        self.on
+    }
+}
+
+impl Effect for Comp {
+    type Settings = CompSettings;
+
+    fn new() -> Self {
+        Comp::new()
+    }
+
+    fn set_up(&mut self, zone: Zone, rates: Rates) {
+        self.set_sample_rate(rates.in_zone(zone));
+    }
+
+    fn put_away(&mut self) {
+        self.reset();
+    }
+
+    fn is_idle(&self) -> bool {
+        true
+    }
+
+    fn process_front(&mut self, settings: &CompSettings, block: &mut [f32]) {
+        self.process_mono(settings, block);
+    }
+
+    fn process_back(&mut self, settings: &CompSettings, left: &mut [f32], right: &mut [f32]) {
+        self.process_stereo(settings, left, right);
     }
 }
 
