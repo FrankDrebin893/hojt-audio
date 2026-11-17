@@ -37,12 +37,28 @@ How it behaves:
   (Sustain) and the top's at 1.5 kHz (Brightness, 0.15 s at 0 % to 0.8 s at 100 %, shorter
   for a softer note), so a low note loses its top as fast as a high one. The loop's gain
   takes out what the low-pass loses at the note, and its length what the low-pass adds there
-- The string is stiff: four first-order all-passes in the loop (`stiffness_coeff`) make partial
-  `n` sit at about `n f0 sqrt(1 + B n^2)`. B is 1.5e-4 on the open E (41.2 Hz, the 10th partial
-  13 cents sharp, the 5th 3.6) and falls with the square of the pitch (the 10th of the A is 7
-  cents sharp, of the G 3); the chain is fitted at the 10th partial, and above 800 Hz there is no
-  chain. The all-passes have no gain, and the loop's length takes out what they add at the
+- The string is stiff: sixteen first-order all-passes in the loop (`stiffness_coeff`) make partial
+  `n` sit at about `n f0 sqrt(1 + B n^2)`. B (`stiffness`) is 1.5e-4 on the open E (41.2 Hz, the
+  10th partial 13 cents sharp, the 5th 3.6) and falls with the square of the pitch from one open
+  string to the next (the 10th of the open A is 7 cents sharp, of the open G 2). On a fret it
+  rises with the square of the pitch, since the same string is shorter (the 4th fret of the E is
+  1.6 times as stiff as the open E), and a string tuned below the low E is stiffer as it is
+  slacker. The chain is fitted at the 10th partial, and above 800 Hz there is no chain. Sixteen
+  sections and not four, because what a chain can add runs out above the partial it is fitted at,
+  the sooner the fewer they are: with four the low E's 40th partial (1.6 kHz) was 69 cents sharp
+  where a string of that B is 186, and it is 116 with sixteen. That is what a low note's top
+  sounds like: nearly harmonic, the edges of the pluck stay one burst each time round, a pulse
+  wave's buzz at the note's pitch, which Metal's drive made the more of; stretched, they spread
+  round the string within a few periods and the top is the growl of a wound string (on the demo
+  project's metal line the top's waveform matches itself one period on by 0.23, from 0.41).
+  The all-passes have no gain, and the loop's length takes out what they add at the
   fundamental (at the bent pitch too), so the fundamental is where it was.
+- The line is not the whole way round the string: the low-pass and the all-passes are the rest
+  (a sixth of it on the low E). A pluck's shape is laid out over the whole way round, and they
+  start holding the end of it (the second level), not from rest: from rest there is a gap in the
+  string as long as they are, and the pick is nearer the bridge by as much. The other plane starts
+  a quarter of the whole way round later, and the sine's phase is worked out over all of it.
+  A new pluck on a ringing note leaves in them the quarter it leaves in the line
   Tuning is measured on the fundamental's spectral peak, since a stiff string no longer repeats
   exactly. The pickup is a part of the whole way round (`ring`: the line, the low-pass and the
   all-passes), so its comb stays where it was
@@ -65,9 +81,11 @@ How it behaves:
   lands, and `touch_noise` draws what the hand and the finger make, so that a longer scrape
   does not move the jitter of the plucks after it. `STRING_GAIN` went from 0.7 to 0.62: a level trim
   for the second plane, which adds about 1.3 dB to the first, so the voices stay about as loud
-- Tuning: the second plane pulls the spectral peak of the sum up by a fixed 0.03 to 0.04 Hz, so
-  `PLANE_FLAT_HZ` (0.03) takes it back; the amplitude-weighted 0.052 Hz is too much (low E 1.4
-  cents flat). Milestone 3 moved three tests: the sine test's centroid factor is 1.4, not 1.5
+- Tuning: the second plane pulls the spectral peak of the sum up by a fixed number of Hz,
+  0.054 since it starts a quarter of the whole way round later (#389), so `PLANE_FLAT_HZ` (0.054)
+  takes it back and every note of the tuning test is within 0.06 cents. With 0.03, the pull of the
+  second plane started a quarter of the delay line later, the low E was 0.97 to 1.02 cents sharp,
+  over the test's limit on Linux. Milestone 3 moved three tests: the sine test's centroid factor is 1.4, not 1.5
   (Groove's G, note 43, is at 224 to 226 Hz against 233 before the planes, 1.45 times; the quarter
   period puts the planes' 2nd harmonics against each other, which lifts the fundamental's share);
   Metal against Groove's brightness is 1.7 times, not 2 (it was 2.14: Groove's finger knock is
@@ -125,7 +143,7 @@ How it behaves:
 | Transpose (`transpose`) | -24 to +24 st | 0 | 0 | |
 | Bend (`bend`) | 1-12 st | 2 | 2 | How far the pitch-bend wheel goes at its end; no voice sets it |
 
-Tests sit next to the code (`bass/tests.rs`): tuning at several rates, envelopes, the two voices, the pitch-bend wheel (its range, back to centre, a pluck and a slide while bent, no zipper, Sustain on a bent note), bounded output with everything up and the wheel at both ends, and the tone: the top dies before the fundamental, the same note sounds the same while two plucks in a row are not copies, a hard pluck starts sharp and settles, Metal's drive lets the note die, Groove has harmonics, the sine does not take over a held note and sits under the string (what it adds to the fundamental, the fundamental's share of the harmonics' power and their centroid, at 50 ms), the pickup's notch moves with the fret, the string is stiff (the low E's 10th partial 8 to 30 cents sharp, the 5th less, and every note within 1 cent of its pitch from 44.1 to 192 kHz), a held note's level from 1 to 3 s is 0.5 to 3 dB off a straight line, Groove has more energy above 1 kHz in its first 5 ms than before its finger attack, letting go of a note makes a sound 30 to 45 dB under its peak, and a new pluck does not click. Three ignored tests are tools for working on the sound:
+Tests sit next to the code (`bass/tests.rs`): tuning at several rates, envelopes, the two voices, the pitch-bend wheel (its range, back to centre, a pluck and a slide while bent, no zipper, Sustain on a bent note), bounded output with everything up and the wheel at both ends, and the tone: the top dies before the fundamental, the same note sounds the same while two plucks in a row are not copies, a hard pluck starts sharp and settles, Metal's drive lets the note die, Groove has harmonics, the sine does not take over a held note and sits under the string (what it adds to the fundamental, the fundamental's share of the harmonics' power and their centroid, at 50 ms), the pickup's notch moves with the fret, the string is stiff (the low E's 10th partial 8 to 30 cents sharp, the 5th less, and every note within 1 cent of its pitch from 44.1 to 192 kHz), stiffer on a fret and less so on a thinner string, its 20th to 40th partials at least 0.55 to 0.8 of the way a string's are stretched, the top of a low note not one burst a period (the busiest eighth of a period holds under 0.3 of the power above 700 Hz on Metal, 0.35 on Groove), a pluck's first pulse as long as the pick or the finger is far from the bridge, a held note's level from 1 to 3 s is 0.5 to 3 dB off a straight line, Groove has more energy above 1 kHz in its first 5 ms than before its finger attack, letting go of a note makes a sound 30 to 45 dB under its peak, and a new pluck does not click. Three ignored tests are tools for working on the sound:
 
 ```bash
 # A real bass line with its own settings, as a 32-bit float WAV: a text file of settings

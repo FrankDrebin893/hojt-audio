@@ -54,6 +54,12 @@ GitHub release.
   lowest strings. Now the note stays clean and the distortion works on the string's harmonics and
   the pick over it, so a riff sounds like a string being played: clearer, with more of each note's
   attack. Drive and Tone have the ranges they had; a project that uses Metal sounds different.
+- Low notes growl like a wound string, where their top used to buzz. A real bass string is stiff,
+  so the upper part of its sound runs slightly ahead of the rest and never repeats exactly; ours
+  did that only in the lower part, and the top came as one click every time the string went
+  round, like a synth's pulse wave. Now the top is spread as on a string, most of all on the two
+  lowest strings and in Metal. A note played up a string is also a little more wiry than the
+  same string open, as it is on an instrument. Every note sounds slightly different from before.
 
 ## 0.4.0
 

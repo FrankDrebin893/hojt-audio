@@ -459,6 +459,122 @@ fn test_the_string_is_stiff() {
     }
 }
 
+#[test]
+fn test_a_fret_makes_the_string_stiffer_and_a_thinner_string_less() {
+    let stiff = |midi: f32| stiffness(note_hz(midi));
+    // From one open string to the next it falls with the square of the pitch
+    let fourth = (10.0f32 / 12.0).exp2();
+    assert!((stiff(33.0) * fourth / stiff(28.0) - 1.0).abs() < 0.01, "the open A");
+    assert!((stiff(43.0) * fourth / stiff(38.0) - 1.0).abs() < 0.01, "the open G");
+    // On a fret the same string is shorter: the 4th fret of the E is stiffer than the open E by
+    // the square of the pitch, and stiffer than the open A next to it
+    let frets = (8.0f32 / 12.0).exp2();
+    assert!((stiff(32.0) / stiff(28.0) / frets - 1.0).abs() < 0.01, "the 4th fret of the E");
+    assert!(stiff(32.0) > 2.0 * stiff(33.0));
+    // And a string tuned down below the low E is slacker, and stiffer for it
+    assert!((stiff(26.0) / stiff(28.0) / (4.0f32 / 12.0).exp2() - 1.0).abs() < 0.01, "a low D");
+}
+
+#[test]
+fn test_the_top_of_a_low_string_runs_as_sharp_as_a_wound_strings() {
+    // Far above the partial the all-passes are fitted at they still stretch the partials most
+    // of the way a string of that stiffness does: 4 sections ran out at the 40th partial of
+    // the low E (69 cents, where the string's is 186)
+    let freq_hz = note_hz(28.0);
+    for (n, least) in [(20usize, 0.8), (30, 0.65), (40, 0.55)] {
+        let found = 1200.0 * (stiff_partial_hz(freq_hz, n) / (n as f32 * freq_hz)).log2();
+        let strings = 600.0 * (1.0 + stiffness(freq_hz) * (n * n) as f32).log2();
+        assert!(
+            found > least * strings && found < 1.02 * strings,
+            "partial {} of the low E is {} cents sharp, a string's {}",
+            n,
+            found,
+            strings
+        );
+    }
+}
+
+/// Of the power above 700 Hz of what the pickup reads of a low E, what the busiest eighth of
+/// each time round holds, over six times round from 100 ms on: all of it is 1.0, a burst once
+/// a period; an eighth of it is 0.125, the same all the way round
+fn top_in_one_burst(voice: Voice) -> f32 {
+    let string = pickup_alone(voice, 28, 0.9, 0.4);
+    let mut filters = [Svf::new(), Svf::new()];
+    for filter in &mut filters {
+        filter.set(700.0, 0.7, SAMPLE_RATE);
+    }
+    let power: Vec<f32> = string
+        .iter()
+        .map(|&sample| {
+            let top = filters.iter_mut().fold(sample, |input, filter| filter.process(input).high);
+            top * top
+        })
+        .collect();
+    let period = SAMPLE_RATE / note_hz(28.0);
+    let slot = (period / 8.0) as usize;
+    let rounds = 6;
+    let share: f32 = (0..rounds)
+        .map(|round| {
+            let start = (0.1 * SAMPLE_RATE + round as f32 * period) as usize;
+            let slots: Vec<f32> = (0..8)
+                .map(|index| power[start + index * slot..start + (index + 1) * slot].iter().sum())
+                .collect();
+            slots.iter().cloned().fold(0.0, f32::max) / slots.iter().sum::<f32>().max(1e-20)
+        })
+        .sum();
+    share / rounds as f32
+}
+
+#[test]
+fn test_the_top_of_a_low_note_is_not_one_burst_a_period() {
+    // A stiff string's top runs ahead of the rest, so by 100 ms the edges of the pluck are
+    // spread round the string. With the top nearly harmonic they stayed one burst each time
+    // round, which is the sound of a pulse wave, not of a string
+    // (0.27 on Metal and 0.32 on Groove; 0.32 and 0.37 with 4 sections)
+    for (voice, most) in [(Voice::Metal, 0.3), (Voice::Groove, 0.35)] {
+        let share = top_in_one_burst(voice);
+        assert!(
+            share < most,
+            "{:?}: the busiest eighth of a period holds {} of the top",
+            voice,
+            share
+        );
+    }
+}
+
+#[test]
+fn test_a_pluck_leaves_no_gap_in_the_string() {
+    // The first time round, the pickup reads the pluck as one pulse, as long as the pick or
+    // the finger is far from the bridge: that part of the period, where the period is the
+    // whole way round and not only the delay line. The low-pass and the all-passes are the
+    // rest of the string, and start holding the end of its shape
+    for (voice, along) in [(Voice::Metal, PICK), (Voice::Groove, FINGER)] {
+        for midi in [26u8, 28, 33] {
+            let mut bass = bass(voice, SAMPLE_RATE);
+            bass.set(&BassSettings { sub: 0.0, ..voice.settings() });
+            bass.note_on(midi, 0.9);
+            // The first plane alone: the second is a quarter of a period behind
+            bass.line_other.fill(0.0);
+            bass.loop_state_other = 0.0;
+            bass.stiff_state_other = [0.0; STIFF_SECTIONS];
+            let period = SAMPLE_RATE / note_hz(midi as f32);
+            let first: Vec<f32> =
+                (0..(0.6 * period) as usize).map(|_| bass.string_and_sub().0).collect();
+            let deepest = first.iter().cloned().fold(0.0, f32::min);
+            let pulse = first.iter().filter(|&&sample| sample < 0.5 * deepest).count() as f32;
+            let part = pulse / period;
+            assert!(
+                (part - along).abs() < PLUCK_JITTER_ALONG + 0.01,
+                "{:?} note {}: the pulse is {} of the period, the pluck is at {}",
+                voice,
+                midi,
+                part,
+                along
+            );
+        }
+    }
+}
+
 /// Is the 5th the weakest of harmonics 2 to 8 in what the pickup reads?
 fn fifth_is_weakest(powers: &[f32]) -> bool {
     powers[1..8].iter().all(|&power| powers[4] <= power)
@@ -790,10 +906,14 @@ fn test_a_hard_pluck_starts_sharp_and_settles() {
                 let mut sharp = bass(voice, SAMPLE_RATE);
                 sharp.note_on(midi, velocity);
                 sharp.line_other.fill(0.0);
+                sharp.loop_state_other = 0.0;
+                sharp.stiff_state_other = [0.0; STIFF_SECTIONS];
                 let sharp = string(&mut sharp);
                 let mut at_pitch = bass(voice, SAMPLE_RATE);
                 at_pitch.note_on(midi, velocity);
                 at_pitch.line_other.fill(0.0);
+                at_pitch.loop_state_other = 0.0;
+                at_pitch.stiff_state_other = [0.0; STIFF_SECTIONS];
                 at_pitch.sharp_cents = 0.0;
                 let at_pitch = string(&mut at_pitch);
                 1200.0
