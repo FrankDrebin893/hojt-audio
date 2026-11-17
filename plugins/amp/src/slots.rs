@@ -36,9 +36,11 @@ use std::sync::Arc;
 
 use crate::comp::CompSettings;
 use crate::delay::DelaySettings;
+use crate::drive::DriveSettings;
 use crate::eq::EqSettings;
 use crate::extras::BlockSettings;
 use crate::fuzz::FuzzSettings;
+use crate::gate::GateSettings;
 use crate::layout::{Layout, Voice};
 use crate::mods::chorus::ChorusSettings;
 use crate::mods::flanger::FlangerSettings;
@@ -914,17 +916,17 @@ impl GuitarAmpParams {
         let [k1, k2, k3, k4, k5] = knobs;
         let p = self;
         match kind {
-            EffectKind::Gate => BlockSettings::Gate {
+            EffectKind::Gate => BlockSettings::Gate(GateSettings {
                 on,
                 threshold_db: p.gate_thresh.preview_plain(k1),
                 release_ms: p.gate_release.preview_plain(k2),
-            },
-            EffectKind::Drive => BlockSettings::Drive {
+            }),
+            EffectKind::Drive => BlockSettings::Drive(DriveSettings {
                 on,
                 drive: p.drive_gain.preview_plain(k1),
                 tone: p.drive_tone.preview_plain(k2),
                 level: p.drive_level.preview_plain(k3),
-            },
+            }),
             EffectKind::Comp => BlockSettings::Comp(CompSettings {
                 on,
                 sustain: p.comp_sustain.preview_plain(k1),
@@ -1527,8 +1529,8 @@ mod tests {
     fn numbers(told: BlockSettings) -> Vec<f32> {
         match told {
             BlockSettings::None => vec![],
-            BlockSettings::Gate { threshold_db, release_ms, .. } => vec![threshold_db, release_ms],
-            BlockSettings::Drive { drive, tone, level, .. } => vec![drive, tone, level],
+            BlockSettings::Gate(s) => vec![s.threshold_db, s.release_ms],
+            BlockSettings::Drive(s) => vec![s.drive, s.tone, s.level],
             BlockSettings::Comp(s) => vec![s.sustain, s.level],
             BlockSettings::Fuzz(s) => vec![s.fuzz, s.tone],
             BlockSettings::Pitch(s) => vec![s.semitones as f32, s.blend, s.latency_ms],

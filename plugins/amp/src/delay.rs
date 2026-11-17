@@ -1,8 +1,11 @@
 //! Stereo delay behind the cabinet: warm repeats that thin and darken, a little wider than
 //! the mono signal that goes in
 
+use crate::chain::AmpChain;
 use crate::dsp::filters::{OnePoleHp, OnePoleLp};
 use crate::dsp::smoothing_coeff;
+use crate::effect::{Effect, EffectSettings, Rates};
+use crate::order::Zone;
 
 pub const TIME_MIN_MS: f32 = 20.0;
 pub const TIME_MAX_MS: f32 = 1000.0;
@@ -388,6 +391,56 @@ fn follow(value: f32, target: f32, coeff: f32) -> f32 {
         target
     } else {
         next
+    }
+}
+
+impl EffectSettings for DelaySettings {
+    fn is_on(&self) -> bool {
+        self.on
+    }
+}
+
+/// The delay as the chain plays it: one instance for the oversampled rate in front of the amp
+/// (on one channel), one for the host's rate behind the cabinet
+pub struct DelayEffect {
+    front: Delay,
+    back: Delay,
+}
+
+impl Effect for DelayEffect {
+    type Settings = DelaySettings;
+
+    fn new() -> Self {
+        DelayEffect { front: Delay::new(), back: Delay::new() }
+    }
+
+    fn set_sample_rate(&mut self, rates: Rates) {
+        self.front.set_sample_rate(rates.oversampled);
+        self.back.set_sample_rate(rates.host);
+    }
+
+    /// Nothing that is idle is cleared: that would only cost time
+    fn set_up(&mut self, _zone: Zone, _rates: Rates) {
+        if !self.front.is_idle() {
+            self.front.reset();
+        }
+        if !self.back.is_idle() {
+            self.back.reset();
+        }
+    }
+
+    fn is_idle(&self) -> bool {
+        self.front.is_idle() && self.back.is_idle()
+    }
+
+    fn process_front(&mut self, settings: &DelaySettings, block: &mut [f32]) {
+        if settings.on || !self.front.is_idle() {
+            AmpChain::mono_through_stereo(block, |l, r| self.front.process(settings, l, r));
+        }
+    }
+
+    fn process_back(&mut self, settings: &DelaySettings, left: &mut [f32], right: &mut [f32]) {
+        self.back.process(settings, left, right);
     }
 }
 

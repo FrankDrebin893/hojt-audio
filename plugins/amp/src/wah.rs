@@ -8,7 +8,9 @@
 
 use crate::dsp::filters::ANTI_DENORMAL;
 use crate::dsp::{curve, db_to_gain, lerp, smoothing_coeff};
+use crate::effect::{Effect, EffectSettings, Rates};
 use crate::mods::{Dial, Fade};
+use crate::order::Zone;
 use nih_plug::prelude::Enum;
 
 /// Where the centre is with the rocker at the heel and at the toe, in Hz. The sweep is by
@@ -255,6 +257,50 @@ impl Wah {
             let wet = (self.gain * (band + LOW_SHARE * low)) as f32;
             *sample = if mix >= 1.0 { wet } else { lerp(dry, wet, mix) };
         }
+    }
+}
+
+impl EffectSettings for WahSettings {
+    fn is_on(&self) -> bool {
+        self.on
+    }
+}
+
+/// The wah as the chain plays it: one instance in front of the amp, one a channel behind
+/// the cabinet
+pub struct WahEffect {
+    front: Wah,
+    back: [Wah; 2],
+}
+
+impl Effect for WahEffect {
+    type Settings = WahSettings;
+
+    fn new() -> Self {
+        WahEffect { front: Wah::new(), back: [Wah::new(), Wah::new()] }
+    }
+
+    fn set_sample_rate(&mut self, rates: Rates) {
+        self.front.set_sample_rate(rates.oversampled);
+        self.back.iter_mut().for_each(|side| side.set_sample_rate(rates.host));
+    }
+
+    fn set_up(&mut self, _zone: Zone, _rates: Rates) {
+        self.front.reset();
+        self.back.iter_mut().for_each(Wah::reset);
+    }
+
+    fn is_idle(&self) -> bool {
+        true
+    }
+
+    fn process_front(&mut self, settings: &WahSettings, block: &mut [f32]) {
+        self.front.process_mono(settings, block);
+    }
+
+    fn process_back(&mut self, settings: &WahSettings, left: &mut [f32], right: &mut [f32]) {
+        self.back[0].process_mono(settings, left);
+        self.back[1].process_mono(settings, right);
     }
 }
 

@@ -4,8 +4,10 @@ use crate::cab::tests::{design_ms, off_the_design_rate};
 use crate::cab::{user_ir_len, MAX_USER_IR_LEN, USER_IR_MS};
 use crate::cab_stage::{CabLoader, CabStatus};
 use crate::drive::tests::new_drive;
+use crate::drive::DriveSettings;
 use crate::dsp::shaper::{asym_clip, AsymClipper};
 use crate::gate::tests::{decaying_note, gain_trace, hiss, transitions as gate_changes};
+use crate::gate::GateSettings;
 use crate::order::ChainOrder;
 use crate::slots::Chain;
 use crate::test_util::*;
@@ -6750,8 +6752,12 @@ fn line_of(kind: EffectKind, zone: Zone, home: bool) -> Layout {
 /// What each kind is told to make it clearly heard
 fn block_on(kind: EffectKind) -> BlockSettings {
     match kind {
-        EffectKind::Gate => BlockSettings::Gate { on: true, threshold_db: -20.0, release_ms: 50.0 },
-        EffectKind::Drive => BlockSettings::Drive { on: true, drive: 0.7, tone: 0.4, level: 0.6 },
+        EffectKind::Gate => {
+            BlockSettings::Gate(GateSettings { on: true, threshold_db: -20.0, release_ms: 50.0 })
+        }
+        EffectKind::Drive => {
+            BlockSettings::Drive(DriveSettings { on: true, drive: 0.7, tone: 0.4, level: 0.6 })
+        }
         EffectKind::Comp => {
             BlockSettings::Comp(CompSettings { on: true, sustain: 0.8, level: 0.7 })
         }
@@ -6780,12 +6786,8 @@ fn block_on(kind: EffectKind) -> BlockSettings {
 
 fn block_off(kind: EffectKind) -> BlockSettings {
     match block_on(kind) {
-        BlockSettings::Gate { threshold_db, release_ms, .. } => {
-            BlockSettings::Gate { on: false, threshold_db, release_ms }
-        }
-        BlockSettings::Drive { drive, tone, level, .. } => {
-            BlockSettings::Drive { on: false, drive, tone, level }
-        }
+        BlockSettings::Gate(s) => BlockSettings::Gate(GateSettings { on: false, ..s }),
+        BlockSettings::Drive(s) => BlockSettings::Drive(DriveSettings { on: false, ..s }),
         BlockSettings::Comp(s) => BlockSettings::Comp(CompSettings { on: false, ..s }),
         BlockSettings::Fuzz(s) => BlockSettings::Fuzz(FuzzSettings { on: false, ..s }),
         BlockSettings::Pitch(s) => BlockSettings::Pitch(PitchSettings { on: false, ..s }),
@@ -6805,8 +6807,8 @@ fn block_off(kind: EffectKind) -> BlockSettings {
 fn on_its_own(base: AmpSettings, block: BlockSettings) -> AmpSettings {
     let mut settings = base;
     match block {
-        BlockSettings::None | BlockSettings::Gate { .. } => {}
-        BlockSettings::Drive { on, drive, tone, level } => {
+        BlockSettings::None | BlockSettings::Gate(_) => {}
+        BlockSettings::Drive(DriveSettings { on, drive, tone, level }) => {
             settings.drive_on = on;
             settings.drive_gain = drive;
             settings.drive_tone = tone;
@@ -6956,6 +6958,71 @@ fn test_effects_on_slots_do_not_depend_on_the_block_size() {
             run_stereo_blocks(&mut chain, &settings, &input, block) == reference,
             "blocks of {block}"
         );
+    }
+}
+
+/// One number per kind, side and rate for every effect as a block that plays from a slot (#371):
+/// the same bits in as out, whether it stays where it is (`steady`), is switched off and on
+/// again (`switched`) or crosses to the other side of the amp (`crossed`, where the kind may
+/// stand on both). For a change that must leave every sound as it is: save the lines before and
+/// after and compare them.
+///   cargo test -p amp --release slot_fingerprint_report -- --ignored --nocapture
+#[test]
+#[ignore]
+fn slot_fingerprint_report() {
+    for sample_rate in [48000.0, 96000.0] {
+        let input = power_chords(sample_rate, 2.0);
+        let third = input.len() / 3;
+        for kind in EffectKind::ALL {
+            let zones = zones_of(kind);
+            let on = block_on(kind);
+            let off = block_off(kind);
+            let steady = |zone: Zone| {
+                let settings = on_the_spare_slot(line_of(kind, zone, false), on);
+                run_stereo(&settings, &input, sample_rate)
+            };
+            let phases = |first: (Zone, BlockSettings), second: (Zone, BlockSettings)| {
+                let mut chain = new_chain(sample_rate);
+                let (mut left, mut right) = (input.to_vec(), input.to_vec());
+                for (index, (l, r)) in
+                    left.chunks_mut(BLOCK).zip(right.chunks_mut(BLOCK)).enumerate()
+                {
+                    let (zone, block) = if index * BLOCK < third {
+                        first
+                    } else if index * BLOCK < 2 * third {
+                        second
+                    } else {
+                        first
+                    };
+                    let settings = on_the_spare_slot(line_of(kind, zone, false), block);
+                    chain.process(&settings, l, Some(r));
+                }
+                (left, right)
+            };
+            for zone in &zones {
+                let side = if *zone == Zone::Front { "front" } else { "behind" };
+                let (l, r) = steady(*zone);
+                println!(
+                    "slot {sample_rate:>6} {:<8} {side:<6} steady   {:016x}",
+                    kind.id(),
+                    fingerprint(&[&l, &r])
+                );
+                let (l, r) = phases((*zone, on), (*zone, off));
+                println!(
+                    "slot {sample_rate:>6} {:<8} {side:<6} switched {:016x}",
+                    kind.id(),
+                    fingerprint(&[&l, &r])
+                );
+            }
+            if zones.len() == 2 {
+                let (l, r) = phases((Zone::Front, on), (Zone::Back, on));
+                println!(
+                    "slot {sample_rate:>6} {:<8} both   crossed  {:016x}",
+                    kind.id(),
+                    fingerprint(&[&l, &r])
+                );
+            }
+        }
     }
 }
 
