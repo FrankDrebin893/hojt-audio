@@ -79,6 +79,7 @@ pub(crate) fn close_rect(sheet: Rect) -> Rect {
 
 /// The sheet once it has risen, in a window `width` by `height` points at full size
 #[cfg(test)]
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))] // its tests draw, and run on Linux alone
 pub(crate) fn risen_rect(width: f32, height: f32) -> Rect {
     Rect::from_min_max(Pos2::new(INSET, height - SHEET_HEIGHT), Pos2::new(width - INSET, height))
 }

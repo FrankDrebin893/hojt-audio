@@ -901,6 +901,7 @@ fn no_presets_folder() {
 }
 
 /// The preset plate on the factory bank
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))] // its tests draw, and run on Linux alone
 fn presets_open(view: &mut View) {
     view.plate = Some(Open::Presets(Menu {
         listed: user_presets::FACTORY.to_owned(),
@@ -1924,6 +1925,7 @@ fn half_chain() -> Chain {
 }
 
 /// Where the plus of gap `place` of `zone` stands, in window points at full size
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))] // its tests draw, and run on Linux alone
 fn gap_plus(chain: &Chain, zone: crate::order::Zone, place: usize) -> Pos2 {
     let gap = Line::of_chain(chain)
         .gaps()
