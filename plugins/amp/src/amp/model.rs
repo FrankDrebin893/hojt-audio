@@ -1503,9 +1503,9 @@ static SMAELD: AmpModel = AmpModel {
         mid_level_db: 2.0,
     },
     power: PowerModel {
-        drive_db: [-18.5, -3.0, 12.0],
-        volume_db: [-9.7, -8.1, -10.7],
-        clean_to: 0.9,
+        drive_db: [-18.5, -1.0, 12.0],
+        volume_db: [-8.7, -8.9, -9.7],
+        clean_to: 0.7,
         sag: 0.04,
         sag_attack_ms: 8.0,
         sag_release_ms: 60.0,
