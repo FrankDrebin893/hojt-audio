@@ -12,10 +12,10 @@ use crate::kit::Kit;
 use crate::DrumSynthParams;
 
 const UPDATE_LINE_AT: Vec2 = vec2(WINDOW_WIDTH as f32 / 2.0, 33.0);
-// The no-audio lamp (`ui::audio_lamp_left`), where the audio is the dummy backend: over the model
-// number in the lower left, lamp, caption and model number a line (18 px) apart, the caption and the
-// model number on one left edge
-const NO_AUDIO_AT: Vec2 = vec2(ui::MODEL_LEFT + 12.5, 502.0);
+// The no-audio lamp (`ui::audio_lamp_beside`), where the audio is the dummy backend: its caption
+// does not fit over the model number, where the Rock footswitch stands close, so the lamp is under
+// the Mixer frame at the left, above the end of the name band, with its caption beside it
+const NO_AUDIO_AT: Vec2 = vec2(ui::MODEL_LEFT + 12.5, 356.0);
 const WINDOW_WIDTH: u32 = 660;
 const WINDOW_HEIGHT: u32 = 600;
 
@@ -81,7 +81,7 @@ fn draw(
         // The update line, between the jack captions, when a newer version is out
         ui::update_line(ui, origin + UPDATE_LINE_AT, update);
         // And the no-audio lamp, when the standalone has no audio
-        ui::audio_lamp_left(ui, origin + NO_AUDIO_AT, origin.x + ui::MODEL_LEFT, audio);
+        ui::audio_lamp_beside(ui, origin + NO_AUDIO_AT, audio);
         // Overall sound
         let sound_y = 98.0;
         // Five knobs, evenly across the frame, the middle one over the Mixer's middle one

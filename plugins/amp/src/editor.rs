@@ -148,8 +148,10 @@ const UPDATE_ROOM_RIGHT: f32 = OUTPUT_KNOB.x - KNOB_REACH;
 // room the update line has, with its caption under it; the update line gives it the room
 // (`AUDIO_ROOM`) while the lamp is drawn. The lamp is a little above the strip's line, so that its
 // caption stands under it on the strip
-const AUDIO_LAMP: Vec2 = vec2(UPDATE_ROOM_LEFT + 34.0, STRIP_Y - 9.0);
-const AUDIO_ROOM: f32 = 68.0;
+const AUDIO_LAMP: Vec2 = vec2(UPDATE_ROOM_LEFT + 46.0, STRIP_Y - 12.0);
+const AUDIO_ROOM: f32 = 82.0;
+/// The least zoom at which the lamp has its caption: 15 points at 0.7 are 10 pixels
+const CAPTION_MIN_ZOOM: f32 = 0.7;
 
 /// Does the update line, at the width the longest message takes, have its room on a strip whose
 /// right end and middle have moved by `shift`, beside the no-audio lamp when that is drawn? On the
@@ -2146,7 +2148,15 @@ fn draw(
         // panel on the settings plate, where the program's audio is chosen
         // The lamp is no click outside the plate it opens, as the icon is none
         let mut settings_anchor = settings.icon.rect;
-        if let Some(lamp) = ui::audio_lamp(ui, origin + AUDIO_LAMP + middle, shared.audio) {
+        // Its caption is 15 points: below `CAPTION_MIN_ZOOM` it would not read, and the lamp stands
+        // alone with its hover
+        let lamp_at = origin + AUDIO_LAMP + middle;
+        let lamp = if fit.zoom < CAPTION_MIN_ZOOM {
+            ui::audio_lamp_bare(ui, lamp_at, shared.audio)
+        } else {
+            ui::audio_lamp(ui, lamp_at, shared.audio)
+        };
+        if let Some(lamp) = lamp {
             settings_anchor = settings_anchor.union(lamp.rect);
             if lamp.clicked() && host.is_some() && !view.is_open(Plates::Settings) {
                 view.toggle_plate(Plates::Settings, host, || {

@@ -13,7 +13,7 @@ use crate::GlassBellsParams;
 const UPDATE_LINE_AT: Vec2 = vec2(WINDOW_WIDTH as f32 / 2.0, 33.0);
 // The no-audio lamp (`ui::audio_lamp`), where the audio is the dummy backend: between the Sync and
 // Reverb footswitches, where neither the art (a bell in each lower corner) nor a label is under it
-const NO_AUDIO_AT: Vec2 = vec2(380.0, 495.0);
+const NO_AUDIO_AT: Vec2 = vec2(380.0, 490.0);
 const WINDOW_WIDTH: u32 = 660;
 const WINDOW_HEIGHT: u32 = 600;
 

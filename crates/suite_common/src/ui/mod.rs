@@ -46,7 +46,10 @@ pub use amp::{
     Speakers,
 };
 pub use art::Motif;
-pub use audio_lamp::{audio_lamp, audio_lamp_left, notice_for, AudioNotice, HostAudio};
+pub use audio_lamp::{
+    audio_lamp, audio_lamp_bare, audio_lamp_beside, audio_lamp_left, notice_for, AudioNotice,
+    HostAudio,
+};
 pub use frame::{
     coupler, enclosure, jack_socket, lifted, mini_pedal, patch_cable, pedal, rig, rig_layer,
     slim_print, slim_strip, strip, strip_plate, title_grip, MiniStyle, Ornament, PedalStyle,

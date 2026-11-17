@@ -15,7 +15,7 @@ const UPDATE_LINE_AT: Vec2 = vec2(WINDOW_WIDTH as f32 / 2.0, 33.0);
 // The no-audio lamp (`ui::audio_lamp_left`), where the audio is the dummy backend: over the model
 // number in the lower left, lamp, caption and model number a line (18 px) apart, the caption and the
 // model number on one left edge
-const NO_AUDIO_AT: Vec2 = vec2(ui::MODEL_LEFT + 12.5, 502.0);
+const NO_AUDIO_AT: Vec2 = vec2(ui::MODEL_LEFT + 12.5, 496.0);
 const WINDOW_WIDTH: u32 = 660;
 const WINDOW_HEIGHT: u32 = 600;
 

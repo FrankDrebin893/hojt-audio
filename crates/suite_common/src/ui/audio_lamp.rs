@@ -1,23 +1,26 @@
 //! The no-audio lamp: a red signal lamp with NO AUDIO printed under it, for a standalone program
 //! whose audio could not be opened and that plays on the dummy backend, silent.
 //!
-//! It is a `signal_lamp` with a `silk_label` under it, no new surface and never a pop-up. The reason
+//! It is a `signal_lamp` in a cream ring with a caption (`SILK`, size 15, drawn heavier) under it, no new surface and never a pop-up. The reason
 //! (what the host logged) is the lamp's hover hint; the amp also opens its Audio panel from a click
 //! on it. Nothing is drawn when the audio runs, and never in a plugin in a DAW, where the host has
 //! no status. The status is set before the window is made and does not change while it is open, so
 //! the lamp is a still part of the picture and needs no repaint of its own.
 //!
 //! Each editor gives it a place of its own where no control, caption or art detail is under it:
-//! on the amp's strip right of the settings icon, on a pedal beside its footswitches.
+//! on the amp's strip right of the settings icon, on a pedal over the model number in its lower
+//! left (the Drum Synth, whose footswitches fill that corner, beside the lamp between the name band
+//! and the Mixer frame).
 
 use nih_plug_egui::egui::{vec2, Align2, CursorIcon, Id, Pos2, Rect, Response, Sense, Stroke, Ui};
 
-use super::theme::{display, spaced_text, SILK};
-use super::widgets::{signal_lamp, silk_label};
+use super::theme::{display, layout, SILK};
+use super::widgets::signal_lamp;
 
-/// How far under the lamp the caption stands, and its size: a signal lamp's caption
-pub const CAPTION_DY: f32 = 18.0;
-const CAPTION_SIZE: f32 = 13.0;
+/// How far under the lamp the caption stands, and its size: 15 (a signal lamp's is 13) so that it
+/// reads at the real size, 9 px of capitals
+pub const CAPTION_DY: f32 = 24.0;
+const CAPTION_SIZE: f32 = 15.0;
 /// The cream ring round the lamp: it tells this lamp from a footswitch's LED, which is the same red
 const RING_RADIUS: f32 = 12.5;
 /// The words under the lamp
@@ -77,13 +80,26 @@ pub fn notice_for(status: Option<HostAudio>) -> Option<AudioNotice> {
 
 /// The room the lamp and its caption take, centred on the lamp's `center`
 pub fn rect(center: Pos2) -> Rect {
-    Rect::from_min_max(center + vec2(-30.0, -14.0), center + vec2(30.0, CAPTION_DY + 9.0))
+    Rect::from_min_max(center + vec2(-34.0, -14.0), center + vec2(34.0, CAPTION_DY + 10.0))
+}
+
+/// Where the caption stands
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Caption {
+    /// Centred under the lamp
+    Under,
+    /// Under the lamp, its left edge on this x (window coordinates)
+    UnderLeft(f32),
+    /// To the right of the lamp, on its line
+    Beside,
+    /// None: the lamp alone, where the caption would be too small to read (a hover says why)
+    Bare,
 }
 
 /// Draws the lamp and its caption with the lamp on `center` if there is a notice, and returns the
 /// response of the whole of it (a click, a hover) when it was drawn
 pub fn audio_lamp(ui: &Ui, center: Pos2, notice: Option<&AudioNotice>) -> Option<Response> {
-    draw(ui, center, None, notice)
+    draw(ui, center, Caption::Under, notice)
 }
 
 /// `audio_lamp` with the caption's left edge on `left` (window coordinates) instead of centred
@@ -95,43 +111,52 @@ pub fn audio_lamp_left(
     left: f32,
     notice: Option<&AudioNotice>,
 ) -> Option<Response> {
-    draw(ui, center, Some(left), notice)
+    draw(ui, center, Caption::UnderLeft(left), notice)
 }
 
-fn draw(
-    ui: &Ui,
-    center: Pos2,
-    left: Option<f32>,
-    notice: Option<&AudioNotice>,
-) -> Option<Response> {
+/// `audio_lamp` with the caption to the right of the lamp, for a place that is wide and not high
+pub fn audio_lamp_beside(ui: &Ui, center: Pos2, notice: Option<&AudioNotice>) -> Option<Response> {
+    draw(ui, center, Caption::Beside, notice)
+}
+
+/// The lamp alone, with no caption (a window scaled down so far that print would not read)
+pub fn audio_lamp_bare(ui: &Ui, center: Pos2, notice: Option<&AudioNotice>) -> Option<Response> {
+    draw(ui, center, Caption::Bare, notice)
+}
+
+/// The caption: cream print on whole pixels, laid twice a half pixel apart for a heavier stroke
+/// than the display font has at this size. Returns the room it takes
+fn caption_text(ui: &Ui, pos: Pos2, anchor: Align2) -> Rect {
+    let painter = ui.painter();
+    let ppp = ui.ctx().pixels_per_point();
+    let galley = layout(painter, &CAPTION.to_uppercase(), display(CAPTION_SIZE), SILK, 0.14);
+    let rect = anchor.anchor_size(pos, galley.size());
+    let snap = |v: f32| (v * ppp).round() / ppp;
+    let min = Pos2::new(snap(rect.min.x), snap(rect.min.y));
+    painter.galley(min, galley.clone(), SILK);
+    painter.galley(min + vec2(0.5 / ppp, 0.0), galley, SILK);
+    Rect::from_min_size(min, rect.size())
+}
+
+fn draw(ui: &Ui, center: Pos2, caption: Caption, notice: Option<&AudioNotice>) -> Option<Response> {
     let notice = notice?;
     let painter = ui.painter();
     signal_lamp(painter, center, true);
     painter.circle_stroke(center, RING_RADIUS, Stroke::new(1.5_f32, SILK));
-    let caption = center + vec2(0.0, CAPTION_DY);
-    match left {
-        None => {
-            silk_label(painter, caption, CAPTION, CAPTION_SIZE);
+    let under = center + vec2(0.0, CAPTION_DY);
+    let mut room = rect(center);
+    match caption {
+        Caption::Under => room = room.union(caption_text(ui, under, Align2::CENTER_CENTER)),
+        Caption::UnderLeft(left) => {
+            let at = Pos2::new(left, under.y);
+            room = room.union(caption_text(ui, at, Align2::LEFT_CENTER));
         }
-        Some(left) => {
-            spaced_text(
-                painter,
-                Pos2::new(left, caption.y),
-                Align2::LEFT_CENTER,
-                &CAPTION.to_uppercase(),
-                display(CAPTION_SIZE),
-                SILK,
-                0.16,
-            );
+        Caption::Beside => {
+            let at = center + vec2(RING_RADIUS + 6.0, 0.0);
+            room = room.union(caption_text(ui, at, Align2::LEFT_CENTER));
         }
+        Caption::Bare => {}
     }
-    let room = match left {
-        None => rect(center),
-        Some(left) => rect(center).union(Rect::from_min_max(
-            Pos2::new(left, caption.y - 8.0),
-            Pos2::new(left + 60.0, caption.y + 8.0),
-        )),
-    };
     let response = ui.interact(room, Id::new("no-audio-lamp"), Sense::click());
     if response.hovered() {
         ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
