@@ -75,7 +75,7 @@ The reasons behind choices that the code alone does not explain. What it does is
   response within 0.4 dB from 60 Hz to 8 kHz. It is not applied to the player's own cabinets
 - Mic is a shelf pair and Resonance a bell after the IR, skipped at 5.0 so the default is
   bit-identical
-- More cabinets than amps: ten built in (`SPEAKERS`), picked
+- More cabinets than amps: fourteen built in (`SPEAKERS`), picked
   on the same Cabinet stepper as files (each lane's, since #177), between `OWN` and the files.
   Not a parameter, like the file: one stepper, one stored choice. Each is a `CabModel` like the amps' own, so it
   is designed, levelled and resampled alike and the dials work on its own frequencies.
@@ -83,6 +83,19 @@ The reasons behind choices that the code alone does not explain. What it does is
   each other per octave band, too close to be heard as a choice. Every two built-in ones
   are at least 3 dB apart in some octave band of a guitar (a test holds it;
   `speaker_report` prints how far), and the amps' own stay as they were
+- Where the blur comes from (measured for the four clear cabinets, `clarity_report`): two held
+  notes a major third apart at the reference level come out of Klar with what lies between
+  their harmonics at -86 dB at Master 3 and -20 dB at Master 5, cabinet off, and -25 to -27 dB
+  out of Brøl and Glød at Gain 0, Master 5: the power stage's knee is under the peaks of a
+  chord. A cabinet cannot take that out, only weigh it: across the built-in ones the figure
+  moves by about 4 dB, and a bright cabinet shows more of it, a dark one less. So the clear
+  cabinets (`1X12 CLEAR`, `1X10 SNAP`, `2X12 CHIME`) are for the top and the lean low mids the
+  ten before them lacked (none of those is over -20 dB at 10 kHz), not a cure for a chord
+  that an amp has already blurred; that is the amps' work
+- `FULL RANGE` is the one built-in cabinet that is no guitar speaker: a woofer and a tweeter,
+  60 Hz to 12 kHz, no cone breakup, for an acoustic or a clean sound. The tests that hold a
+  cabinet to a guitar speaker's shape leave it out by its id (`FULL_RANGE_ID`); `1X12 CLEAR`
+  and `2X12 CHIME` are held to 12 dB under their mids at 10 kHz where the others are held to 20
 - No file dialog (the style guide forbids pop-ups): files in one folder, stepped through. The
   folder is found through the Windows known-folder call by a hand-written FFI declaration (it
   follows OneDrive), no crate. The choice is a persisted file name, not a parameter, not in

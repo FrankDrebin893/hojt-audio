@@ -3736,6 +3736,7 @@ fn test_speakers_sound_apart_and_about_as_loud() {
     // through the amp's own, and every two are heard apart: at least 3 dB apart in
     // one octave band of a guitar, where the amps' own cabinets are 1 to 2 dB apart
     let input = guitar_di(SAMPLE_RATE);
+    let mut alike = Vec::new();
     for amp in Amp::ALL {
         let settings = with_amp(amp, 0.5);
         let own_level = loudness_lufs(&[&run(&settings, &input, SAMPLE_RATE)], SAMPLE_RATE);
@@ -3763,17 +3764,16 @@ fn test_speakers_sound_apart_and_about_as_loud() {
                     .iter()
                     .zip(&bands)
                     .fold(0.0f32, |top, (a, b)| top.max((a - b).abs()));
-                assert!(
-                    apart > 3.0,
-                    "{:?}: {} and {} are {:.1} dB apart",
-                    amp,
-                    SPEAKERS[speaker].id,
-                    SPEAKERS[other].id,
-                    apart
-                );
+                if apart <= 3.0 {
+                    alike.push(format!(
+                        "{:?}: {} and {} are {:.1} dB apart",
+                        amp, SPEAKERS[speaker].id, SPEAKERS[other].id, apart
+                    ));
+                }
             }
         }
     }
+    assert!(alike.is_empty(), "{alike:#?}");
 }
 
 #[test]
@@ -7115,4 +7115,130 @@ fn render_slots() {
         );
     }
     println!("Wrote renders to {}", dir.display());
+}
+
+// Two held notes a major third apart, on bins of the transform `clarity` takes: what a
+// clipper makes of them falls between their harmonics, and is what blurs a chord
+const CLARITY_SIZE: usize = 65536;
+const CLARITY_BINS: [usize; 2] = [268, 337];
+
+/// Two held notes a major third apart (196 and 247 Hz), each with the harmonics of a string
+fn two_notes(sample_rate: f32, len: usize) -> Vec<f32> {
+    let mut notes = vec![0.0f32; len];
+    for bin in CLARITY_BINS {
+        let freq = bin as f64 * sample_rate as f64 / CLARITY_SIZE as f64;
+        let mut harmonic = 1;
+        while freq * (harmonic as f64) < 5000.0 {
+            let level = 1.0 / (harmonic as f64).powf(1.3);
+            for (index, sample) in notes.iter_mut().enumerate() {
+                let phase = std::f64::consts::TAU * freq * harmonic as f64 * index as f64
+                    / sample_rate as f64;
+                *sample += (level * (phase + harmonic as f64).sin()) as f32;
+            }
+            harmonic += 1;
+        }
+    }
+    at_rms_db(&notes, REFERENCE_DI_DB)
+}
+
+/// Of the last `CLARITY_SIZE` samples of two notes played through something: the level of
+/// what lies between the notes' harmonics, against the harmonics, in dB, in the whole and
+/// below 400 Hz, from 400 Hz to 2 kHz and above
+fn between_the_notes_db(output: &[f32]) -> [f32; 4] {
+    let tail = &output[output.len() - CLARITY_SIZE..];
+    let windowed: Vec<f32> = tail
+        .iter()
+        .enumerate()
+        .map(|(index, &sample)| {
+            let phase = std::f32::consts::TAU * index as f32 / CLARITY_SIZE as f32;
+            sample * (0.5 - 0.5 * phase.cos())
+        })
+        .collect();
+    let mut fft = crate::dsp::fft::RealFft::new(CLARITY_SIZE);
+    let mut re = vec![0.0; fft.bins()];
+    let mut im = vec![0.0; fft.bins()];
+    fft.forward(&windowed, &mut re, &mut im);
+    let hz_per_bin = SAMPLE_RATE / CLARITY_SIZE as f32;
+    let mut notes = 0.0f64;
+    let mut between = [0.0f64; 4];
+    for bin in (20.0 / hz_per_bin) as usize..(12000.0 / hz_per_bin) as usize {
+        let power = (re[bin] as f64).powi(2) + (im[bin] as f64).powi(2);
+        let on_a_note = CLARITY_BINS.iter().any(|&note| {
+            let off = bin % note;
+            off.min(note - off) <= 3 && bin + 3 >= note
+        });
+        if on_a_note {
+            notes += power;
+        } else {
+            let freq = bin as f32 * hz_per_bin;
+            between[0] += power;
+            between[if freq < 400.0 {
+                1
+            } else if freq < 2000.0 {
+                2
+            } else {
+                3
+            }] += power;
+        }
+    }
+    between.map(|power| (10.0 * (power / notes).max(1e-12).log10()) as f32)
+}
+
+/// Prints what makes a sound clear or blurred, for each amp at Gain 3, 5 and 7 through its
+/// own cabinet, without a cabinet and through each built-in one: the octave bands of a
+/// guitar, and how much of two notes played together lies between their harmonics:
+///   cargo test -p amp --release clarity_report -- --ignored --nocapture
+#[test]
+#[ignore]
+fn clarity_report() {
+    let riffs = at_rms_db(&guitar_di(SAMPLE_RATE), REFERENCE_DI_DB);
+    let notes = two_notes(SAMPLE_RATE, 2 * CLARITY_SIZE);
+    let header = || {
+        print!("{:<22}", "");
+        for edges in BAND_EDGES_HZ.windows(2) {
+            print!("{:>7.0}", (edges[0] * edges[1]).sqrt());
+        }
+        println!("   between the notes: all   <400  <2000  above");
+    };
+    let row = |name: &str, settings: &AmpSettings, speaker: Option<usize>| {
+        let play = |input: &[f32]| {
+            let mut chain = new_chain(SAMPLE_RATE);
+            if let Some(speaker) = speaker {
+                chain.cab_stage().offer_speaker(speaker, SAMPLE_RATE);
+            }
+            run_blocks(&mut chain, settings, input, BLOCK)
+        };
+        print!("{:<22}", name);
+        band_levels_db(&play(&riffs), SAMPLE_RATE)
+            .iter()
+            .for_each(|level| print!("{:>7.1}", level));
+        let between = between_the_notes_db(&play(&notes));
+        println!(
+            "   {:>22.1}{:>7.1}{:>7.1}{:>7.1}",
+            between[0], between[1], between[2], between[3]
+        );
+    };
+    header();
+    print!("{:<22}", "the guitar itself");
+    band_levels_db(&riffs, SAMPLE_RATE).iter().for_each(|level| print!("{:>7.1}", level));
+    println!();
+    for amp in Amp::ALL {
+        for gain in [0.3, 0.5, 0.7] {
+            let settings = with_amp(amp, gain);
+            row(&format!("{amp:?} {:.0} own", gain * 10.0), &settings, None);
+            row(
+                &format!("{amp:?} {:.0} no cab", gain * 10.0),
+                &AmpSettings { cab_on: false, ..settings },
+                None,
+            );
+        }
+    }
+    for (amp, gain) in [(Amp::Klar, 0.5), (Amp::Brol, 0.5), (Amp::Torden, 0.5)] {
+        println!();
+        header();
+        row(&format!("{amp:?} own"), &with_amp(amp, gain), None);
+        for (index, speaker) in SPEAKERS.iter().enumerate() {
+            row(&format!("{amp:?} {}", speaker.id), &with_amp(amp, gain), Some(index));
+        }
+    }
 }

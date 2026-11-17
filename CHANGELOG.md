@@ -25,6 +25,16 @@ GitHub release.
   installed programs had left it out, since it had only been built by hand. The ASIO SDK is built from
   its GPLv3 licence, the same as the plugins.
 
+### Guitar Amp
+
+- Four more built-in cabinets, fourteen in all, for the clear and bright sounds the others did not have:
+  - `1X12 CLEAR`: one 12" in an open back, a lean low end, the pick's edge forward and an open top, for a
+    clean bridge pickup
+  - `1X10 SNAP`: one 10" in a small, stiff box that snaps instead of honking, for funk and picked parts
+  - `2X12 CHIME`: two 12"s in an open back, a full low end, scooped low mids and a chime high up
+  - `FULL RANGE`: a woofer and a tweeter as in an amp for an acoustic guitar, 60 Hz to 12 kHz. It does not
+    hide the fizz of a distorted amp, so it is for clean sounds
+
 ### Bass Synth
 
 - Metal no longer turns low notes into a buzz. Its distortion used to work on the note itself,
