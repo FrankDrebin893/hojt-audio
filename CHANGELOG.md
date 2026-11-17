@@ -38,6 +38,18 @@ GitHub release.
   - `FULL RANGE`: a woofer and a tweeter as in an amp for an acoustic guitar, 60 Hz to 12 kHz. It does not
     hide the fizz of a distorted amp, so it is for clean sounds
 
+### Guitar Amp
+
+- A new amp at the end of the Amp stepper (and the second amp's): Smæld (SM-20), a clean amp with
+  a snap. Bright, tight and quick, for single coils and chords where every string and the pick on
+  it should be heard. It stays clean up to Gain 7 and only starts to bark on hard attacks past
+  that, keeps the low end short so nothing booms under a chord, and its power stage leaves two
+  notes played together apart, where the other amps blur them a little. Its own cabinet is one
+  12" in an open back with the top let through. Its head is butterscotch with a silver cloth, a
+  black panel and chrome knobs. Two factory presets: Knips (the clean snap with a small room) and
+  Kvik (a compressor, a short slap and a room, for quick picking). The other amps sound exactly
+  as they did, and projects keep their amp.
+
 ### Bass Synth
 
 - Metal no longer turns low notes into a buzz. Its distortion used to work on the note itself,
