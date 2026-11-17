@@ -160,8 +160,12 @@ What every sub-session is asked to do, for issue `<n>`:
    session", read `mcp__claude-code-remote__read_documentation` topic `environment.network` once, and
    ask for `add_repo` once if a repo is the need; do not probe hosts with curl or repeated searches. If it
    stays blocked, take the spec's fallback if it has one, or stop with a question on the issue.
+   A change that belongs in the nih-plug fork follows `plugins/README.md`, "A change in the nih-plug fork"
+   (clone into the scratchpad, plain git commands, `scripts/pin-nih-plug.sh <rev>`).
 4. **Gates**, all before the pull request:
-   - `scripts/check.sh`: every step of CI (format, clippy, the tests, the amp's tests optimised)
+   - `scripts/check.sh`: every step of CI (format, clippy, the tests, the amp's tests optimised). Run it
+     once, in the background, and wait for it (it prints `== <step>` as each starts; the time is in
+     `scripts/README.md`, Testing); a cloud session's start hook has already installed CI's packages
    - The reports named in the spec, before (on `main`) and after
    - The standalone window looked at, if an editor changed
    - `CHANGELOG.md` under `Unreleased` says what a player will notice

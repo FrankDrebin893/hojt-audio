@@ -92,6 +92,7 @@ full() {
     step cargo test -p amp -p bass --profile optimised --locked
     [[ "$(uname -s)" == Linux ]] && step bash scripts/test-linux-install.sh
     step bash scripts/test-macos-pkg.sh
+    step bash scripts/test-pin-nih-plug.sh
     echo "== All of CI's steps pass"
 }
 

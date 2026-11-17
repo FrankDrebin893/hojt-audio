@@ -19,6 +19,23 @@ Each plugin keeps DSP in its own module(s), separate from `lib.rs` (plugin entry
 4. Pick a unique `VST3_CLASS_ID` (16 bytes) and `CLAP_ID`; DAW projects reference plugins by these
 5. Give it `no_alloc` tests (see `CLAUDE.md`, Code Conventions) and an `ids` test (see Versioning in `CLAUDE.md`)
 
+## A change in the nih-plug fork
+
+The pinned nih-plug is our fork, `FrankDrebin893/nih-plug` (see CLAUDE.md, Code Conventions). A change to it is made
+in a clone of its own, never in the shared checkout (`/home/user/nih-plug` is not usable). From the worktree, each
+as a plain command of its own (no `cd ... &&` chains, no `git -C`, which the worktree guard refuses):
+
+1. Clone it to a spelled-out absolute path in the scratchpad: `git clone https://github.com/FrankDrebin893/nih-plug.git <scratchpad>/nih-plug`
+   (the scratchpad's full path from the session's environment), then `cd` there and check out the branch the
+   change belongs to (`hojt-standalone-audio` for the standalone host).
+2. Change it, commit it and test it there: `cargo test --features standalone` in the fork (the tests of the
+   crate the change is in).
+3. Push the branch. The pin is the branch's tip, so a change on top of it is a new commit.
+4. Back in the worktree: `scripts/pin-nih-plug.sh <the 40-hex commit>` replaces the rev in `Cargo.toml` and
+   `Cargo.lock` and the short commit CLAUDE.md names, and prints what it changed; then
+   `cargo check --workspace --locked` proves the lock still resolves. Add the change to CLAUDE.md's list of what
+   the fork carries.
+
 ## Versioning
 
 A new build replaces the old one in place: install it over the old bundle and every DAW project
