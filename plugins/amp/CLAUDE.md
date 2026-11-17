@@ -404,7 +404,8 @@ How it behaves:
   was, to the bit. A project saved before a pedal existed gets it where the default has it (the
   wah behind the pitch shifter, wherever the project put that). `Pedal::ALL` only ever grows at the
   end: the order is saved as a number of four bits a pedal too
-- **Delay and reverb in front of the amp** (#268, `AmpChain::front_delay`, `front_reverb`): one
+- **Delay and reverb in front of the amp** (#268, the `front` instance inside `DelayEffect` and
+  `ReverbEffect`, played from `AmpChain::homes`): one
   more `Delay` and `Reverb` made for the oversampled rate, so a pedal that changes sides
   allocates nothing (about 3 MB of lines for the delay at 192 kHz). Only the instance of the side
   the pedal stands on runs; the other is reset when the pedal crosses (`set_up_pedal`), so
@@ -433,8 +434,8 @@ How it behaves:
   pedal does (`AmpChain::driven`). A pedal absent from the chain is put to rest and not run.
   `slot_report` prints, for each kind and side, whether it is the pedal's sound, its level,
   latency and cost
-- **Drive, wah and pitch shifter behind the cabinet** (#268, `AmpChain::back_drive`,
-  `back_wah`, `back_pitch`): made for the host's rate next to the ones in front, so a pedal that
+- **Drive, wah and pitch shifter behind the cabinet** (#268, the `back` instances
+  inside `DriveEffect`, `WahEffect` and `PitchEffect`, played from `AmpChain::homes`): made for the host's rate next to the ones in front, so a pedal that
   changes sides allocates nothing (the pitch shifter's buffers, about 1 MB, once a channel).
   Only the instance of the side the pedal stands on runs; the other is reset when it crosses,
   from rest. The wah and the pitch shifter are one instance a channel with the same settings,

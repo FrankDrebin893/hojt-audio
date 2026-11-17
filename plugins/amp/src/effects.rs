@@ -207,7 +207,6 @@ macro_rules! effects {
 
         /// The pedal that has parameters of its own for `kind` (read by `slots.rs` from
         /// milestone 3 on)
-        #[allow(dead_code)]
         pub fn pedal_of(kind: EffectKind) -> Option<Pedal> {
             match kind {
                 $(EffectKind::$kind => $pedal,)*

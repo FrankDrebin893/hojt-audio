@@ -300,8 +300,9 @@ const PEDAL_TYPES: &[&str] = &[
     "Reverb",
 ];
 
-/// The pedal types a line names. A variant of `Pedal` or `EffectKind` (`Pedal::Drive`) is no
-/// type: the pedal is named by the table, which the chain walks
+/// The pedal types a line names, and the variants of `Pedal` and `EffectKind` that name one:
+/// the pedal is named by the table, which the chain walks. The one variant that stays is the
+/// drive's (`Pedal::Drive`, `EffectKind::Drive`), for the amp's driven state
 fn names_a_pedal_type(line: &str) -> Vec<String> {
     let mut found = Vec::new();
     let mut at = 0;
@@ -321,7 +322,8 @@ fn names_a_pedal_type(line: &str) -> Vec<String> {
         let a_variant = before.ends_with("Pedal::") || before.ends_with("EffectKind::");
         // The trait `Eq` is no pedal
         let the_trait = bare == "Eq" && (line.contains("derive(") || line.contains("impl Eq for"));
-        if PEDAL_TYPES.contains(&bare) && !a_variant && !the_trait {
+        let the_drive_variant = a_variant && word == "Drive";
+        if PEDAL_TYPES.contains(&bare) && !the_drive_variant && !the_trait {
             found.push(word.to_string());
         }
         at = start + len;
@@ -361,13 +363,16 @@ fn test_what_counts_as_naming_a_pedal_type() {
         "homes: [Delay; 12],",
         "let drive = BackDrive::new();",
         "impl Effect for ChorusEffect {",
+        "Voice::Home(Pedal::Wah) => 1,",
+        "EffectKind::Reverb => 1,",
+        "let kind = EffectKind::Delay;",
     ] {
         assert!(!names_a_pedal_type(named).is_empty(), "not seen: {named}");
     }
     for fine in [
-        "Voice::Home(Pedal::Comp)",
         "if pedal == Pedal::Drive {",
-        "EffectKind::Reverb => 1,",
+        "EffectKind::Drive => 1,",
+        "Voice::Home(Pedal::ALL[0])",
         "let drive_on = true;",
         "fn follow_drive_side(&mut self) {}",
         "Body::process_front(settings, block)",
@@ -382,7 +387,8 @@ fn test_what_counts_as_naming_a_pedal_type() {
 #[test]
 fn test_nothing_the_audio_thread_plays_through_is_a_dyn_or_a_box() {
     // The pedals are played by a `match` on an enum (`effects.rs`): static, with no virtual
-    // call and no heap object, so `AmpChain::process` reaches neither (#371)
+    // call and no `Box`, so `AmpChain::process` reaches neither. The effects are in a `Vec`
+    // built once in `AmpChain::new`, never pushed to or resized in `process` (#371)
     let mut found = Vec::new();
     for name in ["chain.rs", "effect.rs", "effects.rs", "extras.rs", "layout.rs"] {
         let path = amp_dir().join("src").join(name);
