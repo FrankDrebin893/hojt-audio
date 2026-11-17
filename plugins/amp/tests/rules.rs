@@ -176,11 +176,13 @@ fn test_the_amp_names_no_maker() {
 fn test_no_dsp_branches_on_the_amp() {
     // Picking an amp is the model's job; the editor and the looks show each amp its own way
     // `test_util.rs` is a module of tests only, and so is a module's `tests.rs` (`chain/tests.rs`)
+    // and every file in its `tests/` folder (`chain/tests/acoustic.rs`)
     let allowed = ["amp/model.rs", "editor.rs", "looks.rs", "test_util.rs", "tests.rs"];
     let src = amp_dir().join("src");
     let is_dsp = |path: &Path| {
         path.extension().is_some_and(|ext| ext == "rs")
             && !allowed.iter().any(|allowed| path.ends_with(allowed))
+            && !path.parent().is_some_and(|folder| folder.ends_with("tests"))
     };
     let mut found = Vec::new();
     for path in files(&src, &is_dsp) {

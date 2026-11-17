@@ -1424,7 +1424,8 @@ pub mod tests {
     /// one is no guitar speaker and keeps it all
     fn top_cut_db(name: &str) -> Option<f32> {
         match name {
-            FULL_RANGE_ID => None,
+            // Træ's own is the body of an acoustic guitar: held to its own shape instead
+            FULL_RANGE_ID | "Træ" => None,
             "1x12-clear" | "2x12-chime" => Some(12.0),
             _ => Some(20.0),
         }
@@ -1441,6 +1442,11 @@ pub mod tests {
             assert!(level(30.0) < mids - lows_cut, "{} keeps sub bass", name);
             if let Some(least) = top_cut_db(name) {
                 assert!(level(10000.0) < mids - least, "{} keeps fizz", name);
+            } else if name == "Træ" {
+                // Not a speaker but the body of an acoustic guitar: the strings' own top is
+                // what makes it one, so it is open up to 7 kHz, and only the hiss is gone
+                assert!(level(7000.0) > mids - 3.0, "{} loses its top", name);
+                assert!(level(16000.0) < mids - 20.0, "{} keeps hiss", name);
             }
             assert!(level(cab.resonance_hz) > mids - 8.0, "{} has no low end", name);
         }

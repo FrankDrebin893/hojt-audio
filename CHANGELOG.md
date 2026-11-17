@@ -30,6 +30,15 @@ GitHub release.
 
 ### Guitar Amp
 
+- A new amp, **Træ** (TR-15), the last on the head's nameplate: it makes an electric guitar sound like an
+  acoustic one. Where the other amps have a speaker cabinet it has the body of a guitar, with the low
+  mids of a magnetic pickup taken out and the strings' top let through, and nothing in it distorts. Two
+  notes held together come out as those two notes, with nothing between them, at the level a guitar is
+  usually recorded at and anywhere up to Gain 7.5; past that it starts to round off the hardest
+  strums. It looks the part: honey-coloured spruce, a dark wood panel and gold knobs. Two factory
+  presets come with it, Gran (strummed chords) and Lejr (fingerpicking with the compressor and a longer
+  hall). It is the one amp that follows the guitar's level dB for dB, so a quieter guitar is quieter
+  through it than through the others.
 - Four more built-in cabinets, fourteen in all, for the clear and bright sounds the others did not have:
   - `1X12 CLEAR`: one 12" in an open back, a lean low end, the pick's edge forward and an open top, for a
     clean bridge pickup
@@ -57,6 +66,12 @@ GitHub release.
   lowest strings. Now the note stays clean and the distortion works on the string's harmonics and
   the pick over it, so a riff sounds like a string being played: clearer, with more of each note's
   attack. Drive and Tone have the ranges they had; a project that uses Metal sounds different.
+- Low notes growl like a wound string, where their top used to buzz. A real bass string is stiff,
+  so the upper part of its sound runs slightly ahead of the rest and never repeats exactly; ours
+  did that only in the lower part, and the top came as one click every time the string went
+  round, like a synth's pulse wave. Now the top is spread as on a string, most of all on the two
+  lowest strings and in Metal. A note played up a string is also a little more wiry than the
+  same string open, as it is on an instrument. Every note sounds slightly different from before.
 
 ## 0.4.0
 
