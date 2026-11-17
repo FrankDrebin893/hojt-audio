@@ -24,7 +24,10 @@ leak into the next spec. Its brief is `/spec` with the issue's link, and it repo
    - out of scope: one comment saying why, then leave it for the owner to close
    - split: one comment proposing the parts, then leave it
 3. **Pick** the ready ones a player gains most from for the work: as many as asked, and never
-   so many that more than 5 specs wait. An issue from somebody outside the project (`from:user`) goes
+   so many that more than 5 specs wait. Improvements to what exists come first: bugs, sound or
+   look quality, performance, and finishing a plugin's rough edges. A `kind:feature` idea that adds something
+   new (a plugin, pedal, voice, mode or tool) is picked only when no improvement is ready, and never while 2
+   or more new-feature specs wait for approval. An issue from somebody outside the project (`from:user`) goes
    before an equal `from:scout` one. An issue labelled `needs:reporter` is not ready and is never picked
    (see below).
 4. **Spec** each, in a sub-session of its own, as `/spec` does, in full: read the code and run a report where a figure
