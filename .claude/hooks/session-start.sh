@@ -4,7 +4,8 @@
 # "for CI to check". Elsewhere (a desktop, a CI runner) it does nothing.
 #
 #   - the Linux packages ci.yml installs (read from ci.yml, so they are listed in one place)
-#   - shellcheck, which scripts/test-linux-install.sh and scripts/test-macos-pkg.sh run when it is there
+#   - shellcheck, which scripts/test-linux-install.sh and scripts/test-macos-pkg.sh run when it is there,
+#     and cpio, which test-macos-pkg.sh needs
 #   - the Rust toolchain ci.yml pins for format and clippy
 #
 # Only what is missing is installed, so a second start costs nothing.
@@ -18,7 +19,7 @@ ci=.github/workflows/ci.yml
 
 as_root() { if [ "$(id -u)" = 0 ]; then "$@"; else sudo "$@"; fi; }
 
-packages="$(grep -m1 'apt-get install -y' "$ci" | sed 's/.*apt-get install -y//') shellcheck"
+packages="$(grep -m1 'apt-get install -y' "$ci" | sed 's/.*apt-get install -y//') shellcheck cpio"
 missing=()
 for p in $packages; do
     dpkg-query -W -f='${Status}' "$p" 2> /dev/null | grep -q 'install ok installed' || missing+=("$p")

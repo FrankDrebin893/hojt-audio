@@ -96,6 +96,15 @@ Every tracked `scripts/*.sh` must be mode 100755 in git's index (`check.sh modes
 CI's lint job): make a new one so with `git update-index --chmod=+x scripts/<name>.sh`. `check.sh` prints
 `== <command>` as each step starts, so a session waiting on it reads the output file with one `tail` and does not
 poll; the long step is `cargo test --workspace`, which shows no progress of its own until it ends.
+Measured in a cloud session (`time` around the run): `check.sh quick` takes about 35 s on a cold build cache and
+about 1 s warm; a full run takes about 10 minutes cold (581 s to the macOS package step) and about 4 minutes (223 s) warm. Start
+the full run once in the background and wait for it, do not poll in a loop. A cloud session's start hook
+(`.claude/hooks/session-start.sh`) installs CI's packages, `shellcheck`, `cpio` and the pinned Rust first; where
+it did not run, `scripts/check.sh deps` installs the missing packages (`quick` and the full run name them and
+stop when they are missing, they never install on their own).
+`scripts/pin-nih-plug.sh <rev>` moves the pin of the nih-plug fork: it replaces the old rev in `Cargo.toml`,
+`Cargo.lock` and the commit `CLAUDE.md` names, and prints what it changed (`plugins/README.md`, "A change in the
+nih-plug fork"). `scripts/test-pin-nih-plug.sh` tests it on a copy and is a step of `check.sh` and CI.
 The tests are compiled lightly optimised (`[profile.test]` in the root `Cargo.toml`, level 1, debug assertions
 still on): unoptimised, the amp's tests alone took 25 minutes on CI, and take under two this way. A test that
 plays sound costs seconds either way, so keep what it plays short. For a quicker build of one test while
