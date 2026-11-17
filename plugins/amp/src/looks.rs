@@ -31,7 +31,7 @@ const PILOT_RED: Color32 = rgb(214, 36, 28);
 const PILOT_AMBER: Color32 = rgb(236, 150, 40);
 
 /// The looks, in the order of `Amp::ALL`
-const LOOKS: [Look; 10] = [
+const LOOKS: [Look; 11] = [
     // Klar: ivory, a wheat cloth with a fine gold thread, a chrome panel and chrome knobs
     Look {
         head: HeadStyle {
@@ -206,6 +206,23 @@ const LOOKS: [Look; 10] = [
         },
         knobs: KnobCap::CreamChickenHead,
     },
+    // Træ: the honey of a spruce top, smooth, a dark brown cloth, a dark wood panel and gold tops
+    Look {
+        head: HeadStyle {
+            tolex: Tolex::Smooth,
+            covering: rgb(204, 156, 92),
+            piping: None,
+            grille: Grille::Wheat,
+            cloth: rgb(84, 56, 36),
+            cloth_stripe: None,
+            grille_height: GRILLE_HEIGHT,
+            panel: Plate::DarkWood,
+            print: SILK,
+            panel_stripe: None,
+            jewel: PILOT_AMBER,
+        },
+        knobs: KnobCap::GoldTop,
+    },
 ];
 
 /// The look of `amp`'s head
@@ -250,7 +267,7 @@ const STEEL_MESH: Color32 = rgb(150, 150, 148);
 const SILVER_CLOTH: Color32 = rgb(172, 172, 168);
 
 /// The amps' own cabinets, in the order of `Amp::ALL`
-const OWN_CABS: [CabStyle; 10] = [
+const OWN_CABS: [CabStyle; 11] = [
     // Klar: one 12" in an open back, ivory with a wheat cloth like its head's
     cab(Tolex::Smooth, rgb(226, 216, 190), Grille::Wheat, rgb(196, 168, 112), Speakers::One12),
     // Brøl: four 12" in a closed box, black with a basketweave piped in white, chrome corners
@@ -291,6 +308,8 @@ const OWN_CABS: [CabStyle; 10] = [
     },
     // Hvas: two 12" in a closed box, dark red with black felt
     cab(Tolex::Levant, rgb(98, 22, 26), Grille::Felt, rgb(30, 30, 32), Speakers::Two12),
+    // Træ: a guitar's body, not a speaker box: honey spruce with a dark cloth, one round opening
+    cab(Tolex::Smooth, rgb(204, 156, 92), Grille::Wheat, rgb(84, 56, 36), Speakers::One12),
 ];
 
 /// The built-in cabinets' looks, by the id of each in `SPEAKERS`
@@ -425,6 +444,7 @@ mod tests {
             (Amp::Gnist, Tolex::Tweed, Plate::BrushedChrome, KnobCap::ChickenHead),
             (Amp::Skarp, Tolex::Smooth, Plate::BrushedChrome, KnobCap::Fluted),
             (Amp::Hvas, Tolex::Levant, Plate::BlackAnodised, KnobCap::CreamChickenHead),
+            (Amp::Trae, Tolex::Smooth, Plate::DarkWood, KnobCap::GoldTop),
         ];
         for (amp, tolex, panel, knobs) in expected {
             let look = look(amp);
@@ -527,6 +547,7 @@ mod tests {
             (Amp::Gnist, Tolex::Tweed, Grille::Basketweave, Speakers::Two12, None),
             (Amp::Skarp, Tolex::Smooth, Grille::Mesh, Speakers::Four12, Some(Corners::Chrome)),
             (Amp::Hvas, Tolex::Levant, Grille::Felt, Speakers::Two12, None),
+            (Amp::Trae, Tolex::Smooth, Grille::Wheat, Speakers::One12, None),
         ];
         for (amp, tolex, grille, speakers, corners) in expected {
             let look = cab_look(amp, "", CabStatus::Fine);

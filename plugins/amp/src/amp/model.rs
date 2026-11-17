@@ -36,10 +36,13 @@ pub enum Amp {
     #[id = "hvas"]
     #[name = "Hvas"]
     Hvas,
+    #[id = "trae"]
+    #[name = "Træ"]
+    Trae,
 }
 
 impl Amp {
-    pub const ALL: [Amp; 10] = [
+    pub const ALL: [Amp; 11] = [
         Amp::Klar,
         Amp::Brol,
         Amp::Torden,
@@ -50,6 +53,7 @@ impl Amp {
         Amp::Gnist,
         Amp::Skarp,
         Amp::Hvas,
+        Amp::Trae,
     ];
 
     pub fn model(self) -> &'static AmpModel {
@@ -64,6 +68,7 @@ impl Amp {
             Amp::Gnist => &GNIST,
             Amp::Skarp => &SKARP,
             Amp::Hvas => &HVAS,
+            Amp::Trae => &TRAE,
         }
     }
 
@@ -643,6 +648,25 @@ const HVAS_CAB: CabModel = CabModel {
     breakup_db: 2.8,
     breakup_seed: 270,
     ir_ms: 8.0,
+};
+
+/// Træ's own, and not a speaker: the body of an acoustic guitar as a microphone in front of
+/// it hears it. The air in the box at 100 Hz and the top at 200 Hz, the mids of a magnetic
+/// pickup taken out, the strings' own top let through all the way up, and the wood: narrow
+/// peaks and notches from 1 to 7 kHz, which ring twice as long as a cone's
+const TRAE_CAB: CabModel = CabModel {
+    resonance_hz: 85.0,
+    resonance_q: 0.8,
+    body: [205.0, 1.4, 1.5],
+    dip: [800.0, 0.8, -2.5],
+    bite: [3600.0, 0.6, 2.0],
+    rolloff_hz: 9000.0,
+    air_ratio: 1.2,
+    breakup_hz: [1000.0, 7000.0],
+    breakup_count: 24,
+    breakup_db: 2.0,
+    breakup_seed: 280,
+    ir_ms: 10.0,
 };
 
 /// Everything that makes one amp differ from another
@@ -1504,6 +1528,78 @@ static HVAS: AmpModel = AmpModel {
     cab: HVAS_CAB,
 };
 
+/// Acoustic: an electric guitar made to sound like an acoustic one, and the clearest of the
+/// amps. Nothing in it clips: two stages with ceilings higher than Klar's, which only round
+/// off a string struck hard at the top of the Gain dial, and a power stage that is straight
+/// up to its knee. What makes the sound is the frequency response: a treble lift in front
+/// that gives back what a magnetic pickup loses, the mids scooped at the dials' centre, and a
+/// "cabinet" that is the body of a guitar, open to 9 kHz
+static TRAE: AmpModel = AmpModel {
+    name: "Træ",
+    model_number: "TR-15",
+    tight_hz: 80.0,
+    focus: [750.0, 0.5, 0.0],
+    bright_hz: 2500.0,
+    bright_db: 4.0,
+    stage_count: 2,
+    stages: [
+        StageModel {
+            coupling_hz: 20.0,
+            gain_db: [-4.0, 1.0, 12.0],
+            headroom: [5.0, 6.0],
+            bias: 0.0,
+            bias_shift: 0.2,
+            lowpass_hz: 18000.0,
+            second_order: false,
+            finer_when_driven: false,
+        },
+        StageModel {
+            coupling_hz: 35.0,
+            gain_db: [-6.0, 1.0, 14.0],
+            headroom: [3.5, 4.3],
+            bias: 0.03,
+            bias_shift: 0.2,
+            lowpass_hz: 16000.0,
+            second_order: true,
+            finer_when_driven: false,
+        },
+        UNUSED_STAGE,
+        UNUSED_STAGE,
+    ],
+    fizz_hz: None,
+    lowcut_hz: None,
+    level_db: [35.5, 29.5, 25.0, 12.0, -1.5],
+    makeup_db: [0.0, 0.0, 0.0, 0.0, 0.0],
+    tone: ToneModel {
+        bass_hz: 110.0,
+        bass_db: 10.0,
+        mid_hz: 700.0,
+        mid_q: 0.6,
+        mid_db: 8.0,
+        mid_centre_db: 0.0,
+        scoop_db: 3.0,
+        mid_shift_octaves: 0.3,
+        treble_hz: 4500.0,
+        treble_db: 10.0,
+        mid_level_db: 2.0,
+    },
+    power: PowerModel {
+        drive_db: [-24.0, -4.0, 6.5],
+        volume_db: [-7.5, -7.5, -8.5],
+        clean_to: 0.9,
+        sag: 0.05,
+        sag_attack_ms: 10.0,
+        sag_release_ms: 100.0,
+        driven_sag: 40.0,
+        driven_sag_from: 0.45,
+        resonance_hz: 100.0,
+        resonance_db: 1.0,
+        presence_hz: 5000.0,
+        presence_db: 13.0,
+    },
+    cab: TRAE_CAB,
+};
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1552,7 +1648,10 @@ mod tests {
         let ids: Vec<&str> = (0..Amp::variants().len()).map(|i| Amp::ids().unwrap()[i]).collect();
         assert_eq!(
             ids,
-            ["klar", "brol", "torden", "glod", "sang", "dron", "knald", "gnist", "skarp", "hvas"]
+            [
+                "klar", "brol", "torden", "glod", "sang", "dron", "knald", "gnist", "skarp",
+                "hvas", "trae"
+            ]
         );
         assert_eq!(Amp::ALL.len(), ids.len());
     }
