@@ -49,10 +49,14 @@ pin "$new" | grep -q "already pinned" || fail "a second run is not 'already pinn
 if pin abc123 2> /dev/null; then fail "a short rev was accepted"; fi
 if pin "${new^^}" 2> /dev/null; then fail "an upper-case rev was accepted"; fi
 
-# No old rev to find (no nih_plug line in Cargo.toml): refused, nothing written
+# No old rev to read (no nih_plug line in Cargo.toml) while Cargo.lock and CLAUDE.md do carry one: refused,
+# and neither file is written
 echo "[workspace]" > "$tmp/Cargo.toml"
-echo "nothing" > "$tmp/Cargo.lock"
+printf 'source = "git+https://github.com/FrankDrebin893/nih-plug.git?rev=%s#%s"\n' "$old" "$old" > "$tmp/Cargo.lock"
+echo "pinned at commit \`${old:0:8}\`" > "$tmp/CLAUDE.md"
 cp "$tmp/Cargo.lock" "$tmp/before.lock"
+cp "$tmp/CLAUDE.md" "$tmp/before.md"
 if pin "$new" 2> /dev/null; then fail "a Cargo.toml without the pin was not refused"; fi
-cmp -s "$tmp/Cargo.lock" "$tmp/before.lock" || fail "a file was written although there was nothing to pin"
+cmp -s "$tmp/Cargo.lock" "$tmp/before.lock" || fail "Cargo.lock was written although the old rev could not be read"
+cmp -s "$tmp/CLAUDE.md" "$tmp/before.md" || fail "CLAUDE.md was written although the old rev could not be read"
 echo "== pin-nih-plug: all checks pass"
