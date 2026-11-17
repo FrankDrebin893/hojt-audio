@@ -11,9 +11,9 @@ use suite_common::update::UpdateCheck;
 use crate::GlassBellsParams;
 
 const UPDATE_LINE_AT: Vec2 = vec2(WINDOW_WIDTH as f32 / 2.0, 33.0);
-// The no-audio lamp (`ui::audio_lamp`), where the audio is the dummy backend: beside the
-// footswitches, with its caption under it, clear of the art and the model number
-const NO_AUDIO_AT: Vec2 = vec2(44.0, 480.0);
+// The no-audio lamp (`ui::audio_lamp`), where the audio is the dummy backend: between the Sync and
+// Reverb footswitches, where neither the art (a bell in each lower corner) nor a label is under it
+const NO_AUDIO_AT: Vec2 = vec2(380.0, 495.0);
 const WINDOW_WIDTH: u32 = 660;
 const WINDOW_HEIGHT: u32 = 600;
 
@@ -272,8 +272,11 @@ mod tests {
             none,
             "no lamp for a dummy backend that was asked for"
         );
-        // The status of the host is not set here, so the window as it opens has none
-        assert!(picture(ui::AudioNotice::current().as_ref()) == none, "a lamp with audio");
+        // A host that says its audio runs asks for no lamp
+        assert!(
+            picture(ui::notice_for(Some(ui::HostAudio::Running)).as_ref()) == none,
+            "a lamp with audio"
+        );
     }
 
     // The window with the lamp, against tests/snapshots/editor_no_audio.png

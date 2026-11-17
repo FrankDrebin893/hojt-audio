@@ -10,13 +10,16 @@
 //! Each editor gives it a place of its own where no control, caption or art detail is under it:
 //! on the amp's strip right of the settings icon, on a pedal beside its footswitches.
 
-use nih_plug_egui::egui::{vec2, CursorIcon, Id, Pos2, Rect, Response, Sense, Ui};
+use nih_plug_egui::egui::{vec2, Align2, CursorIcon, Id, Pos2, Rect, Response, Sense, Stroke, Ui};
 
+use super::theme::{display, spaced_text, SILK};
 use super::widgets::{signal_lamp, silk_label};
 
 /// How far under the lamp the caption stands, and its size: a signal lamp's caption
 pub const CAPTION_DY: f32 = 18.0;
-const CAPTION_SIZE: f32 = 11.0;
+const CAPTION_SIZE: f32 = 13.0;
+/// The cream ring round the lamp: it tells this lamp from a footswitch's LED, which is the same red
+const RING_RADIUS: f32 = 12.5;
 /// The words under the lamp
 pub const CAPTION: &str = "No Audio";
 /// Why the standalone program has no audio: the audio is the dummy backend
@@ -33,16 +36,16 @@ impl AudioNotice {
     #[cfg(feature = "standalone")]
     pub fn current() -> Option<Self> {
         use nih_plug::prelude::{nih_standalone_audio_status, StandaloneAudioStatus};
-        match nih_standalone_audio_status()? {
-            StandaloneAudioStatus::Dummy { reason } => Some(Self { reason }),
-            StandaloneAudioStatus::Running { .. } => None,
-        }
+        notice_for(nih_standalone_audio_status().map(|status| match status {
+            StandaloneAudioStatus::Dummy { reason } => HostAudio::Dummy { reason },
+            StandaloneAudioStatus::Running { .. } => HostAudio::Running,
+        }))
     }
 
     /// The notice the standalone host's status asks for now: none in a build without the host
     #[cfg(not(feature = "standalone"))]
     pub fn current() -> Option<Self> {
-        None
+        notice_for(None)
     }
 
     /// What the lamp says when hovered
@@ -54,19 +57,82 @@ impl AudioNotice {
     }
 }
 
+/// What the standalone host says of its audio (`nih_standalone_audio_status`), without the host:
+/// the part of the mapping to a notice that tests can reach in a build without the standalone feature
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum HostAudio {
+    /// A real audio backend plays
+    Running,
+    /// The dummy backend plays: `reason` is the error the host logged, `None` when it was asked for
+    Dummy { reason: Option<String> },
+}
+
+/// The notice for a host status: `None` for a plugin in a DAW (no status) and while the audio runs
+pub fn notice_for(status: Option<HostAudio>) -> Option<AudioNotice> {
+    match status? {
+        HostAudio::Dummy { reason } => Some(AudioNotice { reason }),
+        HostAudio::Running => None,
+    }
+}
+
 /// The room the lamp and its caption take, centred on the lamp's `center`
 pub fn rect(center: Pos2) -> Rect {
-    Rect::from_min_max(center + vec2(-26.0, -12.0), center + vec2(26.0, CAPTION_DY + 8.0))
+    Rect::from_min_max(center + vec2(-30.0, -14.0), center + vec2(30.0, CAPTION_DY + 9.0))
 }
 
 /// Draws the lamp and its caption with the lamp on `center` if there is a notice, and returns the
 /// response of the whole of it (a click, a hover) when it was drawn
 pub fn audio_lamp(ui: &Ui, center: Pos2, notice: Option<&AudioNotice>) -> Option<Response> {
+    draw(ui, center, None, notice)
+}
+
+/// `audio_lamp` with the caption's left edge on `left` (window coordinates) instead of centred
+/// under the lamp: for a pedal's lower left corner, where it stands over the model number and
+/// shares its left edge (`MODEL_LEFT`)
+pub fn audio_lamp_left(
+    ui: &Ui,
+    center: Pos2,
+    left: f32,
+    notice: Option<&AudioNotice>,
+) -> Option<Response> {
+    draw(ui, center, Some(left), notice)
+}
+
+fn draw(
+    ui: &Ui,
+    center: Pos2,
+    left: Option<f32>,
+    notice: Option<&AudioNotice>,
+) -> Option<Response> {
     let notice = notice?;
     let painter = ui.painter();
     signal_lamp(painter, center, true);
-    silk_label(painter, center + vec2(0.0, CAPTION_DY), CAPTION, CAPTION_SIZE);
-    let response = ui.interact(rect(center), Id::new("no-audio-lamp"), Sense::click());
+    painter.circle_stroke(center, RING_RADIUS, Stroke::new(1.5_f32, SILK));
+    let caption = center + vec2(0.0, CAPTION_DY);
+    match left {
+        None => {
+            silk_label(painter, caption, CAPTION, CAPTION_SIZE);
+        }
+        Some(left) => {
+            spaced_text(
+                painter,
+                Pos2::new(left, caption.y),
+                Align2::LEFT_CENTER,
+                &CAPTION.to_uppercase(),
+                display(CAPTION_SIZE),
+                SILK,
+                0.16,
+            );
+        }
+    }
+    let room = match left {
+        None => rect(center),
+        Some(left) => rect(center).union(Rect::from_min_max(
+            Pos2::new(left, caption.y - 8.0),
+            Pos2::new(left + 60.0, caption.y + 8.0),
+        )),
+    };
+    let response = ui.interact(room, Id::new("no-audio-lamp"), Sense::click());
     if response.hovered() {
         ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
     }
@@ -83,6 +149,20 @@ mod tests {
         assert!(named.hint().contains("48000 Hz not offered"));
         let asked = AudioNotice { reason: None };
         assert!(asked.hint().contains("asked for"));
+    }
+
+    #[test]
+    fn the_notice_follows_the_host_status() {
+        assert_eq!(notice_for(None), None, "a plugin in a DAW has no status");
+        assert_eq!(notice_for(Some(HostAudio::Running)), None, "audio runs");
+        assert_eq!(
+            notice_for(Some(HostAudio::Dummy { reason: Some("no device".into()) })),
+            Some(AudioNotice { reason: Some("no device".into()) })
+        );
+        assert_eq!(
+            notice_for(Some(HostAudio::Dummy { reason: None })),
+            Some(AudioNotice { reason: None })
+        );
     }
 
     #[test]

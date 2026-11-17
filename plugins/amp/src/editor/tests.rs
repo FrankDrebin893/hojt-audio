@@ -108,6 +108,7 @@ fn harness_shared<'a>(
 
 // What the harness's windows say of the standalone's audio (`Shared::audio`): none unless a test
 // puts a notice here, on its own thread
+#[cfg(target_os = "linux")]
 thread_local! {
     static AUDIO: RefCell<Option<ui::AudioNotice>> = const { RefCell::new(None) };
 }
@@ -2377,7 +2378,7 @@ fn test_the_no_audio_lamp_is_drawn_when_the_audio_is_the_dummy() {
         none,
         "no lamp for a dummy backend that was asked for"
     );
-    assert!(picture(ui::AudioNotice::current()) == none, "a lamp with audio");
+    assert!(picture(ui::notice_for(Some(ui::HostAudio::Running))) == none, "a lamp with audio");
 }
 
 // The window with the lamp, against tests/snapshots/editor_no_audio.png
@@ -2393,6 +2394,29 @@ fn test_the_editor_with_the_no_audio_lamp_looks_as_it_did() {
     let mut harness = harness_of(&params, &setter, None, |_| {});
     harness.snapshot("editor_no_audio");
     AUDIO.with(|audio| *audio.borrow_mut() = None);
+}
+
+// The narrowest strip (2600 points, the window at its smallest) with the lamp on, where the update
+// line has no room beside it, and with the audio there, where it has: against
+// tests/snapshots/line_small_no_audio.png and line_small_audio.png
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_narrowest_strip_with_and_without_the_no_audio_lamp_looks_as_it_did() {
+    let params = GuitarAmpParams::default();
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    for (name, notice) in [
+        (
+            "line_small_no_audio",
+            Some(ui::AudioNotice { reason: Some("48000 Hz not offered".into()) }),
+        ),
+        ("line_small_audio", None),
+    ] {
+        AUDIO.with(|audio| *audio.borrow_mut() = notice);
+        let (mut harness, _) = line_harness(MIN_WIDTH, MIN_HEIGHT, &params, &setter, 0.0);
+        harness.snapshot(name);
+        AUDIO.with(|audio| *audio.borrow_mut() = None);
+    }
 }
 
 // A click on the lamp opens the Audio panel on the settings plate, in the standalone program,

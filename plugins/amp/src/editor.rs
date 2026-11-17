@@ -148,8 +148,8 @@ const UPDATE_ROOM_RIGHT: f32 = OUTPUT_KNOB.x - KNOB_REACH;
 // room the update line has, with its caption under it; the update line gives it the room
 // (`AUDIO_ROOM`) while the lamp is drawn. The lamp is a little above the strip's line, so that its
 // caption stands under it on the strip
-const AUDIO_LAMP: Vec2 = vec2(UPDATE_ROOM_LEFT + 30.0, STRIP_Y - 9.0);
-const AUDIO_ROOM: f32 = 60.0;
+const AUDIO_LAMP: Vec2 = vec2(UPDATE_ROOM_LEFT + 34.0, STRIP_Y - 9.0);
+const AUDIO_ROOM: f32 = 68.0;
 
 /// Does the update line, at the width the longest message takes, have its room on a strip whose
 /// right end and middle have moved by `shift`, beside the no-audio lamp when that is drawn? On the

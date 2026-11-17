@@ -45,11 +45,15 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
   editor gives it a place of its own where no control, caption or art detail is under it: on a pedal between the jack
   captions (`UPDATE_LINE_AT`, 33 px down), on the amp's strip in the room between the settings icon and the output knob
   (`update_line_at`). Each editor has a test that it is drawn when a newer version is known and not when off or closed
-- `audio_lamp.rs` - `audio_lamp`: the red `signal_lamp` with NO AUDIO in a `silk_label` under it (18 px down), drawn from a
-  `ui::AudioNotice` (`AudioNotice::current()` reads the fork's `nih_standalone_audio_status()`: `Some` only while the standalone
-  runs on the dummy backend). The reason is the hover hint, never a pop-up; nothing is drawn with audio or in a DAW. The
-  status is set before the window opens and does not change in it, so the lamp is still and asks for no repaint. Each editor
-  gives it a place of its own: on a pedal beside the footswitches (`NO_AUDIO_AT`, left of the first one), on the amp's strip right of
+- `audio_lamp.rs` - `audio_lamp` and `audio_lamp_left`: the red `signal_lamp` in a cream ring (so it is not taken for a footswitch's LED, which
+  is the same red) with NO AUDIO in a `silk_label` of size 13 under it (18 px down), drawn from a `ui::AudioNotice`
+  (`AudioNotice::current()` reads the fork's `nih_standalone_audio_status()` through `notice_for`, a plain function of `HostAudio`
+  that the tests reach without the standalone feature: `Some` only while the standalone runs on the dummy backend). The reason is
+  the hover hint, never a pop-up; nothing is drawn with audio or in a DAW. The status is set before the window opens and does not
+  change in it, so the lamp is still and asks for no repaint. Each editor gives it a place of its own where no art is under it:
+  on a pedal over the model number in the lower left (`NO_AUDIO_AT`; lamp, caption and model number 18 px apart, caption and model
+  number on one left edge, `MODEL_LEFT`; `make-art.py`'s `CLEAR` keeps the art out of that corner on the Pitch Shifter and the Bass
+  Synth), the Glass Bells between its Sync and Reverb switches (a bell stands in each lower corner), on the amp's strip right of
   the settings icon (`AUDIO_LAMP`), where a click opens the Audio panel and the update line gives it room (and on the
   narrowest strips gives way to it, `update_line_fits`). Each editor has a test that it is drawn on the dummy and not otherwise
 - `raster.rs` - Per-pixel lit surfaces (signed distance field + one fixed light; `paint_box_wide` for a long strip, one picture whose middle is stretched, never over 8192 px): `box_image`, `knob_image`

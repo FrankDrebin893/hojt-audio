@@ -9,9 +9,10 @@ use suite_common::update::UpdateCheck;
 use crate::GuitarPitchShifterParams;
 
 const UPDATE_LINE_AT: Vec2 = vec2(WINDOW_WIDTH as f32 / 2.0, 33.0);
-// The no-audio lamp (`ui::audio_lamp`), where the audio is the dummy backend: beside the
-// footswitches, with its caption under it, clear of the art and the model number
-const NO_AUDIO_AT: Vec2 = vec2(70.0, 497.0);
+// The no-audio lamp (`ui::audio_lamp_left`), where the audio is the dummy backend: over the model
+// number in the lower left, lamp, caption and model number a line (18 px) apart, the caption and the
+// model number on one left edge
+const NO_AUDIO_AT: Vec2 = vec2(ui::MODEL_LEFT + 12.5, 502.0);
 const WINDOW_WIDTH: u32 = 400;
 const WINDOW_HEIGHT: u32 = 600;
 
@@ -78,7 +79,7 @@ fn draw(
         // The update line, between the jack captions, when a newer version is out
         ui::update_line(ui, origin + UPDATE_LINE_AT, update);
         // And the no-audio lamp, when the standalone has no audio
-        ui::audio_lamp(ui, origin + NO_AUDIO_AT, audio);
+        ui::audio_lamp_left(ui, origin + NO_AUDIO_AT, origin.x + ui::MODEL_LEFT, audio);
         // Three small knobs in a row over the big one
         param_knob(
             ui,
@@ -369,8 +370,11 @@ mod tests {
             none,
             "no lamp for a dummy backend that was asked for"
         );
-        // The status of the host is not set here, so the window as it opens has none
-        assert!(picture(ui::AudioNotice::current().as_ref()) == none, "a lamp with audio");
+        // A host that says its audio runs asks for no lamp
+        assert!(
+            picture(ui::notice_for(Some(ui::HostAudio::Running)).as_ref()) == none,
+            "a lamp with audio"
+        );
     }
 
     // The window with the lamp, against tests/snapshots/editor_no_audio.png
