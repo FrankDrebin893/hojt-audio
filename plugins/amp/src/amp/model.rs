@@ -36,10 +36,13 @@ pub enum Amp {
     #[id = "hvas"]
     #[name = "Hvas"]
     Hvas,
+    #[id = "smaeld"]
+    #[name = "Smæld"]
+    Smaeld,
 }
 
 impl Amp {
-    pub const ALL: [Amp; 10] = [
+    pub const ALL: [Amp; 11] = [
         Amp::Klar,
         Amp::Brol,
         Amp::Torden,
@@ -50,6 +53,7 @@ impl Amp {
         Amp::Gnist,
         Amp::Skarp,
         Amp::Hvas,
+        Amp::Smaeld,
     ];
 
     pub fn model(self) -> &'static AmpModel {
@@ -64,6 +68,7 @@ impl Amp {
             Amp::Gnist => &GNIST,
             Amp::Skarp => &SKARP,
             Amp::Hvas => &HVAS,
+            Amp::Smaeld => &SMAELD,
         }
     }
 
@@ -560,6 +565,25 @@ const HVAS_CAB: CabModel = CabModel {
     breakup_db: 2.8,
     breakup_seed: 270,
     ir_ms: 8.0,
+};
+
+/// Smæld's own: one 12" speaker in an open back, voiced for a clear picture of the string: a
+/// short, light low end, the low mids thinned out, a wide bite at 3.6 kHz, a top that
+/// reaches further than any of the others and a smooth cone (few and small breakup peaks),
+/// so nothing rings on behind the note
+const SMAELD_CAB: CabModel = CabModel {
+    resonance_hz: 98.0,
+    resonance_q: 0.9,
+    body: [170.0, 0.8, 0.5],
+    dip: [420.0, 0.9, -3.5],
+    bite: [3600.0, 0.7, 6.0],
+    rolloff_hz: 6800.0,
+    air_ratio: 1.2,
+    breakup_hz: [1500.0, 8000.0],
+    breakup_count: 14,
+    breakup_db: 1.2,
+    breakup_seed: 290,
+    ir_ms: 5.0,
 };
 
 /// Everything that makes one amp differ from another
@@ -1421,6 +1445,80 @@ static HVAS: AmpModel = AmpModel {
     cab: HVAS_CAB,
 };
 
+/// Clean with a snap: bright, tight and quick, for single-coil playing where every string
+/// of a chord and the pick on it should read. Two stages with more headroom than Klar's,
+/// so the Gain dial is mostly level until its last third, where the attacks start to
+/// bark; less low end goes in (nothing woolly under a chord), a bell at 2.4 kHz in front
+/// puts the twang forward and the bright lift starts lower. The power stage is stiff:
+/// hardly any sag and a fast one, so an attack is not squeezed, and straight up to its
+/// knee as Klar's is, so a held note stays clean. Under the drive pedal it gives way as
+/// Klar's does
+static SMAELD: AmpModel = AmpModel {
+    name: "Smæld",
+    model_number: "SM-20",
+    tight_hz: 95.0,
+    focus: [2400.0, 0.8, 2.0],
+    bright_hz: 1200.0,
+    bright_db: 8.0,
+    stage_count: 2,
+    stages: [
+        StageModel {
+            coupling_hz: 30.0,
+            gain_db: [-4.0, 2.5, 10.0],
+            headroom: [5.0, 6.0],
+            bias: 0.0,
+            bias_shift: 0.2,
+            lowpass_hz: 18000.0,
+            second_order: false,
+            finer_when_driven: false,
+        },
+        StageModel {
+            coupling_hz: 70.0,
+            gain_db: [-6.0, 4.0, 16.0],
+            headroom: [3.6, 4.4],
+            bias: 0.05,
+            bias_shift: 0.2,
+            lowpass_hz: 14000.0,
+            second_order: false,
+            finer_when_driven: false,
+        },
+        UNUSED_STAGE,
+        UNUSED_STAGE,
+    ],
+    fizz_hz: None,
+    lowcut_hz: None,
+    level_db: [31.5, 26.0, 18.0, 9.5, 0.0],
+    makeup_db: [0.0, 0.0, 0.0, 0.0, 0.0],
+    tone: ToneModel {
+        bass_hz: 110.0,
+        bass_db: 10.0,
+        mid_hz: 450.0,
+        mid_q: 0.7,
+        mid_db: 8.0,
+        mid_centre_db: -4.0,
+        scoop_db: 4.0,
+        mid_shift_octaves: 0.4,
+        treble_hz: 3600.0,
+        treble_db: 10.0,
+        mid_level_db: 2.0,
+    },
+    power: PowerModel {
+        drive_db: [-18.5, -3.0, 12.0],
+        volume_db: [-9.7, -8.1, -10.7],
+        clean_to: 0.9,
+        sag: 0.04,
+        sag_attack_ms: 8.0,
+        sag_release_ms: 60.0,
+        driven_sag: 40.0,
+        driven_sag_from: 0.45,
+        resonance_hz: 100.0,
+        resonance_db: 1.5,
+        presence_hz: 5500.0,
+        presence_db: 8.0,
+    },
+    cab: SMAELD_CAB,
+};
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1469,7 +1567,10 @@ mod tests {
         let ids: Vec<&str> = (0..Amp::variants().len()).map(|i| Amp::ids().unwrap()[i]).collect();
         assert_eq!(
             ids,
-            ["klar", "brol", "torden", "glod", "sang", "dron", "knald", "gnist", "skarp", "hvas"]
+            [
+                "klar", "brol", "torden", "glod", "sang", "dron", "knald", "gnist", "skarp",
+                "hvas", "smaeld"
+            ]
         );
         assert_eq!(Amp::ALL.len(), ids.len());
     }

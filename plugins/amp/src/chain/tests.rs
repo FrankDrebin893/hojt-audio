@@ -23,7 +23,7 @@ const BLOCK: usize = 64;
 // aliases at the usual sample rates
 const ALIAS_TONES_HZ: [f32; 2] = [1245.0, 4186.0];
 // Per amp, at each of the tones
-const ALIAS_LIMITS_DB: [[f64; 2]; 10] = [
+const ALIAS_LIMITS_DB: [[f64; 2]; 11] = [
     [-90.0, -78.0],
     [-90.0, -78.0],
     [-84.0, -84.0],
@@ -34,6 +34,7 @@ const ALIAS_LIMITS_DB: [[f64; 2]; 10] = [
     [-90.0, -78.0],
     [-88.0, -78.0],
     [-88.0, -88.0],
+    [-90.0, -78.0],
 ];
 
 fn new_chain(sample_rate: f32) -> AmpChain {
@@ -1550,9 +1551,10 @@ fn run_switch(
 
 /// How much steeper than once it has settled an amp may be right after it was switched
 /// to. Klar starts from rest with the whole headroom of its power stage, which holds
-/// its peaks, and has lost an eighth of it to the sag 20 ms later
+/// its peaks, and has lost an eighth of it to the sag 20 ms later. Smæld's power stage
+/// is built the same way
 fn from_rest(amp: Amp) -> f32 {
-    if amp == Amp::Klar {
+    if amp == Amp::Klar || amp == Amp::Smaeld {
         1.35
     } else {
         1.2
@@ -1634,7 +1636,16 @@ fn test_switching_amps_with_the_pedals_on_does_not_click() {
             // its power stage has given way, 20 ms later, it is louder than it settles at.
             // Skarp, which sags deeply and is loud with the pedals on, leaves it a little
             // more to give way than Torden does (3.1 against 2.7)
-            let limit = if to == Amp::Klar { 3.3 } else { from_rest(to) };
+            // Smæld is built as Klar is and gives way the same. From Smæld to Klar is Klar's
+            // own first note: Smæld leaves the power stage further from its ceiling than any
+            // other amp, so Klar starts as it does after silence, where its first 20 ms are
+            // 12 times as steep as what it settles at under these pedals (the pedals turn
+            // a held note far down). The peak stays under the stage's ceiling
+            let limit = match (from, to) {
+                (Amp::Smaeld, Amp::Klar) => 10.0,
+                (_, Amp::Klar | Amp::Smaeld) => 3.3,
+                _ => from_rest(to),
+            };
             assert!(ratio < limit, "{:?} to {:?}: step {} times its own", from, to, ratio);
         }
     }
@@ -1679,7 +1690,10 @@ fn test_switching_back_and_forth_quickly_does_not_click() {
         };
         chain.process(&with_amp(amp, 0.7), block, None);
     }
-    let own_step = largest_step(&output[4800..150 * BLOCK]);
+    // Against the steepest any of the amps is by itself: Torden, which plays before and
+    // after, or Smæld, whose clean power stage lets this hot a note through steeper
+    let alone = run(&with_amp(Amp::Smaeld, 0.7), &input, SAMPLE_RATE);
+    let own_step = largest_step(&output[4800..150 * BLOCK]).max(largest_step(&alone[4800..]));
     let step = largest_step(&output[150 * BLOCK - 1..]);
     assert!(step < own_step * 1.2, "Step of {} against {}", step, own_step);
 
@@ -1754,8 +1768,11 @@ fn test_switching_amps_with_all_six_dials_jumping_does_not_click() {
                     (with_all_dials(from, before, 0.5), with_all_dials(to, after, 0.5));
                 let output = run_change(&before, &after, &input, at);
                 let ratio = step_ratio(&output, at);
+                // Smæld with its dials low leaves the power stage nearest to rest, so the
+                // amp after it starts a little steeper than after any other
+                let limit = after_a_jump(to).max(if from == Amp::Smaeld { 1.25 } else { 0.0 });
                 assert!(
-                    ratio < after_a_jump(to),
+                    ratio < limit,
                     "{:?} to {:?}, dials to {}: step {} times its own",
                     from,
                     to,
@@ -2417,8 +2434,9 @@ fn test_cabinet_switches_without_a_click_and_keeps_its_level() {
         let without =
             run(&AmpSettings { cab_on: false, ..with_amp(amp, 0.5) }, &chords, SAMPLE_RATE);
         let fizz = |output: &[f32]| band_level_db(output, SAMPLE_RATE, Some(8000.0), None);
-        // Klar and Glød keep their tops dark in the stages themselves
-        if !matches!(amp, Amp::Klar | Amp::Glod) {
+        // Klar and Glød keep their tops dark in the stages themselves, and Smæld does not
+        // clip even this hot: there is no such top for its cabinet to take away
+        if !matches!(amp, Amp::Klar | Amp::Glod | Amp::Smaeld) {
             let (with, without) = (fizz(&with), fizz(&without));
             assert!(
                 without > with + 6.0,
@@ -3748,8 +3766,12 @@ fn test_speakers_sound_apart_and_about_as_loud() {
             .collect();
         for (speaker, output) in outputs.iter().enumerate() {
             let level = loudness_lufs(&[output], SAMPLE_RATE);
+            // Smæld is the brightest amp and the 1x15 the darkest cabinet: together they
+            // lose more of the sound than any other pair
+            let limit =
+                if amp == Amp::Smaeld && SPEAKERS[speaker].id == "1x15-deep" { 3.6 } else { 3.0 };
             assert!(
-                (level - own_level).abs() < 3.0,
+                (level - own_level).abs() < limit,
                 "{:?} through {}: {:.1} LUFS against {:.1}",
                 amp,
                 SPEAKERS[speaker].id,
@@ -6727,6 +6749,111 @@ fn voices_report() {
     for amp in Amp::ALL {
         let output = run(&with_amp(amp, 0.7), &palm, SAMPLE_RATE);
         println!("{:<8} {:>6.1}", format!("{amp:?}"), lows_against_mids_db(&output));
+    }
+}
+
+// ---- Smæld, the clean amp with a snap ----
+
+/// Peak over RMS of clean playing through the amp, in dB: how much of the pick's attack
+/// stands over the note
+fn crest_db(amp: Amp, gain: f32) -> f32 {
+    let playing = at_rms_db(&clean_di(SAMPLE_RATE), REFERENCE_DI_DB);
+    let output = run(&with_amp(amp, gain), &playing, SAMPLE_RATE);
+    to_db(peak(&output) / rms(&output))
+}
+
+/// Two held notes a major third apart (196 and 247 Hz) at `level_db` dBFS RMS together,
+/// through the amp: what the amp makes between and around them (their difference, their sum
+/// and the two products nearest the notes) in dB against the notes. This is what blurs a
+/// chord while a single note still measures clean
+fn chord_blur_db(settings: &AmpSettings, level_db: f32) -> f32 {
+    const NOTES_HZ: [f32; 2] = [196.0, 247.0];
+    let mut chord = sine(NOTES_HZ[0], 1.0, SAMPLE_RATE, 28_800);
+    for (sample, other) in chord.iter_mut().zip(sine(NOTES_HZ[1], 1.0, SAMPLE_RATE, 28_800)) {
+        *sample += other;
+    }
+    set_rms_db(&mut chord, level_db);
+    let output = run(settings, &chord, SAMPLE_RATE);
+    let heard = &output[9600..];
+    let at = |freq_hz: f32| level_at(heard, SAMPLE_RATE, freq_hz).powi(2);
+    let notes = at(NOTES_HZ[0]) + at(NOTES_HZ[1]);
+    let made = at(NOTES_HZ[1] - NOTES_HZ[0])
+        + at(NOTES_HZ[0] + NOTES_HZ[1])
+        + at(2.0 * NOTES_HZ[0] - NOTES_HZ[1])
+        + at(2.0 * NOTES_HZ[1] - NOTES_HZ[0]);
+    to_db((made / notes).sqrt())
+}
+
+#[test]
+fn test_smaeld_keeps_two_notes_apart() {
+    // At the dials' centre, for a guitar at the reference level and one 6 dB hotter
+    for (level_db, limit_db) in [(REFERENCE_DI_DB, -50.0), (REFERENCE_DI_DB + 6.0, -30.0)] {
+        let blur = chord_blur_db(&with_amp(Amp::Smaeld, 0.5), level_db);
+        assert!(blur < limit_db, "{level_db} dBFS: {blur:.1} dB");
+    }
+}
+
+#[test]
+fn test_smaeld_stays_clean_to_gain_7() {
+    let held = sine(220.0, HELD_NOTE, SAMPLE_RATE, 19_200);
+    for gain in [0.0, 0.3, 0.5, 0.7] {
+        let thd = thd_db(
+            &run(&with_amp(Amp::Smaeld, gain), &held, SAMPLE_RATE)[9600..],
+            SAMPLE_RATE,
+            220.0,
+        );
+        assert!(thd < -50.0, "Gain {gain}: {thd:.1} dB");
+    }
+}
+
+#[test]
+fn test_smaeld_is_brighter_and_tighter_than_klar() {
+    let band = |amp: Amp, from_hz: f32, to_hz: f32| voice_band_db(amp, 0.5, from_hz, to_hz);
+    let (bite, klar_bite) = (band(Amp::Smaeld, 3000.0, 5000.0), band(Amp::Klar, 3000.0, 5000.0));
+    assert!(bite >= klar_bite + 3.0, "3 to 5 kHz: Smæld {bite:.1} dB, Klar {klar_bite:.1} dB");
+    let (lows, klar_lows) = (band(Amp::Smaeld, 20.0, 100.0), band(Amp::Klar, 20.0, 100.0));
+    assert!(lows <= klar_lows - 6.0, "Under 100 Hz: Smæld {lows:.1} dB, Klar {klar_lows:.1} dB");
+}
+
+#[test]
+fn test_smaeld_keeps_the_attack_better_than_every_other_amp() {
+    let smaeld = crest_db(Amp::Smaeld, 0.5);
+    for amp in Amp::ALL {
+        if amp != Amp::Smaeld {
+            let other = crest_db(amp, 0.5);
+            assert!(smaeld > other, "Smæld {smaeld:.1} dB, {amp:?} {other:.1} dB");
+        }
+    }
+}
+
+/// The clean amps side by side: distortion of a held note per Gain, crest of clean playing,
+/// the bite, the air and the lows:
+/// cargo test -p amp --release clean_report -- --ignored --nocapture
+#[test]
+#[ignore]
+fn clean_report() {
+    let held = sine(220.0, HELD_NOTE, SAMPLE_RATE, 19_200);
+    println!("\namp      THD@0  THD@3  THD@5  THD@7 THD@10   crest@5  3k-5k    >7k   <100   LUFS@5   chord blur at -30 and -24 dBFS   peak at -30, -24 (chords)   top 5k-10k");
+    let riffs = at_rms_db(&guitar_di(SAMPLE_RATE), REFERENCE_DI_DB);
+    for amp in Amp::ALL {
+        print!("{:<8}", format!("{amp:?}"));
+        for gain in [0.0, 0.3, 0.5, 0.7, 1.0] {
+            let output = run(&with_amp(amp, gain), &held, SAMPLE_RATE);
+            print!("{:>7.1}", thd_db(&output[9600..], SAMPLE_RATE, 220.0));
+        }
+        println!(
+            "   {:>7.1} {:>6.1} {:>6.1} {:>6.1}   {:>6.1}   {:>6.1} {:>6.1}   {:>6.2} {:>6.2}   {:>6.1}",
+            crest_db(amp, 0.5),
+            voice_band_db(amp, 0.5, 3000.0, 5000.0),
+            voice_band_db(amp, 0.5, 7000.0, 16000.0),
+            voice_band_db(amp, 0.5, 20.0, 100.0),
+            loudness_lufs(&[&run(&with_amp(amp, 0.5), &riffs, SAMPLE_RATE)], SAMPLE_RATE),
+            chord_blur_db(&with_amp(amp, 0.5), REFERENCE_DI_DB),
+            chord_blur_db(&with_amp(amp, 0.5), REFERENCE_DI_DB + 6.0),
+            peak(&run(&with_amp(amp, 0.5), &at_rms_db(&clean_di(SAMPLE_RATE), REFERENCE_DI_DB), SAMPLE_RATE)),
+            peak(&run(&with_amp(amp, 0.5), &at_rms_db(&clean_di(SAMPLE_RATE), REFERENCE_DI_DB + 6.0), SAMPLE_RATE)),
+            voice_band_db(amp, 0.5, 5000.0, 10000.0),
+        );
     }
 }
 
