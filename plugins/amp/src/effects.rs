@@ -3,17 +3,21 @@
 //!
 //! A line gives the pedal's `EffectKind` (the variant of the same name), the `Pedal` that has
 //! parameters of its own for it (`None` for the gate, which is no pedal of the order), its
-//! `Effect` type and that type's settings. The macro makes from it:
+//! `Effect` type, that type's settings and how they are read from `AmpSettings` and the dials
+//! the chain is at (`home`). The macro makes from it:
 //!
 //! - `BlockSettings`: what a block of the chain is told, one variant a kind
 //! - `Body`: the effect itself, one variant a kind
 //! - the dispatch, `Body::new`, `set_sample_rate`, `set_up`, `reset`, `is_idle`, `tell`,
-//!   `process_front` and `process_back`: a `match` on the enum, so it is static (no `dyn`, no
-//!   heap) and a kind left out of the table does not compile
+//!   `process_front` and `process_back`, and the same for the pedal on its own parameters
+//!   (`set_up_home`, `put_away`, `rest`, `rest_with_amp`, `tell_home`): a `match` on the enum,
+//!   so it is static (no `dyn`, no heap) and a kind left out of the table does not compile
+//! - `home_settings`, what a pedal on its own parameters is told, and `kind_of`
 //!
 //! A new pedal is its module with its `Effect` impl and one line here (and its parameters in
 //! `lib.rs`, its paint in the editor).
 
+use crate::chain::{AmpSettings, Dials};
 use crate::comp::{Comp, CompSettings};
 use crate::delay::{DelayEffect, DelaySettings};
 use crate::drive::{DriveEffect, DriveSettings};
@@ -32,7 +36,12 @@ use crate::slots::EffectKind;
 use crate::wah::{WahEffect, WahSettings};
 
 macro_rules! effects {
-    ($($kind:ident { pedal: $pedal:expr, effect: $effect:ty, settings: $settings:ty }),* $(,)?) => {
+    ($($kind:ident {
+        pedal: $pedal:expr,
+        effect: $effect:ty,
+        settings: $settings:ty,
+        home: $home:expr
+    }),* $(,)?) => {
         /// What a block of the chain is told, read once per block: the settings of its kind
         #[derive(Clone, Copy, Debug, PartialEq, Default)]
         pub enum BlockSettings {
@@ -95,6 +104,61 @@ macro_rules! effects {
                 }
             }
 
+            /// `set_up` for a pedal on its own parameters. Does not allocate
+            pub fn set_up_home(&mut self, zone: Zone, rates: Rates) {
+                match self {
+                    $(Body::$kind(effect) => Effect::set_up_home(effect, zone, rates),)*
+                }
+            }
+
+            /// Puts the pedal to rest on whichever side it was. Does not allocate
+            pub fn put_away(&mut self) {
+                match self {
+                    $(Body::$kind(effect) => Effect::put_away(effect),)*
+                }
+            }
+
+            /// What the chain puts to rest when it resets its stages. Does not allocate
+            pub fn rest(&mut self) {
+                match self {
+                    $(Body::$kind(effect) => Effect::rest(effect),)*
+                }
+            }
+
+            /// What is put to rest with the amp's stages. Does not allocate
+            pub fn rest_with_amp(&mut self) {
+                match self {
+                    $(Body::$kind(effect) => Effect::rest_with_amp(effect),)*
+                }
+            }
+
+            /// Samples a switch of the pedal takes to fade, where the amp follows it
+            pub fn amp_fade_steps(&self) -> u32 {
+                match self {
+                    $(Body::$kind(effect) => Effect::amp_fade_steps(effect),)*
+                }
+            }
+
+            /// `tell` for a pedal on its own parameters, on `zone` or held by no zone
+            pub fn tell_home(
+                &mut self,
+                settings: &BlockSettings,
+                zone: Option<Zone>,
+                steps: u32,
+                snap: bool,
+            ) {
+                match (self, settings) {
+                    $(
+                        (Body::$kind(effect), BlockSettings::$kind(settings)) => {
+                            Effect::tell_home(effect, settings, zone, steps, snap)
+                        }
+                        (Body::$kind(effect), _) => {
+                            Effect::tell_home(effect, &Default::default(), zone, steps, snap)
+                        }
+                    )*
+                }
+            }
+
             /// What is not read at every call; settings of another kind are no block
             pub fn tell(&mut self, settings: &BlockSettings, zone: Zone, steps: u32, snap: bool) {
                 match (self, settings) {
@@ -150,6 +214,28 @@ macro_rules! effects {
             }
         }
 
+        /// The kind of effect that plays for `pedal`
+        pub fn kind_of(pedal: Pedal) -> EffectKind {
+            for kind in EffectKind::ALL {
+                if pedal_of(kind) == Some(pedal) {
+                    return kind;
+                }
+            }
+            unreachable!("every pedal has a row in the table")
+        }
+
+        /// What `pedal`, on its own parameters, is told: read from the settings, and from the
+        /// dials the chain is at
+        pub fn home_settings(pedal: Pedal, settings: &AmpSettings, dials: &Dials) -> BlockSettings {
+            $(
+                if Some(pedal) == $pedal {
+                    let read: fn(&AmpSettings, &Dials) -> $settings = $home;
+                    return BlockSettings::$kind(read(settings, dials));
+                }
+            )*
+            BlockSettings::None
+        }
+
         /// The settings of a block of `kind` that is switched off
         #[allow(dead_code)]
         pub fn off_of(kind: EffectKind) -> BlockSettings {
@@ -161,19 +247,53 @@ macro_rules! effects {
 }
 
 effects! {
-    Gate { pedal: None, effect: Gate, settings: GateSettings },
-    Drive { pedal: Some(Pedal::Drive), effect: DriveEffect, settings: DriveSettings },
-    Comp { pedal: Some(Pedal::Comp), effect: Comp, settings: CompSettings },
-    Fuzz { pedal: Some(Pedal::Fuzz), effect: Fuzz, settings: FuzzSettings },
-    Pitch { pedal: Some(Pedal::Pitch), effect: PitchEffect, settings: PitchSettings },
-    Wah { pedal: Some(Pedal::Wah), effect: WahEffect, settings: WahSettings },
-    Eq { pedal: Some(Pedal::Eq), effect: Eq, settings: EqSettings },
-    Chorus { pedal: Some(Pedal::Chorus), effect: Chorus, settings: ChorusSettings },
-    Flanger { pedal: Some(Pedal::Flanger), effect: Flanger, settings: FlangerSettings },
-    Phaser { pedal: Some(Pedal::Phaser), effect: Phaser, settings: PhaserSettings },
-    Tremolo { pedal: Some(Pedal::Tremolo), effect: Tremolo, settings: TremoloSettings },
-    Delay { pedal: Some(Pedal::Delay), effect: DelayEffect, settings: DelaySettings },
-    Reverb { pedal: Some(Pedal::Reverb), effect: ReverbEffect, settings: ReverbSettings },
+    Gate {
+        pedal: None, effect: Gate, settings: GateSettings,
+        home: |_, _| GateSettings::default()
+    },
+    Drive {
+        pedal: Some(Pedal::Drive), effect: DriveEffect, settings: DriveSettings,
+        home: |s, d| DriveSettings {
+            on: s.drive_on,
+            drive: d.drive_gain,
+            tone: d.drive_tone,
+            level: d.drive_level,
+        }
+    },
+    Comp { pedal: Some(Pedal::Comp), effect: Comp, settings: CompSettings, home: |s, _| s.comp },
+    Fuzz { pedal: Some(Pedal::Fuzz), effect: Fuzz, settings: FuzzSettings, home: |s, _| s.fuzz },
+    Pitch {
+        pedal: Some(Pedal::Pitch), effect: PitchEffect, settings: PitchSettings,
+        home: |s, _| s.pitch
+    },
+    Wah {
+        pedal: Some(Pedal::Wah), effect: WahEffect, settings: WahSettings, home: |s, _| s.wah
+    },
+    Eq { pedal: Some(Pedal::Eq), effect: Eq, settings: EqSettings, home: |s, _| s.eq },
+    Chorus {
+        pedal: Some(Pedal::Chorus), effect: Chorus, settings: ChorusSettings,
+        home: |s, _| s.chorus
+    },
+    Flanger {
+        pedal: Some(Pedal::Flanger), effect: Flanger, settings: FlangerSettings,
+        home: |s, _| s.flanger
+    },
+    Phaser {
+        pedal: Some(Pedal::Phaser), effect: Phaser, settings: PhaserSettings,
+        home: |s, _| s.phaser
+    },
+    Tremolo {
+        pedal: Some(Pedal::Tremolo), effect: Tremolo, settings: TremoloSettings,
+        home: |s, _| s.tremolo
+    },
+    Delay {
+        pedal: Some(Pedal::Delay), effect: DelayEffect, settings: DelaySettings,
+        home: |s, _| s.delay
+    },
+    Reverb {
+        pedal: Some(Pedal::Reverb), effect: ReverbEffect, settings: ReverbSettings,
+        home: |s, _| s.reverb
+    },
 }
 
 #[cfg(test)]
@@ -210,9 +330,38 @@ mod tests {
             assert!(!off_of(kind).is_on(), "{kind:?}: off_of is on");
         }
         for pedal in Pedal::ALL {
+            assert_eq!(pedal_of(kind_of(pedal)), Some(pedal));
+        }
+        for pedal in Pedal::ALL {
             let rows =
                 EffectKind::ALL.iter().filter(|&&kind| pedal_of(kind) == Some(pedal)).count();
             assert_eq!(rows, 1, "{pedal:?} has {rows} rows");
+        }
+    }
+
+    /// A body told the settings of another kind (which the chain never does) plays as if it
+    /// were told its own, switched off, and is no block to `tell` either
+    #[test]
+    fn test_settings_of_another_kind_play_as_the_kind_switched_off() {
+        let rates = Rates { host: 48_000.0, oversampled: 192_000.0 };
+        let kinds = EffectKind::ALL;
+        for (at, kind) in kinds.into_iter().enumerate() {
+            let other = off_of(kinds[(at + 1) % kinds.len()]);
+            let (mut wrong, mut right) = (Body::new(kind), Body::new(kind));
+            wrong.set_sample_rate(rates);
+            right.set_sample_rate(rates);
+            let signal: Vec<f32> = (0..32).map(|i| 0.3 * (i as f32 * 0.2).sin()).collect();
+            let (mut a, mut b) = (signal.clone(), signal.clone());
+            wrong.process_front(&other, &mut a);
+            right.process_front(&off_of(kind), &mut b);
+            assert_eq!(a, b, "{kind:?} in front");
+            let (mut a_left, mut a_right) = (signal.clone(), signal.clone());
+            let (mut b_left, mut b_right) = (signal.clone(), signal.clone());
+            wrong.process_back(&other, &mut a_left, &mut a_right);
+            right.process_back(&off_of(kind), &mut b_left, &mut b_right);
+            assert_eq!((a_left, a_right), (b_left, b_right), "{kind:?} behind");
+            wrong.tell(&other, Zone::Front, 0, true);
+            wrong.tell_home(&other, Some(Zone::Front), 0, true);
         }
     }
 }

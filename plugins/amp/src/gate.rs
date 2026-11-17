@@ -1,8 +1,11 @@
-use crate::chain::{GATE_RELEASE_MS, GATE_THRESHOLD_DB, OVERSAMPLED_CHUNK};
 use crate::dsp::filters::ANTI_DENORMAL;
 use crate::dsp::{db_to_gain, smoothing_coeff};
-use crate::effect::{Effect, EffectSettings, Rates};
+use crate::effect::{Effect, EffectSettings, Rates, OVERSAMPLED_CHUNK};
 use crate::order::Zone;
+
+// The limits of the gate's settings. The parameters in `lib.rs` take their ranges from these
+pub const GATE_THRESHOLD_DB: [f32; 2] = [-80.0, -20.0];
+pub const GATE_RELEASE_MS: [f32; 2] = [20.0, 500.0];
 
 // From closed to fully open. Short enough to keep the pick attack, long enough not to click
 const ATTACK_MS: f32 = 0.5;
@@ -191,6 +194,10 @@ impl Effect for Gate {
     fn set_up(&mut self, _zone: Zone, _rates: Rates) {
         self.reset();
         self.snap();
+    }
+
+    fn put_away(&mut self) {
+        self.reset();
     }
 
     fn is_idle(&self) -> bool {

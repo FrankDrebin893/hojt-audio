@@ -290,6 +290,19 @@ impl Effect for WahEffect {
         self.back.iter_mut().for_each(Wah::reset);
     }
 
+    /// The side the pedal is not on is put to rest: the one it is on was when it was left
+    fn set_up_home(&mut self, zone: Zone, _rates: Rates) {
+        match zone {
+            Zone::Front => self.back.iter_mut().for_each(Wah::reset),
+            Zone::Back => self.front.reset(),
+        }
+    }
+
+    fn put_away(&mut self) {
+        self.front.reset();
+        self.back.iter_mut().for_each(Wah::reset);
+    }
+
     fn is_idle(&self) -> bool {
         true
     }

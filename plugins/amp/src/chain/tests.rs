@@ -3,18 +3,30 @@ use crate::amp::model::speaker_index;
 use crate::cab::tests::{design_ms, off_the_design_rate};
 use crate::cab::{user_ir_len, MAX_USER_IR_LEN, USER_IR_MS};
 use crate::cab_stage::{CabLoader, CabStatus};
+use crate::comp::CompSettings;
+use crate::delay::DelaySettings;
 use crate::drive::tests::new_drive;
 use crate::drive::DriveSettings;
 use crate::dsp::shaper::{asym_clip, AsymClipper};
+use crate::effects::{BlockSettings, Body};
+use crate::eq::EqSettings;
+use crate::fuzz::FuzzSettings;
 use crate::gate::tests::{decaying_note, gain_trace, hiss, transitions as gate_changes};
 use crate::gate::GateSettings;
-use crate::order::ChainOrder;
+use crate::mods::chorus::ChorusSettings;
+use crate::mods::flanger::FlangerSettings;
+use crate::mods::phaser::PhaserSettings;
+use crate::mods::tremolo::TremoloSettings;
+use crate::order::{ChainOrder, Pedal};
+use crate::pitch::PitchSettings;
+use crate::reverb::ReverbSettings;
+use crate::second::SecondSettings;
 use crate::slots::Chain;
 use crate::test_util::*;
 use crate::tuner::tests::{note_hz as tuner_note_hz, string as tuner_string};
 use crate::user_cab::tests::{test_dir, whole_response, write_ir_wav};
 use crate::user_cab::{self, Recording};
-use crate::wah::WahMode;
+use crate::wah::{WahMode, WahSettings};
 use std::sync::Mutex;
 use std::time::Instant;
 
@@ -195,13 +207,20 @@ fn buffer_layout(chain: &AmpChain) -> Vec<(usize, usize)> {
     layout.extend(chain.cabinet.buffers());
     layout.extend(chain.second.cabinet.buffers());
     layout.extend(chain.cab_stage.buffer());
-    layout.extend(chain.pitch.buffers());
-    for pitch in &chain.back_pitch {
-        layout.extend(pitch.buffers());
+    for body in &chain.homes {
+        match body {
+            Body::Pitch(effect) => layout.extend(effect.buffers()),
+            Body::Delay(effect) => layout.extend(effect.buffers()),
+            Body::Reverb(effect) => layout.extend(effect.buffers()),
+            _ => {}
+        }
     }
-    layout.extend(chain.delay.buffers());
-    layout.extend(chain.reverb.buffers());
     layout
+}
+
+/// A pedal of the chain, on its own parameters
+fn home(chain: &AmpChain, pedal: Pedal) -> &Body {
+    &chain.homes[pedal.index()]
 }
 
 /// Energy of a clipped sine that is not at its harmonics, relative to the total, in dB
@@ -295,7 +314,11 @@ fn stage_times_ns(settings: &AmpSettings, input: &[f32], sample_rate: f32) -> Ve
             chain.oversampler.upsample(chunk, high_chunk);
         }
     });
-    timed(&mut || high.chunks_mut(CHUNK * factor).for_each(|chunk| chain.drive.process(chunk)));
+    let drive = Pedal::Drive.index();
+    timed(&mut || {
+        high.chunks_mut(CHUNK * factor)
+            .for_each(|chunk| chain.homes[drive].process_front(&chain.home_settings[drive], chunk))
+    });
     timed(&mut || high.chunks_mut(CHUNK * factor).for_each(|chunk| chain.preamp.process(chunk)));
     timed(&mut || high.chunks_mut(CHUNK * factor).for_each(|chunk| chain.tone.process(chunk)));
     timed(&mut || high.chunks_mut(CHUNK * factor).for_each(|chunk| chain.power.process(chunk)));
@@ -322,12 +345,20 @@ fn stage_times_ns(settings: &AmpSettings, input: &[f32], sample_rate: f32) -> Ve
     let split_ns = start.elapsed().as_secs_f64() * 1e9 / len as f64;
     timed(&mut || {
         for (l, r) in left.chunks_mut(CHUNK).zip(right.chunks_mut(CHUNK)) {
-            chain.delay.process(&settings.delay, l, r);
+            chain.homes[Pedal::Delay.index()].process_back(
+                &BlockSettings::Delay(settings.delay),
+                l,
+                r,
+            );
         }
     });
     timed(&mut || {
         for (l, r) in left.chunks_mut(CHUNK).zip(right.chunks_mut(CHUNK)) {
-            chain.reverb.process(&settings.reverb, l, r);
+            chain.homes[Pedal::Reverb.index()].process_back(
+                &BlockSettings::Reverb(settings.reverb),
+                l,
+                r,
+            );
         }
     });
     timed(&mut || {
@@ -593,7 +624,7 @@ fn test_wah_off_leaves_the_amp_alone_to_the_bit() {
     assert!(
         largest_difference(&gone[tail.clone()], &alone[tail.clone()]) < 0.001 * peak(&alone[tail])
     );
-    assert!(chain.wah.is_idle());
+    assert!(home(&chain, Pedal::Wah).is_idle());
 }
 
 #[test]
@@ -678,7 +709,7 @@ fn test_pitch_shifter_off_leaves_the_amp_alone_to_the_bit() {
     assert!(
         largest_difference(&gone[tail.clone()], &alone[tail.clone()]) < 0.001 * peak(&alone[tail])
     );
-    assert!(chain.pitch.is_idle());
+    assert!(home(&chain, Pedal::Pitch).is_idle());
 }
 
 #[test]
@@ -3005,7 +3036,8 @@ fn test_drive_wah_and_pitch_behind_the_cabinet_start_from_rest_and_fall_idle() {
                 < 0.001 * peak(&alone.0[tail]),
             "{pedal:?} does not leave the amp alone after it is switched off"
         );
-        assert!(chain.is_idle() && chain.back_drive.is_idle(), "{pedal:?} is not idle");
+        let Body::Drive(drive) = home(&chain, Pedal::Drive) else { unreachable!() };
+        assert!(chain.is_idle() && drive.back_is_idle(), "{pedal:?} is not idle");
     }
 }
 

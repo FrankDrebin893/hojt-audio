@@ -247,6 +247,10 @@ impl Effect for Eq {
         self.set_sample_rate(rates.in_zone(zone));
     }
 
+    fn put_away(&mut self) {
+        self.reset();
+    }
+
     fn is_idle(&self) -> bool {
         true
     }

@@ -1,10 +1,9 @@
 //! Stereo delay behind the cabinet: warm repeats that thin and darken, a little wider than
 //! the mono signal that goes in
 
-use crate::chain::AmpChain;
 use crate::dsp::filters::{OnePoleHp, OnePoleLp};
 use crate::dsp::smoothing_coeff;
-use crate::effect::{Effect, EffectSettings, Rates};
+use crate::effect::{mono_through_stereo, Effect, EffectSettings, Rates};
 use crate::order::Zone;
 
 pub const TIME_MIN_MS: f32 = 20.0;
@@ -407,6 +406,16 @@ pub struct DelayEffect {
     back: Delay,
 }
 
+#[cfg(test)]
+impl DelayEffect {
+    /// Address and capacity of every buffer, for checking that nothing is allocated anew
+    pub(crate) fn buffers(&self) -> Vec<(usize, usize)> {
+        let mut layout = self.front.buffers();
+        layout.extend(self.back.buffers());
+        layout
+    }
+}
+
 impl Effect for DelayEffect {
     type Settings = DelaySettings;
 
@@ -429,13 +438,37 @@ impl Effect for DelayEffect {
         }
     }
 
+    /// The chain's own way: the instance of the side the pedal is not on is put to rest, where
+    /// it is not idle or is. The one it is on was put to rest when it was left
+    fn set_up_home(&mut self, zone: Zone, _rates: Rates) {
+        match zone {
+            Zone::Front => self.back.reset(),
+            Zone::Back => self.front.reset(),
+        }
+    }
+
+    fn put_away(&mut self) {
+        self.front.reset();
+        self.back.reset();
+    }
+
+    /// Nothing that is idle is cleared: that would only cost time
+    fn rest(&mut self) {
+        if !self.front.is_idle() {
+            self.front.reset();
+        }
+        if !self.back.is_idle() {
+            self.back.reset();
+        }
+    }
+
     fn is_idle(&self) -> bool {
         self.front.is_idle() && self.back.is_idle()
     }
 
     fn process_front(&mut self, settings: &DelaySettings, block: &mut [f32]) {
         if settings.on || !self.front.is_idle() {
-            AmpChain::mono_through_stereo(block, |l, r| self.front.process(settings, l, r));
+            mono_through_stereo(block, |l, r| self.front.process(settings, l, r));
         }
     }
 

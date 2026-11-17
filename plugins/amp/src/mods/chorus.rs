@@ -245,6 +245,17 @@ impl Effect for Chorus {
         self.set_sample_rate(rates.in_zone(zone));
     }
 
+    fn put_away(&mut self) {
+        self.reset();
+    }
+
+    /// An idle pedal is left alone
+    fn rest(&mut self) {
+        if !self.is_idle() {
+            self.reset();
+        }
+    }
+
     fn is_idle(&self) -> bool {
         self.is_idle()
     }
