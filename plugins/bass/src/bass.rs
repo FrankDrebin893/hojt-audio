@@ -145,10 +145,16 @@ const CABINET_TOP: (f32, f32) = (4500.0, 0.6);
 const CABINET_GAIN: f32 = 0.7;
 // A stiff string: a chain of first-order all-passes in the loop makes the upper partials run
 // sharp, as they do on a wound string (partial n at n f0 sqrt(1 + B n^2)). B is
-// `STIFFNESS_E` on the open E and falls with the square of the pitch up the neck (a thinner string
-// is less stiff). The chain is fitted so that partial `STIFF_FIT_PARTIAL` is where that puts
-// it; the loop's length takes out what the chain adds at the fundamental
-const STIFF_SECTIONS: usize = 4;
+// `STIFFNESS_E` on the open E and falls with the square of the pitch from one open string to the
+// next (a thinner string is less stiff); on a fret it rises with the square of the pitch, since
+// the same string is shorter there, and a string tuned below the low E is slacker and stiffer
+// for it (`stiffness`). The chain is fitted so that partial `STIFF_FIT_PARTIAL` is where that
+// puts it; the loop's length takes out what the chain adds at the fundamental. Sixteen sections,
+// not four: the fewer there are, the sooner what they can add runs out above the partial they
+// are fitted at. With four the low E's 40th partial (1.6 kHz) was 69 cents sharp where the
+// string's is 186, so the top of a low note stayed one burst each time round, a buzzer's
+// pulse; with sixteen it is 116 and the burst spreads into the growl of a wound string
+const STIFF_SECTIONS: usize = 16;
 const STIFFNESS_E: f32 = 1.5e-4;
 const STIFFNESS_E_HZ: f32 = 41.203;
 const STIFF_FIT_PARTIAL: f32 = 10.0;
@@ -268,8 +274,21 @@ fn allpass_delay(a: f64, omega: f64) -> f64 {
     -phase / omega.max(1e-9)
 }
 
+/// How stiff the string is that a pitch is played on, as its B there. From one open string to
+/// the next it falls with the square of the pitch; on a fret the same string is shorter, and B
+/// rises with the square of the pitch; below the low E the string is tuned down, and B rises as
+/// the tension falls
+fn stiffness(freq_hz: f32) -> f32 {
+    // To a cent, so that an open string is never read as the fret under the next one
+    let sounding = (100.0 * (69.0 + 12.0 * (freq_hz / 440.0).log2())).round() / 100.0;
+    let fretted = Bass::fretted(sounding);
+    let open_hz = freq_hz / fretted;
+    let ratio = STIFFNESS_E_HZ / open_hz;
+    STIFFNESS_E * ratio * ratio * fretted * fretted
+}
+
 /// The coefficient of the `STIFF_SECTIONS` all-passes that make a string of pitch `freq_hz` as
-/// stiff as `STIFFNESS_E` says, or None where it is limp (too high, or too few partials below
+/// stiff as `stiffness` says, or None where it is limp (too high, or too few partials below
 /// Nyquist)
 fn stiffness_coeff(freq_hz: f32, sample_rate: f32) -> Option<f32> {
     if freq_hz >= STIFF_MAX_HZ {
@@ -278,8 +297,7 @@ fn stiffness_coeff(freq_hz: f32, sample_rate: f32) -> Option<f32> {
     let rate = sample_rate as f64;
     let freq = freq_hz as f64;
     let omega = std::f64::consts::TAU * freq / rate;
-    let ratio = STIFFNESS_E_HZ / freq_hz;
-    let stiffness = (STIFFNESS_E * ratio * ratio) as f64;
+    let stiffness = stiffness(freq_hz) as f64;
     // The partial the chain is fitted at, kept well under Nyquist
     let mut partial = STIFF_FIT_PARTIAL as f64;
     let at = |partial: f64| partial * omega * (1.0 + stiffness * partial * partial).sqrt();
@@ -794,10 +812,11 @@ impl Bass {
         self.held = true;
         self.string_voice = self.settings.voice;
         self.string_velocity = velocity;
-        // A stiff string: the all-passes start from rest with the pluck
+        // A stiff string: the all-passes keep what the line keeps of the ringing note
         self.stiff = stiffness_coeff(freq_hz, rate);
-        self.stiff_state = [0.0; STIFF_SECTIONS];
-        self.stiff_state_other = [0.0; STIFF_SECTIONS];
+        for state in self.stiff_state.iter_mut().chain(&mut self.stiff_state_other) {
+            *state *= keeps;
+        }
         // Where the note is played: the pick, the finger and the pickup are further along the
         // shorter string of a fret
         let fretted = Self::fretted(note as f32 + self.settings.transpose);
@@ -814,7 +833,10 @@ impl Bass {
         // What the line holds is how fast the string moves. A string pulled to a point and
         // let go moves one way on one side of that point and the other way on the other:
         // two levels, whose edges are rounded by what plucks it.
+        // The line is not the whole way round: the low-pass and the all-passes are the rest
+        // of it, and hold the end of the pluck's shape (below)
         let period = self.read_delay();
+        let round = self.ring();
         let length = (period.ceil() as usize).clamp(2, self.line.len() - 8);
         let (mut along, level, sharpness, mut rounding_s) = match self.settings.voice {
             Voice::Metal => {
@@ -836,7 +858,7 @@ impl Bass {
         let high = 1.0 / along;
         let low = -1.0 / (1.0 - along);
         for (index, sample) in self.pluck[..length].iter_mut().enumerate() {
-            *sample = if (index as f32) < along * period { high } else { low };
+            *sample = if (index as f32) < along * round { high } else { low };
         }
         // Rounded twice round the string, so that its ends meet
         let smoothing = 1.0 - decay_coeff(rounding_s, rate);
@@ -904,39 +926,65 @@ impl Bass {
         // The other plane is plucked too, less, and a quarter of a period later: the two start
         // a quarter of a beat apart, so that the level of a note ripples about where it would
         // be rather than falling first
-        let quarter = length / 4;
+        // (a quarter of the whole way round, of which the line is a part and the end of the
+        // shape, which the low-pass and the all-passes hold, the rest)
+        let whole = (round.round() as usize).max(length);
+        let quarter = whole / 4;
+        let shape = |index: usize| self.pluck[index.min(length - 1)];
         for index in 0..length {
-            let position = (start + (index + quarter) % length) & self.mask;
+            let position = (start + index) & self.mask;
             self.line_other[position] =
-                self.pluck[index] * scale * PLANE_LEVEL + self.line_other[position] * keeps;
+                shape((index + whole - quarter) % whole) * scale * PLANE_LEVEL
+                    + self.line_other[position] * keeps;
         }
 
-        // The fundamental of what the pickup will read over the first time round, which the
-        // sine under the string starts in phase with
-        let tap = (self.pickup_at * self.ring()).round() as usize;
-        let step = std::f32::consts::TAU / period;
+        // What the low-pass and the all-passes stand in for is the end of the string's shape,
+        // which is still the pluck's second level: they start as if that had always gone
+        // through them, not from rest, which would leave a gap in the string as long as they are
+        let tail = self.pluck[length - 1] * scale;
+        let tail_other = shape(length.saturating_sub(quarter)) * scale * PLANE_LEVEL;
+        self.loop_state = tail;
+        self.loop_state_other = tail_other;
+        if let Some(pole) = self.stiff {
+            for state in &mut self.stiff_state {
+                *state += tail * (1.0 - pole);
+            }
+            for state in &mut self.stiff_state_other {
+                *state += tail_other * (1.0 - pole);
+            }
+        }
+
+        // The fundamental of what the pickup will read over the first time round (the line, and
+        // the end of the shape that is not in it), which the sine under the string starts in
+        // phase with
+        let tap = (self.pickup_at * round).round() as usize;
+        let step = std::f32::consts::TAU / round;
         let (step_sin, step_cos) = step.sin_cos();
         let (mut sin, mut cos) = (0.0f32, 1.0f32);
         let (mut real, mut imag) = (0.0, 0.0);
-        let at = |index: usize| self.line[(start + index) & self.mask];
-        for index in 0..length {
-            let read = at((index + tap) % length) - at(index);
+        let at = |index: usize| {
+            if index < length {
+                self.line[(start + index) & self.mask]
+            } else {
+                tail
+            }
+        };
+        for index in 0..whole {
+            let read = at((index + tap) % whole) - at(index);
             real += read * cos;
             imag -= read * sin;
             (sin, cos) = (sin * step_cos + cos * step_sin, cos * step_cos - sin * step_sin);
         }
         let pickup_gain = self.pickup_gain();
-        let amplitude = 2.0 * (real * real + imag * imag).sqrt() / length as f32 * pickup_gain;
+        let amplitude = 2.0 * (real * real + imag * imag).sqrt() / whole as f32 * pickup_gain;
         let phase = imag.atan2(real);
         self.sub_phase =
-            (phase + std::f32::consts::FRAC_PI_2) / std::f32::consts::TAU - 1.0 / period;
+            (phase + std::f32::consts::FRAC_PI_2) / std::f32::consts::TAU - 1.0 / round;
         self.sub_phase -= self.sub_phase.floor();
         self.sub_env = amplitude;
         self.sub_attack = 0.0;
 
         self.drive_env = 1.0;
-        self.loop_state = 0.0;
-        self.loop_state_other = 0.0;
         self.declick_pending = true;
     }
 
