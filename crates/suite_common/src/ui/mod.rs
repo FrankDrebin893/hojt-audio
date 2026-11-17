@@ -19,11 +19,13 @@
 //!   rig's chain
 //! - `update_line`: the line of label tape that says a newer version is out, with its download
 //!   link, its off switch and its cross
+//! - `audio_lamp`: the red lamp with NO AUDIO under it, for a standalone whose audio is the dummy
 //! - `snapshot` (feature `snapshot`, tests only): draws an editor off screen into a picture
 
 pub mod amp;
 pub mod art;
 pub mod artwork;
+pub mod audio_lamp;
 pub mod frame;
 pub mod hardware;
 pub mod host_keys;
@@ -44,11 +46,15 @@ pub use amp::{
     Speakers,
 };
 pub use art::Motif;
+pub use audio_lamp::{
+    audio_lamp, audio_lamp_bare, audio_lamp_beside, audio_lamp_left, notice_for, AudioNotice,
+    HostAudio,
+};
 pub use frame::{
     coupler, enclosure, jack_socket, lifted, mini_pedal, patch_cable, pedal, rig, rig_layer,
     slim_print, slim_strip, strip, strip_plate, title_grip, MiniStyle, Ornament, PedalStyle,
-    SlimPrint, BENCH_MARGIN, PLUG_Y, SLIM_JACK_X, SLIM_JACK_Y, SLIM_KNOBS, SLIM_KNOB_RADIUS,
-    SLIM_LED, SLIM_PRINT_REACH, SLIM_STRIP_HEIGHT, SLIM_SWITCH, STRIP_BAND_WIDTH,
+    SlimPrint, BENCH_MARGIN, MODEL_LEFT, PLUG_Y, SLIM_JACK_X, SLIM_JACK_Y, SLIM_KNOBS,
+    SLIM_KNOB_RADIUS, SLIM_LED, SLIM_PRINT_REACH, SLIM_STRIP_HEIGHT, SLIM_SWITCH, STRIP_BAND_WIDTH,
 };
 pub use icons::{icon_switch, Icon, IconSwitch};
 pub use led::{led_display, led_width, tuner_display, LED_HEIGHT};

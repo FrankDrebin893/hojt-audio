@@ -330,7 +330,7 @@ impl SecondCabinet {
         self.0.store(speaker.map_or(0, |speaker| speaker as u32 + 1), Ordering::Relaxed);
     }
 
-    /// One on in the round of the amp's own and the ten built-in ones, or one back
+    /// One on in the round of the amp's own and the built-in ones, or one back
     pub fn step(&self, forward: bool) {
         let round = SPEAKERS.len() + 1;
         let here = self.get().map_or(0, |speaker| speaker + 1);

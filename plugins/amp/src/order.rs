@@ -54,22 +54,9 @@ impl Pedal {
         Pedal::Wah,
     ];
 
-    /// Frozen: what a saved project calls the pedal
+    /// Frozen: what a saved project calls the pedal (its kind's id, one line of the table)
     pub fn id(self) -> &'static str {
-        match self {
-            Pedal::Comp => "comp",
-            Pedal::Drive => "drive",
-            Pedal::Chorus => "chorus",
-            Pedal::Phaser => "phaser",
-            Pedal::Flanger => "flanger",
-            Pedal::Tremolo => "tremolo",
-            Pedal::Delay => "delay",
-            Pedal::Reverb => "reverb",
-            Pedal::Fuzz => "fuzz",
-            Pedal::Pitch => "pitch",
-            Pedal::Eq => "eq",
-            Pedal::Wah => "wah",
-        }
+        crate::effects::kind_of(self).id()
     }
 
     fn from_id(id: &str) -> Option<Pedal> {

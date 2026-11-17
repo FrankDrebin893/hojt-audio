@@ -110,6 +110,11 @@ jobs:
         if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
         run: bash scripts/test-macos-pkg.sh
 
+      # The script that moves the nih-plug fork's pin, on a temporary copy of the files it edits
+      - name: Test the nih-plug pin script
+        if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
+        run: bash scripts/test-pin-nih-plug.sh
+
   lint:
     name: Format and clippy
     needs: changes

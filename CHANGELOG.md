@@ -18,12 +18,25 @@ GitHub release.
 - The standalone programs now play at the sample rate the output device runs at, so one started from the
   Start menu with no arguments makes sound on a device set to 44.1 kHz (a Focusrite at its default) and
   not only at 48 kHz. A rate given with `--sample-rate` (or saved in the Audio panel) is still used as it
-  is, and a device that cannot take it fails and says which rate it runs at. The window saying so when no
-  audio device can be opened is the next step.
+  is, and a device that cannot take it fails and says which rate it runs at.
+- A standalone that could not open any audio device and fell back to no audio at all now says so in its
+  window: a red lamp with NO AUDIO under it (on the Guitar Amp right of the settings icon, on a pedal
+  over its model number, or between its footswitches on the Glass Bells). Hover it for the reason, and
+  in the Guitar Amp click it to open the Audio panel. It is not there when the audio runs, and never in a plugin in a DAW.
 - Windows: the standalone programs the installer puts in the Start menu now offer ASIO as a driver beside
   WASAPI and JACK, so an audio interface with an ASIO driver can be chosen in the Audio panel. The
   installed programs had left it out, since it had only been built by hand. The ASIO SDK is built from
   its GPLv3 licence, the same as the plugins.
+
+### Guitar Amp
+
+- Four more built-in cabinets, fourteen in all, for the clear and bright sounds the others did not have:
+  - `1X12 CLEAR`: one 12" in an open back, a lean low end, the pick's edge forward and an open top, for a
+    clean bridge pickup
+  - `1X10 SNAP`: one 10" in a small, stiff box that snaps instead of honking, for funk and picked parts
+  - `2X12 CHIME`: two 12"s in an open back, a full low end, scooped low mids and a chime high up
+  - `FULL RANGE`: a woofer and a tweeter as in an amp for an acoustic guitar, 60 Hz to 12 kHz. It does not
+    hide the fizz of a distorted amp, so it is for clean sounds
 
 ### Bass Synth
 

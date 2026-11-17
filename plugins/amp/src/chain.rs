@@ -4,38 +4,24 @@ use crate::amp::preamp::Preamp;
 use crate::amp::tonestack::{ToneCurve, ToneStack};
 use crate::cab::{design_ir, CabIr, CabVoicing, Cabinet, MicType};
 use crate::cab_stage::CabStage;
-use crate::comp::{Comp, CompSettings};
-use crate::delay::{Delay, DelaySettings};
-use crate::drive::{BackDrive, Drive};
 use crate::dsp::filters::DcBlocker;
 use crate::dsp::oversample::{factor_for, Oversampler, MAX_FACTOR};
 use crate::dsp::shaper::{output_clip, OUTPUT_CLIP_KNEE};
 use crate::dsp::{curve, db_to_gain, smoothing_coeff, Ramp};
-use crate::eq::{Eq, EqSettings};
-use crate::extras::{BlockSettings, Pool};
-use crate::fuzz::{Fuzz, FuzzSettings};
-use crate::gate::Gate;
+use crate::effect::{Rates, CHUNK, OVERSAMPLED_CHUNK};
+use crate::effects::{home_settings, kind_of, BlockSettings, Body};
+use crate::extras::Pool;
+use crate::gate::{Gate, GATE_RELEASE_MS, GATE_THRESHOLD_DB};
 use crate::lamps::LampReading;
 use crate::layout::{Layout, Voice};
-use crate::mods::chorus::{Chorus, ChorusSettings};
-use crate::mods::flanger::{Flanger, FlangerSettings};
-use crate::mods::phaser::{Phaser, PhaserSettings};
-use crate::mods::tremolo::{Tremolo, TremoloSettings};
 use crate::order::{Pedal, Zone};
-use crate::pitch::{Pitch, PitchSettings};
-use crate::reverb::{Reverb, ReverbSettings};
 #[cfg(test)]
 use crate::second::BLEND_LAW;
-use crate::second::{Second, SecondSettings, Timing};
+use crate::second::{Second, Timing};
+pub use crate::settings::AmpSettings;
 use crate::slots::{EffectKind, MAX_SLOTS};
 use crate::tuner::{Tuner, TunerReading};
-use crate::wah::{Wah, WahSettings};
 use std::sync::Arc;
-
-// The chain works in pieces of at most this many samples, and reads the dials once per piece
-const CHUNK: usize = 32;
-// Room for a piece at the highest oversampled rate
-pub(crate) const OVERSAMPLED_CHUNK: usize = CHUNK * MAX_FACTOR;
 
 // How fast the chain follows a dial
 const DIAL_SMOOTH_MS: f32 = 20.0;
@@ -66,11 +52,9 @@ const TUNER_FADE_MS: f32 = 10.0;
 // Level of the amp's signal with the cabinet off, in dB: about as loud as with it on
 const CAB_OFF_DB: f32 = -1.4;
 
-// The limits of the settings that are not dials. The parameters in `lib.rs` take their
-// ranges from these, and their defaults from `AmpSettings::default`
+// The limits of the settings that are not dials (the gate's are in `gate.rs`). The parameters in
+// `lib.rs` take their ranges from these, and their defaults from `AmpSettings::default`
 pub const IN_GAIN_DB: [f32; 2] = [-24.0, 24.0];
-pub const GATE_THRESHOLD_DB: [f32; 2] = [-80.0, -20.0];
-pub const GATE_RELEASE_MS: [f32; 2] = [20.0, 500.0];
 
 /// Which cabinet plays
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -93,135 +77,13 @@ fn cab_ir_index(playing: Playing, amp: Amp) -> Option<usize> {
     }
 }
 
-/// What the knobs say, read once per block. The chain smooths the values itself
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct AmpSettings {
-    pub bypass: bool,
-    /// Gain in dB in front of everything but the gate's detector
-    pub in_gain_db: f32,
-
-    pub gate_on: bool,
-    /// Level in dBFS at the plugin's input that opens the gate
-    pub gate_thresh_db: f32,
-    /// Time the gate takes to close, in milliseconds
-    pub gate_release_ms: f32,
-
-    /// The fuzz and the compressor pedals. They smooth their own settings
-    pub fuzz: FuzzSettings,
-    pub comp: CompSettings,
-    /// The pitch shifter pedal. It smooths its own settings
-    pub pitch: PitchSettings,
-    /// The wah pedal. It smooths its own settings
-    pub wah: WahSettings,
-    /// The EQ pedal, on either side of the amp. It smooths its own settings
-    pub eq: EqSettings,
-
-    pub drive_on: bool,
-    /// The drive pedal's dials, 0.0 to 1.0
-    pub drive_gain: f32,
-    pub drive_tone: f32,
-    pub drive_level: f32,
-
-    pub amp: Amp,
-    /// The amp dials, 0.0 to 1.0
-    pub gain: f32,
-    pub bass: f32,
-    pub mid: f32,
-    pub treble: f32,
-    pub presence: f32,
-    pub master: f32,
-
-    /// The second amp, which plays beside the first one behind the same front pedals and
-    /// through its own cabinet, and the share of it in the mix: 0.0 is the first amp alone,
-    /// 1.0 the second alone. With the second amp off the blend is not heard
-    pub second: SecondSettings,
-    pub blend: f32,
-
-    /// The modulation pedals. They smooth their own settings
-    pub chorus: ChorusSettings,
-    pub phaser: PhaserSettings,
-    pub flanger: FlangerSettings,
-    pub tremolo: TremoloSettings,
-
-    /// Off leaves the amp's signal as it is, for a cabinet somewhere else
-    pub cab_on: bool,
-    /// The cabinet's dials, 0.0 to 1.0. Both leave the cabinet as designed at 0.5
-    pub cab_mic: f32,
-    pub cab_res: f32,
-    /// Which microphone hears the cabinet
-    pub mic_type: MicType,
-
-    /// The two effects behind the cabinet. They smooth their own settings
-    pub delay: DelaySettings,
-    pub reverb: ReverbSettings,
-
-    /// Linear gain
-    pub out_level: f32,
-
-    /// The tuner listens to the input and the amp is silent meanwhile. Bypass still passes
-    /// the input on
-    pub tuner_on: bool,
-
-    /// What stands in front of the amp and what behind the cabinet, and in what order. A
-    /// pedal that is not in it is not played
-    pub layout: Layout,
-    /// What the effects that play from a slot's parameters are told, by slot (counted from 0);
-    /// `None` for a slot no such effect stands on
-    pub slots: [BlockSettings; MAX_SLOTS],
-}
-
-/// What the plugin starts with. The parameters in `lib.rs` take their defaults from here
-impl Default for AmpSettings {
-    fn default() -> Self {
-        Self {
-            bypass: false,
-            in_gain_db: 0.0,
-            gate_on: true,
-            gate_thresh_db: -60.0,
-            gate_release_ms: 100.0,
-            fuzz: FuzzSettings::default(),
-            comp: CompSettings::default(),
-            pitch: PitchSettings::default(),
-            wah: WahSettings::default(),
-            eq: EqSettings::default(),
-            drive_on: false,
-            drive_gain: 0.3,
-            drive_tone: 0.5,
-            drive_level: 0.5,
-            amp: Amp::Brol,
-            gain: 0.5,
-            bass: 0.5,
-            mid: 0.5,
-            treble: 0.5,
-            presence: 0.5,
-            master: 0.5,
-            second: SecondSettings::default(),
-            blend: 0.5,
-            chorus: ChorusSettings::default(),
-            phaser: PhaserSettings::default(),
-            flanger: FlangerSettings::default(),
-            tremolo: TremoloSettings::default(),
-            cab_on: true,
-            cab_mic: 0.5,
-            cab_res: 0.5,
-            mic_type: MicType::Dynamic,
-            delay: DelaySettings::default(),
-            reverb: ReverbSettings::default(),
-            out_level: 1.0,
-            tuner_on: false,
-            layout: Layout::default(),
-            slots: [BlockSettings::None; MAX_SLOTS],
-        }
-    }
-}
-
 /// The dial values the chain is at, on their way to the settings
 #[derive(Clone, Copy, PartialEq)]
-struct Dials {
+pub(crate) struct Dials {
     in_gain_db: f32,
-    drive_gain: f32,
-    drive_tone: f32,
-    drive_level: f32,
+    pub(crate) drive_gain: f32,
+    pub(crate) drive_tone: f32,
+    pub(crate) drive_level: f32,
     gain: f32,
     bass: f32,
     mid: f32,
@@ -310,26 +172,14 @@ pub struct AmpChain {
     // another order and back up after
     order_fade: u32,
     order_fade_len: u32,
-    fuzz: Fuzz,
-    fuzz_settings: FuzzSettings,
-    comp: Comp,
-    comp_settings: CompSettings,
-    pitch: Pitch,
-    pitch_settings: PitchSettings,
-    wah: Wah,
-    wah_settings: WahSettings,
-    eq: Eq,
-    eq_settings: EqSettings,
-    chorus: Chorus,
-    phaser: Phaser,
-    flanger: Flanger,
-    tremolo: Tremolo,
-    // What the modulation pedals are told, read with the dials like the effects' settings
-    chorus_settings: ChorusSettings,
-    phaser_settings: PhaserSettings,
-    flanger_settings: FlangerSettings,
-    tremolo_settings: TremoloSettings,
-    drive: Drive,
+    // The twelve pedals, one effect each, by `Pedal::index`, and what they are told: read with
+    // the dials, so a switch takes effect on the same sample whatever the block size. Which
+    // side of the amp a pedal plays on, and in what order, is the layout's
+    // The effects are on the heap, made once with the chain: kept inline they are 50 kB of the
+    // chain, which moves the amp's stages about in it and made the preamp 17 % slower
+    // (`stage_report`)
+    homes: Vec<Body>,
+    home_settings: [BlockSettings; Pedal::ALL.len()],
     preamp: Preamp,
     tone: ToneStack,
     power: PowerAmp,
@@ -348,25 +198,6 @@ pub struct AmpChain {
     cab_mix: Ramp,
     cab_fade_steps: u32,
     dc: DcBlocker,
-    delay: Delay,
-    reverb: Reverb,
-    // The same two effects for when they stand in front of the amp (#268): one of each, made
-    // for the oversampled rate, so a pedal that changes sides allocates nothing. Only the
-    // one of the side the pedal stands on is run; the other is left at rest
-    front_delay: Delay,
-    front_reverb: Reverb,
-    // And the three that were only ever in front of the amp, for when they stand behind the
-    // cabinet (#268): the wah and the pitch shifter one a channel at the host's rate, the drive
-    // raising the rate itself as the fuzz does there
-    back_drive: BackDrive,
-    back_wah: [Wah; 2],
-    back_pitch: [Pitch; 2],
-    // Whether the drive pedal's switch is on, as of the last read of the dials
-    drive_on: bool,
-    // What the effects are told. Read with the dials, so a switch takes effect on the same
-    // sample whatever the block size
-    delay_settings: DelaySettings,
-    reverb_settings: ReverbSettings,
     out_level: Ramp,
 
     dials: Dials,
@@ -414,6 +245,7 @@ pub struct AmpChain {
 
 impl AmpChain {
     pub fn new() -> Self {
+        let defaults = AmpSettings::default();
         let mut chain = Self {
             sample_rate: 44100.0,
             factor: MAX_FACTOR,
@@ -428,25 +260,9 @@ impl AmpChain {
             slot_settings: [BlockSettings::None; MAX_SLOTS],
             order_fade: 1,
             order_fade_len: 1,
-            fuzz: Fuzz::new(),
-            fuzz_settings: FuzzSettings::default(),
-            comp: Comp::new(),
-            comp_settings: CompSettings::default(),
-            pitch: Pitch::new(),
-            pitch_settings: PitchSettings::default(),
-            wah: Wah::new(),
-            wah_settings: WahSettings::default(),
-            eq: Eq::new(),
-            eq_settings: EqSettings::default(),
-            chorus: Chorus::new(),
-            phaser: Phaser::new(),
-            flanger: Flanger::new(),
-            tremolo: Tremolo::new(),
-            chorus_settings: ChorusSettings::default(),
-            phaser_settings: PhaserSettings::default(),
-            flanger_settings: FlangerSettings::default(),
-            tremolo_settings: TremoloSettings::default(),
-            drive: Drive::new(),
+            homes: Pedal::ALL.into_iter().map(|pedal| Body::new(kind_of(pedal))).collect(),
+            home_settings: Pedal::ALL
+                .map(|pedal| home_settings(pedal, &defaults, &Dials::from_settings(&defaults))),
             preamp: Preamp::new(),
             tone: ToneStack::new(),
             power: PowerAmp::new(),
@@ -459,16 +275,6 @@ impl AmpChain {
             cab_mix: Ramp::new(1.0),
             cab_fade_steps: 1,
             dc: DcBlocker::new(),
-            delay: Delay::new(),
-            reverb: Reverb::new(),
-            front_delay: Delay::new(),
-            front_reverb: Reverb::new(),
-            back_drive: BackDrive::new(),
-            back_wah: [Wah::new(), Wah::new()],
-            back_pitch: [Pitch::new(), Pitch::new()],
-            drive_on: false,
-            delay_settings: DelaySettings::default(),
-            reverb_settings: ReverbSettings::default(),
             out_level: Ramp::new(1.0),
             dials: Dials::from_settings(&AmpSettings::default()),
             dial_target: Dials::from_settings(&AmpSettings::default()),
@@ -511,24 +317,16 @@ impl AmpChain {
         self.factor = factor_for(sample_rate);
         self.oversampler.set_factor(self.factor);
         self.gate.set_sample_rate(sample_rate);
-        self.drive.configure(self.oversampled_rate());
-        self.back_drive.configure(sample_rate);
         // The pedals that stand on either side are made for both: only the one of the side
         // the pedal is on is run, so a pedal that changes sides allocates nothing
-        self.pitch.set_sample_rate(self.oversampled_rate());
-        self.wah.set_sample_rate(self.oversampled_rate());
-        for side in 0..2 {
-            self.back_pitch[side].set_sample_rate(sample_rate);
-            self.back_wah[side].set_sample_rate(sample_rate);
+        let rates = self.rates();
+        for body in &mut self.homes {
+            body.set_sample_rate(rates);
         }
         for pedal in Pedal::ALL {
             self.set_up_pedal(pedal);
         }
-        self.delay.set_sample_rate(sample_rate);
-        self.reverb.set_sample_rate(sample_rate);
         let oversampled = self.oversampled_rate();
-        self.front_delay.set_sample_rate(oversampled);
-        self.front_reverb.set_sample_rate(oversampled);
         self.pool.set_sample_rate(sample_rate, oversampled);
         self.follow_pool(true);
 
@@ -559,12 +357,9 @@ impl AmpChain {
         self.sample_rate * self.factor as f32
     }
 
-    /// The rate a pedal runs at on that side of the amp
-    fn rate_in(&self, zone: Zone) -> f32 {
-        match zone {
-            Zone::Front => self.oversampled_rate(),
-            Zone::Back => self.sample_rate,
-        }
+    /// The two rates the pedals run at
+    fn rates(&self) -> Rates {
+        Rates { host: self.sample_rate, oversampled: self.oversampled_rate() }
     }
 
     /// Sets a pedal that can stand on either side of the amp up for the side it is on, from
@@ -572,81 +367,19 @@ impl AmpChain {
     fn set_up_pedal(&mut self, pedal: Pedal) {
         // A pedal the chain does not hold is set up as if it stood in front of the amp, and
         // put to rest: it is not played, and it starts from rest where it comes in
-        let held = self.layout.home_zone(pedal);
-        let zone = held.unwrap_or(Zone::Front);
-        let rate = self.rate_in(zone);
-        match pedal {
-            // Behind the cabinet it raises the rate itself for its clipping
-            Pedal::Fuzz => self.fuzz.set_sample_rate(rate, zone == Zone::Back),
-            Pedal::Comp => self.comp.set_sample_rate(rate),
-            // One instance for either side (`back_pitch`, `back_wah`): the one it left is
-            // dropped, so what it held is not heard if it comes back
-            Pedal::Pitch => match zone {
-                Zone::Front => self.back_pitch.iter_mut().for_each(Pitch::reset),
-                Zone::Back => self.pitch.reset(),
-            },
-            Pedal::Wah => match zone {
-                Zone::Front => self.back_wah.iter_mut().for_each(Wah::reset),
-                Zone::Back => self.wah.reset(),
-            },
-            Pedal::Eq => self.eq.set_sample_rate(rate),
-            Pedal::Chorus => self.chorus.set_sample_rate(rate),
-            Pedal::Phaser => self.phaser.set_sample_rate(rate),
-            Pedal::Flanger => self.flanger.set_sample_rate(rate),
-            Pedal::Tremolo => self.tremolo.set_sample_rate(rate),
-            // The pedal's switch follows the side it is on, and the amp is driven only by the
-            // one in front of it. From rest, as it crosses
-            Pedal::Drive => {
-                match zone {
-                    Zone::Front => self.back_drive.reset(),
-                    Zone::Back => self.drive.reset(),
-                }
-                self.follow_drive_side(true);
-            }
-            // One of each for either side (`front_delay`, `front_reverb`): the one it left is
-            // dropped, so its tail is not heard if it comes back
-            Pedal::Delay => match zone {
-                Zone::Front => self.delay.reset(),
-                Zone::Back => self.front_delay.reset(),
-            },
-            Pedal::Reverb => match zone {
-                Zone::Front => self.reverb.reset(),
-                Zone::Back => self.front_reverb.reset(),
-            },
+        let zone = self.layout.home_zone(pedal).unwrap_or(Zone::Front);
+        let rates = self.rates();
+        self.homes[pedal.index()].set_up_home(zone, rates);
+        // The drive's switch follows the side it is on, and the amp is driven only by the one
+        // in front of it. From rest, as it crosses
+        if pedal == Pedal::Drive {
+            self.follow_drive_side(true);
         }
     }
 
     /// Puts a pedal the chain has taken out to rest, whatever side it was on
     fn put_away(&mut self, pedal: Pedal) {
-        match pedal {
-            Pedal::Fuzz => self.fuzz.reset(),
-            Pedal::Comp => self.comp.reset(),
-            Pedal::Pitch => {
-                self.pitch.reset();
-                self.back_pitch.iter_mut().for_each(Pitch::reset);
-            }
-            Pedal::Wah => {
-                self.wah.reset();
-                self.back_wah.iter_mut().for_each(Wah::reset);
-            }
-            Pedal::Eq => self.eq.reset(),
-            Pedal::Chorus => self.chorus.reset(),
-            Pedal::Phaser => self.phaser.reset(),
-            Pedal::Flanger => self.flanger.reset(),
-            Pedal::Tremolo => self.tremolo.reset(),
-            Pedal::Drive => {
-                self.drive.reset();
-                self.back_drive.reset();
-            }
-            Pedal::Delay => {
-                self.delay.reset();
-                self.front_delay.reset();
-            }
-            Pedal::Reverb => {
-                self.reverb.reset();
-                self.front_reverb.reset();
-            }
-        }
+        self.homes[pedal.index()].put_away();
     }
 
     /// Whether a drive that plays from a slot is switched on in front of the amp
@@ -661,7 +394,8 @@ impl AmpChain {
 
     /// Whether the amp is pushed by a drive pedal: one that is on in front of it
     fn driven(&self) -> bool {
-        (self.drive_on && self.layout.home_zone(Pedal::Drive) == Some(Zone::Front))
+        (self.home_settings[Pedal::Drive.index()].is_on()
+            && self.layout.home_zone(Pedal::Drive) == Some(Zone::Front))
             || self.slot_drive_in_front()
     }
 
@@ -687,19 +421,26 @@ impl AmpChain {
     /// cabinet it is not in front of it. `snap` for a pedal that has just changed sides, while
     /// nothing of it is heard
     fn follow_drive_side(&mut self, snap: bool) {
-        let zone = self.layout.home_zone(Pedal::Drive);
-        let steps = if snap { 0 } else { self.drive.fade_steps() };
+        let steps = if snap { 0 } else { self.drive_fade_steps() };
         let driven = self.driven();
-        self.drive.set_on(self.drive_on && zone == Some(Zone::Front));
-        self.back_drive.set_on(self.drive_on && zone == Some(Zone::Back));
         self.preamp.set_driven(driven, steps);
         self.power.set_driven(driven, steps);
         self.second.preamp.set_driven(driven, steps);
         self.second.power.set_driven(driven, steps);
-        if snap {
-            self.drive.snap();
-            self.back_drive.snap();
-        }
+        self.tell_drive(if snap { 0 } else { self.oversampled_chunk() }, snap);
+    }
+
+    /// Tells the drive pedal its switch, which follows the side it stands on, and its dials
+    /// over the next `steps` samples of the oversampled rate
+    fn tell_drive(&mut self, steps: u32, snap: bool) {
+        let index = Pedal::Drive.index();
+        let zone = self.layout.home_zone(Pedal::Drive);
+        self.homes[index].tell_home(&self.home_settings[index], zone, steps, snap);
+    }
+
+    /// Samples a switch of the drive pedal takes to fade, which the amp follows
+    fn drive_fade_steps(&self) -> u32 {
+        self.homes[Pedal::Drive.index()].amp_fade_steps()
     }
 
     /// Moves towards the order the settings ask for. Does not allocate. While the amp is
@@ -920,23 +661,12 @@ impl AmpChain {
 
     fn reset_stages(&mut self) {
         self.gate.reset();
-        self.fuzz.reset();
-        self.comp.reset();
-        self.pitch.reset();
-        self.wah.reset();
-        self.back_drive.reset();
-        self.back_pitch.iter_mut().for_each(Pitch::reset);
-        self.back_wah.iter_mut().for_each(Wah::reset);
-        self.eq.reset();
-        // As for the delay and the reverb below: a pedal with nothing in it is left alone
-        if !self.chorus.is_idle() {
-            self.chorus.reset();
+        // What is idle in them is left alone (`Effect::rest`): an idle effect has nothing left
+        // to be heard already. Clearing its lines would only cost time, and this is also
+        // called on the audio thread, when Bypass has faded
+        for body in &mut self.homes {
+            body.rest();
         }
-        if !self.flanger.is_idle() {
-            self.flanger.reset();
-        }
-        self.phaser.reset();
-        self.tremolo.reset();
         self.pool.reset();
         self.reset_amp_stages();
         self.cabinet.reset();
@@ -946,20 +676,6 @@ impl AmpChain {
         self.second.amp_fade = self.amp_fade_len;
         self.second.cabinet_busy = 0;
         self.dc.reset();
-        // An idle effect has nothing left to be heard already. Clearing its lines would
-        // only cost time, and this is also called on the audio thread, when Bypass has faded
-        if !self.delay.is_idle() {
-            self.delay.reset();
-        }
-        if !self.reverb.is_idle() {
-            self.reverb.reset();
-        }
-        if !self.front_delay.is_idle() {
-            self.front_delay.reset();
-        }
-        if !self.front_reverb.is_idle() {
-            self.front_reverb.reset();
-        }
         self.amp_fade = self.amp_fade_len;
         self.order_fade = self.order_fade_len;
         self.cabinet_busy = 0;
@@ -968,24 +684,17 @@ impl AmpChain {
     /// True when nothing is left to hear of earlier input: no repeats and no reverb tail are
     /// ringing. The amp and the cabinet themselves are silent within milliseconds
     pub fn is_idle(&self) -> bool {
-        self.delay.is_idle()
-            && self.reverb.is_idle()
-            && self.front_delay.is_idle()
-            && self.front_reverb.is_idle()
-            && self.pitch.is_idle()
-            && self.back_pitch.iter().all(Pitch::is_idle)
-            && self.chorus.is_idle()
-            && self.flanger.is_idle()
-            && self.phaser.is_idle()
-            && self.tremolo.is_idle()
-            && self.pool.is_idle()
+        self.homes.iter().all(Body::is_idle) && self.pool.is_idle()
     }
 
     /// Everything between the gate and the cabinet. The effects are not touched: their
     /// repeats and tail ring on while another amp is set up
     fn reset_amp_stages(&mut self) {
         self.oversampler.reset();
-        self.drive.reset();
+        // The drive in front of the amp is one of them
+        for body in &mut self.homes {
+            body.rest_with_amp();
+        }
         self.preamp.reset();
         self.tone.reset();
         self.power.reset();
@@ -1088,14 +797,11 @@ impl AmpChain {
             settings.gate_thresh_db.clamp(GATE_THRESHOLD_DB[0], GATE_THRESHOLD_DB[1]),
             settings.gate_release_ms.clamp(GATE_RELEASE_MS[0], GATE_RELEASE_MS[1]),
         );
-        self.drive_on = settings.drive_on;
+        for pedal in Pedal::ALL {
+            self.home_settings[pedal.index()] = home_settings(pedal, settings, &self.dials);
+        }
         self.slot_settings = settings.slots;
         self.follow_drive_side(false);
-        let steps = self.oversampled_chunk();
-        let (gain, tone, level) =
-            (self.dials.drive_gain, self.dials.drive_tone, self.dials.drive_level);
-        self.drive.set(gain, tone, level, steps);
-        self.back_drive.set(gain, tone, level, steps);
         let cab_target = if settings.cab_on { 1.0 } else { 0.0 };
         if cab_target != self.cab_mix.target() {
             self.cab_mix.set_target(cab_target, self.cab_fade_steps);
@@ -1103,17 +809,6 @@ impl AmpChain {
         // The layout is read here as well, so a change falls on the same sample whatever
         // the block size, and what the slots say with it
         self.wanted_layout = settings.layout;
-        self.fuzz_settings = settings.fuzz;
-        self.comp_settings = settings.comp;
-        self.pitch_settings = settings.pitch;
-        self.wah_settings = settings.wah;
-        self.eq_settings = settings.eq;
-        self.chorus_settings = settings.chorus;
-        self.phaser_settings = settings.phaser;
-        self.flanger_settings = settings.flanger;
-        self.tremolo_settings = settings.tremolo;
-        self.delay_settings = settings.delay;
-        self.reverb_settings = settings.reverb;
 
         if settings.tuner_on != self.tuning {
             self.tuning = settings.tuner_on;
@@ -1133,8 +828,7 @@ impl AmpChain {
             self.in_gain.snap();
             self.out_level.snap();
             self.gate.snap();
-            self.drive.snap();
-            self.back_drive.snap();
+            self.tell_drive(self.oversampled_chunk(), true);
             self.cab_mix.snap();
         }
         self.apply_dials(jump);
@@ -1156,8 +850,9 @@ impl AmpChain {
         }
         // The stages follow the first amp's drive pedal like the first amp's own
         let driven = self.driven();
-        self.second.preamp.set_driven(driven, self.drive.fade_steps());
-        self.second.power.set_driven(driven, self.drive.fade_steps());
+        let steps = self.drive_fade_steps();
+        self.second.preamp.set_driven(driven, steps);
+        self.second.power.set_driven(driven, steps);
         if !self.second.runs() {
             self.second.dials = self.second.target;
             self.second.blend.snap();
@@ -1290,20 +985,20 @@ impl AmpChain {
         }
     }
 
-    /// Runs a stereo effect on one channel, for an effect that stands in front of the amp:
-    /// the signal goes in on both sides and what comes out is the mean of the two, so the
-    /// level of the dry signal is as it was and the repeats and the tail are what a listener
-    /// in the middle would hear of them. Does not allocate
-    pub(crate) fn mono_through_stereo(
-        high: &mut [f32],
-        effect: impl FnOnce(&mut [f32], &mut [f32]),
-    ) {
-        let mut other = [0.0f32; OVERSAMPLED_CHUNK];
-        let other = &mut other[..high.len()];
-        other.copy_from_slice(high);
-        effect(high, other);
-        for (sample, other) in high.iter_mut().zip(other.iter()) {
-            *sample = 0.5 * (*sample + *other);
+    /// The effect that plays a voice of the line, and what it is told: a pedal on its own
+    /// parameters or an effect of the pool on its slot's. They play through the same call
+    fn effect_of<'a>(
+        homes: &'a mut [Body],
+        home_settings: &'a [BlockSettings; Pedal::ALL.len()],
+        pool: &'a mut Pool,
+        slot_settings: &'a [BlockSettings; MAX_SLOTS],
+        voice: Voice,
+    ) -> (&'a mut Body, &'a BlockSettings) {
+        match voice {
+            Voice::Home(pedal) => (&mut homes[pedal.index()], &home_settings[pedal.index()]),
+            Voice::Slot { kind, slot, rank } => {
+                (pool.unit_mut(kind, rank).body_mut(), &slot_settings[slot as usize])
+            }
         }
     }
 
@@ -1362,38 +1057,15 @@ impl AmpChain {
         let high = &mut oversampled[..len * self.factor];
         self.oversampler.upsample(&signal[..len], high);
         for index in 0..self.layout.front().len() {
-            match self.layout.front()[index] {
-                Voice::Home(Pedal::Fuzz) => self.fuzz.process_mono(&self.fuzz_settings, high),
-                Voice::Home(Pedal::Comp) => self.comp.process_mono(&self.comp_settings, high),
-                Voice::Home(Pedal::Pitch) => self.pitch.process_mono(&self.pitch_settings, high),
-                Voice::Home(Pedal::Wah) => self.wah.process_mono(&self.wah_settings, high),
-                Voice::Home(Pedal::Eq) => self.eq.process_mono(&self.eq_settings, high),
-                Voice::Home(Pedal::Drive) => self.drive.process(high),
-                Voice::Home(Pedal::Chorus) => self.chorus.process_mono(&self.chorus_settings, high),
-                Voice::Home(Pedal::Phaser) => self.phaser.process_mono(&self.phaser_settings, high),
-                Voice::Home(Pedal::Flanger) => {
-                    self.flanger.process_mono(&self.flanger_settings, high)
-                }
-                Voice::Home(Pedal::Tremolo) => {
-                    self.tremolo.process_mono(&self.tremolo_settings, high)
-                }
-                Voice::Home(Pedal::Delay) => {
-                    if self.delay_settings.on || !self.front_delay.is_idle() {
-                        let (delay, settings) = (&mut self.front_delay, &self.delay_settings);
-                        Self::mono_through_stereo(high, |l, r| delay.process(settings, l, r));
-                    }
-                }
-                Voice::Home(Pedal::Reverb) => {
-                    if self.reverb_settings.on || !self.front_reverb.is_idle() {
-                        let (reverb, settings) = (&mut self.front_reverb, &self.reverb_settings);
-                        Self::mono_through_stereo(high, |l, r| reverb.process(settings, l, r));
-                    }
-                }
-                Voice::Slot { kind, slot, rank } => {
-                    let settings = &self.slot_settings[slot as usize];
-                    self.pool.unit_mut(kind, rank).process_front(settings, high);
-                }
-            }
+            let voice = self.layout.front()[index];
+            let (effect, settings) = Self::effect_of(
+                &mut self.homes,
+                &self.home_settings,
+                &mut self.pool,
+                &self.slot_settings,
+                voice,
+            );
+            effect.process_front(settings, high);
         }
         // The second amp hears what the first one hears
         let second_runs = self.second.runs();
@@ -1452,48 +1124,15 @@ impl AmpChain {
         let [wide_left, wide_right] = &mut wide;
         let (wide_left, wide_right) = (&mut wide_left[..len], &mut wide_right[..len]);
         for index in 0..self.layout.back().len() {
-            match self.layout.back()[index] {
-                Voice::Home(Pedal::Fuzz) => {
-                    self.fuzz.process_stereo(&self.fuzz_settings, wide_left, wide_right)
-                }
-                Voice::Home(Pedal::Comp) => {
-                    self.comp.process_stereo(&self.comp_settings, wide_left, wide_right)
-                }
-                Voice::Home(Pedal::Eq) => {
-                    self.eq.process_stereo(&self.eq_settings, wide_left, wide_right)
-                }
-                Voice::Home(Pedal::Delay) => {
-                    self.delay.process(&self.delay_settings, wide_left, wide_right)
-                }
-                Voice::Home(Pedal::Reverb) => {
-                    self.reverb.process(&self.reverb_settings, wide_left, wide_right)
-                }
-                Voice::Home(Pedal::Chorus) => {
-                    self.chorus.process_stereo(&self.chorus_settings, wide_left, wide_right)
-                }
-                Voice::Home(Pedal::Phaser) => {
-                    self.phaser.process_stereo(&self.phaser_settings, wide_left, wide_right)
-                }
-                Voice::Home(Pedal::Flanger) => {
-                    self.flanger.process_stereo(&self.flanger_settings, wide_left, wide_right)
-                }
-                Voice::Home(Pedal::Tremolo) => {
-                    self.tremolo.process_stereo(&self.tremolo_settings, wide_left, wide_right)
-                }
-                Voice::Home(Pedal::Drive) => self.back_drive.process_stereo(wide_left, wide_right),
-                Voice::Home(Pedal::Pitch) => {
-                    self.back_pitch[0].process_mono(&self.pitch_settings, wide_left);
-                    self.back_pitch[1].process_mono(&self.pitch_settings, wide_right);
-                }
-                Voice::Home(Pedal::Wah) => {
-                    self.back_wah[0].process_mono(&self.wah_settings, wide_left);
-                    self.back_wah[1].process_mono(&self.wah_settings, wide_right);
-                }
-                Voice::Slot { kind, slot, rank } => {
-                    let settings = &self.slot_settings[slot as usize];
-                    self.pool.unit_mut(kind, rank).process_back(settings, wide_left, wide_right);
-                }
-            }
+            let voice = self.layout.back()[index];
+            let (effect, settings) = Self::effect_of(
+                &mut self.homes,
+                &self.home_settings,
+                &mut self.pool,
+                &self.slot_settings,
+                voice,
+            );
+            effect.process_back(settings, wide_left, wide_right);
         }
 
         // Down to silence while another order is waiting, and back up after

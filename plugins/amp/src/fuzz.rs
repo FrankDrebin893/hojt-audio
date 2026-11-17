@@ -9,6 +9,8 @@ use crate::dsp::oversample::{factor_for, Oversampler, MAX_FACTOR};
 use crate::dsp::pair::Pair;
 use crate::dsp::shaper::AsymClipper;
 use crate::dsp::{curve, db_to_gain, lerp, smoothing_coeff};
+use crate::effect::{Effect, EffectSettings, Rates};
+use crate::order::Zone;
 
 // In front of the clipping: the lowest rumble and the pick's fizz stay out of it
 const INPUT_HIGHPASS_HZ: f32 = 60.0;
@@ -380,6 +382,40 @@ fn follow(value: f32, target: f32, coeff: f32) -> f32 {
         target
     } else {
         next
+    }
+}
+
+impl EffectSettings for FuzzSettings {
+    fn is_on(&self) -> bool {
+        self.on
+    }
+}
+
+impl Effect for Fuzz {
+    type Settings = FuzzSettings;
+
+    fn new() -> Self {
+        Fuzz::new()
+    }
+
+    fn set_up(&mut self, zone: Zone, rates: Rates) {
+        self.set_sample_rate(rates.in_zone(zone), zone == Zone::Back);
+    }
+
+    fn put_away(&mut self) {
+        self.reset();
+    }
+
+    fn is_idle(&self) -> bool {
+        true
+    }
+
+    fn process_front(&mut self, settings: &FuzzSettings, block: &mut [f32]) {
+        self.process_mono(settings, block);
+    }
+
+    fn process_back(&mut self, settings: &FuzzSettings, left: &mut [f32], right: &mut [f32]) {
+        self.process_stereo(settings, left, right);
     }
 }
 

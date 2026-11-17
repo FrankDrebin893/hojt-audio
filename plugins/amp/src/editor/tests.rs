@@ -106,6 +106,18 @@ fn harness_shared<'a>(
     (harness, view)
 }
 
+// What the harness's windows say of the standalone's audio (`Shared::audio`): none unless a test
+// puts a notice here, on its own thread
+#[cfg(target_os = "linux")]
+thread_local! {
+    static AUDIO: RefCell<Option<ui::AudioNotice>> = const { RefCell::new(None) };
+}
+
+#[cfg(target_os = "linux")]
+fn test_audio() -> Option<ui::AudioNotice> {
+    AUDIO.with(|audio| audio.borrow().clone())
+}
+
 #[cfg(target_os = "linux")]
 #[allow(clippy::too_many_arguments)]
 fn harness_at_size<'a>(
@@ -120,6 +132,7 @@ fn harness_at_size<'a>(
     view: Rc<RefCell<View>>,
 ) -> Harness<'a> {
     pedal_harness(width, height, move |ctx| {
+        let audio = test_audio();
         let shared = Shared {
             tuner: &tuner,
             lamp_reading: &lamp_reading,
@@ -129,6 +142,7 @@ fn harness_at_size<'a>(
             load_cabinet: &|| {},
             audio_host,
             update: &UpdateCheck::resting(params.update.clone()),
+            audio: audio.as_ref(),
         };
         draw(ctx, setter, params, &mut view.borrow_mut(), &shared);
     })
@@ -186,6 +200,7 @@ fn test_the_window_keeps_each_widget_on_one_layer() {
                 load_cabinet: &|| {},
                 audio_host: None,
                 update: &update,
+                audio: None,
             };
             window(ctx, &state, &setter, &params, &mut view.borrow_mut(), &shared);
         }
@@ -1001,6 +1016,7 @@ fn strip_parts_shifted(shift: f32) -> Vec<(&'static str, Rect)> {
         ("the looper", icon(LOOPER_X + middle.x, true)),
         ("the tuner", icon(TUNER_X + middle.x, true)),
         ("the settings", icon(SETTINGS_X + middle.x, false)),
+        ("the no-audio lamp", ui::audio_lamp::rect((AUDIO_LAMP + middle).to_pos2())),
         ("the output knob", knob(OUTPUT_KNOB + right)),
         ("the output meter", meter(OUTPUT_METER + right)),
         ("the output meter's caption", caption(OUTPUT_METER + right, 62.0)),
@@ -2336,4 +2352,115 @@ fn test_the_gaps_of_a_line_and_the_one_a_card_lands_in() {
     assert!(slots.iter().all(|gap| gap.slot && gap.place == 0));
     assert_eq!(slots[0].zone, Zone::Front);
     assert_eq!(slots[1].zone, Zone::Back);
+}
+
+// The no-audio lamp is drawn when the audio is the dummy backend, and only then: with the audio
+// running (or in a DAW, which has no status) the window is the one it was (pixel for pixel)
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_no_audio_lamp_is_drawn_when_the_audio_is_the_dummy() {
+    let params = GuitarAmpParams::default();
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let picture = |notice: Option<ui::AudioNotice>| {
+        AUDIO.with(|audio| *audio.borrow_mut() = notice);
+        let mut harness = harness_of(&params, &setter, None, |_| {});
+        #[allow(clippy::let_and_return)]
+        let raw = harness.render().unwrap().into_raw();
+        AUDIO.with(|audio| *audio.borrow_mut() = None);
+        raw
+    };
+    let none = picture(None);
+    let named = ui::AudioNotice { reason: Some("48000 Hz not offered".into()) };
+    assert_ne!(picture(Some(named)), none, "no lamp on the dummy backend");
+    assert_ne!(
+        picture(Some(ui::AudioNotice { reason: None })),
+        none,
+        "no lamp for a dummy backend that was asked for"
+    );
+    assert!(picture(ui::notice_for(Some(ui::HostAudio::Running))) == none, "a lamp with audio");
+}
+
+// The window with the lamp, against tests/snapshots/editor_no_audio.png
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_editor_with_the_no_audio_lamp_looks_as_it_did() {
+    let params = GuitarAmpParams::default();
+    AUDIO.with(|audio| {
+        *audio.borrow_mut() = Some(ui::AudioNotice { reason: Some("48000 Hz not offered".into()) })
+    });
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let mut harness = harness_of(&params, &setter, None, |_| {});
+    harness.snapshot("editor_no_audio");
+    AUDIO.with(|audio| *audio.borrow_mut() = None);
+}
+
+// The narrowest strip (2600 points, the window at its smallest) with the lamp on, where the update
+// line has no room beside it, and with the audio there, where it has: against
+// tests/snapshots/line_small_no_audio.png and line_small_audio.png
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_narrowest_strip_with_and_without_the_no_audio_lamp_looks_as_it_did() {
+    let params = GuitarAmpParams::default();
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    for (name, notice) in [
+        (
+            "line_small_no_audio",
+            Some(ui::AudioNotice { reason: Some("48000 Hz not offered".into()) }),
+        ),
+        ("line_small_audio", None),
+    ] {
+        AUDIO.with(|audio| *audio.borrow_mut() = notice);
+        let (mut harness, _) = line_harness(MIN_WIDTH, MIN_HEIGHT, &params, &setter, 0.0);
+        harness.snapshot(name);
+        AUDIO.with(|audio| *audio.borrow_mut() = None);
+    }
+}
+
+// A click on the lamp opens the Audio panel on the settings plate, in the standalone program,
+// and does not close it when it is open
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_no_audio_lamp_opens_the_audio_panel() {
+    let params = GuitarAmpParams::default();
+    AUDIO.with(|audio| *audio.borrow_mut() = Some(ui::AudioNotice { reason: None }));
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let machine = TwoInterfaces;
+    let (mut harness, view) = harness_shared(&params, &setter, None, Some(&machine), |_| {});
+    harness.run_ok();
+    assert!(view.borrow().plate.is_none());
+    let lamp = AUDIO_LAMP + vec2(0.0, 6.0);
+    click(&mut harness, Pos2::new(lamp.x, lamp.y));
+    assert!(view.borrow().is_open(Plates::Settings));
+    assert!(matches!(view.borrow().plate, Some(Open::Settings(Some(_)))), "the audio panel");
+    // Not shut by a second click
+    click(&mut harness, Pos2::new(lamp.x, lamp.y));
+    AUDIO.with(|audio| *audio.borrow_mut() = None);
+    assert!(view.borrow().is_open(Plates::Settings));
+}
+
+// The lamp has its room on the strip at its narrowest and at the widest it opens, clear of the
+// settings icon, and the update line, where it is drawn beside it, stands clear of the lamp and
+// of the output knob's scale. The update line is the one that gives way: on the narrowest strips
+// it is not drawn while the lamp is, and everywhere without the lamp it is as it was
+#[test]
+fn test_the_no_audio_lamp_and_the_update_line_have_room_on_the_strip() {
+    let needed = ui::update_line::parts(Pos2::ZERO, [96.0, 51.0, 19.0]).0.width();
+    for width in [STRIP_MIN_WIDTH, WINDOW_WIDTH as f32, 3840.0] {
+        let shift = width - WINDOW_WIDTH as f32;
+        assert!(update_line_fits(shift, false), "the update line as it was at {width} wide");
+        let lamp = ui::audio_lamp::rect((AUDIO_LAMP + vec2(shift / 2.0, 0.0)).to_pos2());
+        assert!(lamp.left() >= UPDATE_ROOM_LEFT + shift / 2.0, "the lamp clear of the icon");
+        if update_line_fits(shift, true) {
+            let line = update_line_at(shift, true);
+            let tape_left = line.x - needed / 2.0;
+            assert!(lamp.right() + 4.0 <= tape_left, "{} to {tape_left} at {width}", lamp.right());
+            assert!(line.x + needed / 2.0 <= UPDATE_ROOM_RIGHT + shift - STRIP_GAP);
+        }
+    }
+    assert!(!update_line_fits(STRIP_MIN_WIDTH - WINDOW_WIDTH as f32, true));
+    assert!(update_line_fits(3840.0 - WINDOW_WIDTH as f32, true), "both at the widest");
 }

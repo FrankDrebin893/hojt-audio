@@ -3,7 +3,12 @@
 # opened rather than the program dying at start, and that its exe has an icon resource (the HØJT badge). Then it asks the window to close and expects the program to exit. Windows only
 # (release.yml, the Windows job):
 #
-#   scripts\smoke-standalones.ps1 [-Dir target\standalone] [-Seconds 3]
+#   scripts\smoke-standalones.ps1 [-Dir target\standalone] [-Seconds 3] [-MesaDir target\mesa]
+#
+# -MesaDir: a folder with Mesa's software OpenGL (opengl32.dll and its companions, from
+# scripts\fetch-mesa.ps1). Each program is then run from a temp copy with those DLLs beside it and
+# GALLIUM_DRIVER=llvmpipe, so a runner without a GPU still opens the real window; the programs in
+# -Dir stay untouched. Without it, or if the DLLs do not load, the graphics NOTE below applies.
 #
 # An exe that exits at once, or has no icon, fails the run, and its stdout and stderr are printed
 # (a Rust panic says why, with RUST_BACKTRACE=1). The one exit tolerated, with a NOTE, is a panic of the graphics
@@ -12,7 +17,8 @@
 # stopped and only reported, since a runner's desktop session may not deliver it.
 param(
     [string]$Dir = 'target/standalone',
-    [int]$Seconds = 3
+    [int]$Seconds = 3,
+    [string]$MesaDir = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -21,6 +27,10 @@ Add-Type -Namespace Hojt -Name Icons -MemberDefinition '[System.Runtime.InteropS
 $failures = 0
 $exes = @(Get-ChildItem -LiteralPath $Dir -Filter '*.exe')
 if ($exes.Count -lt 6) { throw "expected six standalone programs in $Dir, found $($exes.Count)" }
+
+$useMesa = $MesaDir -ne '' -and (Test-Path -LiteralPath (Join-Path $MesaDir 'opengl32.dll'))
+if ($MesaDir -ne '' -and -not $useMesa) { Write-Host "NOTE: no opengl32.dll in $MesaDir, running with the machine's own graphics" -ForegroundColor Yellow }
+if ($useMesa) { $env:GALLIUM_DRIVER = 'llvmpipe' }
 
 foreach ($exe in $exes) {
     Write-Host "== $($exe.Name)"
@@ -33,7 +43,15 @@ foreach ($exe in $exes) {
     $env:RUST_BACKTRACE = '1'
     $out = Join-Path ([System.IO.Path]::GetTempPath()) "$($exe.BaseName).out.txt"
     $err = Join-Path ([System.IO.Path]::GetTempPath()) "$($exe.BaseName).err.txt"
-    $p = Start-Process -FilePath $exe.FullName -ArgumentList @('--backend', 'dummy') -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+    $run = $exe.FullName
+    if ($useMesa) {
+        $runDir = Join-Path ([System.IO.Path]::GetTempPath()) "smoke-$($exe.BaseName)"
+        New-Item -ItemType Directory -Force -Path $runDir | Out-Null
+        Copy-Item -LiteralPath $exe.FullName -Destination $runDir -Force
+        Copy-Item -Path (Join-Path $MesaDir '*.dll') -Destination $runDir -Force
+        $run = Join-Path $runDir $exe.Name
+    }
+    $p = Start-Process -FilePath $run -ArgumentList @('--backend', 'dummy') -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
     $null = $p.Handle  # keeps the process object able to report its exit code
     Start-Sleep -Seconds $Seconds
     if ($p.HasExited) {

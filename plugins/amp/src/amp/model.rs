@@ -217,7 +217,7 @@ pub struct Speaker {
 /// The built-in cabinets, in the order the Speaker display steps through them. Each has a
 /// voice of its own, further apart than the amps' own cabinets are (`speaker_report`
 /// prints how far). New ones may go anywhere: a project stores the id, not the place
-pub static SPEAKERS: [Speaker; 10] = [
+pub static SPEAKERS: [Speaker; 14] = [
     Speaker { id: "1x10-small", name: "1X10 SMALL", cab: SMALL_CAB },
     Speaker { id: "1x12-open", name: "1X12 OPEN", cab: OPEN_ONE_CAB },
     Speaker { id: "2x12-open", name: "2X12 OPEN", cab: OPEN_TWO_CAB },
@@ -228,7 +228,14 @@ pub static SPEAKERS: [Speaker; 10] = [
     Speaker { id: "1x8-tiny", name: "1X8 TINY", cab: TINY_CAB },
     Speaker { id: "2x12-punch", name: "2X12 PUNCH", cab: PUNCH_CAB },
     Speaker { id: "4x12-heavy", name: "4X12 HEAVY", cab: HEAVY_CAB },
+    Speaker { id: "1x12-clear", name: "1X12 CLEAR", cab: CLEAR_CAB },
+    Speaker { id: "1x10-snap", name: "1X10 SNAP", cab: SNAP_CAB },
+    Speaker { id: "2x12-chime", name: "2X12 CHIME", cab: CHIME_CAB },
+    Speaker { id: FULL_RANGE_ID, name: "FULL RANGE", cab: FULL_RANGE_CAB },
 ];
+
+/// The one built-in cabinet that is not a guitar speaker (see `FULL_RANGE_CAB`)
+pub const FULL_RANGE_ID: &str = "full-range";
 
 /// One 10" speaker in a small open box: hardly any low end, a boxy honk around 700 Hz
 /// and an early top. Small and old-fashioned, for blues and a cutting lead
@@ -397,6 +404,82 @@ const HEAVY_CAB: CabModel = CabModel {
     breakup_count: 28,
     breakup_db: 2.2,
     breakup_seed: 200,
+    ir_ms: 10.0,
+};
+
+/// One 12" speaker in an open back, voiced for clear notes: a lean low end (6 dB down at
+/// 120 Hz), the low mids, where a chord turns to mud, held back, the pick's edge around
+/// 2.2 kHz well forward and a top that stays open to 8 kHz. Wiry and bright, for a
+/// single-coil bridge pickup played clean
+const CLEAR_CAB: CabModel = CabModel {
+    resonance_hz: 130.0,
+    resonance_q: 0.8,
+    body: [300.0, 0.7, -2.0],
+    dip: [800.0, 1.0, -1.0],
+    bite: [2200.0, 0.6, 7.5],
+    rolloff_hz: 7800.0,
+    air_ratio: 1.1,
+    breakup_hz: [1800.0, 8500.0],
+    breakup_count: 20,
+    breakup_db: 1.2,
+    breakup_seed: 210,
+    ir_ms: 5.0,
+};
+
+/// One 10" speaker in a small, stiff box: hardly any low end, lean low mids and the mids
+/// from 1 to 2 kHz forward, with the top let go above 5 kHz. A small combo that snaps
+/// where `SMALL_CAB` honks: funk, country picking, a rhythm part that has to cut
+const SNAP_CAB: CabModel = CabModel {
+    resonance_hz: 160.0,
+    resonance_q: 0.75,
+    body: [400.0, 0.8, -2.0],
+    dip: [800.0, 1.2, -1.0],
+    bite: [1300.0, 0.9, 7.0],
+    rolloff_hz: 5500.0,
+    air_ratio: 1.25,
+    breakup_hz: [1600.0, 7500.0],
+    breakup_count: 20,
+    breakup_db: 1.5,
+    breakup_seed: 220,
+    ir_ms: 5.0,
+};
+
+/// Two 12" speakers with light cones in an open back: a full, round low end, the low
+/// mids scooped around 380 Hz and a chime high up at 3.8 kHz with air above it. Bright
+/// and wide, for clean chords that ring
+const CHIME_CAB: CabModel = CabModel {
+    resonance_hz: 88.0,
+    resonance_q: 1.1,
+    body: [150.0, 0.8, 2.0],
+    dip: [380.0, 1.0, -4.5],
+    bite: [3800.0, 0.8, 6.0],
+    rolloff_hz: 7600.0,
+    air_ratio: 1.15,
+    breakup_hz: [1500.0, 8500.0],
+    breakup_count: 22,
+    breakup_db: 1.5,
+    breakup_seed: 230,
+    ir_ms: 6.0,
+};
+
+/// A woofer and a tweeter, as in an amp for an acoustic guitar or a monitor: all of the
+/// guitar from 60 Hz to 12 kHz, a little warmth at 100 Hz and a shallow dip at 2.8 kHz
+/// where the two meet. It has no cone breakup and does not hide fizz, so it is for clean
+/// sounds: the one built-in cabinet that is not held to the shape of a guitar speaker.
+/// The top ends at 12 kHz, not higher: a response with more in it loses level when it is
+/// resampled for 96 and 192 kHz (0.18 dB with the roll-off at 14 kHz)
+const FULL_RANGE_CAB: CabModel = CabModel {
+    resonance_hz: 62.0,
+    resonance_q: 0.9,
+    body: [100.0, 0.8, 3.0],
+    dip: [2800.0, 1.0, -2.0],
+    bite: [3800.0, 0.6, 0.5],
+    rolloff_hz: 12000.0,
+    air_ratio: 1.0,
+    breakup_hz: [1000.0, 6000.0],
+    breakup_count: 0,
+    breakup_db: 0.0,
+    breakup_seed: 0,
     ir_ms: 10.0,
 };
 
@@ -1590,6 +1673,10 @@ mod tests {
             "1x8-tiny",
             "2x12-punch",
             "4x12-heavy",
+            "1x12-clear",
+            "1x10-snap",
+            "2x12-chime",
+            "full-range",
         ] {
             assert!(ids.contains(&id), "{id}");
         }

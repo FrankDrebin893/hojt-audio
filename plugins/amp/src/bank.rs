@@ -40,21 +40,9 @@ const UNDO_SIZE: (f32, f32) = (84.0, 30.0);
 /// How far above the pointer a card that is dragged is held
 const GHOST_LIFT: f32 = 90.0;
 
-/// The cards, in the order they stand on the sheet: two rows of six
-pub(crate) const CARDS: [EffectKind; 12] = [
-    EffectKind::Pitch,
-    EffectKind::Wah,
-    EffectKind::Comp,
-    EffectKind::Fuzz,
-    EffectKind::Drive,
-    EffectKind::Eq,
-    EffectKind::Phaser,
-    EffectKind::Chorus,
-    EffectKind::Flanger,
-    EffectKind::Tremolo,
-    EffectKind::Delay,
-    EffectKind::Reverb,
-];
+/// The cards, in the order they stand on the sheet: two rows of six. One for each kind that is
+/// a pedal, in the order of the table's lines (`effects.rs`)
+pub(crate) use crate::effects::CARDS;
 
 /// Where card number `index` of `CARDS` stands on a sheet filling `sheet`: two rows of six
 pub(crate) fn card_rect(sheet: Rect, index: usize) -> Rect {

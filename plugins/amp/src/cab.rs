@@ -858,7 +858,7 @@ impl CabVoicing {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::amp::model::{Amp, SPEAKERS};
+    use crate::amp::model::{Amp, FULL_RANGE_ID, SPEAKERS};
     use crate::test_util::{rms, sine, to_db, Noise};
 
     // How close a cabinet is to itself at another sample rate, in dB, from 60 Hz to 10 kHz
@@ -1418,14 +1418,30 @@ pub mod tests {
         }
     }
 
+    /// How far under its mids a cabinet is at 10 kHz, at least, in dB: a guitar speaker
+    /// has no top to speak of, which is what hides the fizz of an amp that clips. The
+    /// built-in cabinets made for clear, clean playing keep more of it, and the full-range
+    /// one is no guitar speaker and keeps it all
+    fn top_cut_db(name: &str) -> Option<f32> {
+        match name {
+            FULL_RANGE_ID => None,
+            "1x12-clear" | "2x12-chime" => Some(12.0),
+            _ => Some(20.0),
+        }
+    }
+
     #[test]
     fn test_ir_has_the_shape_of_a_guitar_speaker() {
         for (name, cab) in every_cab() {
             let ir = design(cab, 48000.0);
             let level = |freq: f32| to_db(ir.magnitude(freq, 48000.0));
             let mids = level(1000.0);
-            assert!(level(30.0) < mids - 15.0, "{} keeps sub bass", name);
-            assert!(level(10000.0) < mids - 20.0, "{} keeps fizz", name);
+            // The full-range one reaches lower as well as higher
+            let lows_cut = if name == FULL_RANGE_ID { 10.0 } else { 15.0 };
+            assert!(level(30.0) < mids - lows_cut, "{} keeps sub bass", name);
+            if let Some(least) = top_cut_db(name) {
+                assert!(level(10000.0) < mids - least, "{} keeps fizz", name);
+            }
             assert!(level(cab.resonance_hz) > mids - 8.0, "{} has no low end", name);
         }
     }

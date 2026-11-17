@@ -314,7 +314,7 @@ const OWN_CABS: [CabStyle; 11] = [
 ];
 
 /// The built-in cabinets' looks, by the id of each in `SPEAKERS`
-const SPEAKER_CABS: [(&str, CabStyle); 10] = [
+const SPEAKER_CABS: [(&str, CabStyle); 14] = [
     // Tan, a wheat cloth, the one small speaker high in the box
     (
         "1x10-small",
@@ -365,6 +365,38 @@ const SPEAKER_CABS: [(&str, CabStyle); 10] = [
     ),
     // Black and smooth with a dark felt, the biggest box
     ("4x12-heavy", cab(Tolex::Smooth, BLACK, Grille::Felt, rgb(34, 34, 36), Speakers::Four12)),
+    // Pale blue and smooth with a salt-and-pepper cloth
+    (
+        "1x12-clear",
+        cab(
+            Tolex::Smooth,
+            rgb(150, 176, 190),
+            Grille::SaltPepper,
+            rgb(150, 148, 144),
+            Speakers::One12,
+        ),
+    ),
+    // Red levant with a salt-and-pepper cloth, the one small speaker high in the box
+    (
+        "1x10-snap",
+        CabStyle {
+            set_high: true,
+            ..cab(
+                Tolex::Levant,
+                rgb(150, 36, 34),
+                Grille::SaltPepper,
+                rgb(150, 148, 144),
+                Speakers::One10,
+            )
+        },
+    ),
+    // Pale tweed with a silver cloth
+    (
+        "2x12-chime",
+        cab(Tolex::Tweed, rgb(214, 196, 150), Grille::Silver, SILVER_CLOTH, Speakers::Two12),
+    ),
+    // A grey monitor behind perforated steel
+    ("full-range", cab(Tolex::Smooth, rgb(92, 96, 102), Grille::Mesh, STEEL_MESH, Speakers::One12)),
 ];
 
 /// A file from the cabinets folder: a plain studio cabinet in grey felt, the one speaker
@@ -468,6 +500,10 @@ mod tests {
             ("1x8-tiny", Tolex::Tweed, Grille::Wheat, Speakers::One8),
             ("2x12-punch", Tolex::Bronco, Grille::Basketweave, Speakers::Two12),
             ("4x12-heavy", Tolex::Smooth, Grille::Felt, Speakers::Four12),
+            ("1x12-clear", Tolex::Smooth, Grille::SaltPepper, Speakers::One12),
+            ("1x10-snap", Tolex::Levant, Grille::SaltPepper, Speakers::One10),
+            ("2x12-chime", Tolex::Tweed, Grille::Silver, Speakers::Two12),
+            ("full-range", Tolex::Smooth, Grille::Mesh, Speakers::One12),
         ];
         for (id, tolex, grille, speakers) in expected {
             let look = speaker_look(id).unwrap();
@@ -475,6 +511,7 @@ mod tests {
         }
         assert!(speaker_look("1x10-small").unwrap().set_high);
         assert!(speaker_look("1x8-tiny").unwrap().set_high);
+        assert!(speaker_look("1x10-snap").unwrap().set_high);
         assert_eq!(speaker_look("4x12-mid").unwrap().piping, Some(WHITE_PIPING));
     }
 

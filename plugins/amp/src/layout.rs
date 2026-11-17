@@ -22,7 +22,8 @@ pub enum Voice {
     Slot { kind: EffectKind, slot: u8, rank: u8 },
 }
 
-const FILLER: Voice = Voice::Home(Pedal::Comp);
+// What stands past the last voice: any pedal, it is never played
+const FILLER: Voice = Voice::Home(Pedal::ALL[0]);
 
 /// The line: the effects in front of the amps and behind the cabinets, in order
 #[derive(Clone, Copy, Debug)]

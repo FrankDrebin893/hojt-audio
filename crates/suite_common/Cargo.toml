@@ -30,6 +30,8 @@ realfft = "3.5"
 egui_kittest = { version = "=0.31.1", features = ["wgpu", "snapshot"], optional = true }
 
 [features]
+# The standalone host's audio status, for `ui::AudioNotice::current`: each plugin's own `standalone`
+standalone = ["nih_plug/standalone"]
 # `ui::snapshot`, for the plugins' tests only: named in their dev-dependencies, never shipped
 snapshot = ["dep:egui_kittest"]
 

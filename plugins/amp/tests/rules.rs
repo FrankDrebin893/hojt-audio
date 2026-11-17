@@ -282,6 +282,146 @@ fn named(text: &str, names: &[u64]) -> Vec<(usize, String)> {
     words.iter().cloned().chain(pairs).filter(|(_, name)| names.contains(&fnv1a(name))).collect()
 }
 
+/// The twelve pedals' types, by the name they have in the code: the effect itself, its
+/// settings, and the `Effect` type some of them have (#371)
+const PEDAL_TYPES: &[&str] = &[
+    "Drive",
+    "BackDrive",
+    "Fuzz",
+    "Comp",
+    "Pitch",
+    "Wah",
+    "Eq",
+    "Chorus",
+    "Phaser",
+    "Flanger",
+    "Tremolo",
+    "Delay",
+    "Reverb",
+];
+
+/// The pedal types a line names, and the variants of `Pedal` and `EffectKind` that name one:
+/// the pedal is named by the table, which the chain walks. The one variant that stays is the
+/// drive's (`Pedal::Drive`, `EffectKind::Drive`), for the amp's driven state
+fn names_a_pedal_type(line: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    let mut at = 0;
+    while at < line.len() {
+        let Some(start) =
+            line[at..].find(|c: char| c.is_alphanumeric() || c == '_').map(|i| at + i)
+        else {
+            break;
+        };
+        let len = line[start..]
+            .find(|c: char| !(c.is_alphanumeric() || c == '_'))
+            .unwrap_or(line.len() - start);
+        let word = &line[start..start + len];
+        let bare =
+            word.strip_suffix("Settings").or_else(|| word.strip_suffix("Effect")).unwrap_or(word);
+        let before = line[..start].trim_end();
+        let a_variant = before.ends_with("Pedal::") || before.ends_with("EffectKind::");
+        // The trait `Eq` is no pedal
+        let the_trait = bare == "Eq" && (line.contains("derive(") || line.contains("impl Eq for"));
+        let the_drive_variant = a_variant && word == "Drive";
+        if PEDAL_TYPES.contains(&bare) && !the_drive_variant && !the_trait {
+            found.push(word.to_string());
+        }
+        at = start + len;
+    }
+    found
+}
+
+#[test]
+fn test_the_chain_the_layout_and_the_pool_name_no_pedal_type() {
+    // A new pedal is its module and a line in the table (`effects.rs`): the chain walks the
+    // table, so it names no pedal and does not grow with one (#371). The gate is the line's
+    // first piece, not one of the twelve, and the amp's own stages are not pedals
+    let mut found = Vec::new();
+    for name in ["chain.rs", "layout.rs", "extras.rs"] {
+        let path = amp_dir().join("src").join(name);
+        let text = std::fs::read_to_string(&path).unwrap();
+        for (line, code) in outside_tests(&text) {
+            for word in names_a_pedal_type(code) {
+                found.push(format!("{}:{line}: {word}", shown(&path)));
+            }
+        }
+    }
+    assert!(
+        found.is_empty(),
+        "a pedal's type is named outside its own module and the table:\n{}\n\nThe chain, the \
+         layout and the pool reach a pedal through `Effect` and the table in `effects.rs`: add \
+         what is missing to the trait, or to the pedal's `Effect` impl",
+        found.join("\n")
+    );
+}
+
+#[test]
+fn test_what_counts_as_naming_a_pedal_type() {
+    for named in [
+        "use crate::wah::{Wah, WahSettings};",
+        "wah: WahSettings,",
+        "homes: [Delay; 12],",
+        "let drive = BackDrive::new();",
+        "impl Effect for ChorusEffect {",
+        "Voice::Home(Pedal::Wah) => 1,",
+        "EffectKind::Reverb => 1,",
+        "let kind = EffectKind::Delay;",
+    ] {
+        assert!(!names_a_pedal_type(named).is_empty(), "not seen: {named}");
+    }
+    for fine in [
+        "if pedal == Pedal::Drive {",
+        "EffectKind::Drive => 1,",
+        "Voice::Home(Pedal::ALL[0])",
+        "let drive_on = true;",
+        "fn follow_drive_side(&mut self) {}",
+        "Body::process_front(settings, block)",
+        "let mut compressor = 1;",
+        "#[derive(Clone, Copy, Debug, PartialEq, Eq)]",
+        "impl Eq for Layout {}",
+    ] {
+        assert!(names_a_pedal_type(fine).is_empty(), "taken for a pedal type: {fine}");
+    }
+}
+
+#[test]
+fn test_nothing_the_audio_thread_plays_through_is_a_dyn_or_a_box() {
+    // The pedals are played by a `match` on an enum (`effects.rs`): static, with no virtual
+    // call and no `Box`, so `AmpChain::process` reaches neither. The effects are in a `Vec`
+    // built once in `AmpChain::new`, never pushed to or resized in `process` (#371)
+    let mut found = Vec::new();
+    for name in ["chain.rs", "effect.rs", "effects.rs", "extras.rs", "layout.rs"] {
+        let path = amp_dir().join("src").join(name);
+        let text = std::fs::read_to_string(&path).unwrap();
+        for (line, code) in outside_tests(&text) {
+            if names_dyn_or_box(code) {
+                found.push(format!("{}:{line}: {}", shown(&path), code.trim()));
+            }
+        }
+    }
+    assert!(
+        found.is_empty(),
+        "a `dyn` or a `Box` where the audio thread plays through:\n{}\n\nGive the pedal a line \
+         in the table of `effects.rs` instead",
+        found.join("\n")
+    );
+}
+
+#[test]
+fn test_what_counts_as_a_dyn_or_a_box() {
+    for taken in ["fn a(e: &mut dyn Effect) {}", "let b: Box<Body> = Box::new(x);", "Box::new(1)"] {
+        assert!(names_dyn_or_box(taken), "not seen: {taken}");
+    }
+    for fine in ["let dynamic = 1;", "fn boxed_in() {}", "let Boxer = 2;", "let x = unbox(3);"] {
+        assert!(!names_dyn_or_box(fine), "taken for one: {fine}");
+    }
+}
+
+fn names_dyn_or_box(line: &str) -> bool {
+    line.split(|c: char| !(c.is_alphanumeric() || c == '_'))
+        .any(|word| word == "dyn" || word == "Box")
+}
+
 /// The lines of `text` that are not tests, with their numbers, without their comments. Tests
 /// may go through the amps one by one: the item after each `#[cfg(test)]` is left out, up to
 /// its `;` or the brace that closes it
