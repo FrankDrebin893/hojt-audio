@@ -1669,15 +1669,16 @@ fn test_switching_amps_with_the_pedals_on_does_not_click() {
             // its power stage has given way, 20 ms later, it is louder than it settles at.
             // Skarp, which sags deeply and is loud with the pedals on, leaves it a little
             // more to give way than Torden does (3.1 against 2.7)
-            // Smæld is built as Klar is and gives way the same. From Smæld to Klar is Klar's
-            // own first note: Smæld leaves the power stage further from its ceiling than any
-            // other amp, so Klar starts as it does after silence, where its first 20 ms are
-            // 12 times as steep as what it settles at under these pedals (the pedals turn
-            // a held note far down). The peak stays under the stage's ceiling
+            // From Smæld to Klar is Klar's own first note: Smæld leaves the power stage
+            // further from its ceiling than any other amp, so Klar starts as it does after
+            // silence, where its first 20 ms are 12 times as steep as what it settles at
+            // under these pedals (the pedals turn a held note far down)
             let limit = match (from, to) {
                 (Amp::Smaeld, Amp::Klar) => 10.0,
                 (_, Amp::Klar) => 3.3,
-                // Smæld's knee is lower than Klar's and gives way over a longer stretch
+                // Smæld's power stage holds its peaks as Klar's does, from a lower knee (0.7
+                // against 0.9): pushed by these pedals it rounds over a longer stretch before
+                // it gives way (3.5 from Klar, the most of any amp)
                 (_, Amp::Smaeld) => 3.8,
                 _ => from_rest(to),
             };
@@ -1717,22 +1718,31 @@ fn test_switching_back_and_forth_quickly_does_not_click() {
     let input = sine(220.0, 0.178, SAMPLE_RATE, 48_000);
     let mut chain = new_chain(SAMPLE_RATE);
     let mut output = input.clone();
-    for (index, block) in output.chunks_mut(BLOCK).enumerate() {
-        let amp = if (150..450).contains(&index) {
+    let amp_at = |index: usize| {
+        if (150..450).contains(&index) {
             Amp::ALL[(index / 2) % Amp::ALL.len()]
         } else {
             Amp::Torden
-        };
-        chain.process(&with_amp(amp, 0.7), block, None);
+        }
+    };
+    for (index, block) in output.chunks_mut(BLOCK).enumerate() {
+        chain.process(&with_amp(amp_at(index), 0.7), block, None);
     }
-    // Against the steepest any of the amps it went through is by itself, settled: Smæld's
-    // clean power stage lets this hot a note through steeper than Torden, which plays before
-    // and after
-    let own_step = Amp::ALL
-        .iter()
-        .map(|&amp| largest_step(&run(&with_amp(amp, 0.7), &input, SAMPLE_RATE)[4800..]))
-        .fold(largest_step(&output[4800..150 * BLOCK]), f32::max);
-    let step = largest_step(&output[150 * BLOCK - 1..]);
+    // Against Torden, which plays before and after, and the two amps on either side of the
+    // steepest step, each settled by itself: a switch may be as steep as the amps it is
+    // between. Which pair falls on the steepest step moves with the number of amps in the
+    // cycle (with eleven it is Drøn to Knald)
+    let start = 150 * BLOCK - 1;
+    let at = (start..output.len() - 1)
+        .max_by(|&a, &b| {
+            (output[a + 1] - output[a]).abs().total_cmp(&(output[b + 1] - output[b]).abs())
+        })
+        .unwrap();
+    let settled = |amp: Amp| largest_step(&run(&with_amp(amp, 0.7), &input, SAMPLE_RATE)[4800..]);
+    let own_step = largest_step(&output[4800..150 * BLOCK])
+        .max(settled(amp_at(at / BLOCK)))
+        .max(settled(amp_at((at / BLOCK).saturating_sub(1))));
+    let step = largest_step(&output[start..]);
     assert!(step < own_step * 1.2, "Step of {} against {}", step, own_step);
 
     let reference = run(&with_amp(Amp::Torden, 0.7), &input, SAMPLE_RATE);
@@ -2472,8 +2482,8 @@ fn test_cabinet_switches_without_a_click_and_keeps_its_level() {
         let without =
             run(&AmpSettings { cab_on: false, ..with_amp(amp, 0.5) }, &chords, SAMPLE_RATE);
         let fizz = |output: &[f32]| band_level_db(output, SAMPLE_RATE, Some(8000.0), None);
-        // Klar and Glød keep their tops dark in the stages themselves, and Smæld does not
-        // clip even this hot: there is no such top for its cabinet to take away
+        // Klar and Glød keep their tops dark in the stages themselves. Smæld's own cabinet
+        // lets the top through on purpose (it takes 5.4 dB off above 8 kHz here)
         if !matches!(amp, Amp::Klar | Amp::Glod | Amp::Smaeld) {
             let (with, without) = (fizz(&with), fizz(&without));
             assert!(
@@ -3806,8 +3816,9 @@ fn test_speakers_sound_apart_and_about_as_loud() {
             .collect();
         for (speaker, output) in outputs.iter().enumerate() {
             let level = loudness_lufs(&[output], SAMPLE_RATE);
-            // Smæld is the brightest amp and the 1x15 the darkest cabinet: together they
-            // lose more of the sound than any other pair
+            // Smæld puts more of its sound in the 2 kHz octave than any amp but Skarp, and
+            // has almost nothing under 100 Hz; the 1x15 rolls off from 3.2 kHz and lifts
+            // the lows, so it takes more of Smæld away than of any other amp
             let limit =
                 if amp == Amp::Smaeld && SPEAKERS[speaker].id == "1x15-deep" { 3.6 } else { 3.0 };
             assert!(

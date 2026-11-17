@@ -42,8 +42,8 @@ GitHub release.
 
 - A new amp at the end of the Amp stepper (and the second amp's): Smæld (SM-20), a clean amp with
   a snap. Bright, tight and quick, for single coils and chords where every string and the pick on
-  it should be heard. It stays clean up to Gain 7 and only starts to bark on hard attacks past
-  that, keeps the low end short so nothing booms under a chord, and its power stage leaves two
+  it should be heard. It stays clean all the way up the Gain dial, which adds level more than
+  grit, keeps the low end short so nothing booms under a chord, and its power stage leaves two
   notes played together apart, where the other amps blur them a little. Its own cabinet is one
   12" in an open back with the top let through. Its head is butterscotch with a silver cloth, a
   black panel and chrome knobs. Two factory presets: Knips (the clean snap with a small room) and

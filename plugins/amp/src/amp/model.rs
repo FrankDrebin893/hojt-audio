@@ -1529,13 +1529,13 @@ static HVAS: AmpModel = AmpModel {
 };
 
 /// Clean with a snap: bright, tight and quick, for single-coil playing where every string
-/// of a chord and the pick on it should read. Two stages with more headroom than Klar's,
-/// so the Gain dial is mostly level until its last third, where the attacks start to
-/// bark; less low end goes in (nothing woolly under a chord), a bell at 2.4 kHz in front
-/// puts the twang forward and the bright lift starts lower. The power stage is stiff:
-/// hardly any sag and a fast one, so an attack is not squeezed, and straight up to its
-/// knee as Klar's is, so a held note stays clean. Under the drive pedal it gives way as
-/// Klar's does
+/// of a chord and the pick on it should read. Two stages with more headroom than Klar's, so
+/// the Gain dial adds level far more than grit: a held note is barely bent even at 10. Less
+/// low end goes in (nothing woolly under a chord), a bell at 2.4 kHz in front puts the twang
+/// forward and the bright lift starts lower. The power stage holds its peaks as Klar's does,
+/// from a lower knee: straight up to it, so a chord at the reference level is left alone, and
+/// rounding off the pick attacks that go over. Its sag is small and fast, so an attack is not
+/// squeezed. Under the drive pedal it gives way as Klar's does
 static SMAELD: AmpModel = AmpModel {
     name: "Smæld",
     model_number: "SM-20",
