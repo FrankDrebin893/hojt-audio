@@ -144,10 +144,31 @@ const SETTINGS_X: f32 = TUNER_X + ICON_PITCH;
 const UPDATE_ROOM_LEFT: f32 = SETTINGS_X + ui::icons::ICON_REACH;
 const UPDATE_ROOM_RIGHT: f32 = OUTPUT_KNOB.x - KNOB_REACH;
 
+// The no-audio lamp (`ui::audio_lamp`) stands right of the settings icon, at the left end of the
+// room the update line has, with its caption under it; the update line gives it the room
+// (`AUDIO_ROOM`) while the lamp is drawn. The lamp is a little above the strip's line, so that its
+// caption stands under it on the strip
+const AUDIO_LAMP: Vec2 = vec2(UPDATE_ROOM_LEFT + 46.0, STRIP_Y - 12.0);
+const AUDIO_ROOM: f32 = 82.0;
+/// The least zoom at which the lamp has its caption: 15 points at 0.7 are 10 pixels
+const CAPTION_MIN_ZOOM: f32 = 0.7;
+
+/// Does the update line, at the width the longest message takes, have its room on a strip whose
+/// right end and middle have moved by `shift`, beside the no-audio lamp when that is drawn? On the
+/// narrowest strips it has not both: the lamp, which says the program is silent, keeps the room
+/// and the update line waits until there is audio
+fn update_line_fits(shift: f32, lamp: bool) -> bool {
+    let needed = ui::update_line::parts(Pos2::ZERO, [96.0, 51.0, 19.0]).0.width();
+    let taken = if lamp { AUDIO_ROOM } else { 0.0 };
+    (UPDATE_ROOM_RIGHT + shift) - (UPDATE_ROOM_LEFT + taken + shift / 2.0) - STRIP_GAP >= needed
+}
+
 /// Where the update line is centred on the strip, from the window's top left corner, for a
-/// strip whose right end and middle have moved by `shift` and half of it
-fn update_line_at(shift: f32) -> Vec2 {
-    let (left, right) = (UPDATE_ROOM_LEFT + shift / 2.0, UPDATE_ROOM_RIGHT + shift);
+/// strip whose right end and middle have moved by `shift` and half of it, and with the room the
+/// no-audio lamp takes at its left end when that is drawn
+fn update_line_at(shift: f32, lamp: bool) -> Vec2 {
+    let taken = if lamp { AUDIO_ROOM } else { 0.0 };
+    let (left, right) = (UPDATE_ROOM_LEFT + taken + shift / 2.0, UPDATE_ROOM_RIGHT + shift);
     vec2((left + right) / 2.0, STRIP_Y)
 }
 
@@ -1894,6 +1915,7 @@ pub fn create(
         },
         move |egui_ctx, setter, view| {
             let load_cabinet = || async_executor.execute_background(Task::LoadCabinet);
+            let audio = ui::AudioNotice::current();
             let shared = Shared {
                 tuner: &tuner,
                 lamp_reading: &lamp_reading,
@@ -1903,6 +1925,7 @@ pub fn create(
                 load_cabinet: &load_cabinet,
                 audio_host: standalone::host(),
                 update: &update,
+                audio: audio.as_ref(),
             };
             window(egui_ctx, window_state.as_ref(), setter, &params, view, &shared);
         },
@@ -1950,6 +1973,8 @@ struct Shared<'a> {
     audio_host: Option<&'a dyn standalone::Host>,
     /// Whether a newer version is out: the line on the strip
     update: &'a UpdateCheck,
+    /// Set where the standalone program's audio is the dummy backend: the lamp on the strip
+    audio: Option<&'a ui::AudioNotice>,
 }
 
 /// The whole window, once the fonts are in: what the plugin shows and its snapshot tests draw
@@ -1989,7 +2014,13 @@ fn draw(
             vec2(fit.strip_width() - 2.0 * BENCH_MARGIN, STRIP_HEIGHT),
         );
         ui::slim_strip(ui, strip, &STYLE);
-        ui::update_line(ui, window + update_line_at(fit.shift()), shared.update);
+        if update_line_fits(fit.shift(), shared.audio.is_some()) {
+            ui::update_line(
+                ui,
+                window + update_line_at(fit.shift(), shared.audio.is_some()),
+                shared.update,
+            );
+        }
         // What is on the strip is placed from here
         let origin = window;
         let host = shared.audio_host;
@@ -2113,6 +2144,26 @@ fn draw(
                 Open::Settings(host.map(|host| AudioChoice::open(host, standalone::launch())))
             });
         }
+        // No audio device could be opened: the lamp says so, and a click on it opens the Audio
+        // panel on the settings plate, where the program's audio is chosen
+        // The lamp is no click outside the plate it opens, as the icon is none
+        let mut settings_anchor = settings.icon.rect;
+        // Its caption is 15 points: below `CAPTION_MIN_ZOOM` it would not read, and the lamp stands
+        // alone with its hover
+        let lamp_at = origin + AUDIO_LAMP + middle;
+        let lamp = if fit.zoom < CAPTION_MIN_ZOOM {
+            ui::audio_lamp_bare(ui, lamp_at, shared.audio)
+        } else {
+            ui::audio_lamp(ui, lamp_at, shared.audio)
+        };
+        if let Some(lamp) = lamp {
+            settings_anchor = settings_anchor.union(lamp.rect);
+            if lamp.clicked() && host.is_some() && !view.is_open(Plates::Settings) {
+                view.toggle_plate(Plates::Settings, host, || {
+                    Open::Settings(host.map(|host| AudioChoice::open(host, standalone::launch())))
+                });
+            }
+        }
 
         let pedals = Pedals {
             params,
@@ -2175,7 +2226,7 @@ fn draw(
             metronome.icon.rect,
         );
         looper_plate(ui, setter, params, origin + middle, view, shared, looper.icon.rect);
-        settings_plate(ui, setter, params, origin + middle, view, shared, settings.icon.rect);
+        settings_plate(ui, setter, params, origin + middle, view, shared, settings_anchor);
     });
 }
 

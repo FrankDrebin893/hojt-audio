@@ -15,6 +15,8 @@ pub const BENCH_MARGIN: f32 = 10.0;
 const CORNER_RADIUS: f32 = 24.0;
 // Distance from the enclosure edge to the printing
 const PRINT_INSET: f32 = 30.0;
+/// Where the model number's left edge is, from the window's left edge: what a caption above it lines up with
+pub const MODEL_LEFT: f32 = BENCH_MARGIN + PRINT_INSET;
 // The darker lower edge of the box that shows below the top face
 const EDGE_HEIGHT: f32 = 5.0;
 const SCREW_INSET: f32 = 17.0;
