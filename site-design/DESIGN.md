@@ -211,6 +211,13 @@ and printed matter (pedal boxes, gig posters), each with one line on what to bor
   `scripts/site-audio.sh`).
 - No paint as a background for reading text.
 
+## Decided against
+
+Product calls the engineer has made; do not propose them again without new evidence.
+
+- **No visitor analytics** on the page (decided 2026-10-26).
+- **No rendered sound examples** on the page: the renderings sounded unnatural (2026-11-14). They may come back from a real demo project, never as renderings (`/page`).
+
 ## Open work (not rules)
 
 From the audit of 2026-10-28, each one a `/design` change of its own:
