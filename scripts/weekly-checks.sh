@@ -59,7 +59,7 @@ file() {
         sed 's/^/    | /' <<< "$body"
         return 0
     fi
-    gh issue create --repo "$repo" --title "$title" --label state:idea,kind:feature,area:infra \
+    gh issue create --repo "$repo" --title "$title" --label state:idea,kind:chore,area:infra \
         --body "$body
 
 _Filed by the weekly run (\`scripts/weekly-checks.sh\`)._"
