@@ -1,35 +1,41 @@
 ---
 name: specwriter
 description: Groom the new ideas and write the specs of the best one or two, keeping the queue of specs waiting for approval short. Use when the backlog's ideas should be turned into specs without a person picking them.
-argument-hint: [how many specs, at most 2]
+argument-hint: [how many specs, at most 4]
 ---
 
 # /specwriter
 
 Turn the best `state:idea` issues of FrankDrebin893/hojt-audio into specs, $ARGUMENTS of them
-(default 2, never more than 2), so the owner finds a short list to approve.
+(default 4, never more than 4), so the owner finds a short list to approve and no idea waits long.
 
 This session **orchestrates** steps 1 to 3 and the report; it never writes a spec itself. Each
 spec of step 4 is written by a **sub-session of its own** (the way `/next` starts a builder:
 a fresh context, not this conversation), so one issue's code reading and report output do not
 leak into the next spec. Its brief is `/spec` with the issue's link, and it reports the spec's link and its questions. One sub-session at a time.
 
-1. **Stop early** if an open issue titled `Pause automation` exists, or if 5 or more issues
+1. **Stop early** if an open issue titled `Pause automation` exists, or if 10 or more issues
    are in `state:spec` already: the owner has enough to read. Say so and write nothing.
 2. **Groom** as `/groom` does: every open `state:idea` issue gets one of ready for a spec,
    duplicate of #n, needs an answer from who filed it, split, or out of scope. Add missing
    `plugin:*` and `kind:*` labels. Here, unlike a `/groom` in chat, act on it:
+   - the wrong kind: work on the repository's own tooling, skills, scripts, CI or code layout is
+     `kind:chore`, not `kind:feature`, so it never counts against the new-feature limit of step 3
    - a duplicate: comment `Duplicate of #n` and close it as not planned
    - needs an answer: see **Interview the reporter** below
    - out of scope: one comment saying why, then leave it for the owner to close
    - split: one comment proposing the parts, then leave it
-3. **Pick** the ready ones a player gains most from for the work: as many as asked, and never
-   so many that more than 5 specs wait. Improvements to what exists come first: bugs, sound or
-   look quality, performance, and finishing a plugin's rough edges. A `kind:feature` idea that adds something
-   new (a plugin, pedal, voice, mode or tool) is picked only when no improvement is ready, and never while 2
-   or more new-feature specs wait for approval. An issue from somebody outside the project (`from:user`) goes
-   before an equal `from:scout` one. An issue labelled `needs:reporter` is not ready and is never picked
-   (see below).
+3. **Pick** the ready ones, as many as asked, and never so many that more than 10 specs wait. Order:
+   (a) an idea that has waited more than 7 days goes before every newer one, oldest first, whatever its
+   kind: a retro issue (`from:retro`), a chore or a tooling idea is as ready for a spec as a plugin
+   idea, and a backlog that only ever picks "what a player gains most" starves them; (b) then
+   improvements to what exists: bugs, sound or look quality, performance, finishing a plugin's rough edges;
+   (c) then `kind:feature` ideas that add something a player sees or hears that is new (a plugin, pedal,
+   voice, mode or tool), only when no improvement is ready, and never while 2 or more such specs wait.
+   Within a group an issue from somebody outside the project (`from:user`) goes before an equal
+   `from:scout` one, then the older one. An issue labelled `needs:reporter` is not ready and is never
+   picked (see below). A retro whose proposals are already built or covered by another spec still gets a
+   spec comment that says so and names what is left; it is never closed for that
 4. **Spec** each, in a sub-session of its own, as `/spec` does, in full: read the code and run a report where a figure
    decides the problem. A spec that would be `L` says how it splits into sub-issues. A step that needs
    an external site or repo a cloud session may not reach is marked "needs engineer" under **Questions**,

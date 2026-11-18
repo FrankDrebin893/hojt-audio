@@ -267,7 +267,7 @@ open issue titled `Pause automation` exists:
 | Task | When (UTC) | Runs | Its limit |
 |------|------------|------|-----------|
 | Scout | Mondays 06:41 | `/scout` | 3 ideas a run; none while 10 of its ideas are ungroomed |
-| Specwriter | Daily 06:52 | `/specwriter` | 2 specs a run; none while 5 wait for approval |
+| Specwriter | Daily 06:52 | `/specwriter` | 4 specs a run, an idea older than 7 days first; none while 10 wait for approval |
 | Builder | Nightly 01:47 | `/next` | Only what Rasmus approved; nothing to do, it stops at once |
 | Release Manager | Fridays 06:30 | `/release-prep` | Only when a release is due (`/release-prep`, step 2) and no `release/*` pull request is open; it opens that pull request with auto-merge off and never tags: Rasmus merges and tags |
 | Release Analyst | Mondays 07:15 | `/release-review` | A review per release at 7 and 28 days on the issue "Release reviews"; 3 ideas a run (`from:review`), none while 10 of them are ungroomed, none from thin evidence |
