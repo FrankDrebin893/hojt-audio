@@ -301,9 +301,9 @@ their zips through `releases/latest/download/`, and `scripts/health.sh` counts o
 ## Plugins
 
 Each plugin's paragraph (what it is, its voices and kits, its details file) is in `plugins/README.md`.
-The amp's rules that matter elsewhere: amps differ only by constants in `amp/model.rs`, never a
-`match amp` in the DSP (`plugins/amp/tests/rules.rs` holds it); its `#[persist]` fields are never
-parameters; its clippers are tested optimised too.
+The amp's rules that matter elsewhere: amps differ only by constants, never a `match amp` in the DSP
+(`docs/adr/0003-amp-models-are-constants-not-code.md`); all names are our own (`0004`); the stack has two lanes (`0005`); its
+`#[persist]` fields are never parameters; its clippers are tested optimised too.
 
 ## Adding a Plugin
 
@@ -311,10 +311,9 @@ See `plugins/README.md`.
 
 ## Versioning
 
-A new build replaces the old one in place, so these never change once a plugin is in use: the bundle
-name in `bundler.toml`, `NAME`, `VST3_CLASS_ID` and `CLAP_ID`, and the `#[id]` of every existing
-parameter. Each plugin's `ids` test holds them. The reasons, the `UPDATE_IDS` procedure and the
-two-build comparison are in `plugins/README.md`, Versioning.
+A new build replaces the old one in place, so a plugin's bundle name, `NAME`, `VST3_CLASS_ID`, `CLAP_ID`, every parameter `#[id]` and
+every `#[persist]` key never change once it is in use. Each plugin's `ids` test holds them. Why, and the `UPDATE_IDS`
+procedure: `docs/adr/0002-plugin-identity-never-changes.md` and `plugins/README.md`, Versioning.
 
 ## Testing
 
@@ -331,29 +330,11 @@ its quick part before each commit. The details, and the sound reports of a pull 
 - Keep DSP code separate from plugin boilerplate
 - A module's tests that outgrow it (more than about 500 lines) live in a file of their own, `<module>/tests.rs`,
   behind `#[cfg(test)] mod tests;` (`plugins/amp/src/chain/tests.rs`): reading or searching the code does not pull the tests in
-- The workspace names `egui-baseview` as a dependency it never uses, at the revision nih-plug
-  pins, only to turn its `windows_keyboard_workaround` on: without it a plugin's editor, which
-  is a child window of the host's, never takes the keyboard focus on Windows and hears no
-  letters. Features are added together, so nih_plug_egui's own copy gets it. The reason is in the
-  comment above it in the root `Cargo.toml`. See "Asking for the keyboard" in `plugins/amp/CLAUDE.md`
 - nih-plug is pinned to one revision in the root `Cargo.toml` (`[workspace.dependencies]`); bump it there for all plugins at once.
-  The pin is our fork `FrankDrebin893/nih-plug`: upstream plus two commits on branch `hojt-vst3-infinite-tail`
-  (`Vst3Plugin::VST3_INFINITE_TAIL`, and nih_plug_egui painting a frame only when asked, #23) and
-  one on branch `hojt-standalone-audio` (the standalone host's `--input-channel` and `--output-channel`,
-  `nih_standalone_set_test_tone` and the `asio` feature, #180, then one Device for ASIO input and output, a capture
-  callback that never waits, the buffer size taken from the driver, and only the channels the plugin uses
-  opened, then a cpal callback longer than the buffer size processed in chunks, for WASAPI's shared mode,
-  #250, then `nih_standalone_reconfigure`, which changes the audio devices and channels while it
-  runs, #247, with a capture callback that never waits for room, then a sample rate that defaults to the
-  output device's own and a period size brought into the device's range, with the backend resolving the
-  config the plugin is told its `BufferConfig` from, #356, then a reconfigure that also takes a sample rate and
-  a period size and initialises the plugin again, in the gap, with the new `BufferConfig`
-  (`Backend::run`'s `reinit`), #247, then a process-wide `nih_standalone_audio_status()`, `Running { backend }`
-  or `Dummy { reason }`, for an editor to say when the audio is the dummy, #356, commit `a919da2b`; the pin is that branch's tip). To move to a
-  newer upstream, rebase those commits onto it and pin the result
-- An editor paints only when something asks for it, not every frame: anything an editor shows
-  that changes on its own asks for a repaint in the frame that draws the change. The rule is in
-  `crates/suite_common/src/ui/STYLE.md`
+  The pin is our fork `FrankDrebin893/nih-plug`; what it carries, why and how to change it: `docs/adr/0001-nih-plug-is-our-own-fork.md`
+  and `plugins/README.md`. The workspace also names `egui-baseview` only to turn on its Windows keyboard workaround (comment in `Cargo.toml`)
+- An editor paints only when something asks for it, not every frame: anything an editor shows that changes on its own
+  asks for a repaint in the frame that draws the change (`docs/adr/0006-editors-paint-on-demand.md`, `ui/STYLE.md`)
 
 ## Agent skills
 
@@ -373,4 +354,6 @@ template. None of the plugin's skills sets `state:approved`.
 Setup (what `/setup-matt-pocock-skills` asks) is in `docs/agents/`: `issue-tracker.md`,
 `triage-labels.md`, `domain.md`.
 
-Docs: `GLOSSARY.md` and `docs/adr/` at the root, created lazily by `/domain-modeling`.
+Docs: `GLOSSARY.md` (the product's vocabulary: use its terms in issues, specs, code and chat) and `docs/adr/` (why the
+architecture is as it is; read the ones that touch the area you work in, and say so when a change contradicts one).
+Both are kept by `/domain-modeling`.
