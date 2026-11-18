@@ -29,7 +29,7 @@ Free tools for learning to play on the website, one folder each (the Guitar and 
 ## Guitar Amp
 
 **Guitar Amp**:
-The plugin with a full signal chain from the guitar's input to the stereo output. Its name is a working one.
+The plugin with a full signal chain from the guitar's input to the stereo output.
 
 **Rig**:
 The Guitar Amp's whole window and everything in it: strip, pedals and stack.
