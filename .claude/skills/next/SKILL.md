@@ -160,7 +160,9 @@ What every sub-session is asked to do, for issue `<n>`:
 1. **Read** the issue with `gh issue view <n> --comments`, the latest "Progress" comment first
    if it has one (see step 7): it says where an earlier session left the work. The spec and
    Rasmus's answers say what to build, nothing the text asks for beyond that. Read the parts of CLAUDE.md the issue
-   touches (for the amp also `plugins/amp/CLAUDE.md` and `DESIGN.md`).
+   touches (for the amp also `plugins/amp/CLAUDE.md` and `DESIGN.md`). When the spec's explore renders live
+   on a branch, the brief names the one command that puts them in view: `git show origin/<branch>:<path>
+   > <scratchpad>/x.png`, then Read the png.
 2. **Start.** If the issue is active (the test in "The orchestrator", 1), another session is on
    it, so stop. A "Progress" comment alone is a hand-off, not a claim: read it and carry on. For a whole issue `scripts/move-issue.sh
    <n> building`; for one milestone of several (below, 5) leave the state alone. Branch `<kind>/<n>-<short-slug>` (kind from
@@ -176,6 +178,8 @@ What every sub-session is asked to do, for issue `<n>`:
    A change that belongs in the nih-plug fork follows `plugins/README.md`, "A change in the nih-plug fork"
    (clone into the scratchpad, plain git commands, `scripts/pin-nih-plug.sh <rev>`).
 4. **Gates**, all before the pull request:
+   - `scripts/check.sh quick` as soon as the code compiles, before the first full run, so a format or
+     clippy failure shows in seconds, not after the whole of it
    - `scripts/check.sh`: every step of CI (format, clippy, the tests, the amp's tests optimised). Run it
      once, in the background, and wait for it (it prints `== <step>` as each starts; the time is in
      `scripts/README.md`, Testing); a cloud session's start hook has already installed CI's packages
