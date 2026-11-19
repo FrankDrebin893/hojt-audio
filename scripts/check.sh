@@ -3,6 +3,11 @@
 #
 #   scripts/check.sh            every step of CI: format, clippy, the tests, the amp's tests
 #                               optimised. Exits 1 at the first step that fails
+#                               when the branch changes only light paths (scripts/light-paths.txt: the page,
+#                               markdown, .claude/...) it does what CI does for them: quick, the page's links,
+#                               and xtask's tests if a skill changed
+#   scripts/check.sh full       every step, whatever the diff
+#   scripts/check.sh scope      prints light, skills or full: what the run above would do
 #   scripts/check.sh quick      the package check, the script modes, format and clippy only
 #   scripts/check.sh deps       installs the Linux packages CI installs that are missing (sudo apt-get, no sudo
 #                               as root); quick and the full run only name them when they are missing
@@ -110,11 +115,57 @@ quick() {
     check_linux_packages
     script_modes
     tc="$(lint_toolchain)"
+    # $tc is `+1.99.1` or empty, so it stays unquoted
+    # shellcheck disable=SC2086
     step cargo $tc fmt --all --check
+    # shellcheck disable=SC2086
     step cargo $tc clippy --workspace --all-targets --locked -- -D warnings
 }
 
+# What a run has to do, from the files this branch changes against origin/main (CHECK_BASE, to test it):
+#   light   only light paths (scripts/light-paths.txt, the list the `changes` job of ci.yml reads too)
+#   skills  light, and some of it under .claude/skills/, which xtask's tests read
+#   full    anything else, no diff, or no base to compare with
+# Committed, uncommitted and untracked files all count.
+scope() {
+    local base files rest
+    [[ "${1:-}" == full ]] && {
+        echo full
+        return 0
+    }
+    base="$(git merge-base "${CHECK_BASE:-origin/main}" HEAD 2> /dev/null)" || {
+        echo full
+        return 0
+    }
+    files="$({
+        git diff --name-only "$base"
+        git ls-files --others --exclude-standard
+    } | sort -u)"
+    if [[ -z "$files" ]]; then
+        echo full
+        return 0
+    fi
+    rest="$(printf '%s\n' "$files" | grep -vEf scripts/light-paths.txt || true)"
+    if [[ -n "$rest" ]]; then
+        echo full
+    elif printf '%s\n' "$files" | grep -qE '^\.claude/skills/'; then
+        echo skills
+    else
+        echo light
+    fi
+}
+
 full() {
+    local kind
+    kind="$(scope "${1:-}")"
+    if [[ "$kind" != full ]]; then
+        echo "== Only light paths changed against origin/main: the same as CI, no Rust tests (scripts/check.sh full forces them)"
+        quick
+        step bash scripts/page-check.sh links
+        [[ "$kind" == skills ]] && step cargo test -p xtask --locked
+        echo "== All of CI's steps for this change pass"
+        return 0
+    fi
     quick
     step cargo test --workspace --locked
     # The clippers' two-at-a-time path is only compiled in optimised x86-64 builds, and the bass's
@@ -123,6 +174,7 @@ full() {
     [[ "$(uname -s)" == Linux ]] && step bash scripts/test-linux-install.sh
     step bash scripts/test-macos-pkg.sh
     step bash scripts/test-pin-nih-plug.sh
+    step bash scripts/test-check-light.sh
     echo "== All of CI's steps pass"
 }
 
@@ -156,12 +208,14 @@ hook() {
 
 case "${1:-}" in
 "") full ;;
+full) full full ;;
+scope) scope "${2:-}" ;;
 quick) quick ;;
 modes) script_modes ;;
 deps) deps ;;
 hook) hook ;;
 *)
-    echo "usage: scripts/check.sh [quick|modes|deps|hook]" >&2
+    echo "usage: scripts/check.sh [full|quick|scope|modes|deps|hook]" >&2
     exit 64
     ;;
 esac
