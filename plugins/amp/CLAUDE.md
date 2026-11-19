@@ -113,6 +113,7 @@ share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_
 - `src/looper.rs` - Looper (#280): records the finished sound, plays it back and overdubs (`Looper`,
   `LooperSettings`, `LooperControl`, `State`). The audio and its commands (milestone 1) and, from
   milestone 2, the plate under the strip's looper icon (`editor.rs`, `looper_plate`, ring picked on #280)
+- A cloud session cannot open a standalone editor; reproduce an egui assertion or a layout problem with the editor's `egui_kittest` harness test (`suite_common::ui::snapshot`), and leave the look of the standalone to a manual-review line in the pull request.
 - `src/standalone.rs` - The standalone program's settings (`Prefs`, saved as
   `amp-standalone.json` in the system's settings folder or `HOJT_CONFIG_DIR`), the `Host` trait
   `main.rs` implements with cpal to list devices and restart, and the Audio panel's choices. The
