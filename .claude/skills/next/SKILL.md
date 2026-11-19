@@ -154,6 +154,9 @@ What every sub-session is asked to do, for issue `<n>`:
 - Wait for a long gate (`scripts/check.sh`) with Monitor and an until-loop on the log's last line,
   never `sleep` (the tool refuses it)
 - `cargo test` takes one filter before `--`; several go after it (`cargo test -p amp --lib -- a b c`)
+- A part of the change left for a later pull request is pushed as a branch (or a draft pull request) and named
+  in the Progress comment, never parked as a patch file outside the repository: a session that ends takes
+  such a file with it
 - Do not request the pull request's author as reviewer: the independent review is a session, not a
   GitHub request
 
@@ -180,7 +183,8 @@ What every sub-session is asked to do, for issue `<n>`:
 4. **Gates**, all before the pull request:
    - `scripts/check.sh quick` as soon as the code compiles, before the first full run, so a format or
      clippy failure shows in seconds, not after the whole of it
-   - `scripts/check.sh`: every step of CI (format, clippy, the tests, the amp's tests optimised). Run it
+   - `scripts/check.sh`: every step of CI (format, clippy, the tests, the amp's tests optimised; for a
+     branch of light paths only, as CI does it: quick and the page's links, `scripts/check.sh full` forces all). Run it
      once, in the background, and wait for it (it prints `== <step>` as each starts; the time is in
      `scripts/README.md`, Testing); a cloud session's start hook has already installed CI's packages
    - The reports named in the spec, before (on `main`) and after

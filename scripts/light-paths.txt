@@ -1,0 +1,8 @@
+^site/
+^site-sources/
+^site-design/
+^\.claude/
+^\.github/ISSUE_TEMPLATE/
+^LICENSE$
+^piano/LICENSE$
+\.md$

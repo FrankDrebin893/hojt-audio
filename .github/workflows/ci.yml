@@ -46,7 +46,8 @@ jobs:
             # the licence and the issue forms. Everything else is code. The skills are light too,
             # but `xtask`'s tests read them (the approval rules), so a change to them runs
             # those alone, on Linux (the `skills` output), not the whole workspace.
-            rest=$(printf '%s\n' "$files" | grep -vE '^(site/|site-sources/|site-design/|\.claude/|\.github/ISSUE_TEMPLATE/|LICENSE$|piano/LICENSE$)' | grep -vE '\.md$' || true)
+            # The list of light paths is scripts/light-paths.txt, which scripts/check.sh reads too.
+            rest=$(printf '%s\n' "$files" | grep -vEf scripts/light-paths.txt || true)
             if [ -z "$rest" ]; then code=false; fi
             if printf '%s\n' "$files" | grep -qE '^\.claude/skills/'; then skills=true; fi
           fi
@@ -114,6 +115,11 @@ jobs:
       - name: Test the nih-plug pin script
         if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
         run: bash scripts/test-pin-nih-plug.sh
+
+      # How scripts/check.sh and the `changes` job share one list of light paths (scripts/light-paths.txt)
+      - name: Test the light-paths check
+        if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
+        run: bash scripts/test-check-light.sh
 
   lint:
     name: Format and clippy

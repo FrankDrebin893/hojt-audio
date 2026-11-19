@@ -105,6 +105,11 @@ stop when they are missing, they never install on their own).
 `scripts/pin-nih-plug.sh <rev>` moves the pin of the nih-plug fork: it replaces the old rev in `Cargo.toml`,
 `Cargo.lock` and the commit `CLAUDE.md` names, and prints what it changed (`plugins/README.md`, "A change in the
 nih-plug fork"). `scripts/test-pin-nih-plug.sh` tests it on a copy and is a step of `check.sh` and CI.
+A branch that changes only light paths (the page, markdown, `.claude/`, the licences and the issue forms, listed once in
+`scripts/light-paths.txt`, which the `changes` job of `ci.yml` reads too) gets from `scripts/check.sh` what CI gives it:
+`quick`, `scripts/page-check.sh links`, and `cargo test -p xtask` when a skill changed. `scripts/check.sh full` forces every
+step; `scripts/check.sh scope` prints `light`, `skills` or `full`. `scripts/test-check-light.sh` tests the choice on a
+temporary repo and checks that neither `ci.yml` nor `check.sh` holds a list of its own; it is a step of `check.sh` and CI.
 The tests are compiled lightly optimised (`[profile.test]` in the root `Cargo.toml`, level 1, debug assertions
 still on): unoptimised, the amp's tests alone took 25 minutes on CI, and take under two this way. A test that
 plays sound costs seconds either way, so keep what it plays short. For a quicker build of one test while
