@@ -160,6 +160,7 @@ What every sub-session is asked to do, for issue `<n>`:
    session", read `mcp__claude-code-remote__read_documentation` topic `environment.network` once, and
    ask for `add_repo` once if a repo is the need; do not probe hosts with curl or repeated searches. If it
    stays blocked, take the spec's fallback if it has one, or stop with a question on the issue.
+   A cloud session cannot open a standalone editor; reproduce an egui assertion or a layout problem with the editor's `egui_kittest` harness test (`suite_common::ui::snapshot`), and leave the look of the standalone to a manual-review line in the pull request.
    A change that belongs in the nih-plug fork follows `plugins/README.md`, "A change in the nih-plug fork"
    (clone into the scratchpad, plain git commands, `scripts/pin-nih-plug.sh <rev>`).
 4. **Gates**, all before the pull request:

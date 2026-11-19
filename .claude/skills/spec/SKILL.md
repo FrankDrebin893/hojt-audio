@@ -27,7 +27,7 @@ in CLAUDE.md.
      and references (`/design`), and whether it needs an explore step (a new section, layout or
      component does; a spacing or colour fix does not). Done when includes the renders and the
      design reviewer's accept
-   - **Proof**: the tests to add and the reports to compare before and after
+   - **Proof**: the tests to add and the reports to compare before and after. A cloud session cannot open a standalone editor, so a spec whose reproduction is "run the standalone" names the editor's `egui_kittest` harness test (`suite_common::ui::snapshot`) instead
    - **Done when**: acceptance criteria somebody can check, including a listen for a sound change
    - **Risks and size**: S (an hour), M (a session), L (several: say how it splits into sub-issues)
    - **Questions**: decisions for the owner of the project, each with your recommendation
