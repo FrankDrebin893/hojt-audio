@@ -72,7 +72,8 @@ goes on to the next issue, with no further prompt, until the list is done. Words
    cut from an up-to-date `main` (in the Claude desktop app: `start_session`, context
    "fresh", `use_worktree: true`, as work the user asked for; another tool: its own way to start
    a clean session or sub-agent). Its brief is "The builder" below, with the issue number,
-   title and `kind:*` label filled in, and the link to the issue: never a summary of the spec
+   title and `kind:*` label filled in, the sub-session's worktree path (for "Commands in the worktree"),
+   and the link to the issue: never a summary of the spec
    from here, the sub-session reads the issue itself. One sub-session at a time: the next
    starts from a `main` that has the last one merged. An approved issue is built in this run,
    in its own sub-session: never deferred to "a run of its own" or to a later night, and never
@@ -144,6 +145,17 @@ goes on to the next issue, with no further prompt, until the list is done. Words
 ## The builder
 
 What every sub-session is asked to do, for issue `<n>`:
+
+**Commands in the worktree** (the brief names the worktree's path; the orchestrator fills it in, step 3):
+- The first call is `cd <worktree path>`. Every Bash call after it is one plain command: no `&&`, `;`,
+  pipes, subshells or heredocs with git or `gh` in them (they are refused as "too complex to verify
+  that it stays inside the worktree"). Read the output with a separate command
+- Write files with Write or Edit, never a heredoc or a script that also runs git
+- Wait for a long gate (`scripts/check.sh`) with Monitor and an until-loop on the log's last line,
+  never `sleep` (the tool refuses it)
+- `cargo test` takes one filter before `--`; several go after it (`cargo test -p amp --lib -- a b c`)
+- Do not request the pull request's author as reviewer: the independent review is a session, not a
+  GitHub request
 
 1. **Read** the issue with `gh issue view <n> --comments`, the latest "Progress" comment first
    if it has one (see step 7): it says where an earlier session left the work. The spec and
