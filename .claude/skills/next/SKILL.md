@@ -179,6 +179,8 @@ What every sub-session is asked to do, for issue `<n>`:
    manually reviewed" (for a sound change: the renders to listen to). Names are for chat only.
    Put `Closes #<n>`, the report diffs and the screenshot in the description. The orchestrator
    adds the reviewer's verdict and the retrospective line. Then `scripts/move-issue.sh <n> review`.
+   A piano change that adds a harness scene says in the description that the scene's reference PNG
+   comes from the first `piano.yml` run, which is expected to fail once (`piano/CLAUDE.md`, "Where things go").
 
    **A milestone is not the whole issue.** When the spec has milestones and the pull request is
    one of them, it says `Part of #<n>`, never `Closes` (that would close the issue, or leave it

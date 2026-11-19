@@ -90,6 +90,18 @@ the harness's own clock (`FakeClock`), which moves only when a scene steps it (`
 take, its playhead and the MIDI log's times never depend on how fast the machine is. A new scene
 keeps to that: time passes through `Host.Wait`, never a wall clock.
 
+## Where things go
+- A setting: a field in `src/PianoMidiVisualizationApp/Models/AppSettings.cs`, read and written by
+  `ApplySettings` and `CaptureSettings` in `ViewModels/MainViewModel.cs`.
+- A title-bar element or menu item: `src/PianoMidiVisualizationApp/MainWindow.xaml` (the update
+  notice is the example, with `ViewModels/UpdateNoticeViewModel.cs` behind it).
+- A panel: a `Views/<Name>Panel.xaml` with its view model in `ViewModels/`.
+- Logic that needs no WPF: `src/PianoMidiVisualizationApp/Services/`, with its tests in a project of
+  its own under `tests/` (`tests/UpdateCheck.Tests/`).
+- A scene for the README, the page and the snapshot test: `tools/readme-screenshots/Scenes.cs`. Its
+  reference PNG in `site/piano/screenshots/` comes from the first `piano.yml` run (that run fails
+  once and uploads the `.new.png`); copy it in and commit it.
+
 ## Tech Stack
 - C# / .NET 10 / WPF
 - NAudio 2.2.1 (MIDI input, ASIO/WASAPI audio output)
