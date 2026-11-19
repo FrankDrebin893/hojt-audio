@@ -110,6 +110,10 @@ A branch that changes only light paths (the page, markdown, `.claude/`, the lice
 `quick`, `scripts/page-check.sh links`, and `cargo test -p xtask` when a skill changed. `scripts/check.sh full` forces every
 step; `scripts/check.sh scope` prints `light`, `skills` or `full`. `scripts/test-check-light.sh` tests the choice on a
 temporary repo and checks that neither `ci.yml` nor `check.sh` holds a list of its own; it is a step of `check.sh` and CI.
+A full run starts by printing the free disk space and stops under 2 GB, naming what to clean (`scripts/check.sh space` is
+that check alone; `scripts/test-check-space.sh` tests it with a stubbed `df` and is a step of `check.sh` and CI). A cloud
+session builds with one shared target directory (the worktree's own `target/`, or one `/tmp/target`), never a new one per
+issue, and deletes the target directories of merged issues first when `df` shows under 2 GB free.
 The tests are compiled lightly optimised (`[profile.test]` in the root `Cargo.toml`, level 1, debug assertions
 still on): unoptimised, the amp's tests alone took 25 minutes on CI, and take under two this way. A test that
 plays sound costs seconds either way, so keep what it plays short. For a quicker build of one test while
