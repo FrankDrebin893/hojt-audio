@@ -121,6 +121,11 @@ jobs:
         if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
         run: bash scripts/test-check-light.sh
 
+      # The disk-space check a full scripts/check.sh run starts with, over a stubbed df
+      - name: Test the disk-space check
+        if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
+        run: bash scripts/test-check-space.sh
+
   lint:
     name: Format and clippy
     needs: changes

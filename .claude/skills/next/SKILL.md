@@ -153,6 +153,10 @@ What every sub-session is asked to do, for issue `<n>`:
 - Write files with Write or Edit, never a heredoc or a script that also runs git
 - Wait for a long gate (`scripts/check.sh`) with Monitor and an until-loop on the log's last line,
   never `sleep` (the tool refuses it)
+- One shared target directory for the whole cloud session: the worktree's own `target/` or a single
+  `/tmp/target` (`CARGO_TARGET_DIR`), never a new `/tmp/target-<issue>` per issue, which filled the disk
+  mid-test. When `df` shows under 2 GB free, delete the target directories of merged issues first;
+  `scripts/check.sh` prints the free space and stops under 2 GB
 - `cargo test` takes one filter before `--`; several go after it (`cargo test -p amp --lib -- a b c`)
 - A part of the change left for a later pull request is pushed as a branch (or a draft pull request) and named
   in the Progress comment, never parked as a patch file outside the repository: a session that ends takes

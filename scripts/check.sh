@@ -11,6 +11,7 @@
 #   scripts/check.sh quick      the package check, the script modes, format and clippy only
 #   scripts/check.sh deps       installs the Linux packages CI installs that are missing (sudo apt-get, no sudo
 #                               as root); quick and the full run only name them when they are missing
+#   scripts/check.sh space      only the disk-space check a full run starts with: prints the free space, stops under 2 GB
 #   scripts/check.sh modes      only that every tracked scripts/*.sh is executable in git's index
 #   scripts/check.sh hook       the Claude Code PreToolUse hook (.claude/settings.json): the quick
 #                               part before a `git commit`, blocking the commit when it fails
@@ -155,6 +156,30 @@ scope() {
     fi
 }
 
+# Prints the free disk space of the checkout's file system and stops under 2 GB: a full build fills a disk
+# mid-test otherwise (every issue with a target directory of its own did exactly that).
+check_disk_space() {
+    local min_kb=$((2 * 1024 * 1024)) avail_kb
+    avail_kb="$(df -Pk "$root" 2> /dev/null | awk 'NR==2 {print $4}')"
+    if [[ ! "$avail_kb" =~ ^[0-9]+$ ]]; then
+        echo "== Free disk space: unknown (df gave no number), going on"
+        return 0
+    fi
+    local gb
+    gb="$(awk -v k="$avail_kb" 'BEGIN { printf "%.1f", k / 1024 / 1024 }')"
+    echo "== Free disk space: $gb GB free"
+    if ((avail_kb < min_kb)); then
+        {
+            echo "scripts/check.sh: only $gb GB free, a full run needs 2 GB or more. Free some first:"
+            echo "  - the target directories of merged issues: rm -rf /tmp/target-<issue> (a cloud session uses one"
+            echo "    shared target directory, the worktree's own target/ or /tmp/target, never one per issue)"
+            echo "  - worktrees of merged branches: git worktree remove <path>, then their target/ directories"
+            echo "  - cargo's cache: cargo clean, or rm -rf ~/.cargo/registry/cache"
+        } >&2
+        exit 1
+    fi
+}
+
 full() {
     local kind
     kind="$(scope "${1:-}")"
@@ -166,6 +191,7 @@ full() {
         echo "== All of CI's steps for this change pass"
         return 0
     fi
+    check_disk_space
     quick
     step cargo test --workspace --locked
     # The clippers' two-at-a-time path is only compiled in optimised x86-64 builds, and the bass's
@@ -175,6 +201,7 @@ full() {
     step bash scripts/test-macos-pkg.sh
     step bash scripts/test-pin-nih-plug.sh
     step bash scripts/test-check-light.sh
+    step bash scripts/test-check-space.sh
     echo "== All of CI's steps pass"
 }
 
@@ -212,10 +239,11 @@ full) full full ;;
 scope) scope "${2:-}" ;;
 quick) quick ;;
 modes) script_modes ;;
+space) check_disk_space ;;
 deps) deps ;;
 hook) hook ;;
 *)
-    echo "usage: scripts/check.sh [full|quick|scope|modes|deps|hook]" >&2
+    echo "usage: scripts/check.sh [full|quick|scope|modes|space|deps|hook]" >&2
     exit 64
     ;;
 esac
