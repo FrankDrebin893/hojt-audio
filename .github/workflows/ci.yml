@@ -131,6 +131,11 @@ jobs:
         if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
         run: bash scripts/test-check-notes.sh
 
+      # The quiet mode of scripts/check.sh under an agent (one line a step, the tail of a failure), with stub steps
+      - name: Test the quiet check
+        if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
+        run: bash scripts/test-check-quiet.sh
+
   lint:
     name: Format and clippy
     needs: changes

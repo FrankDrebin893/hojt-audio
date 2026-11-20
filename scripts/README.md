@@ -117,6 +117,12 @@ A full run starts by printing the free disk space and stops under 2 GB, naming w
 that check alone; `scripts/test-check-space.sh` tests it with a stubbed `df` and is a step of `check.sh` and CI). A cloud
 session builds with one shared target directory (the worktree's own `target/`, or one `/tmp/target`), never a new one per
 issue, and deletes the target directories of merged issues first when `df` shows under 2 GB free.
+Under an agent (Claude Code sets `CLAUDECODE=1`; `CI` unset) `check.sh` is quiet: each step keeps its output in
+`target/check-logs/NN-<command>.log` and prints one line, `== <command>: passed in <n> s, log <path>`; a step that fails
+prints `== Failed: ...`, its failing lines (`FAILED`, `panicked`, `error`) and the last 60 lines of its log, and exits 1.
+That is about 8 lines for a full run instead of about 1,100. A terminal, CI and the commit hook print everything as
+before, and `scripts/check.sh --verbose` (or `CHECK_VERBOSE=1`) forces the full output under an agent.
+`scripts/test-check-quiet.sh` tests it with stub steps and is a step of `check.sh` and CI.
 The tests are compiled lightly optimised (`[profile.test]` in the root `Cargo.toml`, level 1, debug assertions
 still on): unoptimised, the amp's tests alone took 25 minutes on CI, and take under two this way. A test that
 plays sound costs seconds either way, so keep what it plays short. For a quicker build of one test while
