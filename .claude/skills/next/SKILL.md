@@ -89,7 +89,8 @@ goes on to the next issue, with no further prompt, until the list is done. Words
 5. **Review and retrospective, each in a session of its own.** When the builder reports a pull
    request, start two more fresh sub-sessions (the way step 3 starts one), neither of them the
    builder's session. They may run side by side; the builder stays available for fixes.
-   - **The reviewer** is the independent code review: see "The reviewer" below. It gets only the
+   - **The reviewer** is the independent code review (a session, never a GitHub review request on the
+     pull request: its author cannot be one): see "The reviewer" below. It gets only the
      issue and the pull request, and writes its scores and findings as a comment on the pull
      request (naming no person)
    - **The retrospective** is `/retrospective <pr> <n>` (`.claude/skills/retrospective/SKILL.md`),
@@ -147,10 +148,12 @@ goes on to the next issue, with no further prompt, until the list is done. Words
 What every sub-session is asked to do, for issue `<n>`:
 
 **Commands in the worktree** (the brief names the worktree's path; the orchestrator fills it in, step 3):
-- The first call is `cd <worktree path>`. Every Bash call after it is one plain command: no `&&`, `;`,
-  pipes, subshells or heredocs with git or `gh` in them (they are refused as "too complex to verify
-  that it stays inside the worktree"). Read the output with a separate command
-- Write files with Write or Edit, never a heredoc or a script that also runs git
+- The first call is `cd <worktree path>`. Start each later Bash call with `cd <worktree path> &&` and
+  then one plain command: no further `&&` or `;` chain, pipes, subshells or heredocs with git or `gh`
+  in them (they are refused as "too complex to verify that it stays inside the worktree"). Read the
+  output with a separate command
+- Write files with Write or Edit, never a `cat` or python heredoc or a script that also runs git (the
+  guard refuses it)
 - Wait for a long gate (`scripts/check.sh`) with Monitor and an until-loop on the log's last line,
   never `sleep` (the tool refuses it)
 - One shared target directory for the whole cloud session: the worktree's own `target/` or a single
@@ -161,8 +164,11 @@ What every sub-session is asked to do, for issue `<n>`:
 - A part of the change left for a later pull request is pushed as a branch (or a draft pull request) and named
   in the Progress comment, never parked as a patch file outside the repository: a session that ends takes
   such a file with it
-- Do not request the pull request's author as reviewer: the independent review is a session, not a
-  GitHub request
+- Never request a reviewer on the pull request (its author cannot be one, so the call always fails):
+  the independent review is a session, not a GitHub request
+- Where `scripts/move-issue.sh` cannot run (no `gh`), `issue_write` replaces the whole label set: read
+  the labels first (`issue_read` `get_labels`), then send the full set with only the `state:*` entry
+  changed. Never send a bare `["state:review"]`
 
 1. **Read** the issue with `gh issue view <n> --comments`, the latest "Progress" comment first
    if it has one (see step 7): it says where an earlier session left the work. The spec and
@@ -184,13 +190,15 @@ What every sub-session is asked to do, for issue `<n>`:
    stays blocked, take the spec's fallback if it has one, or stop with a question on the issue.
    A cloud session cannot open a standalone editor; reproduce an egui assertion or a layout problem with the editor's `egui_kittest` harness test (`suite_common::ui::snapshot`), and leave the look of the standalone to a manual-review line in the pull request.
    A change that belongs in the nih-plug fork follows `plugins/README.md`, "A change in the nih-plug fork"
-   (clone into the scratchpad, plain git commands, `scripts/pin-nih-plug.sh <rev>`).
+   (clone into the scratchpad by full path, plain git commands, `scripts/pin-nih-plug.sh <rev>`; never `cd` into
+   `~/.cargo/git/checkouts` or `/home/user/nih-plug`).
 4. **Gates**, all before the pull request:
    - `scripts/check.sh quick` as soon as the code compiles, before the first full run, so a format or
      clippy failure shows in seconds, not after the whole of it
    - `scripts/check.sh`: every step of CI (format, clippy, the tests, the amp's tests optimised; for a
      branch of light paths only, as CI does it: quick and the page's links, `scripts/check.sh full` forces all). Run it
-     once, in the background, and wait for it (it prints `== <step>` as each starts; the time is in
+     once, in the background, and wait with Monitor and an until-loop on the `== <step>` lines or the
+     final `== All of CI's steps pass`, never `sleep` (it prints `== <step>` as each starts; the time is in
      `scripts/README.md`, Testing); a cloud session's start hook has already installed CI's packages
    - The reports named in the spec, before (on `main`) and after
    - The standalone window looked at, if an editor changed
@@ -204,7 +212,7 @@ What every sub-session is asked to do, for issue `<n>`:
    in the title, description or comments. Say "somebody" or that something "needs to be
    manually reviewed" (for a sound change: the renders to listen to). Names are for chat only.
    Put `Closes #<n>`, the report diffs and the screenshot in the description. The orchestrator
-   adds the reviewer's verdict and the retrospective line. Then `scripts/move-issue.sh <n> review`.
+   adds the reviewer's verdict and the retrospective line. Then `scripts/move-issue.sh <n> review` (or the label rule above, where `gh` cannot run).
    A piano change that adds a harness scene says in the description that the scene's reference PNG
    comes from the first `piano.yml` run, which is expected to fail once (`piano/CLAUDE.md`, "Where things go").
 
