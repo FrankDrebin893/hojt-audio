@@ -28,58 +28,36 @@ detail lives. Each detail is next to what it governs.
 - `crates/suite_common/` - Shared code: `VENDOR` and `BRAND`, `ui` (the look: `ui/STYLE.md`), `dsp`
   (filter, noise and the `Hall` reverb), `measure` (what the tests measure with), `host` (a host for
   tests, and the allocator of the `no_alloc` tests)
-- `crates/suite_common/assets/art/` - One RGBA PNG per pedal, printed on its top face (`ui/artwork.rs`).
-  Made by `scripts/make-art.py` or replaced at the same path. Each editor has a test that its pedal is
-  drawn with its own picture, and `cargo xtask check-art` fails a bundle without its pictures
+- `crates/suite_common/assets/art/` - One RGBA PNG per pedal, printed on its top face; `cargo xtask check-art` fails a bundle
+  without its pictures, and each editor has a test that its pedal is drawn with its own. Made by `scripts/make-art.py`; the rest is in `ui/STYLE.md`, `artwork.rs`
 - `crates/suite_common/assets/fonts/` - Embedded fonts (SIL OFL) with their licence files
 - `prototypes/jsfx/` - The REAPER scripts Metal, Groove, bass, pad and bells were written as first:
   the reference for those ports, not built or shipped. Its `README.md` says where a port differs
 - `xtask/` - The bundler (nih-plug's, run from this workspace's own root) and `check-art`;
   `bundler.toml` - bundle name per plugin package
-- `site/` - The public page (plain HTML and CSS, no build step), published by GitHub Pages: a
-  landing page for both products at the root (https://hojte.net/hojt-audio/), the plugins' in
-  `site/dsp/` (https://hojte.net/hojt-audio/dsp/; the root sends their old `#anchors` there), the
-  piano viz's in `site/piano/` (https://hojte.net/hojt-audio/piano/), and Resources in
-  `site/resources/` (https://hojte.net/hojt-audio/resources/): free tools for learning to play, a
-  folder each (the Guitar and Piano Chord Atlas so far) on the shelf of its `index.html`. One look for all:
-  `site/hojt.css`, with the plugins' colours and fonts; the favicon is the whole HØJT badge
-  (`site/favicon.svg`). Fonts, screenshots (`site/img/`) and sounds (`site/audio/`) stay at the root.
-  The old address, https://hojte.net/hojt-audio-piano-viz/, is served by the old repository.
-  `site-sources/` - what is played in a sound example when it is our own playing; not published.
-  `site-design/DESIGN.md` - the site's look: its tokens, named rules, voice and references; not published
-- `installer/` - The Windows installer (`hojt-dsp.iss`, Inno Setup) and its test (`test-installer.ps1`);
-  `scripts/build-installer.sh` builds `HojtDSP-Setup.exe` in the Windows job of `release.yml`, which
-  installs, upgrades and uninstalls it on the runner before anything is published; `installer/macos/` builds the unsigned, untested macOS `HojtDSP-macos.pkg` (macOS job; `scripts/test-macos-pkg.sh` tests its scripts on Linux)
+- `site/` - The public page (plain HTML and CSS, no build step), published by GitHub Pages: a landing page,
+  `dsp/`, `piano/` and `resources/`, one look in `site/hojt.css`. Where each lives and its addresses: `site-design/DESIGN.md`,
+  "Where the pages live" (the look and voice are there too, not published). `site-sources/` - what a sound example plays; not published
+- `installer/` - The Windows installer (`hojt-dsp.iss`, Inno Setup, tested in the Windows job of `release.yml` before anything is
+  published; `scripts/README.md`, Installer) and `installer/macos/`, the unsigned, untested macOS `HojtDSP-macos.pkg` (`scripts/test-macos-pkg.sh` tests its scripts on Linux)
 - `scripts/` - Build, install, check, page and release tools; see `scripts/README.md`
-- `.claude/hooks/session-start.sh` - What a cloud session installs when it starts (the Linux packages and the
-  pinned Rust of `ci.yml`, shellcheck), so `scripts/check.sh` runs there in full; it does nothing elsewhere
+- `.claude/hooks/session-start.sh` - What a cloud session installs when it starts, so `scripts/check.sh` runs there in full (`scripts/README.md`, Testing)
 - `.claude/skills/` - The repo's own skills, one folder each with a `SKILL.md`: `/issue`, `/spec`, `/groom`, `/next`,
   `/specwriter`, `/scout`, `/design`, `/feedback`, `/retrospective`, `/page`, `/release`, `/release-prep`,
-  `/release-review`, and the piano viz's `/piano-release` and `/piano-readme`. Everything general (`/tdd`,
-  `/code-review`, `/grilling`, `/wayfinder`, `/retro`...) comes from Matt Pocock's plugin, see "Agent skills".
+  `/release-review`, `/piano-release`, `/piano-readme`. Everything general comes from Matt Pocock's plugin, see "Agent skills".
   `.claude/settings.json` has the hooks and the plugin
-- `.claude/retrospectives.md` - The log of what each Builder pull request taught (`/retrospective`, run by `/next` in a session of
-  its own once a pull request is open); the skills read it. Since 2026-11-12 a retro is an issue (`from:retro`), not an entry
-  in the log. There is no file of learnings: a rule that comes out of feedback or a retro is written where it applies (see
-  "Rules from feedback")
-- `.github/workflows/` - `ci.yml` (tests), `release.yml` (the plugins, on `vX.Y.Z`), `piano.yml` (builds
-  the piano viz when `piano/` changes, releases it on `piano-vX.Y.Z`), `pages.yml`, `approval-guard.yml`, `sound.yml`
-  (what a plugin's reports say changed against `main`), `weekly.yml` (a weekly run that only files
-  `state:idea` issues, `scripts/weekly-checks.sh`), `health.yml` (the weekly health numbers, see
-  "Automation and health"), `approve-specs.yml` (the approval list), `needs-owner.yml` (clears `needs:engineer` when he answers), `board-sync.yml` (the board's
-  State follows the label). `.github/ISSUE_TEMPLATE/` and
+- `.claude/retrospectives.md` - The older log of what each Builder pull request taught; since 2026-11-12 a retro is an issue
+  (`from:retro`), not an entry. There is no file of learnings: a rule that comes out of feedback or a retro is written where it applies (see "Rules from feedback")
+- `.github/workflows/` - `ci.yml` (tests), `release.yml` (the plugins, on `vX.Y.Z`), `piano.yml`, `pages.yml`, `approval-guard.yml`,
+  `sound.yml`, `weekly.yml`, `health.yml`, `approve-specs.yml`, `needs-owner.yml`, `board-sync.yml`: what each does is in
+  `scripts/README.md`, "Workflows"; the routines' timetable in `docs/agents/automation.md`. `.github/ISSUE_TEMPLATE/` and
   `pull_request_template.md` say what an issue and a pull request ask for
 
 ## Build Commands
 
 ```bash
-# Build release VST3 and CLAP bundles (one plugin at a time)
-cargo xtask bundle pitch_shifter --release
-cargo xtask bundle drums --release
-cargo xtask bundle amp --release
-cargo xtask bundle bass --release
-cargo xtask bundle pad --release
-cargo xtask bundle bells --release
+# Build release VST3 and CLAP bundles (one plugin at a time: pitch_shifter, drums, amp, bass, pad, bells)
+cargo xtask bundle <plugin> --release
 
 # Every bundle in target/bundled carries its plugin's artwork (or name some: check-art amp drums)
 cargo xtask check-art
@@ -93,13 +71,8 @@ scripts/check.sh
 # Its quick part, format and clippy
 scripts/check.sh quick
 
-# Open a plugin's editor as a program, without a DAW (no audio: dummy backend)
-cargo run -p pitch_shifter --features standalone -- --backend dummy
-cargo run -p drums --features standalone -- --backend dummy
-cargo run -p amp --features standalone -- --backend dummy
-cargo run -p bass --features standalone -- --backend dummy
-cargo run -p pad --features standalone -- --backend dummy
-cargo run -p bells --features standalone -- --backend dummy
+# Open a plugin's editor as a program, without a DAW (no audio: dummy backend; same plugin names)
+cargo run -p <plugin> --features standalone -- --backend dummy
 
 # The piano viz (Windows, .NET 10 SDK): build, run; more in piano/CLAUDE.md
 dotnet build piano/PianoMidiVisualizationApp.sln
@@ -118,17 +91,9 @@ it before bundling.
 
 Each surface has one source of truth for its look: the editors `STYLE.md`, the piano viz
 `piano/DESIGN.md`, the site `site-design/DESIGN.md`. A change to the look goes through `/design`
-(`.claude/skills/design/SKILL.md`):
-
-- **Explore** (only for a structural change: a new section, layout or component): three directions
-  that differ in kind, rendered and posted on the issue. Rasmus picks; the agent never picks for him
-- **Build** one piece at a time against the pick: render, list the differences, fix. Stop at zero
-  differences or four rounds
-- **Review** by a fresh reviewer given only the renders, the source of truth and
-  `.claude/skills/design/REVIEW.md`; its verdict goes in the pull request
-- **Polish** last, as a narrow named command (impeccable's `typeset`, `normalize`...), never as a
-  loop: repeated critique and polish passes drift back to the average
-
+(`.claude/skills/design/SKILL.md`: explore three directions for a structural change, and Rasmus picks, never the agent;
+build against the pick, stopping at zero differences or four rounds; a fresh reviewer scores the renders against
+`.claude/skills/design/REVIEW.md`; polish last, as a narrow named command, never a loop).
 Nothing about a look is claimed that was not rendered: the site with `scripts/site-shots.sh`, an
 editor standalone, the piano viz with its off-screen harness (`piano/tools/readme-screenshots/`)
 
@@ -261,42 +226,16 @@ session's work. A Stop hook (`.claude/settings.json`) asks for it once when
 
 ## Automation and health
 
-Scheduled Claude tasks keep the backlog moving and the releases coming; each runs a skill and stops early while an
-open issue titled `Pause automation` exists:
-
-| Task | When (UTC) | Runs | Its limit |
-|------|------------|------|-----------|
-| Scout | Mondays 06:41 | `/scout` | 3 ideas a run; none while 10 of its ideas are ungroomed |
-| Specwriter | Daily 06:52 | `/specwriter` | 4 specs a run, an idea older than 7 days first; none while 10 wait for approval |
-| Builder | Nightly 01:47 | `/next` | Only what Rasmus approved; nothing to do, it stops at once |
-| Release Manager | Fridays 06:30 | `/release-prep` | Only when a release is due (`/release-prep`, step 2) and no `release/*` pull request is open; it opens that pull request with auto-merge off and never tags: Rasmus merges and tags |
-| Release Analyst | Mondays 07:15 | `/release-review` | A review per release at 7 and 28 days on the issue "Release reviews"; 3 ideas a run (`from:review`), none while 10 of them are ungroomed, none from thin evidence |
-
-The board's State follows the label by `board-sync.yml`, so a session that sets a label needs no
-`scripts/move-issue.sh` (it needs the secret `BOARD_TOKEN`, a classic token with the `project`
-scope; without it the board stays as it is). `health.yml` measures the project every Monday
-(`scripts/health.sh --sound`: the backlog's flow, CI, releases, CPU and loudness), keeps the line
-on the `metrics` branch and comments the digest on the issue "Project health"; what each number
-is: `scripts/README.md`, Health.
+Scheduled Claude tasks (Scout, Specwriter, Builder, Release Manager, Release Analyst) each run a skill and stop early while an
+open issue titled `Pause automation` exists. Their timetable and limits, the board sync and the weekly health numbers:
+`docs/agents/automation.md`.
 
 ## Releasing
 
-Run by `/release`; the steps and the rules of the page are in `.claude/skills/release/RELEASING.md`.
-The short version: the version is set in `Cargo.toml`, the changelog gets a `## <version>` section,
-the page is brought up to the release with `/page release <version>`, and the release goes in through
-a `release/<version>` pull request, then a tag `v<version>`, which `release.yml` builds and publishes.
-The page's sound and look (`site/audio/`, `site/img/`) change only in a release commit.
-
-The weekly `/release-prep` prepares that pull request when a release is due, with auto-merge off; merging
-it and tagging `v<version>` stay with Rasmus. `/release-review` looks at how each release did, 7 and 28 days
-after it, on the issue "Release reviews", and files what it learns as `from:review` ideas.
-
-A release carries, besides the per-plugin zips, `HojtDSP-Setup.exe` (Windows, versionless name) and one
-`SHA256SUMS.txt` of every asset (`scripts/checksums.sh`).
-
-The piano viz releases on its own, with `/piano-release`: a tag `piano-v<version>` on `main`, which
-`piano.yml` builds and publishes. Its releases are never marked latest, since the plugins' page links
-their zips through `releases/latest/download/`, and `scripts/health.sh` counts only the `v*` releases.
+Run by `/release`; the steps, the rules of the page and the piano viz's own release are in
+`.claude/skills/release/RELEASING.md`. A release goes in through a `release/<version>` pull request, then a tag `v<version>`,
+which `release.yml` builds and publishes; the weekly `/release-prep` prepares that pull request, and merging it and tagging stay
+with Rasmus. The page's sound and look (`site/audio/`, `site/img/`) change only in a release commit.
 
 ## Plugins
 

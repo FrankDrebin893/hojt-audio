@@ -1,4 +1,4 @@
-//! The release cycle (`/release-prep`, `/release-review`, CLAUDE.md "Automation and health"):
+//! The release cycle (`/release-prep`, `/release-review`, `docs/agents/automation.md`):
 //! the two skills never tag, never approve and can be paused, and the weekly digest shows a
 //! release that is due and one that was never reviewed
 
