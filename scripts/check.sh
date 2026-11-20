@@ -124,6 +124,7 @@ amp_notes() {
             bad=1
         fi
     done
+    # shellcheck disable=SC2016 # the backticks are literal: the router writes its links in code spans
     while IFS= read -r name; do
         if [[ ! -f "$dir/$name" ]]; then
             echo "scripts/check.sh: $router names $name, which does not exist" >&2
