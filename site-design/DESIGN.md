@@ -218,6 +218,20 @@ Product calls the engineer has made; do not propose them again without new evide
 - **No visitor analytics** on the page (decided 2026-10-26).
 - **No rendered sound examples** on the page: the renderings sounded unnatural (2026-11-14). They may come back from a real demo project, never as renderings (`/page`).
 
+## Where the pages live
+
+The public page (`site/`, plain HTML and CSS, no build step) is published by GitHub Pages:
+
+- A landing page for both products at the root (https://hojte.net/hojt-audio/)
+- The plugins' page in `site/dsp/` (https://hojte.net/hojt-audio/dsp/; the root sends their old `#anchors` there)
+- The piano viz's page in `site/piano/` (https://hojte.net/hojt-audio/piano/)
+- Resources in `site/resources/` (https://hojte.net/hojt-audio/resources/): free tools for learning to play, a
+  folder each (the Guitar and Piano Chord Atlas so far) on the shelf of its `index.html`
+- One look for all: `site/hojt.css`, with the plugins' colours and fonts; the favicon is the whole HØJT badge
+  (`site/favicon.svg`). Fonts, screenshots (`site/img/`) and sounds (`site/audio/`) stay at the root
+- The old address, https://hojte.net/hojt-audio-piano-viz/, is served by the old repository
+- `site-sources/` is what is played in a sound example when it is our own playing; not published
+
 ## Open work (not rules)
 
 From the audit of 2026-10-28, each one a `/design` change of its own:

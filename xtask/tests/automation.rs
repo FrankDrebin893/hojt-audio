@@ -1,4 +1,4 @@
-//! The automation (CLAUDE.md, "Automation and health") keeps the owner's approval: the approval
+//! The automation (`docs/agents/automation.md`) keeps the owner's approval: the approval
 //! list approves only for him and only open specs, `health.yml` writes only the `metrics` branch,
 //! and the skills the scheduled tasks run never approve and stop on `Pause automation`
 

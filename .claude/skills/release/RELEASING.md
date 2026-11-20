@@ -4,6 +4,17 @@ The rules `/release` and `/page` follow. The page is https://hojte.net/hojt-audi
 The code is GPL-3.0-or-later, which the VST3 bindings require of a VST3 binary that is handed
 out; the HØJT name and logo are kept out of it (`NOTICE.md`).
 
+Run by `/release`. In short: the version is set in `Cargo.toml`, the changelog gets a `## <version>` section, the
+page is brought up to the release with `/page release <version>`, and the release goes in through a
+`release/<version>` pull request, then a tag `v<version>`, which `release.yml` builds and publishes. The page's sound
+and look (`site/audio/`, `site/img/`) change only in a release commit. The weekly `/release-prep` prepares that pull
+request when a release is due, with auto-merge off; merging it and tagging stay with Rasmus. `/release-review` looks at
+each release 7 and 28 days after it (`docs/agents/automation.md`).
+
+The piano viz releases on its own, with `/piano-release`: a tag `piano-v<version>` on `main`, which `piano.yml` builds
+and publishes. Its releases are never marked latest, since the plugins' page links their zips through
+`releases/latest/download/`, and `scripts/health.sh` counts only the `v*` releases.
+
 1. Set the version in `Cargo.toml` (`[workspace.package]`) and run `cargo check --workspace` so
    `Cargo.lock` follows
 2. Add a `## <version>` section to `CHANGELOG.md`: it becomes the text of the release

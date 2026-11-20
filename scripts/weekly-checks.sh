@@ -165,7 +165,7 @@ Move the pin (and the clippy fixes it brings) in one change."
 check_drift() {
     local doc dir name missing="" files
     files="$(git ls-files)"
-    for doc in CLAUDE.md plugins/*/CLAUDE.md plugins/*/notes/*.md; do
+    for doc in CLAUDE.md docs/agents/automation.md plugins/*/CLAUDE.md plugins/*/notes/*.md; do
         [[ -f "$doc" ]] || continue
         dir="$(dirname "$doc")"
         [[ "$(basename "$dir")" == notes ]] && dir="$(dirname "$dir")" # a topic file names paths from its plugin's folder
@@ -175,7 +175,7 @@ check_drift() {
             [[ -e "$name" || -e "$dir/$name" ]] && continue
             grep -Fq -- "/${name%/}" <<< "/$files" && continue
             # or written verbatim in some other tracked file: a URL path, a file made at run time
-            git grep -Fq -e "$name" -- . ':(exclude)CLAUDE.md' ':(exclude)**/CLAUDE.md' ':(exclude,glob)plugins/*/notes/**' && continue
+            git grep -Fq -e "$name" -- . ':(exclude)CLAUDE.md' ':(exclude)docs/agents/automation.md' ':(exclude)**/CLAUDE.md' ':(exclude,glob)plugins/*/notes/**' && continue
             missing+="- \`$name\` in \`$doc\`"$'\n'
         done < <(grep -o '`[^` ]*`' "$doc" | tr -d '`' |
             grep -E '^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)+/?$|^[A-Za-z0-9_-]+\.(md|sh|rs|toml|yml|yaml|py|ps1|json|html|css)$' |

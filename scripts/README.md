@@ -40,6 +40,22 @@ What each script in this folder does, and the detail behind the rules in `CLAUDE
   the page's links hold, its downloads against the names a release makes (the zips of `bundler.toml`, the
   installer of `installer/hojt-dsp.iss`, `SHA256SUMS.txt`). The end-of-session hook runs it
 
+## Workflows
+
+What each file of `.github/workflows/` does (`CLAUDE.md` names the ones a rule depends on):
+
+- `ci.yml` - the tests; `release.yml` - the plugins, on `vX.Y.Z`
+- `piano.yml` - builds the piano viz when `piano/` changes, releases it on `piano-vX.Y.Z`
+- `pages.yml` - publishes `site/`; `approval-guard.yml` - takes `state:approved` off anyone but the owner
+- `sound.yml` - what a plugin's reports say changed against `main`
+- `weekly.yml` - a weekly run that only files `state:idea` issues (`scripts/weekly-checks.sh`)
+- `health.yml` - the weekly health numbers (Health below; the routines' timetable is `docs/agents/automation.md`)
+- `approve-specs.yml` - the approval list
+- `needs-owner.yml` - clears `needs:engineer` when he answers
+- `board-sync.yml` - the board's State follows the label
+
+`.github/ISSUE_TEMPLATE/` and `pull_request_template.md` say what an issue and a pull request ask for.
+
 ## Install
 
 On Windows run `scripts/install.ps1` (all six, or name some: `scripts/install.ps1 amp drums`). It builds from
