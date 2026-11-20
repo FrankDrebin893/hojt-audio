@@ -94,7 +94,7 @@ finding where something lives.
 | `second.rs`, the second amp, Blend | `notes/two-amps.md` |
 | `lib.rs` (parameters), `settings.rs`, any parameter's id, default or range | `notes/parameters.md` |
 | `standalone.rs`, `main.rs`, `build.rs`, `assets/amp.ico` | `notes/standalone.md` |
-| `editor.rs`, `board.rs`, `bank.rs`, `looks.rs`, `art.rs`, anything drawn | `notes/look.md`, and `DESIGN.md` for why |
+| `editor.rs`, `board.rs`, `bank.rs`, `looks.rs`, `ui/art.rs` of `suite_common`, anything drawn | `notes/look.md`, and `DESIGN.md` for why |
 | A `*_report` or `render_*` test, a DSP change that is measured before and after | `notes/reports.md` |
 | Where a file lives, what a module is for | `notes/files.md` |
 

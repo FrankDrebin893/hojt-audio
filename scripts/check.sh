@@ -115,7 +115,8 @@ script_modes() {
 # The amp's router (plugins/amp/CLAUDE.md) and its topic files (plugins/amp/notes/*.md, issue 370): every
 # topic file is named in the router, and every `notes/<name>.md` the router names is there.
 amp_notes() {
-    local router=plugins/amp/CLAUDE.md dir=plugins/amp bad=0 f name
+    local dir="${AMP_NOTES_DIR:-plugins/amp}" bad=0 f name router
+    router="$dir/CLAUDE.md" # AMP_NOTES_DIR: a copy, for scripts/test-check-notes.sh
     for f in "$dir"/notes/*.md; do
         name="notes/$(basename "$f")"
         if ! grep -Fq "\`$name\`" "$router"; then
@@ -225,6 +226,7 @@ full() {
     step bash scripts/test-pin-nih-plug.sh
     step bash scripts/test-check-light.sh
     step bash scripts/test-check-space.sh
+    step bash scripts/test-check-notes.sh
     echo "== All of CI's steps pass"
 }
 
