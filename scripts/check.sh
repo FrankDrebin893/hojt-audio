@@ -12,6 +12,7 @@
 #   scripts/check.sh deps       installs the Linux packages CI installs that are missing (sudo apt-get, no sudo
 #                               as root); quick and the full run only name them when they are missing
 #   scripts/check.sh space      only the disk-space check a full run starts with: prints the free space, stops under 2 GB
+#   scripts/check.sh notes      only that every plugins/amp/notes/*.md is linked from the amp's router and every link exists
 #   scripts/check.sh modes      only that every tracked scripts/*.sh is executable in git's index
 #   scripts/check.sh hook       the Claude Code PreToolUse hook (.claude/settings.json): the quick
 #                               part before a `git commit`, blocking the commit when it fails
@@ -111,10 +112,32 @@ script_modes() {
     echo "== Every scripts/*.sh is executable"
 }
 
+# The amp's router (plugins/amp/CLAUDE.md) and its topic files (plugins/amp/notes/*.md, issue 370): every
+# topic file is named in the router, and every `notes/<name>.md` the router names is there.
+amp_notes() {
+    local router=plugins/amp/CLAUDE.md dir=plugins/amp bad=0 f name
+    for f in "$dir"/notes/*.md; do
+        name="notes/$(basename "$f")"
+        if ! grep -Fq "\`$name\`" "$router"; then
+            echo "scripts/check.sh: $name is not linked from $router; add it to the index" >&2
+            bad=1
+        fi
+    done
+    while IFS= read -r name; do
+        if [[ ! -f "$dir/$name" ]]; then
+            echo "scripts/check.sh: $router names $name, which does not exist" >&2
+            bad=1
+        fi
+    done < <(grep -o '`notes/[A-Za-z0-9_.-]*\.md`' "$router" | tr -d '`' | sort -u)
+    ((bad == 0)) || exit 1
+    echo "== The amp's router and its topic files agree"
+}
+
 quick() {
     local tc
     check_linux_packages
     script_modes
+    amp_notes
     tc="$(lint_toolchain)"
     # $tc is `+1.99.1` or empty, so it stays unquoted
     # shellcheck disable=SC2086
@@ -239,11 +262,12 @@ full) full full ;;
 scope) scope "${2:-}" ;;
 quick) quick ;;
 modes) script_modes ;;
+notes) amp_notes ;;
 space) check_disk_space ;;
 deps) deps ;;
 hook) hook ;;
 *)
-    echo "usage: scripts/check.sh [full|quick|scope|modes|space|deps|hook]" >&2
+    echo "usage: scripts/check.sh [full|quick|scope|modes|notes|space|deps|hook]" >&2
     exit 64
     ;;
 esac

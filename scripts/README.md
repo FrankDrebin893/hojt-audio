@@ -92,6 +92,8 @@ none. The renders before and after are the run's `renders` artifact.
 that are missing. A hook (`.claude/settings.json`) runs `scripts/check.sh quick` before every
 `git commit` and stops a commit that fails it. A step added to `ci.yml` is added to `scripts/check.sh` too, which
 `xtask/tests/check_mirrors_ci.rs` holds.
+`check.sh notes` (part of `quick` and a step of CI's lint job) holds that every `plugins/amp/notes/*.md` is linked from
+the amp's router, `plugins/amp/CLAUDE.md`, and every `notes/` link there exists.
 Every tracked `scripts/*.sh` must be mode 100755 in git's index (`check.sh modes`, part of `quick` and a step of
 CI's lint job): make a new one so with `git update-index --chmod=+x scripts/<name>.sh`. `check.sh` prints
 `== <command>` as each step starts, so a session waiting on it reads the output file with one `tail` and does not

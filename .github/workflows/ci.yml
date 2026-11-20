@@ -152,6 +152,10 @@ jobs:
         if: needs.changes.outputs.code == 'true'
         run: bash scripts/check.sh modes
 
+      # Markdown only, so it runs for every change, code or not
+      - name: Amp notes
+        run: bash scripts/check.sh notes
+
       - name: Format
         if: needs.changes.outputs.code == 'true'
         run: cargo fmt --all --check
