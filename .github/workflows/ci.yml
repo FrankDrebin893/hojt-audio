@@ -126,6 +126,11 @@ jobs:
         if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
         run: bash scripts/test-check-space.sh
 
+      # The amp notes check's failure paths, over copies of the router and notes
+      - name: Test the amp notes check
+        if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
+        run: bash scripts/test-check-notes.sh
+
   lint:
     name: Format and clippy
     needs: changes
@@ -151,6 +156,10 @@ jobs:
       - name: Script modes
         if: needs.changes.outputs.code == 'true'
         run: bash scripts/check.sh modes
+
+      # Markdown only, so it runs for every change, code or not
+      - name: Amp notes
+        run: bash scripts/check.sh notes
 
       - name: Format
         if: needs.changes.outputs.code == 'true'

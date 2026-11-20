@@ -22,7 +22,7 @@ detail lives. Each detail is next to what it governs.
 - `plugins/bass/` - Plucked string bass (instrument), picked or played with a finger
 - `plugins/pad/` - Slow ambient pad with a chorus and a shimmering hall (instrument)
 - `plugins/bells/` - Soft glassy bells with a ping-pong delay and a hall (instrument)
-- `plugins/amp/` - Guitar amp simulator (effect). Its notes are in `plugins/amp/CLAUDE.md` and `plugins/amp/DESIGN.md`
+- `plugins/amp/` - Guitar amp simulator (effect). Its notes are a router, `plugins/amp/CLAUDE.md`, with topic files read on demand in `plugins/amp/notes/` (the index in the router says which for which source file), and `plugins/amp/DESIGN.md`
 - `piano/` - The piano viz (C# / .NET 10 / WPF, `piano/PianoMidiVisualizationApp.sln`), with its own
   `CLAUDE.md`, `README.md`, `LICENSE` and the README's screenshot harness (`piano/tools/`)
 - `crates/suite_common/` - Shared code: `VENDOR` and `BRAND`, `ui` (the look: `ui/STYLE.md`), `dsp`
