@@ -14,6 +14,9 @@
 #   scripts/check.sh space      only the disk-space check a full run starts with: prints the free space, stops under 2 GB
 #   scripts/check.sh notes      only that every plugins/amp/notes/*.md is linked from the amp's router and every link exists
 #   scripts/check.sh modes      only that every tracked scripts/*.sh is executable in git's index
+#   scripts/check.sh --verbose  (before any mode) the full output of every step, also under an agent: where
+#                               CLAUDECODE=1 and CI is not set, a step prints one line (passed, seconds, its log
+#                               in target/check-logs) and, when it fails, the failing lines and the log's tail
 #   scripts/check.sh hook       the Claude Code PreToolUse hook (.claude/settings.json): the quick
 #                               part before a `git commit`, blocking the commit when it fails
 #                               in the tree the commit is made in (a worktree's own, not this checkout's)
@@ -89,13 +92,47 @@ lint_toolchain() {
     fi
 }
 
+# Quiet mode, for an agent (issue 376): Claude Code sets CLAUDECODE=1 in its shell. A step then keeps its
+# output in a log and prints one line; a person's terminal, CI (CI is set) and --verbose / CHECK_VERBOSE=1
+# print everything as before.
+quiet_steps() {
+    [[ "${CLAUDECODE:-}" == 1 && -z "${CI:-}" && "${CHECK_VERBOSE:-}" != 1 ]]
+}
+
+step_number=0
+
+# The log of a quiet step: <log dir>/NN-<the command, as a slug>.log. The log dir is target/check-logs (not committed).
+step_log() {
+    local slug
+    slug="$(printf '%s' "$*" | tr -c 'A-Za-z0-9.\n' '-' | tr -s '-' | cut -c1-40)"
+    printf '%s/%02d-%s.log' "${CHECK_LOG_DIR:-target/check-logs}" "$step_number" "${slug#-}"
+}
+
 # Stops at the first failure itself: `set -e` does not hold inside the hook's `if`.
 step() {
-    echo "== $*"
-    "$@" || {
-        echo "== Failed: $*" >&2
+    if ! quiet_steps; then
+        echo "== $*"
+        "$@" || {
+            echo "== Failed: $*" >&2
+            exit 1
+        }
+        return 0
+    fi
+    local log started
+    step_number=$((step_number + 1))
+    log="$(step_log "$@")"
+    mkdir -p "$(dirname "$log")"
+    started=$SECONDS
+    if "$@" > "$log" 2>&1; then
+        echo "== $*: passed in $((SECONDS - started)) s, log $log"
+    else
+        echo "== Failed: $* (after $((SECONDS - started)) s, log $log)" >&2
+        echo "-- Failing lines:" >&2
+        { grep -E 'FAILED|panicked|error' "$log" || true; } | head -n 40 >&2
+        echo "-- Last 60 lines of the log:" >&2
+        tail -n 60 "$log" >&2
         exit 1
-    }
+    fi
 }
 
 # Every tracked scripts/*.sh has mode 100755 in the index, so it runs without `bash` in front. Read from
@@ -228,6 +265,7 @@ full() {
     step bash scripts/test-check-light.sh
     step bash scripts/test-check-space.sh
     step bash scripts/test-check-notes.sh
+    step bash scripts/test-check-quiet.sh
     echo "== All of CI's steps pass"
 }
 
@@ -240,6 +278,7 @@ full() {
 # own checkout as its project directory, and that one may hold another branch altogether.
 hook() {
     local input out dir top
+    export CHECK_VERBOSE=1 # the output is reported only on a failure, and its tail is cut below
     input="$(cat)"
     grep -Eq '"command".*git( +-C +[^ ]+)? +commit([^-a-z]|$)' <<< "$input" || exit 0
     dir="$(sed -nE 's/.*"command".*git +-C +\\?"?([^ "\\]+).* +commit([^-a-z].*|$)/\1/p' <<< "$input" | head -1)"
@@ -259,6 +298,11 @@ hook() {
     fi
 }
 
+if [[ "${1:-}" == --verbose ]]; then
+    export CHECK_VERBOSE=1
+    shift
+fi
+
 case "${1:-}" in
 "") full ;;
 full) full full ;;
@@ -269,8 +313,12 @@ notes) amp_notes ;;
 space) check_disk_space ;;
 deps) deps ;;
 hook) hook ;;
+step) # one step on its own, what scripts/test-check-quiet.sh runs
+    shift
+    step "$@"
+    ;;
 *)
-    echo "usage: scripts/check.sh [full|quick|scope|modes|notes|space|deps|hook]" >&2
+    echo "usage: scripts/check.sh [--verbose] [full|quick|scope|modes|notes|space|deps|hook]" >&2
     exit 64
     ;;
 esac
