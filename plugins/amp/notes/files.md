@@ -97,8 +97,9 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   `MetronomeSettings`), its three sounds, `BeatReading` (what the editor's lamp reads) and `TapTempo`
 - `src/looper.rs` - Looper (#280): records the finished sound, plays it back and overdubs (`Looper`,
   `LooperSettings`, `LooperControl`, `State`). The audio and its commands (milestone 1) and, from
-  milestone 2, the plate under the strip's looper icon (`editor.rs`, `looper_plate`, ring picked on #280)
+  milestone 2, the plate under the strip's looper icon (`editor/looper.rs`, `looper_plate`, ring picked on #280)
 
+- `src/editor/` - the editor's plates, each a child module of `editor.rs`, moved out of it unchanged (#378): `looper.rs`, `metronome.rs`, `settings.rs`, `mix.rs` (the plate where the two lanes meet), `preset_display.rs` (the preset display and its bank and preset lists; not `presets.rs`, which is the factory presets), and `tests.rs`
 - `src/editor.rs` - egui GUI (the signal line in a layer 584 high and as wide as the chain, 3411 for today's twelve pedals; opened scaled to the screen up to 3411 x 584 or 1876 x 321 on a 1920 x 1080 screen, resizable freely from 1301 x 293 by its corner handle, scaled to fit between 0.5 and 1.0 and scrolled sideways below that, `Fit`): the slim oxblood strip
   across the top (64 px) with the input (meter and Input gain), the preset display that opens
   the bank and preset plate, or the tuner display in its place, the metronome, looper, tuner and
