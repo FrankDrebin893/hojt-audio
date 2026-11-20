@@ -198,8 +198,8 @@ What every sub-session is asked to do, for issue `<n>`:
    - `scripts/check.sh`: every step of CI (format, clippy, the tests, the amp's tests optimised; for a
      branch of light paths only, as CI does it: quick and the page's links, `scripts/check.sh full` forces all). Run it
      once, in the background, and wait with Monitor and an until-loop on the `== <step>` lines or the
-     final `== All of CI's steps pass`, never `sleep` (it prints `== <step>` as each starts; the time is in
-     `scripts/README.md`, Testing); a cloud session's start hook has already installed CI's packages
+     final `== All of CI's steps pass`, never `sleep`. The script prints `== <step>` as each starts; the time is in
+     `scripts/README.md`, Testing. A cloud session's start hook has already installed CI's packages
    - The reports named in the spec, before (on `main`) and after
    - The standalone window looked at, if an editor changed
    - `CHANGELOG.md` under `Unreleased` says what a player will notice
