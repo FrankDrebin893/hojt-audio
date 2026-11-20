@@ -5,7 +5,7 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
 - `src/standalone.rs` - The standalone program's settings (`Prefs`, saved as
   `amp-standalone.json` in the system's settings folder or `HOJT_CONFIG_DIR`), the `Host` trait
   `main.rs` implements with cpal to list devices and restart, and the Audio panel's choices. The
-  panel itself is the rows of the settings plate in `editor.rs` (`settings_plate`). nih-plug's host opens its streams from its
+  panel itself is the rows of the settings plate in `editor/settings.rs` (`settings_plate`). nih-plug's host opens its streams from its
   command line; with WASAPI (and the other cpal drivers but ASIO) Apply changes the devices, channels, buffer size and sample rate while the program plays (`Host::reconfigure`
   -> the fork's `nih_standalone_reconfigure`: it closes the cpal streams, opens the new ones with the
   same process callback; when the rate or the buffer size is not the one that played, the fork

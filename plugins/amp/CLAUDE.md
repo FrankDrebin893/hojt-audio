@@ -83,7 +83,7 @@ finding where something lives.
 
 | Before editing or reviewing | Read |
 |-----------------------------|------|
-| `looper.rs`, the looper's plate (`looper_plate` in `editor.rs`), `LooperControl` | `notes/looper.md` |
+| `looper.rs`, the looper's plate (`looper_plate` in `editor/looper.rs`), `LooperControl` | `notes/looper.md` |
 | `metronome.rs`, the `metronome_*` parameters, the click's output (`metronome_out`) | `notes/metronome.md` |
 | `tuner.rs`, `lamps.rs`, the level meters and signal lamps | `notes/tuner-and-lamps.md` |
 | `cab.rs`, `user_cab.rs`, `cab_stage.rs`, `SPEAKERS` in `amp/model.rs`, the cabinet choice | `notes/cabinets.md` |
@@ -92,9 +92,9 @@ finding where something lives.
 | `pitch.rs`, `eq.rs`, `wah.rs`, `fuzz.rs`, `comp.rs`, `drive.rs`, `delay.rs`, `reverb.rs`, `mods/` | `notes/pedals.md` |
 | `amp/` (`preamp.rs`, `tonestack.rs`, `poweramp.rs`), `gate.rs`, loudness matching, a level or a tail | `notes/levels.md` |
 | `second.rs`, the second amp, Blend | `notes/two-amps.md` |
-| `lib.rs` (parameters), `settings.rs`, any parameter's id, default or range | `notes/parameters.md` |
+| `lib.rs` (parameters), `src/settings.rs`, any parameter's id, default or range | `notes/parameters.md` |
 | `standalone.rs`, `main.rs`, `build.rs`, `assets/amp.ico` | `notes/standalone.md` |
-| `editor.rs`, `board.rs`, `bank.rs`, `looks.rs`, `ui/art.rs` of `suite_common`, anything drawn | `notes/look.md`, and `DESIGN.md` for why |
+| `editor.rs` and `editor/` (the plates), `board.rs`, `bank.rs`, `looks.rs`, `ui/art.rs` of `suite_common`, anything drawn | `notes/look.md`, and `DESIGN.md` for why |
 | A `*_report` or `render_*` test, a DSP change that is measured before and after | `notes/reports.md` |
 | Where a file lives, what a module is for | `notes/files.md` |
 

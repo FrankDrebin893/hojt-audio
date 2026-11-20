@@ -177,11 +177,13 @@ fn test_no_dsp_branches_on_the_amp() {
     // Picking an amp is the model's job; the editor and the looks show each amp its own way
     // `test_util.rs` is a module of tests only, and so is a module's `tests.rs` (`chain/tests.rs`)
     // and every file in its `tests/` folder (`chain/tests/acoustic.rs`)
+    // and the editor's plates, one file each in `editor/` (#378)
     let allowed = ["amp/model.rs", "editor.rs", "looks.rs", "test_util.rs", "tests.rs"];
     let src = amp_dir().join("src");
     let is_dsp = |path: &Path| {
         path.extension().is_some_and(|ext| ext == "rs")
             && !allowed.iter().any(|allowed| path.ends_with(allowed))
+            && !path.parent().is_some_and(|folder| folder.ends_with("editor"))
             && !path.parent().is_some_and(|folder| folder.ends_with("tests"))
     };
     let mut found = Vec::new();
@@ -544,18 +546,52 @@ fn shown(path: &Path) -> String {
 #[test]
 fn test_the_editor_has_no_on_button_and_the_host_keeps_its_bypass() {
     let src = amp_dir().join("src");
-    let editor = std::fs::read_to_string(src.join("editor.rs")).unwrap();
-    let setting: Vec<String> = outside_tests(&editor)
+    let editor: Vec<(String, String)> = editor_files(&src)
         .into_iter()
-        .filter(|(_, code)| {
-            code.contains("&params.bypass") && (code.contains("set") || code.contains("toggle"))
-        })
-        .map(|(line, code)| format!("editor.rs:{line}: {}", code.trim()))
+        .map(|path| (shown(&path), std::fs::read_to_string(&path).unwrap()))
         .collect();
+    assert!(
+        editor.iter().any(|(name, _)| name.ends_with("src/editor/mix.rs")),
+        "the editor's plates are not read: {:?}",
+        editor.iter().map(|(name, _)| name).collect::<Vec<_>>()
+    );
+    let setting = sets_bypass(&editor);
     assert!(setting.is_empty(), "the editor sets bypass again:\n{}", setting.join("\n"));
     let lib = std::fs::read_to_string(src.join("lib.rs")).unwrap();
     assert!(
         lib.contains("BoolParam::new(\"Bypass\", defaults.bypass).make_bypass()"),
         "the host's bypass parameter is gone"
     );
+}
+
+/// The editor's files: `editor.rs` and every file of its folder, the plates (#378), but not the
+/// tests, which are a file of tests only
+fn editor_files(src: &Path) -> Vec<PathBuf> {
+    let mut found = vec![src.join("editor.rs")];
+    found.extend(files(&src.join("editor"), &|path| {
+        path.extension().is_some_and(|ext| ext == "rs") && !path.ends_with("tests.rs")
+    }));
+    found
+}
+
+/// The lines of the editor's files (name, text) that set the host's bypass
+fn sets_bypass(editor: &[(String, String)]) -> Vec<String> {
+    let mut found = Vec::new();
+    for (name, text) in editor {
+        for (line, code) in outside_tests(text) {
+            if code.contains("&params.bypass") && (code.contains("set") || code.contains("toggle"))
+            {
+                found.push(format!("{name}:{line}: {}", code.trim()));
+            }
+        }
+    }
+    found
+}
+
+#[test]
+fn test_bypass_set_in_a_plate_is_found() {
+    let plate = "fn mix_plate() {\n    set(&setter, &params.bypass, true);\n}\n";
+    let found = sets_bypass(&[("plugins/amp/src/editor/mix.rs".to_owned(), plate.to_owned())]);
+    assert_eq!(found, ["plugins/amp/src/editor/mix.rs:2: set(&setter, &params.bypass, true);"]);
+    assert!(sets_bypass(&[("editor.rs".to_owned(), "fn draw() {}\n".to_owned())]).is_empty());
 }
