@@ -39,7 +39,8 @@ leak into the next spec. Its brief is `/spec` with the issue's link, and it repo
 4. **Spec** each, in a sub-session of its own, as `/spec` does, in full: read the code and run a report where a figure
    decides the problem. A spec that would be `L` says how it splits into sub-issues. A step that needs
    an external site or repo a cloud session may not reach is marked "needs engineer" under **Questions**,
-   as `/spec` says, not left as the build's first act.
+   as `/spec` says, not left as the build's first act. The sub-session's `/spec` brief includes its name-clash
+   check for a new module or file; a spec that names one without the line saying it was checked is sent back.
 5. **Report** in a few lines: the specs written with links and their questions, what was
    closed or asked, and that the list to approve is the pinned issue `Specs to approve`.
 
