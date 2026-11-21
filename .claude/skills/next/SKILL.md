@@ -155,12 +155,21 @@ What every sub-session is asked to do, for issue `<n>`:
   output with a separate command
 - Write files with Write or Edit, never a `cat` or python heredoc or a script that also runs git (the
   guard refuses it)
-- Wait for a long gate (`scripts/check.sh`) with Monitor and an until-loop on the log's last line,
-  never `sleep` (the tool refuses it)
-- One shared target directory for the whole cloud session: the worktree's own `target/` or a single
-  `/tmp/target` (`CARGO_TARGET_DIR`), never a new `/tmp/target-<issue>` per issue, which filled the disk
-  mid-test. When `df` shows under 2 GB free, delete the target directories of merged issues first;
-  `scripts/check.sh` prints the free space and stops under 2 GB
+- Every Read, Edit and Write uses the worktree's path, never the shared checkout's
+- Wait for a long gate (`scripts/check.sh`) once, with Monitor and an until-loop on the log's last line,
+  never `sleep` and never polled (the tool refuses `sleep`)
+- A gate that cannot finish: after 30 minutes of one full `scripts/check.sh` with no result, stop waiting.
+  Push on a passing `scripts/check.sh quick`, say in the pull request that the full gate did not finish and
+  CI's `Test` is the only proof, and post a "Progress" comment (step 7) with "Next: full gate owed, CI is
+  the proof"; the orchestrator's review reads that line
+- A build uses the worktree's own `target/` (the default). Never set `CARGO_TARGET_DIR` to a path another
+  session can also name: two builders on one directory fight over cargo's build lock, and a full
+  `scripts/check.sh` refuses such a path at once (`unset CARGO_TARGET_DIR`). The cold build this costs
+  is accepted. When `df` shows under 2 GB free, delete the `target/` of merged worktrees first
+  (`git worktree remove`, then the directory); `scripts/check.sh` prints the free space and stops under 2 GB
+- Before the first `scripts/check.sh`: run `scripts/check.sh deps` if CI's packages or `cpio` are missing,
+  and `CLAUDE_CODE_REMOTE=true bash .claude/hooks/session-start.sh` if `rustup toolchain list` lacks the
+  pinned version (the hook does nothing without that variable)
 - `cargo test` takes one filter before `--`; several go after it (`cargo test -p amp --lib -- a b c`)
 - A part of the change left for a later pull request is pushed as a branch (or a draft pull request) and named
   in the Progress comment, never parked as a patch file outside the repository: a session that ends takes

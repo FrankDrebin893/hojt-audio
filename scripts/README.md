@@ -131,8 +131,11 @@ step; `scripts/check.sh scope` prints `light`, `skills` or `full`. `scripts/test
 temporary repo and checks that neither `ci.yml` nor `check.sh` holds a list of its own; it is a step of `check.sh` and CI.
 A full run starts by printing the free disk space and stops under 2 GB, naming what to clean (`scripts/check.sh space` is
 that check alone; `scripts/test-check-space.sh` tests it with a stubbed `df` and is a step of `check.sh` and CI). A cloud
-session builds with one shared target directory (the worktree's own `target/`, or one `/tmp/target`), never a new one per
-issue, and deletes the target directories of merged issues first when `df` shows under 2 GB free.
+session builds in its worktree's own `target/` and deletes the `target/` of merged worktrees first when `df` shows under 2 GB
+free. A full run also prints the target directory and the number of other cargo processes, and stops at once when
+`CARGO_TARGET_DIR` points outside the checkout (two sessions on one directory fight over cargo's build lock): the fix is
+`unset CARGO_TARGET_DIR`, or `CHECK_SHARED_TARGET=1` on a machine that is yours alone (`scripts/check.sh target` is that check
+alone; `scripts/test-check-target.sh` tests it and is a step of `check.sh` and CI).
 Under an agent (Claude Code sets `CLAUDECODE=1`; `CI` unset) `check.sh` is quiet: each step keeps its output in
 `target/check-logs/NN-<command>.log` and prints one line, `== <command>: passed in <n> s, log <path>`; a step that fails
 prints `== Failed: ...`, its failing lines (`FAILED`, `panicked`, `error`) and the last 60 lines of its log, and exits 1.
