@@ -18,6 +18,12 @@ in CLAUDE.md.
    download, a repo that is not attached) is never written as the build's first act: the spec marks it
    "needs engineer", says what to bring (the text, or the repo to attach with `add_repo`) and puts it under
    **Questions**. A step the agent can do itself is still done first.
+   When the spec will name a new module, file or `pub` path, find out that the name is free before writing it:
+   `grep -rn "<name>::"` over the crate's `src` and tests, look for `mod <name>`, `<name>.rs` and `<name>/` in the
+   crate, and check that it does not shadow a crate-root module (`crate::<name>`) that the file's own code or the
+   unchanged tests already name. Say so in **What changes** ("`presets` is taken by `crate::presets`, so
+   `preset_display`") and list the names used. Where the spec gives line counts, write them from `wc -l` of the
+   commit read ("2,686 lines at `<short sha>`") or as "about", never from memory.
 3. Post one comment headed `## Spec`, short, in the house voice of CLAUDE.md:
    - **What changes** for the player, then in the code (modules, not line by line)
    - **Ids**: parameters added with their `#[id]`, range and default; persisted fields. Never

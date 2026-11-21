@@ -202,6 +202,12 @@ What every sub-session is asked to do, for issue `<n>`:
    session", read `mcp__claude-code-remote__read_documentation` topic `environment.network` once, and
    ask for `add_repo` once if a repo is the need; do not probe hosts with curl or repeated searches. If it
    stays blocked, take the spec's fallback if it has one, or stop with a question on the issue.
+   A pure code move (a split, files renamed, a module moved): apply the move first, then run
+   `cargo check -p <plugin> --tests` before touching the tests, the notes or the docs (`--tests` is the point: a
+   path clash shows in code the unchanged tests name, and a plain `cargo check` skips `#[cfg(test)]`). If it fails
+   on a name or a path, `git checkout` the moved file, remove the new ones, change the name in the plan and say in
+   the first Progress comment what differs from the spec. Re-measure the spec's line counts then; a difference is
+   not a finding. Keep the move script in the scratchpad, re-runnable (it starts from the file on `main`).
    A cloud session cannot open a standalone editor; reproduce an egui assertion or a layout problem with the editor's `egui_kittest` harness test (`suite_common::ui::snapshot`), and leave the look of the standalone to a manual-review line in the pull request.
    A change that belongs in the nih-plug fork follows `plugins/README.md`, "A change in the nih-plug fork"
    (clone into the scratchpad by full path, plain git commands, `scripts/pin-nih-plug.sh <rev>`; never `cd` into
