@@ -42,7 +42,8 @@ space 2097152 > /dev/null || fail "exactly 2 GB free was refused"
 if out="$(space 1048576)"; then fail "1 GB free was accepted"; fi
 grep -q "1.0 GB free" <<< "$out" || fail "the refusal does not say how much is free: $out"
 grep -q "target" <<< "$out" || fail "the refusal does not name the target directories: $out"
-grep -q "/tmp/target" <<< "$out" || fail "the refusal does not name /tmp/target-*: $out"
+grep -q "worktree" <<< "$out" || fail "the refusal does not name the worktrees to remove: $out"
+if grep -q "/tmp/targe[t]" <<< "$out"; then fail "the refusal still advises a shared temp target directory: $out"; fi
 
 # A nearly empty disk is refused too
 if space 0 > /dev/null; then fail "0 free was accepted"; fi

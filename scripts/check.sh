@@ -233,10 +233,31 @@ check_disk_space() {
     if ((avail_kb < min_kb)); then
         {
             echo "scripts/check.sh: only $gb GB free, a full run needs 2 GB or more. Free some first:"
-            echo "  - the target directories of merged issues: rm -rf /tmp/target-<issue> (a cloud session uses one"
-            echo "    shared target directory, the worktree's own target/ or /tmp/target, never one per issue)"
             echo "  - worktrees of merged branches: git worktree remove <path>, then their target/ directories"
+            echo "    (a build uses its worktree's own target/, never a directory another session can name)"
             echo "  - cargo's cache: cargo clean, or rm -rf ~/.cargo/registry/cache"
+        } >&2
+        exit 1
+    fi
+}
+
+# Prints the target directory in use and how many other cargo processes run, and stops when CARGO_TARGET_DIR
+# points outside the checkout: two sessions naming one directory fight over cargo's build lock (a 45-minute
+# gate). CHECK_SHARED_TARGET=1 is for a person whose machine is theirs alone.
+check_target_dir() {
+    local target="${CARGO_TARGET_DIR:-$root/target}" abs
+    if [[ "$target" == /* ]]; then abs="$target"; else abs="$PWD/$target"; fi
+    abs="$(realpath -m "$abs" 2> /dev/null || echo "$abs")"
+    echo "== Target directory: $abs"
+    if command -v pgrep > /dev/null; then
+        echo "== Other cargo processes running: $(pgrep -x cargo | wc -l | tr -d ' ')"
+    fi
+    if [[ -n "${CARGO_TARGET_DIR:-}" && "$abs" != "$root" && "$abs" != "$root"/* && "${CHECK_SHARED_TARGET:-}" != 1 ]]; then
+        {
+            echo "scripts/check.sh: CARGO_TARGET_DIR is $abs, outside this checkout ($root)."
+            echo "  Another session can name the same directory and hold cargo's build lock for the whole gate."
+            echo "  Fix: unset CARGO_TARGET_DIR (the checkout's own target/ is used)."
+            echo "  On a machine that is yours alone: CHECK_SHARED_TARGET=1 scripts/check.sh"
         } >&2
         exit 1
     fi
@@ -253,6 +274,7 @@ full() {
         echo "== All of CI's steps for this change pass"
         return 0
     fi
+    check_target_dir
     check_disk_space
     quick
     step cargo test --workspace --locked
@@ -264,6 +286,7 @@ full() {
     step bash scripts/test-pin-nih-plug.sh
     step bash scripts/test-check-light.sh
     step bash scripts/test-check-space.sh
+    step bash scripts/test-check-target.sh
     step bash scripts/test-check-notes.sh
     step bash scripts/test-check-quiet.sh
     echo "== All of CI's steps pass"
@@ -311,6 +334,7 @@ quick) quick ;;
 modes) script_modes ;;
 notes) amp_notes ;;
 space) check_disk_space ;;
+target) check_target_dir ;;
 deps) deps ;;
 hook) hook ;;
 step) # one step on its own, what scripts/test-check-quiet.sh runs

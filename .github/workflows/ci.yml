@@ -126,6 +126,11 @@ jobs:
         if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
         run: bash scripts/test-check-space.sh
 
+      # The target-directory check a full run starts with (refuses a CARGO_TARGET_DIR outside the checkout)
+      - name: Test the target-directory check
+        if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
+        run: bash scripts/test-check-target.sh
+
       # The amp notes check's failure paths, over copies of the router and notes
       - name: Test the amp notes check
         if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
