@@ -151,7 +151,7 @@ check_toolchain() {
         note "skipped: could not read the pinned or the latest Rust version"
         return 0
     fi
-    # 1.93.0 is behind 1.99.1; compare as versions, not text
+    # 1.93.0 is behind 1.100.0; compare as versions, not text
     if [[ "$pinned" != "$latest" && "$(printf '%s\n%s\n' "$pinned" "$latest" | sort -V | tail -1)" == "$latest" ]]; then
         file "Weekly: ci.yml pins Rust $pinned, stable is $latest" \
             "The lint job of \`.github/workflows/ci.yml\` pins Rust $pinned; the stable release is $latest.

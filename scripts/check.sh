@@ -79,7 +79,7 @@ deps() {
     DEBIAN_FRONTEND=noninteractive step $sudo apt-get install -y -qq --no-install-recommends "${missing[@]}"
 }
 
-# The toolchain of the lint job ("dtolnay/rust-toolchain@1.99.1"), as `+1.99.1` if rustup has it.
+# The toolchain of the lint job ("dtolnay/rust-toolchain@1.100.0"), as `+1.100.0` if rustup has it.
 lint_toolchain() {
     local version
     version="$(grep -o 'rust-toolchain@[0-9][0-9.]*' "$ci" | head -1 | cut -d@ -f2)"
@@ -178,7 +178,7 @@ quick() {
     script_modes
     amp_notes
     tc="$(lint_toolchain)"
-    # $tc is `+1.99.1` or empty, so it stays unquoted
+    # $tc is `+1.100.0` or empty, so it stays unquoted
     # shellcheck disable=SC2086
     step cargo $tc fmt --all --check
     # shellcheck disable=SC2086
