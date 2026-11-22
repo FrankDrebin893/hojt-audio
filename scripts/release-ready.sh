@@ -5,7 +5,7 @@
 # Used by .github/workflows/release-ready.yml; the rules are in .claude/skills/release/RELEASING.md.
 set -euo pipefail
 
-body="$(cat "${1:-/dev/stdin}" | tr -d '\r')"
+if [ $# -gt 0 ]; then body="$(tr -d '\r' <"$1")"; else body="$(tr -d '\r')"; fi
 
 section="$(printf '%s\n' "$body" | awk '
   /^## / { on = ($0 ~ /^## Ready to ship[[:space:]]*$/); next }
