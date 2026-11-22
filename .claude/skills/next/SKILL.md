@@ -46,11 +46,11 @@ goes on to the next issue, with no further prompt, until the list is done. Words
      close a parent whose sub-issues are all closed, each with a one-line comment ending in the
      footer below. An open issue keeps its label, except the two leftovers below. Never add
      `state:approved`
-   - **Sweep, finished retro:** a retro issue (`from:retro`) is kept open on purpose, so it never closes with its pull
-     request, and its `state:*` label would make it buildable every night with nothing to build. An open `from:retro`
-     issue that has a merged pull request naming it (`Part of` or `Closes`) and no open one, or whose latest Progress
-     comment says there is nothing to build, has its `state:*` label taken off with a one-line comment ending in the
-     footer below. The issue stays open and keeps `from:retro`. Never add `state:approved` back, and never close it
+   - **Sweep, finished retro:** a retro issue (`from:retro`) whose proposals are all built would stay buildable every
+     night through its `state:*` label with nothing to build. An open `from:retro` issue that has a merged pull request
+     naming it (`Part of` or `Closes`) and no open one, or whose latest Progress comment says there is nothing to build,
+     is closed as completed with a comment naming the merged pull requests that did the work, ending in the footer
+     below. A retro with a proposal still unbuilt stays open. Never add `state:approved` back
    - **Sweep, finished explore:** an open `state:building` issue whose work is done is closed with
      a one-line comment, so what waits on it (`Waits for #<n>`) can start. That is (a) an explore
      issue the engineer has answered with a pick: first post a "Pick recorded" comment that says
@@ -202,7 +202,7 @@ What every sub-session is asked to do, for issue `<n>`:
    ask on the issue, report the question and stop; do not guess. When what is left waits on a
    person-only input (a pinned download, a Windows run), say so in the report with the question named: the
    orchestrator sets `needs:engineer`, so the issue is not picked again with nothing to build. When the spec turns out to be built already (a retro whose
-   proposals are on `main`), the Progress comment says "Next: nothing to build" so the sweep above takes the label off. If it turns out larger than
+   proposals are on `main`), the Progress comment says "Next: nothing to build" so the sweep above closes it. If it turns out larger than
    the spec said, or needs something only a person at the machine can do, say so on the issue
    and stop the same way. When a fetch gets a proxy 403 or "repository is not configured for this
    session", read `mcp__claude-code-remote__read_documentation` topic `environment.network` once, and
