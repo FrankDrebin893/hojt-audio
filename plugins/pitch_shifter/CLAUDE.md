@@ -25,9 +25,12 @@ Algorithm (the engine's module comment has it in full):
 4. Each tracked partial is fitted to the frame as a sinusoid, taken out, and put back at its
    shifted frequency. What is left (attacks, noise, bends, what the tracker has not caught yet)
    is cut into regions around its peaks and each region is moved as it is
-5. Each partial and region carries a rotation on from frame to frame, so the chunks join. The
+5. What is moved is scaled to the envelope where it lands (the frame's power smoothed over a third
+   of an octave), so the guitar's own tone (its pickup's treble, its body) stays where it is in Hz
+   while the notes move, as when the same notes are played there. The frame keeps its power
+6. Each partial and region carries a rotation on from frame to frame, so the chunks join. The
    newest chunk of the inverse transform is overlap-added to the output
-6. 0 semitones: the engine rests and the input passes through bit-exactly, 2 samples late
+7. 0 semitones: the engine rests and the input passes through bit-exactly, 2 samples late
 
 Each stereo channel has an engine of its own.
 
@@ -46,7 +49,7 @@ pedal does, at +-1 and +-2 semitones it can be heard as a short doubling. That i
 
 The delay is fixed by Max Latency and does not depend on the note. At the default it is 10.7 ms
 (48 kHz), where single strings come out about 45 dB clean and full chords 22 to 38 dB;
-5.3 ms costs single notes about 10 dB, and chords little. It costs 3 to 4 % of a core per channel
+5.3 ms costs single notes about 10 dB, and chords little. It costs 4 to 5 % of a core per channel
 at any setting, in a frame every 2.7 to 10.7 ms (about a tenth of a 64-sample block at 48 kHz).
 
 Why not the splicing shifter this replaced (variable-rate playback with waveform-matched splices,
@@ -68,6 +71,8 @@ Pitch shifter tests are in `crates/suite_common/src/dsp/pitch.rs` and cover:
   (`fading_artifact_ratio_db`, which lets every partial decay)
 - Latency: a note starts one latency late whatever its pitch, and the latency stays within the setting
 - Level of notes, chords and noise, stereo, no clicks under parameter changes, 96 and 192 kHz
+- The guitar's tone: a note through a pickup (a treble peak at 3 kHz) shifted -6, -4 and +5 against
+  the same guitar played there, partial by partial
 - Reset and silence
 
 Two ignored tests are tools for working on the sound:
@@ -96,6 +101,11 @@ cargo test -p amp --release render_pitch_rig -- --ignored
 # (the take played slower): tone, junk, shape, attack, level, lag. Run it on two checkouts with
 # the same output folder and two names to compare engines
 scripts/pitch-bench/run.sh <takes> <out> -4 15 <name>
+
+# The same against the take played slower with the guitar's tone put back where it was
+# (keep_tone.py): what the same notes played there sound like. Use it for the balance of low
+# and high, since the take played slower moves the tone with the notes. Its own output folder
+KEEP_TONE=1 scripts/pitch-bench/run.sh <takes> <out> -6 15 <name>
 ```
 
 `shape` is what decides how the pedal sounds in front of a drive or an amp: a clipper answers to

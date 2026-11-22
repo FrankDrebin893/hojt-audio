@@ -931,6 +931,74 @@ mod tests {
         }
     }
 
+    /// An electric guitar's note: a string's partials (1/n) through a pickup, whose treble
+    /// peak (3 kHz) and fall above it stay where they are in Hz whatever note is played
+    fn guitar_partials(note: f64) -> Vec<(f64, f64)> {
+        (1..)
+            .map(|n| (n as f64 * note, 1.0 / n as f64))
+            .take_while(|&(frequency, _)| frequency < 8000.0)
+            .map(|(frequency, level)| {
+                let x = frequency / 3000.0;
+                let pickup = 1.0 / ((1.0 - x * x).powi(2) + (x / 2.0).powi(2)).sqrt();
+                (frequency, level * pickup)
+            })
+            .collect()
+    }
+
+    fn generate_guitar_note(note: f64) -> Vec<f32> {
+        let partials = guitar_partials(note);
+        (0..NUM_SAMPLES)
+            .map(|i| {
+                let t = i as f64 / SAMPLE_RATE as f64;
+                let sum: f64 = partials
+                    .iter()
+                    .enumerate()
+                    .map(|(k, &(frequency, level))| {
+                        level * (2.0 * PI64 * frequency * t + k as f64).sin()
+                    })
+                    .sum();
+                (0.1 * sum) as f32
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_a_shifted_note_keeps_the_tone_of_the_guitar() {
+        // Against the same guitar played that much lower or higher: the note moves, the
+        // pickup's treble peak does not. Moving the whole spectrum with the note puts the
+        // partials over 2.5 kHz 5 to 9 dB off, 4 to 5 dB on average
+        let note = 196.0;
+        for semitones in [-6, -4, 5] {
+            let wanted_note = note * shift_ratio(semitones);
+            let wanted = generate_guitar_note(wanted_note);
+            let input = generate_guitar_note(note);
+            let output = process_buffer(&mut new_shifter(semitones), &input);
+            let errors: Vec<f64> = guitar_partials(wanted_note)
+                .iter()
+                .filter(|&&(frequency, _)| frequency < 5500.0)
+                .map(|&(frequency, _)| {
+                    level_at_db(&output[SETTLE..], SAMPLE_RATE, frequency)
+                        - level_at_db(&wanted[SETTLE..], SAMPLE_RATE, frequency)
+                })
+                .collect();
+            let mean = errors.iter().map(|error| error.abs()).sum::<f64>() / errors.len() as f64;
+            assert!(
+                mean < 2.5,
+                "Semitones={}: partials {:.1} dB off the guitar played there, on average",
+                semitones,
+                mean
+            );
+            // The balance changes, the level does not
+            let level = rms(&output[SETTLE..]) / rms(&input[SETTLE..]);
+            assert!(
+                (20.0 * level.log10()).abs() < 1.0,
+                "Semitones={}: level changed by {:.2} dB",
+                semitones,
+                20.0 * level.log10()
+            );
+        }
+    }
+
     /// First sample over a tenth of the signal's peak
     fn onset(signal: &[f32]) -> usize {
         let top = signal.iter().fold(0.0_f32, |top, sample| top.max(sample.abs()));

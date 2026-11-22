@@ -5,6 +5,15 @@ GitHub release.
 
 ## Unreleased
 
+### Pitch Shifter
+
+- A shifted note keeps the tone of your guitar. The shifter used to move the guitar's own sound (the
+  pickup's treble, the body) along with the notes, so six semitones down sounded duller, boomier and
+  weaker than the same notes played there: 5 to 8 dB less treble over 2 kHz and 2 to 3 dB more bass
+  under 300 Hz. Now the notes move and the tone stays, measured within about 1 dB of the same notes
+  played on the guitar, and it is the same for the pitch pedal in the Guitar Amp. Shifting up no
+  longer turns thin and fizzy for the same reason.
+
 ## 0.5.0
 
 ### Installer

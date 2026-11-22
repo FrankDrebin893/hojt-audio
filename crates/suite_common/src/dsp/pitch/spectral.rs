@@ -18,6 +18,13 @@
 //!    is cut into regions around its peaks and each region is moved as it is, by what its own
 //!    frequency or its track says
 //!
+//! Both parts keep the guitar's tone where it is. The frame's envelope (its power smoothed
+//! over about a third of an octave) is the tone: the pickup's treble, the body, what is the same
+//! in Hz whatever note is played. What is moved from one frequency to another is scaled by the
+//! envelope there over the envelope here, and the frame keeps its power. Without this six
+//! semitones down took the pickup's treble half an octave down with the notes: 5 to 8 dB less
+//! over 2 kHz and 2 to 3 dB more under 300 Hz than the same notes played there.
+//!
 //! Each track and each region carries a rotation that runs on from frame to frame, so a
 //! partial leaves one chunk in the phase the next one takes it up in. A track that does not
 //! fit the frame is left to the second part, which moves it by the same amount and rotation,
@@ -81,6 +88,21 @@ const LOBE_FLOOR: f32 = 0.000_316;
 
 /// Input below this for a whole frame is silence: the frame is not worked out
 const SILENCE: f32 = 1.0e-7;
+
+/// The envelope at a bin is the frame's power averaged over this share of its frequency to
+/// either side, and at least `ENVELOPE_LEAST` bins (235 Hz at 48 kHz): wide enough that the
+/// harmonics of the lowest string and their gaps average out, narrow enough to keep the
+/// guitar's own tone (its pickup's treble, its body), which is where it is in Hz whatever note
+/// is played
+const ENVELOPE_SHARE: f32 = 0.3;
+const ENVELOPE_LEAST: f32 = 20.0;
+
+/// How far the envelope goes towards the frame's each frame. Below 1 it is a mean over the
+/// last few frames, which keeps the beating of neighbouring partials out of the gains
+const ENVELOPE_FOLLOW: f32 = 0.5;
+
+/// Most a bin is raised or lowered by to keep the envelope (12 dB)
+const ENVELOPE_MOST: f32 = 4.0;
 
 /// Largest sample taken in (60 dB over full scale)
 const INPUT_MOST: f32 = 1000.0;
@@ -314,6 +336,17 @@ pub struct Engine {
     model: Vec<Complex32>,
     shifted: Vec<Complex32>,
     magnitude: Vec<f32>,
+    /// Running sum of the frame's power, then its smoothed power (the envelope)
+    summed: Vec<f64>,
+    envelope: Vec<f32>,
+    /// What keeps the envelope where it is, for what is moved from each bin
+    gain: Vec<f32>,
+    /// The gain of the region each bin is in (the gain at the region's frequency), and the
+    /// scale on every gain that keeps the frame's power
+    region_gain: Vec<f32>,
+    gain_scale: f32,
+    power_before: f64,
+    power_after: f64,
 
     // What each bin was moved by (in bins) and rotated by in the last frame, and in this one
     bin_shift: Vec<f32>,
@@ -349,6 +382,13 @@ impl Engine {
             model: vec![Complex32::ZERO; BINS],
             shifted: vec![Complex32::ZERO; BINS],
             magnitude: vec![0.0; BINS],
+            summed: vec![0.0; BINS + 1],
+            envelope: vec![0.0; BINS],
+            gain: vec![1.0; BINS],
+            region_gain: vec![1.0; BINS],
+            gain_scale: 1.0,
+            power_before: 0.0,
+            power_after: 0.0,
             bin_shift: vec![0.0; BINS],
             bin_turn: vec![0.0; BINS],
             next_shift: vec![0.0; BINS],
@@ -391,6 +431,10 @@ impl Engine {
         self.tracked_previous.fill(Complex32::ZERO);
         self.bin_shift.fill(0.0);
         self.bin_turn.fill(0.0);
+        self.envelope.fill(0.0);
+        self.power_before = 0.0;
+        self.power_after = 0.0;
+        self.gain_scale = 1.0;
         self.tracks.len = 0;
     }
 
@@ -422,6 +466,9 @@ impl Engine {
             &self.output,
             &self.time,
             &self.magnitude,
+            &self.envelope,
+            &self.gain,
+            &self.region_gain,
             &self.bin_shift,
             &self.bin_turn,
             &self.next_shift,
@@ -447,6 +494,7 @@ impl Engine {
             .iter()
             .map(|buffer| (buffer.as_ptr() as usize, buffer.capacity()))
             .chain(complexes.iter().map(|buffer| (buffer.as_ptr() as usize, buffer.capacity())))
+            .chain(std::iter::once((self.summed.as_ptr() as usize, self.summed.capacity())))
             .collect();
         all.sort_unstable();
         all
@@ -485,6 +533,8 @@ impl Engine {
             *magnitude = value.norm();
         }
 
+        self.envelope_gains();
+
         if self.since_track >= TRACK_HOP {
             self.track(oldest, self.since_track);
             self.since_track = 0;
@@ -499,6 +549,7 @@ impl Engine {
         }
 
         self.regions(hop);
+        self.keep_power();
         self.previous.copy_from_slice(&self.spectrum);
         let floor = LOBE_FLOOR * self.magnitude.iter().copied().fold(0.0, f32::max);
         self.fit(window, floor);
@@ -509,7 +560,8 @@ impl Engine {
             let amp = self.tracks.amp[j];
             let target = self.ratio * self.tracks.freq[j];
             if amp != Complex32::ZERO && target > 0.5 && target < BINS as f32 - 1.5 {
-                let amp = amp * turned(self.tracks.turn[j]);
+                let gain = self.gain_scale * self.gain_at(self.tracks.freq[j]);
+                let amp = amp * turned(self.tracks.turn[j]) * gain;
                 add_sinusoid(&mut self.shifted, window, amp, target, floor);
             }
         }
@@ -524,7 +576,7 @@ impl Engine {
                 turn = self.next_turn[bin];
                 rotation = turned(turn);
             }
-            let value = self.spectrum[bin] * rotation;
+            let value = self.spectrum[bin] * rotation * (self.gain_scale * self.region_gain[bin]);
             let target = bin as isize + whole as isize;
             for (target, weight) in [(target, 1.0 - frac), (target + 1, frac)] {
                 if target >= BINS as isize {
@@ -551,6 +603,71 @@ impl Engine {
             let j = (i + FRAME - chunk / 2) & (FRAME - 1);
             self.output[(self.output_pos + i) & OUTPUT_MASK] += self.time[j] * window.synthesis[i];
         }
+    }
+
+    /// The gain of what is moved from `freq` bins
+    #[inline]
+    fn gain_at(&self, freq: f32) -> f32 {
+        let index = (freq.max(0.0) as usize).min(BINS - 2);
+        let frac = (freq - index as f32).clamp(0.0, 1.0);
+        self.gain[index] * (1.0 - frac) + self.gain[index + 1] * frac
+    }
+
+    /// The frame's envelope (its power smoothed over a width that grows with frequency), and
+    /// for every bin the gain that brings what is moved from it to the envelope where it
+    /// lands: a note moves, the tone of the guitar stays. The gains are scaled so that the
+    /// frame keeps its power, so this changes the balance of low and high, not the level
+    fn envelope_gains(&mut self) {
+        self.summed[0] = 0.0;
+        for bin in 0..BINS {
+            self.summed[bin + 1] = self.summed[bin] + f64::from(self.magnitude[bin]).powi(2);
+        }
+        let mut top = 0.0_f32;
+        for bin in 0..BINS {
+            let half = (ENVELOPE_SHARE * bin as f32).max(ENVELOPE_LEAST) as usize;
+            let first = bin.saturating_sub(half);
+            let last = (bin + half + 1).min(BINS);
+            let power = ((self.summed[last] - self.summed[first]) / (last - first) as f64) as f32;
+            let power = self.envelope[bin] + ENVELOPE_FOLLOW * (power - self.envelope[bin]);
+            self.envelope[bin] = power;
+            top = top.max(power);
+        }
+        let floor = top * 1.0e-9 + f32::MIN_POSITIVE;
+        for bin in 0..BINS {
+            let target = self.ratio * bin as f32;
+            let gain = if target < (BINS - 1) as f32 {
+                let index = target as usize;
+                let frac = target - index as f32;
+                let there = self.envelope[index] * (1.0 - frac) + self.envelope[index + 1] * frac;
+                (there.max(floor) / self.envelope[bin].max(floor))
+                    .sqrt()
+                    .clamp(1.0 / ENVELOPE_MOST, ENVELOPE_MOST)
+            } else {
+                1.0
+            };
+            self.gain[bin] = gain;
+        }
+    }
+
+    /// The scale on every gain that keeps the frame's power as the regions move it. It
+    /// follows the frames' power over a few frames: neighbouring partials beat, and a scale
+    /// worked out anew each frame would beat with them
+    fn keep_power(&mut self) {
+        let mut before = 0.0_f64;
+        let mut after = 0.0_f64;
+        for (magnitude, gain) in self.magnitude.iter().zip(&self.region_gain) {
+            let power = f64::from(*magnitude).powi(2);
+            before += power;
+            after += power * f64::from(*gain).powi(2);
+        }
+        let follow = f64::from(ENVELOPE_FOLLOW);
+        self.power_before += follow * (before - self.power_before);
+        self.power_after += follow * (after - self.power_after);
+        self.gain_scale = if self.power_after > 0.0 {
+            (self.power_before / self.power_after).sqrt() as f32
+        } else {
+            1.0
+        };
     }
 
     /// Frequency of what is in a bin, in bins, from how far its phase has come since the
@@ -640,6 +757,7 @@ impl Engine {
         let mut peak = (0..BINS).find(|&bin| is_peak(bin));
         if peak.is_none() {
             // Nothing stands out: the frame moves as one, by what its bins would
+            self.region_gain.copy_from_slice(&self.gain);
             for bin in 0..BINS {
                 self.next_shift[bin] = (self.ratio - 1.0) * bin as f32;
                 self.next_turn[bin] = wrap(
@@ -682,6 +800,7 @@ impl Engine {
             }
             self.next_shift[start..end].fill(shift);
             self.next_turn[start..end].fill(turn);
+            self.region_gain[start..end].fill(self.gain[bin]);
             start = end;
             peak = next;
         }
