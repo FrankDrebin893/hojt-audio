@@ -9,6 +9,10 @@
 # name found there. One output folder per shift: a render's name does not say its semitones, so
 # a second shift in the same folder would be scored against the wrong truth. A name must not
 # start with "slow". A take's 24-bit WAV at 44.1 or 48 kHz is what a DAW records.
+#
+# KEEP_TONE=1 makes the truth the take played slower with the guitar's tone put back where it
+# was (keep_tone.py), which is what the same notes played there sound like: the one to judge the
+# balance of low and high by. Give it an output folder of its own.
 set -euo pipefail
 takes=$(realpath "$1"); out=$(realpath -m "$2"); semitones=${3:--4}; latency=${4:-15}; name=${5:-here}
 here=$(cd "$(dirname "$0")" && pwd); root=$(cd "$here/../.." && pwd)
@@ -31,6 +35,7 @@ x, rate = sf.read(sys.argv[1])
 ratio = 2 ** (float(sys.argv[3]) / 12)
 sf.write(sys.argv[2], signal.resample_poly(x, 100000, int(round(100000 * ratio))), rate, subtype="PCM_24")
 PY
+    if [ "${KEEP_TONE:-0}" = 1 ]; then python3 "$here/keep_tone.py" "$take" "$slow" "$slow"; fi
     rig "$slow" "$out/$base.slow$semitones.rig.wav" 0
   fi
   "$target/release/examples/pitch_render" "$take" "$out/$base.$name.wav" "$semitones" "$latency" 4
@@ -41,7 +46,11 @@ PY
     n=${f#"$out/$base."}; n=${n%.wav}
     case $n in slow*) ;; *.rig) rigs+=("${n%.rig}=$f") ;; *) renders+=("$n=$f") ;; esac
   done
-  python3 "$here/bench.py" "$take" "$semitones" "${renders[@]}"
+  if [ "${KEEP_TONE:-0}" = 1 ]; then
+    python3 "$here/bench.py" --rig "$slow" "$semitones" "${renders[@]}"
+  else
+    python3 "$here/bench.py" "$take" "$semitones" "${renders[@]}"
+  fi
   echo "== $base, $semitones semitones: through the rig"
   python3 "$here/bench.py" --rig "$out/$base.slow$semitones.rig.wav" "$semitones" "${rigs[@]}"
 done

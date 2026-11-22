@@ -155,8 +155,9 @@ one with `UPDATE_SNAPSHOTS=1` only after looking at it (`crates/suite_common/src
 
 The pitch shifter is scored on recorded playing with `scripts/pitch-bench/run.sh` (and its
 `bench.py`): every take of a folder, alone and through a driven rig, against the true shifted
-signal. Not part of CI; it needs python with numpy, scipy and soundfile. How to read its table:
-`plugins/pitch_shifter/CLAUDE.md`.
+signal. With `KEEP_TONE=1` the true signal keeps the guitar's tone where it was (`keep_tone.py`),
+which is the one to judge the balance of low and high by. Not part of CI; it needs python with numpy,
+scipy and soundfile. How to read its table: `plugins/pitch_shifter/CLAUDE.md`.
 
 ## Health
 
