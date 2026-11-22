@@ -1,37 +1,62 @@
 ---
 name: release
-description: Prepare a release of the HØJT DSP plugins; stops before the tag. Use when cutting a new plugin version (the piano viz has its own, /piano-release).
-argument-hint: <version, e.g. 0.4.0>
+description: Finish and ship a HØJT DSP release - take the draft release pull request through its readiness checklist yourself, then, on "ship it", merge and tag. Use when a release/<version> pull request exists, or when cutting a plugin version by hand (the piano viz has its own, /piano-release).
+argument-hint: <version, e.g. 0.5.0> [finish | ship]
 ---
 
 # /release
 
-Prepare release $ARGUMENTS by `.claude/skills/release/RELEASING.md`. Start from `main`, up to date, with a
-clean tree (if it is not, stop and say so), on a branch `release/$ARGUMENTS`: `main` is
-protected, so a release goes in through a pull request like any other change.
+A release has one path, and the weekly `/release-prep` starts it: a **draft** pull request
+`release/<version>` whose description has a section `## Ready to ship` (the checklist is in
+`RELEASING.md`, "Readiness"). This skill finishes that checklist and ships. `/release <version>`
+with no draft open prepares the pull request first, by `/release-prep` step 5 on with `force`.
 
-1. **What is in it.** The last tag: `git describe --tags --abbrev=0 --match 'v*'` (the piano viz's tags are `piano-v*`). The pull requests merged
-   since: `gh pr list --state merged --base main --search "merged:>=<date of that tag>" --json number,title,labels`.
-   Those with `kind:sound`, and those whose `sound.yml` comment shows a change, decide which
-   plugins' sound changed.
-2. **Version.** Set `version` in `[workspace.package]` of `Cargo.toml` to $ARGUMENTS and run
-   `cargo check --workspace` so `Cargo.lock` follows.
-3. **Changelog.** Turn `## Unreleased` into `## $ARGUMENTS`. Check it against the pull
-   requests: everything a player will notice is there, in the house voice (what is heard and
-   seen, no internals), grouped by plugin. Add what is missing; ask Rasmus if unsure.
-4. **No rendered sound examples.** The page has none (Rasmus, 2026-11-14: renders sound unnatural; a
-   demo project may supply some later), so `scripts/site-audio.sh` is not run. List the plugins
-   whose look changed, and new ones: `scripts/screenshots.ps1 <plugin>` retakes their screenshot in
-   `site/img/`; look at each.
-   Then `/page release $ARGUMENTS`: the page describes exactly this version.
-5. **Gates.** `scripts/check.sh` (every step of CI), and `cargo xtask bundle -p pitch_shifter
-   -p drums -p amp -p bass -p bells -p pad --release` followed by `cargo xtask check-art`: every
-   bundle carries its plugin's artwork. The Windows installer is built and tested by the same
-   workflow, so before the tag the `Release` workflow run on the release pull request (started by hand
-   if the pull request did not start it) must be green, its `Test the installer` step in the Windows job
-   included. The release then carries `HojtDSP-Setup.exe` and `SHA256SUMS.txt`, which the page links
-   (`scripts/page-check.sh links` knows both names).
-6. **Stop.** Show the changelog section, the changed sound examples and the commit you would
-   make. Only after Rasmus says yes in chat: commit, push the branch and open a pull request
-   with auto-merge. Once it has merged, tag the merge commit `v$ARGUMENTS` and push the tag.
-   Then the `Release` workflow checks the artwork and publishes; give him its run link.
+Run it in a thread whose computer is linked (Rasmus's PC, EldenDesktop; `list_devices` says),
+because the checklist needs Windows. Never ask Rasmus to take a screenshot, build a bundle or run
+a script: every box is done by this session, by a Remote Control session
+(`start_remote_control` on the PC's repository folder, with the exact commands), or by a CI run
+started with the GitHub tools (`actions_run_trigger`). What a session truly cannot do (a Mac, a
+listen) is not a box: it goes under `## Not checked` in the description, with a link, and does not
+hold the release.
+
+## finish (default)
+
+1. Read the pull request description and the branch. Say which boxes are open.
+2. Work the open boxes in the order of `RELEASING.md`, "Readiness". For each, do it and tick it
+   (edit the description) **with the evidence in the box**: the run link, or the image path.
+   - The `Release` workflow, started on `release/<version>`: wait with Monitor and an until-loop,
+     read the log when it fails, never `sleep`. `Test the installer` in the Windows job must be green
+   - Screenshots: a Remote Control session on the PC runs `scripts/screenshots.ps1 <plugin>` for
+     each plugin whose look changed or is new (the amp's window changes whenever an editor-wide
+     element does), commits the images to `release/<version>` and pushes. Then fetch them and **look
+     at each one** yourself (Read the image): the pedal is whole, nothing is cut, it shows what the
+     changelog says. A bad one is retaken, not ticked
+   - Bundles: `cargo xtask bundle <plugin> --release` and `cargo xtask check-art` on the PC
+   - Real-machine lines that the PC can answer (the standalones from the installer, 44.1 kHz and 48
+     kHz playback, a preset name with a space): run them in the same session, tick them on the
+     standing issue "Checks on a real machine" too
+   - A doubt the prep run left: read the code or the page and settle it, say how
+3. Fix what a box finds on the release branch (a commit, `scripts/check.sh quick`), and redo the
+   boxes it touches.
+4. When every box under `## Ready to ship` is ticked, `Release ready` is green: mark the pull
+   request **ready for review**, and send Rasmus one line: the version, what is in it in two
+   sentences, the link, and "say ship it and I merge and tag". Nothing else is asked of him.
+
+## ship
+
+Only after Rasmus says "ship it" (or merges the pull request himself) in the thread or chat:
+that one sentence covers the merge and the tag, nothing else does.
+
+1. Check `Release ready` is green and the draft flag is off. If a box opened since, go back to finish
+2. Merge the pull request (squash, as the repository does it; auto-merge stays off until then)
+3. Tag the merge commit `v<version>` and push the tag. The cloud cannot push tags (the proxy
+   refuses), so a Remote Control session on the PC does it: `git fetch origin main`,
+   `git tag v<version> <merge commit>`, `git push origin v<version>`. Verify with the GitHub tools
+   that the tag exists on that commit
+4. `release.yml` builds and publishes: give Rasmus its run link, then watch it to the end and
+   report the release page link, or the failing step
+5. Tick `## After the merge` in the description, and close the loop: the version's `## Unreleased`
+   is already empty above it, and the page was updated by the release commit
+
+Never merge, tag or take a pull request out of draft on a release that has an open box, a failing
+`Release ready` or no "ship it". Never tick a box that was not done in this release.

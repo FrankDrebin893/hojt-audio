@@ -52,6 +52,7 @@ What each file of `.github/workflows/` does (`CLAUDE.md` names the ones a rule d
 - `health.yml` - the weekly health numbers (Health below; the routines' timetable is `docs/agents/automation.md`)
 - `approve-specs.yml` - the approval list
 - `needs-owner.yml` - clears `needs:engineer` when he answers
+- `release-ready.yml` - the check `Release ready` on a `release/*` pull request: fails while a box under "## Ready to ship" is open (`scripts/release-ready.sh`; `.claude/skills/release/RELEASING.md`, Readiness)
 - `board-sync.yml` - the board's State follows the label
 
 `.github/ISSUE_TEMPLATE/` and `pull_request_template.md` say what an issue and a pull request ask for.

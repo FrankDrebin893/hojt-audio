@@ -8,12 +8,32 @@ Run by `/release`. In short: the version is set in `Cargo.toml`, the changelog g
 page is brought up to the release with `/page release <version>`, and the release goes in through a
 `release/<version>` pull request, then a tag `v<version>`, which `release.yml` builds and publishes. The page's sound
 and look (`site/audio/`, `site/img/`) change only in a release commit. The weekly `/release-prep` prepares that pull
-request when a release is due, with auto-merge off; merging it and tagging stay with Rasmus. `/release-review` looks at
+request when a release is due, as a draft with auto-merge off; `/release` finishes it and, on Rasmus's "ship it", merges and tags (see "Readiness"). `/release-review` looks at
 each release 7 and 28 days after it (`docs/agents/automation.md`).
 
 The piano viz releases on its own, with `/piano-release`: a tag `piano-v<version>` on `main`, which `piano.yml` builds
 and publishes. Its releases are never marked latest, since the plugins' page links their zips through
 `releases/latest/download/`, and `scripts/health.sh` counts only the `v*` releases.
+
+## Readiness
+
+A release pull request is a draft until its description's `## Ready to ship` has every box ticked, each
+with its proof, and the `Release ready` check (`scripts/release-ready.sh`) is green. Nobody but the person who
+did a box ticks it. The boxes, in order; `/release-prep` writes them and `/release` finishes them, every one by
+an agent (the cloud, or a Remote Control session on Rasmus's PC), none left for Rasmus:
+
+- [ ] `scripts/check.sh` passes, and `scripts/page-check.sh links` holds
+- [ ] The changelog section matches the pull requests merged since the last tag (grouped by plugin, house voice)
+- [ ] The `Release` workflow run on `release/<version>` is green, `Test the installer` included (run link)
+- [ ] A screenshot of each plugin whose look changed or is new, taken with `scripts/screenshots.ps1` on the PC,
+  committed to the branch and looked at (image paths, and what was seen)
+- [ ] The bundles built on Windows and `cargo xtask check-art` passes
+- [ ] The real-machine lines a PC can answer, run (also ticked on the issue "Checks on a real machine")
+- [ ] Every doubt the prep run listed is settled, and how
+
+Then **one gate**: Rasmus says "ship it", which covers the merge and the tag. Under `## After the merge` stands the
+tag (a Remote Control session on the PC pushes it; the cloud cannot) and the check that `release.yml` published.
+What no session can do (a Mac, a listen) goes under `## Not checked`, with a link and no box, and never holds a release.
 
 1. Set the version in `Cargo.toml` (`[workspace.package]`) and run `cargo check --workspace` so
    `Cargo.lock` follows

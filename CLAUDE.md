@@ -234,8 +234,9 @@ open issue titled `Pause automation` exists. Their timetable and limits, the boa
 
 Run by `/release`; the steps, the rules of the page and the piano viz's own release are in
 `.claude/skills/release/RELEASING.md`. A release goes in through a `release/<version>` pull request, then a tag `v<version>`,
-which `release.yml` builds and publishes; the weekly `/release-prep` prepares that pull request, and merging it and tagging stay
-with Rasmus. The page's sound and look (`site/audio/`, `site/img/`) change only in a release commit.
+which `release.yml` builds and publishes; the weekly `/release-prep` opens that pull request as a draft, `/release` finishes its
+readiness checklist itself (screenshots, bundles and checks on the PC through Remote Control: never ask Rasmus to take them),
+and merging and tagging happen only after Rasmus says "ship it". A release pull request with an open box is never merged. The page's sound and look (`site/audio/`, `site/img/`) change only in a release commit.
 
 ## Plugins
 
