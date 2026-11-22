@@ -25,8 +25,8 @@ Algorithm (the engine's module comment has it in full):
 4. Each tracked partial is fitted to the frame as a sinusoid, taken out, and put back at its
    shifted frequency. What is left (attacks, noise, bends, what the tracker has not caught yet)
    is cut into regions around its peaks and each region is moved as it is
-5. What is moved is scaled to the envelope where it lands (the frame's power smoothed over a third
-   of an octave), so the guitar's own tone (its pickup's treble, its body) stays where it is in Hz
+5. What is moved is scaled to the envelope where it lands (the frame's power smoothed over 30 % of
+   the frequency to either side), so the guitar's own tone (its pickup's treble, its body) stays where it is in Hz
    while the notes move, as when the same notes are played there. The frame keeps its power
 6. Each partial and region carries a rotation on from frame to frame, so the chunks join. The
    newest chunk of the inverse transform is overlap-added to the output
@@ -48,7 +48,7 @@ The shifted part trails the dry one by the latency: at octaves and fifths that i
 pedal does, at +-1 and +-2 semitones it can be heard as a short doubling. That is left as it is.
 
 The delay is fixed by Max Latency and does not depend on the note. At the default it is 10.7 ms
-(48 kHz), where single strings come out about 45 dB clean and full chords 22 to 38 dB;
+(48 kHz), where single strings come out about 45 dB clean and full chords 19 to 37 dB;
 5.3 ms costs single notes about 10 dB, and chords little. It costs 4 to 5 % of a core per channel
 at any setting, in a frame every 2.7 to 10.7 ms (about a tenth of a 64-sample block at 48 kHz).
 

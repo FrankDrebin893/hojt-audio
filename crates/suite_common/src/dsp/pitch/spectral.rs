@@ -19,11 +19,11 @@
 //!    frequency or its track says
 //!
 //! Both parts keep the guitar's tone where it is. The frame's envelope (its power smoothed
-//! over about a third of an octave) is the tone: the pickup's treble, the body, what is the same
+//! over 30 % of the frequency to either side, just under an octave in all) is the tone: the pickup's treble, the body, what is the same
 //! in Hz whatever note is played. What is moved from one frequency to another is scaled by the
 //! envelope there over the envelope here, and the frame keeps its power. Without this six
-//! semitones down took the pickup's treble half an octave down with the notes: 5 to 8 dB less
-//! over 2 kHz and 2 to 3 dB more under 300 Hz than the same notes played there.
+//! semitones down took the pickup's treble half an octave down with the notes: against the
+//! same notes played there, 4 to 6 dB less from 1 to 6 kHz and about 4 dB more under 200 Hz.
 //!
 //! Each track and each region carries a rotation that runs on from frame to frame, so a
 //! partial leaves one chunk in the phase the next one takes it up in. A track that does not
@@ -101,7 +101,8 @@ const ENVELOPE_LEAST: f32 = 20.0;
 /// last few frames, which keeps the beating of neighbouring partials out of the gains
 const ENVELOPE_FOLLOW: f32 = 0.5;
 
-/// Most a bin is raised or lowered by to keep the envelope (12 dB)
+/// Most a bin is raised or lowered by to keep the envelope (12 dB), before the scale that keeps
+/// the frame's power
 const ENVELOPE_MOST: f32 = 4.0;
 
 /// Largest sample taken in (60 dB over full scale)
