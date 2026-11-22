@@ -100,3 +100,51 @@ fn test_the_release_skills_never_tag_or_approve_and_can_be_paused() {
         "/release-review must not read trends from tiny numbers"
     );
 }
+
+/// Runs `scripts/release-ready.sh` on a pull request description: Some(passed), or None where
+/// `bash` is missing
+fn release_ready(body: &str) -> Option<bool> {
+    use std::io::Write;
+    use std::process::Stdio;
+    let bash = bash()?;
+    if Command::new(&bash).arg("--version").output().is_err() {
+        return None;
+    }
+    let mut child = Command::new(&bash)
+        .arg(root().join("scripts/release-ready.sh"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    child.stdin.take().unwrap().write_all(body.as_bytes()).unwrap();
+    Some(child.wait().unwrap().success())
+}
+
+#[test]
+fn test_a_release_is_ready_only_when_every_box_before_the_merge_is_ticked() {
+    let Some(done) =
+        release_ready("## Ready to ship\n- [x] a\n- [X] b\n## After the merge\n- [ ] tag\n")
+    else {
+        return;
+    };
+    assert!(done, "all boxes ticked, only the tag open after the merge: ready");
+    let open = "## Ready to ship\n- [x] a\n  - [ ] screenshots\n";
+    assert_eq!(release_ready(open), Some(false), "an open box (even nested) is not ready");
+    assert_eq!(release_ready("Closes #\n- [x] x\n"), Some(false), "no section is not ready");
+    assert_eq!(release_ready("## Ready to ship\nno boxes\n"), Some(false));
+    assert_eq!(release_ready("## Ready to ship\r\n- [x] a\r\n"), Some(true), "CRLF is fine");
+}
+
+#[test]
+fn test_the_release_flow_has_a_draft_a_gate_and_a_finishing_step() {
+    let prep = read(".claude/skills/release-prep/SKILL.md");
+    assert!(prep.contains("draft"), "/release-prep must open the pull request as a draft");
+    assert!(prep.contains("## Ready to ship"), "/release-prep must write the readiness section");
+    let release = read(".claude/skills/release/SKILL.md");
+    for needle in ["finish", "ship it", "Remote Control", "Never ask Rasmus to take a screenshot"] {
+        assert!(release.contains(needle), "/release lacks {needle}");
+    }
+    let wf = read(".github/workflows/release-ready.yml");
+    assert!(wf.contains("name: Release ready") && wf.contains("release-ready.sh"));
+}

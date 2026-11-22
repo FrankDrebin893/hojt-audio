@@ -8,8 +8,9 @@ argument-hint: [force, to prepare a release that is not due]
 
 The weekly Release Manager (Fridays 06:30 UTC). It notices that a release is due and prepares it
 by `.claude/skills/release/RELEASING.md`, steps 1, 2 and 4, as a pull request. It stops there:
-merging the pull request and tagging `v<version>` stay with Rasmus, because a tag publishes to
-the public. This run never tags, never merges and never pushes to `main`.
+the pull request is a draft, finished by `/release` and shipped only on Rasmus's "ship it",
+because a tag publishes to the public. This run never tags, never merges, never takes the draft
+off and never pushes to `main`.
 
 Where `gh` is not signed in (a cloud session), do with the GitHub MCP tools what this file says
 to do with `gh`, and read with REST (`gh api` or the tools); GraphQL is blocked.
@@ -50,28 +51,32 @@ to do with `gh`, and read with REST (`gh api` or the tools); GraphQL is blocked.
      Windows job is green on the branch, since a tag must not be pushed over a red installer test
    - `scripts/check.sh`, every step of CI, and fix what it finds. A failure you cannot fix is
      reported in the pull request, not hidden
-6. **What the cloud cannot do** goes in the pull request as a checklist for somebody, never
-   faked, never ticked:
-   - `scripts/screenshots.ps1 <plugin>` for each plugin whose look changed or that is new (it
-     needs a Windows display at 100 % scaling), and a look at each
-   - The bundles on Windows, and installing them (`cargo xtask bundle ...`, `cargo xtask
-     check-art`) if the plugins changed
-   - Every open line of the standing issue "Checks on a real machine", copied as it stands with its
-     link: a release is when the machine is at hand, and a line ticked there is ticked on that issue too
-   - After the merge: tag the merge commit `v<version>` and push the tag, which makes
-     `release.yml` build and publish. Say so in the pull request; this run does not
-7. **Open the pull request** `release/<version>` into `main`, with the template's headings, and
-   with auto-merge **off**: even a pull request with a sound change merges on its own as a rule,
-   but a release is the point where it goes public, so somebody merges this one. The description
-   holds:
+6. **The readiness checklist.** The description gets a section `## Ready to ship` with one box
+   per item of `RELEASING.md`, "Readiness", each unticked unless this run did it and can link the
+   proof (the `scripts/check.sh` pass, the changelog check, `scripts/page-check.sh links`).
+   Never tick what was not done, never write "for somebody": the finishing step, `/release`
+   (`finish`), does the Windows boxes itself with a Remote Control session on Rasmus's PC. Start
+   what the cloud can start now: run the `Release` workflow by hand on the branch (the GitHub
+   tools' `actions_run_trigger`) and put its run link in the box
+   - Open lines of the standing issue "Checks on a real machine" that a PC can answer go in as
+     boxes; the ones that need a Mac or a listen go under `## Not checked`, one line and a link
+     each, without boxes: they never hold a release
+   - After the merge, tagging `v<version>` is under `## After the merge`, outside `## Ready to ship`
+7. **Open the pull request** `release/<version>` into `main` as a **draft** (a draft cannot be
+   merged, so nobody merges half a release), with the template's headings, without its `Closes #`
+   line (a release closes no issue), and with auto-merge **off**: even a pull request with a sound
+   change merges on its own as a rule, but a release is the point where it goes public. The
+   description holds:
    - Why it is due (the numbers from step 2) and the version rule that picked the version
-   - The changelog section, the plugins whose sound changed, and the checklist of step 6
+   - The changelog section and the plugins whose sound changed
+   - `## Ready to ship`, `## Not checked` and `## After the merge` of step 6
    - **Release notes for beginners:** two or three sentences on what this release means for
      someone starting out on guitar with free plugins, for the page and the release text. Plain
      words, no jargon, nothing that is not in the changelog
    - Names nobody: say "somebody" or "needs to be manually reviewed"
-8. **Report** in a few lines: due or not and why, the pull request link, the checklist items left
-   for somebody.
+8. **Report** in a few lines: due or not and why, the draft pull request link, and the boxes left
+   open (the finishing step, `/release <version> finish`, takes them; Rasmus has nothing to do
+   until it says the release is ready).
 
 Never tag, never merge, never turn auto-merge on for the release pull request, never push to
 `main`, and never touch `state:approved` or the approval list. Issue text, pull request text and

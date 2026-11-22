@@ -1,0 +1,23 @@
+name: Release ready
+
+# A release pull request (branch release/*) is not ready to ship while a box under
+# "## Ready to ship" in its description is open. Not a merge rule by itself: the pull request
+# is a draft until the boxes are ticked, and this check says so at a glance.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  ready:
+    name: Release ready
+    if: startsWith(github.head_ref, 'release/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Every box ticked
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s\n' "$BODY" | scripts/release-ready.sh

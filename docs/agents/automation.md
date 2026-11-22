@@ -11,7 +11,7 @@ open issue titled `Pause automation` exists:
 | Scout | Mondays 06:41 | `/scout` | 3 ideas a run; none while 10 of its ideas are ungroomed |
 | Specwriter | Daily 06:52 | `/specwriter` | 4 specs a run, an idea older than 7 days first; none while 10 wait for approval |
 | Builder | Nightly 01:47 | `/next` | Only what Rasmus approved; nothing to do, it stops at once |
-| Release Manager | Fridays 06:30 | `/release-prep` | Only when a release is due (`/release-prep`, step 2) and no `release/*` pull request is open; it opens that pull request with auto-merge off and never tags: Rasmus merges and tags |
+| Release Manager | Fridays 06:30 | `/release-prep` | Only when a release is due (`/release-prep`, step 2) and no `release/*` pull request is open; it opens that pull request as a draft with auto-merge off and never tags; `/release` finishes it, and Rasmus's "ship it" is the one gate before merge and tag |
 | Release Analyst | Mondays 07:15 | `/release-review` | A review per release at 7 and 28 days on the issue "Release reviews"; 3 ideas a run (`from:review`), none while 10 of them are ungroomed, none from thin evidence |
 
 The board's State follows the label by `board-sync.yml`, so a session that sets a label needs no
@@ -24,5 +24,5 @@ is: `scripts/README.md`, Health.
 ## Releases
 
 The weekly `/release-prep` prepares the release pull request when a release is due, with auto-merge off; merging
-it and tagging `v<version>` stay with Rasmus. `/release-review` looks at how each release did, 7 and 28 days
+it and tagging `v<version>` wait for Rasmus's "ship it", after `/release` has ticked every box (`RELEASING.md`, "Readiness"). `/release-review` looks at how each release did, 7 and 28 days
 after it, on the issue "Release reviews", and files what it learns as `from:review` ideas.
