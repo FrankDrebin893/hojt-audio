@@ -26,7 +26,7 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   has). The test tone is live, not part of Apply: `Host::set_test_tone` ->
   `nih_standalone_set_test_tone` (the fork's host puts a 440 Hz sine, 0.1 of full scale, over the
   main output) and `AudioChoice::close` turns it off. ASIO is the cargo feature `asio`
-  (`amp/asio` -> `nih_plug/asio` -> cpal's): Windows only, and the Steinberg ASIO SDK has to be
+  (the feature `asio` of `amp` turns on nih-plug's `asio`, which turns on cpal's): Windows only, and the Steinberg ASIO SDK has to be
   at `CPAL_ASIO_DIR` at build time. The SDK (2.3.4, GPLv3 alternative of its dual licence, host side
   only) is vendored in `third_party/asiosdk`: `scripts/build-standalones.sh` builds the six
   standalones the installer ships with it on Windows (feature `asio` on each plugin, set by the
