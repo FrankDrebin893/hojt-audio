@@ -348,6 +348,56 @@ pub(crate) fn is_slim(kind: EffectKind) -> bool {
     )
 }
 
+/// The pedal of `kind` as a picture, for a miniature (`ui::miniature`): its paint, art and
+/// title, the LED, its knobs at the middle of their travel and the footswitch, drawn as the
+/// pedal in the line draws them and answering nothing. Left off, as nothing of it reads at half
+/// size: the knobs' captions and value tapes, the Delay's Sync, the Wah's rocker and Auto
+/// button (the rocker's slot is drawn bare). `rect` is the pedal's full size; `lit` is its LED
+pub(crate) fn paint_miniature(ui: &Ui, rect: Rect, kind: EffectKind, lit: bool) -> Rect {
+    let face = ui::mini_pedal(ui, rect, &kind_look(kind));
+    let (painter, top) = (ui.painter(), face.center_top());
+    let (radius, led) = match kind {
+        EffectKind::Pitch => (TRIO_RADIUS, PEDAL_LED),
+        EffectKind::Eq => (QUAD_RADIUS, PEDAL_LED),
+        EffectKind::Wah => (WAH_KNOB_RADIUS, WAH_LED),
+        _ if is_slim(kind) => (SLIM_KNOB_RADIUS, SLIM_LED),
+        EffectKind::Drive | EffectKind::Delay => (TRIO_RADIUS, PEDAL_LED),
+        _ => (PAIR_RADIUS, PEDAL_LED),
+    };
+    let knobs: &[Vec2] = match kind {
+        EffectKind::Pitch | EffectKind::Drive | EffectKind::Delay => &TRIO_KNOBS,
+        EffectKind::Eq => &QUAD_KNOBS,
+        EffectKind::Wah => &WAH_KNOBS,
+        _ if is_slim(kind) => &SLIM_KNOBS,
+        _ => &PAIR_KNOBS,
+    };
+    if kind == EffectKind::Wah {
+        let slot =
+            Rect::from_min_size(top + ROCKER_TOP - vec2(7.0, 0.0), vec2(14.0, ROCKER_LENGTH));
+        painter.rect_filled(slot, 6.0, Color32::from_black_alpha(190));
+        painter.rect_filled(
+            Rect::from_center_size(slot.center(), vec2(34.0, 26.0)),
+            5.0,
+            theme::CHROME_LIGHT,
+        );
+    }
+    for &offset in knobs {
+        ui::widgets::knob_with(
+            painter,
+            top + offset,
+            radius,
+            0.5,
+            None,
+            ui::KnobCap::Fluted,
+            theme::SILK,
+        );
+    }
+    rig_led(painter, top + led, lit);
+    let switch = if is_slim(kind) { SLIM_SWITCH } else { PEDAL_SWITCH };
+    ui::paint_small_footswitch(painter, top + switch);
+    face
+}
+
 /// What the blocks of the line are drawn from
 pub(crate) struct Pedals<'a> {
     params: &'a GuitarAmpParams,

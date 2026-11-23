@@ -196,6 +196,12 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   the standalone program the machine's audio with Apply and Cancel: the audio's choice opens with
   the plate and is let go when it closes). Icons are `ui::icon_switch`: a drawing, and where the
   thing can be on or off a lamp and a chrome switch; the tuner's is its switch
+- **The effects bank's cards are miniature pedals** (#445): one row of twelve, each card a plate
+  round the real pedal at half size (`editor::paint_miniature` in `ui::miniature`: paint, art, title,
+  LED, knobs at mid travel and footswitch; no captions or value tapes, no Sync, no Auto, the Wah's
+  rocker a bare slot) with the count under it; a pedal not in the chain is dimmed. `SHEET_HEIGHT` is
+  250, which leaves the tops of the pedals and the gaps' plus in view above it. The ghost under a
+  dragged card is the same miniature
 - **Typed text** is taken in two places only: the name of a new preset bank, on its row of the
   preset plate, and the name of a new preset, on the plate's foot after Save
   (`type_on_tape`, 24 letters, the last 15 shown). Both are `type_into`: the letters on the tape or display with a `_` after them,

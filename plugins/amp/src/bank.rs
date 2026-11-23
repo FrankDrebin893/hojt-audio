@@ -22,17 +22,23 @@ use crate::editor::{kind_look, Pedals};
 use crate::order::Zone;
 use crate::slots::{Chain, EffectKind, MAX_SLOTS};
 
-/// How tall the sheet stands once it has risen: the title row, two rows of cards and the margins
-pub(crate) const SHEET_HEIGHT: f32 = 196.0;
+/// How tall the sheet stands once it has risen: the title row, one row of cards (miniature
+/// pedals with their counts under them) and the margins. It leaves the top of the pedals and the
+/// gaps with their plus in view above it, so a card can be dragged into a gap
+pub(crate) const SHEET_HEIGHT: f32 = 250.0;
 /// How long it takes to rise, in seconds
 const RISE_S: f64 = 0.2;
 /// The space between the sheet's edge and the window's
 const INSET: f32 = 20.0;
 const PAD: f32 = 22.0;
-const COLUMNS: usize = 6;
-const CARD_GAP: f32 = 8.0;
-const CARD_HEIGHT: f32 = 64.0;
-const CARDS_TOP: f32 = 52.0;
+/// A card: a plate round a miniature pedal at half size, and its count under it
+const CARD_WIDTH: f32 = 106.0;
+const CARD_HEIGHT: f32 = 194.0;
+const CARD_GAP: f32 = 10.0;
+const CARDS_TOP: f32 = 46.0;
+/// The miniature pedal on a card: the full pedal at half its size
+const MINI_SCALE: f32 = 0.5;
+const MINI_TOP: f32 = 8.0;
 const TITLE_SIZE: f32 = 22.0;
 const NOTE_SIZE: f32 = 15.0;
 const CLOSE_SIZE: (f32, f32) = (108.0, 30.0);
@@ -44,17 +50,21 @@ const GHOST_LIFT: f32 = 90.0;
 /// a pedal, in the order of the table's lines (`effects.rs`)
 pub(crate) use crate::effects::CARDS;
 
-/// Where card number `index` of `CARDS` stands on a sheet filling `sheet`: two rows of six
+/// Where card number `index` of `CARDS` stands on a sheet filling `sheet`: one row of twelve
 pub(crate) fn card_rect(sheet: Rect, index: usize) -> Rect {
-    let width = (sheet.width() - 2.0 * PAD - (COLUMNS - 1) as f32 * CARD_GAP) / COLUMNS as f32;
-    let (column, line) = (index % COLUMNS, index / COLUMNS);
     Rect::from_min_size(
         Pos2::new(
-            sheet.left() + PAD + column as f32 * (width + CARD_GAP),
-            sheet.top() + CARDS_TOP + line as f32 * (CARD_HEIGHT + CARD_GAP),
+            sheet.left() + PAD + index as f32 * (CARD_WIDTH + CARD_GAP),
+            sheet.top() + CARDS_TOP,
         ),
-        vec2(width, CARD_HEIGHT),
+        vec2(CARD_WIDTH, CARD_HEIGHT),
     )
+}
+
+/// Where the miniature pedal stands on `card`
+pub(crate) fn mini_rect(card: Rect) -> Rect {
+    let size = vec2(crate::editor::PEDAL_WIDTH, crate::editor::PEDAL_HEIGHT) * MINI_SCALE;
+    Rect::from_min_size(Pos2::new(card.center().x - size.x / 2.0, card.top() + MINI_TOP), size)
 }
 
 /// The sheet's Close button
@@ -275,17 +285,10 @@ pub(crate) fn show(
 
     // The card that follows the pointer, above everything
     if let Some(drag) = sheet.drag.filter(|_| action.is_none()) {
-        let size = vec2(crate::editor::PEDAL_WIDTH - 20.0, 100.0);
+        let size = vec2(crate::editor::PEDAL_WIDTH, crate::editor::PEDAL_HEIGHT) * MINI_SCALE;
         // Held above the pointer, so that the place it opens in the line stays in view
         let at = window + drag.pointer.to_vec2() - vec2(0.0, GHOST_LIFT);
-        ui::floating(ui, Rect::from_center_size(at, size), "bank-ghost", |ui, rect| {
-            ui.painter().rect_filled(
-                rect.translate(vec2(0.0, 8.0)).expand(3.0),
-                9.0,
-                theme::SHADOW,
-            );
-            paint_ghost(ui, rect, drag.kind);
-        });
+        paint_miniature(ui, Rect::from_center_size(at, size), "bank-ghost", drag.kind, true, 0.0);
     }
 
     let mut edited = false;
@@ -335,20 +338,25 @@ pub(crate) fn show(
     }
 }
 
-/// The card as it is carried over the line: the effect's paint and name, small enough to leave the
-/// place it will land in in view
-fn paint_ghost(ui: &Ui, rect: Rect, kind: EffectKind) {
-    let painter = ui.painter();
-    let style = kind_look(kind);
-    let radius = CornerRadius::same(7);
-    painter.rect_filled(rect, radius, card_ground(kind));
-    painter.rect_stroke(
-        rect,
-        radius,
-        Stroke::new(3.0_f32, theme::blend(style.paint, theme::SILK, 0.8)),
-        StrokeKind::Inside,
-    );
-    ui::center_label(painter, rect.center(), style.title, 24.0, theme::SILK);
+/// The pedal of `kind` as a miniature filling `rect` (the window's points): the pedal itself, in
+/// its paint, art and title, with its LED, knobs and switch, half size or whatever `rect` is.
+/// `dim` (0 to 1) lays the sheet's metal over it
+fn paint_miniature(
+    ui: &Ui,
+    rect: Rect,
+    id: impl std::hash::Hash,
+    kind: EffectKind,
+    lit: bool,
+    dim: f32,
+) {
+    let full = vec2(crate::editor::PEDAL_WIDTH, crate::editor::PEDAL_HEIGHT);
+    ui::miniature(ui, rect, full, id, |ui, face| {
+        ui.painter().rect_filled(face.translate(vec2(0.0, 14.0)).expand(5.0), 14.0, theme::SHADOW);
+        crate::editor::paint_miniature(ui, face, kind, lit);
+        if dim > 0.0 {
+            ui.painter().rect_filled(face, 14.0, theme::PANEL.gamma_multiply(dim));
+        }
+    });
 }
 
 /// The ground of a card: the effect's paint taken toward the sheet's metal, so the cream print on
@@ -384,22 +392,23 @@ fn paint_card(
         StrokeKind::Inside,
     );
 
-    ui::center_label(
-        painter,
-        Pos2::new(rect.center().x, rect.top() + 22.0),
-        style.title,
-        TITLE_SIZE + 2.0,
-        theme::SILK,
-    );
+    let dim = if dead || carried {
+        0.6
+    } else if in_chain == 0 {
+        0.35
+    } else {
+        0.0
+    };
+    paint_miniature(ui, mini_rect(rect), ("bank-card", kind.id()), kind, in_chain > 0, dim);
     let status = match in_chain {
         0 => "Not in chain".to_owned(),
         n => format!("In chain ×{n}"),
     };
     ui::center_label(
         painter,
-        Pos2::new(rect.center().x, rect.bottom() - 16.0),
+        Pos2::new(rect.center().x, rect.bottom() - 15.0),
         &status,
-        15.0,
+        13.0,
         theme::SILK,
     );
 }

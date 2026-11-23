@@ -103,7 +103,9 @@ controls, portrait) or `plugins/drums/src/editor.rs` (many controls, landscape) 
   under it (`ui::plate`, `ui::icon_switch`), or a sheet that rises from below (the amp's effects
   bank, `ui::sheet`: a handle on its top edge, closing on a click outside, escape or its handle, with
   `ui::plus_button` in a gap of the line that opens it, `ui::cross_button` on a block that takes it out
-  and `ui::dashed_frame` for the place a dragged card will land in; the amp's `bank.rs`). No other pop-ups, no menus or dropdowns, no widgets of egui's own. A
+  and `ui::dashed_frame` for the place a dragged card will land in; the amp's `bank.rs`; its cards
+  are miniatures of the real pedals, painted at full size into `ui::miniature`'s scaled layer, which
+  answers no clicks, with their captions and value tapes left off). No other pop-ups, no menus or dropdowns, no widgets of egui's own. A
   plate keeps the amp's plate look: a dark plate with a chrome edge, label-tape rows, steppers
   and lit lamps. One is open at a time; it closes on a click outside it, on escape, or on its
   icon

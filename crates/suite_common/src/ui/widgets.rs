@@ -1361,6 +1361,12 @@ pub fn small_footswitch(ui: &mut Ui, center: Pos2, id_source: &str) -> Response 
     stomp_switch(ui, center, id_source, SMALL_FOOTSWITCH_SIZE)
 }
 
+/// The small stomp switch of a head or a mini pedal, only painted: it answers nothing. For a
+/// miniature of a pedal (`miniature`)
+pub fn paint_small_footswitch(painter: &Painter, center: Pos2) {
+    super::hardware::paint_stomp(painter, center, SMALL_FOOTSWITCH_SIZE / FOOTSWITCH_SIZE, false);
+}
+
 /// Small stomp switch with its LED, bound to an on/off parameter: lit while it is on, a click toggles it
 pub fn param_switch(
     ui: &mut Ui,
