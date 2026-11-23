@@ -493,6 +493,22 @@ pub struct GuitarAmpParams {
     /// How many bars of the click are played before a recording starts (#451)
     #[id = "looper_count_in"]
     pub looper_count_in: EnumParam<looper::CountIn>,
+    /// How loud track 2 and track 3 of the looper are (#452); `looper_level` is track 1's
+    #[id = "looper_level_2"]
+    pub looper_level_2: FloatParam,
+    #[id = "looper_level_3"]
+    pub looper_level_3: FloatParam,
+}
+
+/// A looper track's level: -60 to +6 dB, 0 dB (the same for all three)
+fn looper_level_param(name: &str) -> FloatParam {
+    FloatParam::new(
+        name,
+        looper::LEVEL_DEFAULT_DB,
+        FloatRange::Linear { min: looper::LEVEL_MIN_DB, max: looper::LEVEL_MAX_DB },
+    )
+    .with_unit(" dB")
+    .with_value_to_string(formatters::v2s_f32_rounded(1))
 }
 
 impl Default for GuitarAmpPlugin {
@@ -738,13 +754,7 @@ impl Default for GuitarAmpParams {
             wah_mode: EnumParam::new("Wah Mode", defaults.wah.mode),
             wah_sens: dial_param("Wah Sens", defaults.wah.sens),
 
-            looper_level: FloatParam::new(
-                "Looper Level",
-                looper::LEVEL_DEFAULT_DB,
-                FloatRange::Linear { min: looper::LEVEL_MIN_DB, max: looper::LEVEL_MAX_DB },
-            )
-            .with_unit(" dB")
-            .with_value_to_string(formatters::v2s_f32_rounded(1)),
+            looper_level: looper_level_param("Looper Level"),
 
             slot1: SlotParams::new(1),
             slot2: SlotParams::new(2),
@@ -766,6 +776,8 @@ impl Default for GuitarAmpParams {
             looper_bars: EnumParam::new("Looper Bars", looper::LoopBars::Free),
             looper_click: EnumParam::new("Looper Click", looper::LoopClick::Always),
             looper_count_in: EnumParam::new("Looper Count-in", looper::CountIn::Off),
+            looper_level_2: looper_level_param("Looper Level 2"),
+            looper_level_3: looper_level_param("Looper Level 3"),
         }
     }
 }
@@ -1126,6 +1138,10 @@ impl Plugin for GuitarAmpPlugin {
             downbeat_samples: self.metronome.samples_to_downbeat(&metronome),
             length_samples,
             count_in,
+            extra_levels: [
+                looper::level_gain(self.params.looper_level_2.value()),
+                looper::level_gain(self.params.looper_level_3.value()),
+            ],
         };
         match buffer.as_slice() {
             [left, right] => self.looper.process(&looping, left, Some(&mut **right)),
@@ -1137,7 +1153,11 @@ impl Plugin for GuitarAmpPlugin {
             self.metronome.restart();
         }
         // Click set to Rec only: held back (faded, the clock running on) while the loop plays
-        metronome.hushed = self.params.looper_click.value().hushes(self.looper.control().state());
+        // (a track 2 or 3 that records or waits to counts as a recording, so the click is heard)
+        let control = self.looper.control();
+        let heard_as =
+            if control.extra_recording() { looper::State::Recording } else { control.state() };
+        metronome.hushed = self.params.looper_click.value().hushes(heard_as);
         // Mixed: on top of the amp. Separate: alone on the "Metronome" output, and the main
         // output is the amp alone. Where the host gives no such output (the standalone
         // program, or a host that left it off) the click is mixed in, so it is never lost
@@ -2123,6 +2143,60 @@ mod tests {
         assert_eq!(control.state(), State::Recording);
     }
 
+    #[test]
+    fn test_process_with_three_tracks_playing_and_overdubbing_allocates_nothing() {
+        use looper::{LoopBars, LoopClick, State};
+        use suite_common::host;
+        // One bar of 96 000 samples is 200 blocks of 480
+        let mut amp = with_bars(true, LoopBars::Bars1, LoopClick::Always);
+        let control = amp.looper.control();
+        let (mut left, mut right) = (vec![0.0f32; 480], vec![0.0f32; 480]);
+        let mut seen = std::collections::HashSet::new();
+        for block in 0..1000 {
+            match block {
+                // The press waits for the click's next downbeat, a bar (200 blocks) on
+                3 => control.press(),
+                // Waiting for the loop to come round, then a pass each
+                410 => control.press_track(1),
+                415 => control.press_track(2),
+                // Overdub track 2, mute track 3, clear track 2
+                820 => control.press_track(1),
+                840 => control.stop_track(2),
+                900 => control.clear_track(1),
+                _ => {}
+            }
+            for i in 0..480 {
+                let t = (block * 480 + i) as f32 / 48_000.0;
+                left[i] = 0.3 * (std::f32::consts::TAU * 110.0 * t).sin();
+                right[i] = left[i];
+            }
+            let mut buffer = Buffer::default();
+            // SAFETY: the slices are the vectors above, which outlive the buffer, 480 long
+            unsafe {
+                buffer.set_slices(480, |slices| {
+                    slices.clear();
+                    slices.extend([&mut left[..], &mut right[..]]);
+                });
+            }
+            let mut aux = AuxiliaryBuffers { inputs: &mut [], outputs: &mut [] };
+            host::assert_allocates_nothing("The looper with three tracks", || {
+                amp.process(&mut buffer, &mut aux, &mut PlainHost(PluginApi::Vst3));
+            });
+            seen.insert((control.track_state(1), control.track_waiting(1)));
+            seen.insert((control.track_state(2), control.track_waiting(2)));
+        }
+        for reached in [
+            (State::Empty, true),
+            (State::Recording, false),
+            (State::Playing, false),
+            (State::Overdubbing, false),
+            (State::Stopped, false),
+        ] {
+            assert!(seen.contains(&reached), "the test did not reach {reached:?}");
+        }
+        assert_eq!(control.track_state(1), State::Empty, "cleared");
+    }
+
     /// What `process` answers after `blocks` blocks of silence
     fn status_after_silence(amp: &mut GuitarAmpPlugin, blocks: usize) -> ProcessStatus {
         let mut status = ProcessStatus::Normal;
@@ -2177,8 +2251,11 @@ mod tests {
         let mut ids: Vec<String> =
             GuitarAmpParams::default().param_map().into_iter().map(|(id, _, _)| id).collect();
         // The looper's bars and click (#450) are the very last, after the slots
-        assert_eq!(ids[ids.len() - 3..], ["looper_bars", "looper_click", "looper_count_in"]);
-        ids.truncate(ids.len() - 3);
+        assert_eq!(
+            ids[ids.len() - 5..],
+            ["looper_bars", "looper_click", "looper_count_in", "looper_level_2", "looper_level_3"]
+        );
+        ids.truncate(ids.len() - 5);
         // Only the EQ's five, the wah's five, the looper's level and the slots' ninety-six come after it
         let slots = slots::MAX_SLOTS * (1 + slots::KNOBS);
         assert_eq!(ids.iter().position(|id| id == "metronome_out"), Some(ids.len() - 12 - slots));

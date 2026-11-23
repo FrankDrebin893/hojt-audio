@@ -34,6 +34,9 @@ fn test_looper() -> Arc<LooperControl> {
 fn loop_shows(state: LoopState, length: u32, position: u32, capacity: u32) {
     test_looper().show(state, length, position, capacity);
     test_looper().show_goal(0);
+    test_looper().select(0);
+    test_looper().show_track(1, LoopState::Empty, false);
+    test_looper().show_track(2, LoopState::Empty, false);
 }
 
 /// A view as the window has it after it opened: nothing open, the bank the params name
@@ -942,6 +945,153 @@ fn test_the_looper_looks_as_it_did_with_the_click_off_and_a_count_in_set() {
     looper_count_picture("looper_count_in_click_off", false, crate::looper::CountIn::Bars2, 0, 0);
 }
 
+/// The looper's plate with track `track` (0 to 2) selected: the loop of ten seconds three tenths of
+/// the way round and track 2 and 3 in the states given
+#[cfg(target_os = "linux")]
+fn looper_tracks_picture(
+    name: &str,
+    track: usize,
+    master: LoopState,
+    two: (LoopState, bool),
+    three: (LoopState, bool),
+) {
+    let rate = 48_000;
+    loop_shows(master, 10 * rate, 10 * rate * 3 / 10, 40 * rate);
+    test_looper().show_track(1, two.0, two.1);
+    test_looper().show_track(2, three.0, three.1);
+    test_looper().select(track);
+    let params = GuitarAmpParams::default();
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    harness_of(&params, &setter, None, |view| view.plate = Some(Open::Looper)).snapshot(name);
+    test_looper().select(0);
+}
+
+// The tabs of the three tracks: track 1 playing, track 2 overdubbing and track 3 muted, with each
+// of the three selected in turn, the selected one outlined in brass
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_looper_looks_as_it_did_with_three_tracks_and_the_first_selected() {
+    use LoopState::*;
+    looper_tracks_picture("looper_tracks_1", 0, Playing, (Overdubbing, false), (Stopped, false));
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_looper_looks_as_it_did_with_three_tracks_and_the_second_selected() {
+    use LoopState::*;
+    looper_tracks_picture("looper_tracks_2", 1, Playing, (Overdubbing, false), (Stopped, false));
+}
+
+// Track 3 pressed to record, waiting for the loop to come round: a red head goes round, and its
+// tab is a dimmer red
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_looper_looks_as_it_did_with_a_track_waiting_for_the_loop() {
+    use LoopState::*;
+    looper_tracks_picture("looper_track_waiting", 2, Playing, (Playing, false), (Empty, true));
+}
+
+// Track 2 recording its pass: the ring fills red as the loop goes round
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_looper_looks_as_it_did_with_a_track_recording_its_pass() {
+    use LoopState::*;
+    looper_tracks_picture("looper_track_recording", 1, Playing, (Recording, false), (Empty, false));
+}
+
+// A track that is empty while track 1 holds no loop says what it needs
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_looper_looks_as_it_did_with_an_empty_track_and_no_loop() {
+    use LoopState::*;
+    looper_tracks_picture("looper_track_needs_one", 1, Empty, (Empty, false), (Empty, false));
+}
+
+// What the ring and the words say of a track beside the first
+#[test]
+fn test_the_plate_says_what_a_track_beside_the_first_is_doing() {
+    use LoopState::*;
+    // Recording its pass: filled as far as the loop has gone round, red
+    assert_eq!(
+        track_ring(1, Recording, false, 1000, 250, None, 1000),
+        ui::Ring::Filled { fraction: 0.25, color: ui::RING_RED }
+    );
+    // Waiting: a red head goes round the loop
+    assert_eq!(
+        track_ring(2, Empty, true, 1000, 500, None, 1000),
+        ui::Ring::Head { fraction: 0.5, color: ui::RING_RED }
+    );
+    // Playing: as track 1's
+    assert_eq!(
+        track_ring(1, Playing, false, 1000, 500, None, 1000),
+        ui::Ring::Head { fraction: 0.5, color: ui::RING_GREEN }
+    );
+    assert_eq!(track_ring(1, Empty, false, 1000, 500, None, 1000), ui::Ring::Dark);
+    assert_eq!(track_words(1, Empty, true, Playing, None), ("Waiting", "Cancel"));
+    assert_eq!(track_words(2, Empty, false, Playing, None), ("Empty", "Record"));
+    assert_eq!(track_words(2, Empty, false, Empty, None), ("Empty", "Record 1 first"));
+    assert_eq!(track_words(1, Overdubbing, false, Playing, None), ("Overdub", "Play"));
+    assert_eq!(track_words(0, Empty, false, Empty, None), ("Empty", "Record"));
+    // The tab's lamp is the state's colour
+    assert_eq!(tab_lamp(Playing, false), ui::RING_GREEN);
+    assert_eq!(tab_lamp(Recording, false), ui::RING_RED);
+    assert_eq!(tab_lamp(Overdubbing, false), ui::RING_AMBER);
+    assert_eq!(tab_lamp(Empty, false), tab_lamp(Stopped, false));
+    assert_ne!(tab_lamp(Empty, true), tab_lamp(Empty, false));
+}
+
+// The plate asks to be drawn while anything on it moves by itself, track 1 muted or not: a track
+// beside the first that waits, records or plays goes on when track 1 is muted, and a muted loop
+// alone moves nothing
+#[test]
+fn test_the_looper_plate_asks_for_a_repaint_while_any_track_moves() {
+    use LoopState::*;
+    let control = LooperControl::default();
+    assert!(!looper_moves(&control));
+    control.show(Stopped, 480_000, 0, 2_880_000);
+    assert!(!looper_moves(&control), "a muted loop alone moves nothing");
+    control.show_track(1, Empty, true);
+    assert!(looper_moves(&control), "track 2 waits");
+    control.show_track(1, Recording, false);
+    assert!(looper_moves(&control), "track 2 records");
+    control.show_track(1, Empty, false);
+    control.show_track(2, Playing, false);
+    assert!(looper_moves(&control), "track 3 plays while track 1 is muted");
+    control.show_track(2, Stopped, false);
+    assert!(!looper_moves(&control));
+    control.show(Playing, 480_000, 0, 2_880_000);
+    assert!(looper_moves(&control));
+}
+
+// A tab selects its track, and the plate's buttons and Level knob then act on that track
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_looper_plates_tabs_choose_the_track_its_buttons_and_level_act_on() {
+    let params = GuitarAmpParams::default();
+    let host = crate::user_presets::tests::Host::default();
+    let setter = ParamSetter::new(&host);
+    let plate = Pos2::new(LOOPER_X - ui::icons::ICON_REACH, PLATE_TOP);
+    let (mut harness, _) =
+        harness_shared(&params, &setter, None, None, |view| view.plate = Some(Open::Looper));
+    let control = test_looper();
+    loop_shows(LoopState::Playing, 480_000, 0, 2_880_000);
+    assert_eq!(control.selected(), 0);
+    click(&mut harness, plate + vec2(LOOPER_TABS[2], LOOPER_TAB_Y));
+    assert_eq!(control.selected(), 2);
+    click(&mut harness, plate + LOOPER_RING);
+    click(&mut harness, plate + vec2(LOOPER_BUTTONS_X, LOOPER_STOP[1]));
+    click(&mut harness, plate + vec2(LOOPER_BUTTONS_X, LOOPER_CLEAR[1]));
+    assert_eq!(control.pending(2), (1, true, true), "track 3's own buttons");
+    assert_eq!(control.pending(0), (0, false, false), "track 1 is left alone");
+    assert_eq!(control.pending(1), (0, false, false));
+    click(&mut harness, plate + vec2(LOOPER_TABS[1], LOOPER_TAB_Y));
+    assert_eq!(control.selected(), 1);
+    click(&mut harness, plate + LOOPER_RING);
+    assert_eq!(control.pending(1).0, 1);
+    control.select(0);
+}
+
 // The ring is a full circle at the sample that closes a set length, against the set length and
 // not the buffer
 #[test]
@@ -1049,16 +1199,16 @@ fn test_the_looper_plates_buttons_and_the_icons_switch_send_the_commands() {
     let (mut harness, _) =
         harness_shared(&params, &setter, None, None, |view| view.plate = Some(Open::Looper));
     let control = test_looper();
-    assert_eq!(control.pending(), (0, false, false));
+    assert_eq!(control.pending(0), (0, false, false));
     click(&mut harness, plate + LOOPER_RING);
-    assert_eq!(control.pending(), (1, false, false), "the big switch");
+    assert_eq!(control.pending(0), (1, false, false), "the big switch");
     click(&mut harness, plate + vec2(LOOPER_BUTTONS_X, LOOPER_STOP[1]));
-    assert_eq!(control.pending(), (1, true, false), "Stop");
+    assert_eq!(control.pending(0), (1, true, false), "Stop");
     click(&mut harness, plate + vec2(LOOPER_BUTTONS_X, LOOPER_CLEAR[1]));
-    assert_eq!(control.pending(), (1, true, true), "Clear");
+    assert_eq!(control.pending(0), (1, true, true), "Clear");
     // The strip's switch is the same press (and, being outside the plate, closes it)
     click(&mut harness, Pos2::new(LOOPER_X + ui::icons::SWITCH_DX, STRIP_Y));
-    assert_eq!(control.pending().0, 2, "the icon's switch");
+    assert_eq!(control.pending(0).0, 2, "the icon's switch");
 }
 
 // What the plate says of each state: the ring, the two words and Stop's name

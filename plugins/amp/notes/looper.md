@@ -65,3 +65,23 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   host's downbeat): the ring lights the beats in amber round the circle once a bar and the words read Count 1 to
   Count n; it asks to be drawn 30 times a second meanwhile. Bars and the count-in go together: count in, record the
   set bars, close, play. The beat is worked out in `publish` from the samples left, so it follows the sample count
+- **Three tracks (#452):** track 1 is the loop above (`Looper`'s own buffer, state and `len`); tracks 2 and 3 are
+  `Extra`s of its length with a pair of full-size buffers each, so three buffers in all, allocated in `set_sample_rate`
+  and nowhere else (about 69 MB at 48 kHz, 92 MB at 96 kHz; `vec![0.0; n]` is zeroed memory the system hands out as it is
+  used, so an unused track costs address space, not memory. The fallback, tracks 2 and 3 at 30 s, is not needed and
+  not built; `set_sample_rate` is the one place to do it). They have **no position or length of their own**: they read and
+  write at track 1's `pos`, so they cannot drift from it, and a change of rate or Clear of track 1 empties them all
+  (`empty`, and a fade-out together when playing). A press on track 2 or 3 does nothing while track 1 holds no loop (Empty,
+  Recording or clearing); it then waits (`Extra::waiting`, published as `LooperControl::track_waiting`, still `Empty`)
+  until `pos` is 0, records exactly one pass (faded in and out over 5 ms at the pass's ends) and is Playing by itself on
+  the sample after the last. A press during the pass closes it early (`close_early`: the played part faded out, the rest of
+  the loop silent; under 10 ms is thrown away). Each track plays, overdubs (`soft_limit`, 5 ms ramps), mutes and clears on its own;
+  the output is the live sound plus the three added and clamped. Commands are per track (`LooperControl::press_track`,
+  `stop_track`, `clear_track`; `press`, `stop`, `clear` are track 1's), the states per track (`track_state`).
+  `looper_level` is track 1's level, `looper_level_2` and `looper_level_3` the others (same range, not in presets).
+  `LooperControl::selected` is the plate's choice of track (the editor's, kept here so it survives the window
+  closing). The plate: three tabs on the title's line (lamp colour of the state, number on it, brass ring on the selected
+  one); the footswitch, ring, Stop, Clear and Level act on the selected track; the ring of a track beside the first
+  fills red as the loop goes round while it records, and a red head goes round while it waits. The click's Rec only counts
+  a track that records or waits as recording (`extra_recording`), so the click is heard through the pass. Tests:
+  `looper/tracks_tests.rs`, the plate's in `editor/tests.rs`, `no_alloc` in `lib.rs`
