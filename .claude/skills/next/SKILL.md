@@ -46,6 +46,8 @@ goes on to the next issue, with no further prompt, until the list is done. Words
      close a parent whose sub-issues are all closed, each with a one-line comment ending in the
      footer below. An open issue keeps its label, except the two leftovers below. Never add
      `state:approved`
+   - **Sweep, merged sub-issue:** an open sub-issue (`Parent: #<p>`) that has a merged pull request naming it and no open
+     one is closed as completed with a comment naming that pull request, ending in the footer below
    - **Sweep, finished retro:** a retro issue (`from:retro`) whose proposals are all built would stay buildable every
      night through its `state:*` label with nothing to build. An open `from:retro` issue that has a merged pull request
      naming it (`Part of` or `Closes`) and no open one, or whose latest Progress comment says there is nothing to build,
@@ -251,7 +253,9 @@ What every sub-session is asked to do, for issue `<n>`:
    from the engineer first (a pick between explore directions; never a listen), also label the issue
    `needs:engineer` and say in the comment what is asked; the engineer's answer on the issue clears it.
    The same holds for a parent with sub-issues: the sub-issues are built, the parent is closed
-   by whoever closes the last one.
+   by whoever closes the last one. A sub-issue is a whole issue of its own: its pull request says
+   `Closes #<sub>` (and may add `Part of #<parent>` on a line of its own), never `Part of` alone, or the
+   merged sub-issue stays open and the work list keeps showing it
 6. **Auto-fix.** Leave auto-merge to the orchestrator, which turns it on after its own review.
    - For Claude Code sessions: bind the pull request to the session (`ccd_pr` `get_status`,
      else `bind_pr`) and turn on Auto-fix (`set_monitor` with `auto_fix` and
