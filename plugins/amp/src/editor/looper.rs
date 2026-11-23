@@ -35,15 +35,26 @@ pub(super) const LOOPER_COUNT_X: f32 = 70.0;
 pub(super) const LOOPER_COUNT_WIDTH: f32 = 50.0;
 pub(super) const LOOPER_SIDE_CAPTION_Y: f32 = 170.0;
 pub(super) const LOOPER_SIDE_Y: f32 = 192.0;
-// What a dimmed Bars or Click says when it is hovered
 // The tabs of the three tracks (#452), on the title's line at the left: the plate has no room to
 // grow, and the ring and the click row fill the rest. Centres from the plate's left, the radius of
 // a tab and of the brass ring round the selected one
 pub(super) const LOOPER_TABS: [f32; 3] = [36.0, 66.0, 96.0];
 pub(super) const LOOPER_TAB_Y: f32 = 19.0;
 pub(super) const LOOPER_TAB_RADIUS: f32 = 8.5;
+// What a dimmed Bars or Click says when it is hovered
 pub(super) const LOOPER_NEEDS_CLICK: &str =
     "Needs the click: switch it on with Metro (a set number of bars, and a count-in, count its bars)";
+
+/// Something on the plate changes by itself: a track records, plays or overdubs (also while track
+/// 1 is muted and another goes on), one waits for the loop to come round, or a count-in counts
+pub(super) fn looper_moves(control: &LooperControl) -> bool {
+    (0..crate::looper::TRACKS).any(|track| {
+        matches!(
+            control.track_state(track),
+            LoopState::Recording | LoopState::Playing | LoopState::Overdubbing
+        ) || control.track_waiting(track)
+    }) || control.count_in().is_some()
+}
 
 /// What the lamp beside the looper's icon shows
 pub(super) fn loop_lamp(state: LoopState) -> Beat {
@@ -235,9 +246,7 @@ pub(super) fn looper_plate(
     let master = control.state();
     let state = control.track_state(track);
     let waiting = control.track_waiting(track);
-    if matches!(master, LoopState::Recording | LoopState::Playing | LoopState::Overdubbing)
-        || control.count_in().is_some()
-    {
+    if looper_moves(control) {
         // The head goes round, the fill grows and the beats of a count-in light: look again 30
         // times a second
         ui.ctx().request_repaint_after(std::time::Duration::from_millis(33));

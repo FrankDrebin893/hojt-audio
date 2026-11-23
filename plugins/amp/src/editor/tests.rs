@@ -1041,6 +1041,29 @@ fn test_the_plate_says_what_a_track_beside_the_first_is_doing() {
     assert_ne!(tab_lamp(Empty, true), tab_lamp(Empty, false));
 }
 
+// The plate asks to be drawn while anything on it moves by itself, track 1 muted or not: a track
+// beside the first that waits, records or plays goes on when track 1 is muted, and a muted loop
+// alone moves nothing
+#[test]
+fn test_the_looper_plate_asks_for_a_repaint_while_any_track_moves() {
+    use LoopState::*;
+    let control = LooperControl::default();
+    assert!(!looper_moves(&control));
+    control.show(Stopped, 480_000, 0, 2_880_000);
+    assert!(!looper_moves(&control), "a muted loop alone moves nothing");
+    control.show_track(1, Empty, true);
+    assert!(looper_moves(&control), "track 2 waits");
+    control.show_track(1, Recording, false);
+    assert!(looper_moves(&control), "track 2 records");
+    control.show_track(1, Empty, false);
+    control.show_track(2, Playing, false);
+    assert!(looper_moves(&control), "track 3 plays while track 1 is muted");
+    control.show_track(2, Stopped, false);
+    assert!(!looper_moves(&control));
+    control.show(Playing, 480_000, 0, 2_880_000);
+    assert!(looper_moves(&control));
+}
+
 // A tab selects its track, and the plate's buttons and Level knob then act on that track
 #[test]
 #[cfg(target_os = "linux")]
