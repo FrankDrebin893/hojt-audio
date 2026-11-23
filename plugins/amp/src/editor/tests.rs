@@ -891,17 +891,68 @@ fn test_the_looper_looks_as_it_did_with_the_click_off() {
     );
 }
 
+/// The looper's plate with the count-in at beat `beat` of `beats` (zero: not begun), the click on
+/// and Count-in set to `count`, for the pictures
+#[cfg(target_os = "linux")]
+fn looper_count_picture(name: &str, on: bool, count: crate::looper::CountIn, beat: u8, beats: u8) {
+    loop_shows(LoopState::Empty, 0, 0, 40 * 48_000);
+    test_looper().show_count(beat, beats);
+    let params = GuitarAmpParams {
+        metronome_on: BoolParam::new("Metronome", on),
+        looper_bars: EnumParam::new("Looper Bars", crate::looper::LoopBars::Bars2),
+        looper_count_in: EnumParam::new("Looper Count-in", count),
+        ..GuitarAmpParams::default()
+    };
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    harness_of(&params, &setter, None, |view| view.plate = Some(Open::Looper)).snapshot(name);
+    test_looper().show_count(0, 0);
+}
+
+// The count-in on the looper's plate: Count-in set to one bar with the plate idle, then beats 1
+// and 3 of the count, the wait before it begins, and last the click off, where Count-in is dimmed
+// and reads Off
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_looper_looks_as_it_did_with_a_count_in_set() {
+    looper_count_picture("looper_count_in_set", true, crate::looper::CountIn::Bar1, 0, 0);
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_looper_looks_as_it_did_counting_one() {
+    looper_count_picture("looper_count_in_beat1", true, crate::looper::CountIn::Bar1, 1, 4);
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_looper_looks_as_it_did_counting_three() {
+    looper_count_picture("looper_count_in_beat3", true, crate::looper::CountIn::Bars2, 3, 4);
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_looper_looks_as_it_did_before_the_count_in_begins() {
+    looper_count_picture("looper_count_in_wait", true, crate::looper::CountIn::Bar1, 0, 4);
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_looper_looks_as_it_did_with_the_click_off_and_a_count_in_set() {
+    looper_count_picture("looper_count_in_click_off", false, crate::looper::CountIn::Bars2, 0, 0);
+}
+
 // The ring is a full circle at the sample that closes a set length, against the set length and
 // not the buffer
 #[test]
 fn test_the_ring_is_a_full_circle_when_the_set_length_is_reached() {
     // Two bars of 96000 in a 60 second buffer: half way is half a circle, the end is all of it
     assert_eq!(
-        loop_ring(LoopState::Recording, 96_000, 0, 192_000),
+        loop_ring(LoopState::Recording, 96_000, 0, 192_000, None),
         ui::Ring::Filled { fraction: 0.5, color: ui::RING_RED }
     );
     assert_eq!(
-        loop_ring(LoopState::Recording, 192_000, 0, 192_000),
+        loop_ring(LoopState::Recording, 192_000, 0, 192_000, None),
         ui::Ring::Filled { fraction: 1.0, color: ui::RING_RED }
     );
     // With no length set it fills against the buffer, as it did
@@ -938,21 +989,52 @@ fn test_the_looper_plates_click_row_sets_the_metronomes_own_parameters() {
             sets(params.metronome_bpm.as_ptr()),
             sets(params.looper_bars.as_ptr()),
             sets(params.looper_click.as_ptr()),
+            sets(params.looper_count_in.as_ptr()),
         )
     };
+    let side = |x: f32, width: f32| plate + vec2(x + reach(width) - 2.0, LOOPER_SIDE_Y);
     // The switch and the tempo's buttons are the metronome's, on or off
-    assert_eq!(run(true, &|h| click(h, row(LOOPER_METRO_X))), (1, 0, 0, 0));
-    assert_eq!(run(false, &|h| click(h, row(LOOPER_METRO_X))), (1, 0, 0, 0));
+    assert_eq!(run(true, &|h| click(h, row(LOOPER_METRO_X))), (1, 0, 0, 0, 0));
+    assert_eq!(run(false, &|h| click(h, row(LOOPER_METRO_X))), (1, 0, 0, 0, 0));
     assert_eq!(
         run(true, &|h| click(h, next(LOOPER_TEMPO_X, TEMPO_WIDTH))),
-        (0, 1, 0, 0),
+        (0, 1, 0, 0, 0),
         "tempo up"
     );
-    // Bars and Click answer while the click is on, and not while it is off
-    assert_eq!(run(true, &|h| click(h, next(LOOPER_BARS_X, LOOPER_BARS_WIDTH))), (0, 0, 1, 0));
-    assert_eq!(run(true, &|h| click(h, next(LOOPER_CLICK_X, LOOPER_CLICK_WIDTH))), (0, 0, 0, 1));
-    assert_eq!(run(false, &|h| click(h, next(LOOPER_BARS_X, LOOPER_BARS_WIDTH))), (0, 0, 0, 0));
-    assert_eq!(run(false, &|h| click(h, next(LOOPER_CLICK_X, LOOPER_CLICK_WIDTH))), (0, 0, 0, 0));
+    // Bars, Click and Count-in answer while the click is on, and not while it is off
+    let bars = |h: &mut Harness| click(h, side(LOOPER_BARS_X, LOOPER_BARS_WIDTH));
+    let way = |h: &mut Harness| click(h, next(LOOPER_CLICK_X, LOOPER_CLICK_WIDTH));
+    let count = |h: &mut Harness| click(h, side(LOOPER_COUNT_X, LOOPER_COUNT_WIDTH));
+    assert_eq!(run(true, &bars), (0, 0, 1, 0, 0));
+    assert_eq!(run(true, &way), (0, 0, 0, 1, 0));
+    assert_eq!(run(true, &count), (0, 0, 0, 0, 1));
+    assert_eq!(run(false, &bars), (0, 0, 0, 0, 0));
+    assert_eq!(run(false, &way), (0, 0, 0, 0, 0));
+    assert_eq!(run(false, &count), (0, 0, 0, 0, 0));
+}
+
+// While a count-in plays the ring lights its beats in amber, a quarter to a beat of four, and the
+// plate counts them; before the count-in begins (waiting for the host's downbeat) it says so
+#[test]
+fn test_the_plate_counts_a_count_in_beat_by_beat() {
+    use LoopState::Empty;
+    for beat in 1..=4 {
+        assert_eq!(
+            loop_ring(Empty, 0, 0, 100, Some((beat, 4))),
+            ui::Ring::Filled { fraction: beat as f32 / 4.0, color: ui::RING_AMBER }
+        );
+    }
+    let words: Vec<_> = (1..=4).map(|beat| loop_words(Empty, Some((beat, 4))).0).collect();
+    assert_eq!(words, ["Count 1", "Count 2", "Count 3", "Count 4"]);
+    assert_eq!(loop_words(Empty, Some((0, 4))).0, "Count in");
+    assert_eq!(loop_words(Empty, Some((2, 4))).1, "Cancel");
+    // Once recording the count is over
+    assert_eq!(loop_words(Empty, None), ("Empty", "Record"));
+    assert_eq!(loop_ring(Empty, 0, 0, 100, None), ui::Ring::Dark);
+    assert_eq!(
+        loop_ring(LoopState::Recording, 10, 0, 100, Some((3, 4))),
+        ui::Ring::Filled { fraction: 0.1, color: ui::RING_RED }
+    );
 }
 
 // The plate's buttons are the looper's commands: the big switch presses, Stop stops, Clear
@@ -985,31 +1067,31 @@ fn test_the_looper_plate_says_what_the_loop_is_doing_and_what_a_press_does_next(
     use LoopState::*;
     let all = [Empty, Recording, Playing, Overdubbing, Stopped];
     // A press walks Record, Play, Overdub and back to Play
-    let next: Vec<_> = all.iter().map(|&state| loop_words(state).1).collect();
+    let next: Vec<_> = all.iter().map(|&state| loop_words(state, None).1).collect();
     assert_eq!(next, ["Record", "Play", "Overdub", "Play", "Play"]);
     assert_eq!(stop_word(Playing), "Mute");
     assert_eq!(stop_word(Overdubbing), "Mute");
     assert_eq!(stop_word(Stopped), "Resume");
     assert_eq!(stop_word(Empty), "Stop");
     // Nothing burns when there is nothing to hear; a recording fills against the buffer
-    assert_eq!(loop_ring(Empty, 0, 0, 100), ui::Ring::Dark);
-    assert_eq!(loop_ring(Stopped, 50, 10, 100), ui::Ring::Dark);
+    assert_eq!(loop_ring(Empty, 0, 0, 100, None), ui::Ring::Dark);
+    assert_eq!(loop_ring(Stopped, 50, 10, 100, None), ui::Ring::Dark);
     assert_eq!(
-        loop_ring(Recording, 25, 0, 100),
+        loop_ring(Recording, 25, 0, 100, None),
         ui::Ring::Filled { fraction: 0.25, color: ui::RING_RED }
     );
     // A loop that plays has its head where its position is, in its length
     assert_eq!(
-        loop_ring(Playing, 100, 50, 400),
+        loop_ring(Playing, 100, 50, 400, None),
         ui::Ring::Head { fraction: 0.5, color: ui::RING_GREEN }
     );
     assert_eq!(
-        loop_ring(Overdubbing, 100, 25, 400),
+        loop_ring(Overdubbing, 100, 25, 400, None),
         ui::Ring::Head { fraction: 0.25, color: ui::RING_AMBER }
     );
     // No length, no capacity: no dividing by nothing
     assert_eq!(
-        loop_ring(Playing, 0, 0, 0),
+        loop_ring(Playing, 0, 0, 0, None),
         ui::Ring::Head { fraction: 0.0, color: ui::RING_GREEN }
     );
     // The strip's lamp: only a loop that sounds or records lights it
@@ -1035,7 +1117,7 @@ fn test_the_looper_plate_stands_clear_of_itself_and_of_its_edges() {
             "the level knob and its tape",
             Rect::from_min_max(
                 (LOOPER_LEVEL - Vec2::splat(LOOPER_LEVEL_RADIUS + TICKS)).to_pos2(),
-                (LOOPER_LEVEL + vec2(LOOPER_LEVEL_RADIUS + TICKS, LOOPER_LEVEL_RADIUS + 46.0))
+                (LOOPER_LEVEL + vec2(LOOPER_LEVEL_RADIUS + TICKS, LOOPER_LEVEL_RADIUS + 54.0))
                     .to_pos2(),
             ),
         ),
@@ -1053,10 +1135,23 @@ fn test_the_looper_plate_stands_clear_of_itself_and_of_its_edges() {
         ("the tempo caption", around(caption(LOOPER_TEMPO_X), vec2(26.0, 7.0))),
         ("the click stepper", stepper_box(LOOPER_CLICK_X, LOOPER_CLICK_WIDTH)),
         ("the click caption", around(caption(LOOPER_CLICK_X), vec2(24.0, 7.0))),
-        ("the bars stepper", stepper_box(LOOPER_BARS_X, LOOPER_BARS_WIDTH)),
-        ("the bars caption", around(caption(LOOPER_BARS_X), vec2(24.0, 7.0))),
     ];
-    let parts: Vec<_> = parts.into_iter().chain(row_parts).collect();
+    // Bars under the Level knob and the Count-in under Clear, a caption over each
+    let side = |x: f32| vec2(x, LOOPER_SIDE_Y);
+    let side_caption = |x: f32| vec2(x, LOOPER_SIDE_CAPTION_Y);
+    let side_parts = [
+        (
+            "the bars stepper",
+            around(side(LOOPER_BARS_X), vec2(reach(LOOPER_BARS_WIDTH) + BUTTON, 11.0)),
+        ),
+        ("the bars caption", around(side_caption(LOOPER_BARS_X), vec2(24.0, 7.0))),
+        (
+            "the count-in stepper",
+            around(side(LOOPER_COUNT_X), vec2(reach(LOOPER_COUNT_WIDTH) + BUTTON, 11.0)),
+        ),
+        ("the count-in caption", around(side_caption(LOOPER_COUNT_X), vec2(34.0, 7.0))),
+    ];
+    let parts: Vec<_> = parts.into_iter().chain(row_parts).chain(side_parts).collect();
     let plate = Rect::from_min_size(Pos2::ZERO, vec2(LOOPER_WIDTH, LOOPER_HEIGHT));
     for (index, (name, rect)) in parts.iter().enumerate() {
         for (other, other_rect) in &parts[index + 1..] {

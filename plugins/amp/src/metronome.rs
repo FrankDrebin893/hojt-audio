@@ -350,6 +350,12 @@ impl Metronome {
         self.voice = Voice::IDLE;
     }
 
+    /// The next beat is a downbeat on the very next sample, as when it was just switched on: the
+    /// looper's count-in under a click that runs by itself starts here, so the press is beat one
+    pub fn restart(&mut self) {
+        self.was_on = false;
+    }
+
     pub fn reading(&self) -> Arc<BeatReading> {
         self.reading.clone()
     }
@@ -658,6 +664,25 @@ pub(crate) mod tests {
             b.process(&settings, block, None);
         }
         assert_eq!(first, second);
+    }
+
+    #[test]
+    fn test_a_restarted_click_has_a_downbeat_on_the_very_next_sample_and_then_keeps_time() {
+        let mut click = Metronome::new();
+        click.set_sample_rate(48_000.0);
+        let settings = running(120.0);
+        // Running for a while, in the middle of a beat
+        let mut sink = vec![0.0f32; 30_000];
+        click.process(&settings, &mut sink, None);
+        let (beats, _) = click.reading().read();
+        click.restart();
+        let mut block = vec![0.0f32; 96_001];
+        click.process(&settings, &mut block, None);
+        // A downbeat on the first sample, then a beat every 24 000: the fifth is a bar on
+        let (after, accent) = click.reading().read();
+        assert_eq!(after, beats + 5);
+        assert!(accent, "the last of them, 96 000 samples on, is a downbeat");
+        assert!(block[0].abs() > 0.0 || block[1].abs() > 0.0, "sounding at the first sample");
     }
 
     #[test]

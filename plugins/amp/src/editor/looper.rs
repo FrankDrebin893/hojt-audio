@@ -13,24 +13,30 @@ pub(super) const LOOPER_STATE_DY: f32 = -50.0;
 pub(super) const LOOPER_NEXT_DY: f32 = 54.0;
 pub(super) const LOOPER_BUTTONS_X: f32 = 70.0;
 // Caption, button, for Stop and then Clear
-pub(super) const LOOPER_STOP: [f32; 2] = [78.0, 106.0];
-pub(super) const LOOPER_CLEAR: [f32; 2] = [140.0, 168.0];
-pub(super) const LOOPER_LEVEL: Vec2 = vec2(430.0, 118.0);
+pub(super) const LOOPER_STOP: [f32; 2] = [62.0, 86.0];
+pub(super) const LOOPER_CLEAR: [f32; 2] = [108.0, 132.0];
+pub(super) const LOOPER_LEVEL: Vec2 = vec2(430.0, 76.0);
 pub(super) const LOOPER_LEVEL_RADIUS: f32 = 26.0;
-// The click's row under the ring (#450): the metronome's own switch with its lamp, its tempo, the
-// Click stepper (Always, Rec only) and the Bars stepper (Free, 1, 2, 4, 8). A caption over each
+// The click's row under the ring (#450): the metronome's own switch with its lamp, its tempo and
+// the Click stepper (Always, Rec only). A caption over each
 pub(super) const LOOPER_ROW_CAPTION_Y: f32 = 216.0;
 pub(super) const LOOPER_ROW_Y: f32 = 240.0;
 pub(super) const LOOPER_METRO_LED_X: f32 = 30.0;
 pub(super) const LOOPER_METRO_X: f32 = 60.0;
 pub(super) const LOOPER_TEMPO_X: f32 = 158.0;
-pub(super) const LOOPER_CLICK_X: f32 = 296.0;
+pub(super) const LOOPER_CLICK_X: f32 = 340.0;
 pub(super) const LOOPER_CLICK_WIDTH: f32 = 74.0;
-pub(super) const LOOPER_BARS_X: f32 = 432.0;
+// Bars under the Level knob and the Count-in under Clear (#451), a caption over each: the length
+// of a loop and what is played before it, either side of the ring
+pub(super) const LOOPER_BARS_X: f32 = 430.0;
 pub(super) const LOOPER_BARS_WIDTH: f32 = 50.0;
+pub(super) const LOOPER_COUNT_X: f32 = 70.0;
+pub(super) const LOOPER_COUNT_WIDTH: f32 = 50.0;
+pub(super) const LOOPER_SIDE_CAPTION_Y: f32 = 170.0;
+pub(super) const LOOPER_SIDE_Y: f32 = 192.0;
 // What a dimmed Bars or Click says when it is hovered
 pub(super) const LOOPER_NEEDS_CLICK: &str =
-    "Needs the click: switch it on with Metro (a set number of bars counts its bars)";
+    "Needs the click: switch it on with Metro (a set number of bars, and a count-in, count its bars)";
 
 /// What the lamp beside the looper's icon shows
 pub(super) fn loop_lamp(state: LoopState) -> Beat {
@@ -46,10 +52,22 @@ pub(super) fn loop_lamp(state: LoopState) -> Beat {
 /// while recording, against what it fills against (`LooperControl::fills_against`: the set length
 /// of a number of bars, so it is a full circle when the loop is complete, else the buffer), then a
 /// head goes round the loop, green while it plays and amber while it overdubs; dark when empty or
-/// muted
-pub(super) fn loop_ring(state: LoopState, length: u32, position: u32, capacity: u32) -> ui::Ring {
+/// muted. While a count-in plays (`count`: its beat and the beats of a bar) it is the beats lit in
+/// amber, round the circle once a bar
+pub(super) fn loop_ring(
+    state: LoopState,
+    length: u32,
+    position: u32,
+    capacity: u32,
+    count: Option<(u32, u32)>,
+) -> ui::Ring {
     let share = |part: u32, whole: u32| if whole == 0 { 0.0 } else { part as f32 / whole as f32 };
     match state {
+        // A count-in: the bar's beats light round the circle in amber, a quarter to a beat of four
+        LoopState::Empty if count.is_some() => {
+            let (beat, beats) = count.unwrap_or_default();
+            ui::Ring::Filled { fraction: share(beat, beats), color: ui::RING_AMBER }
+        }
         LoopState::Empty | LoopState::Stopped => ui::Ring::Dark,
         LoopState::Recording => {
             ui::Ring::Filled { fraction: share(length, capacity), color: ui::RING_RED }
@@ -63,9 +81,21 @@ pub(super) fn loop_ring(state: LoopState, length: u32, position: u32, capacity: 
     }
 }
 
-/// What the state is called in the ring, and what the big button does next
-pub(super) fn loop_words(state: LoopState) -> (&'static str, &'static str) {
+/// What the state is called in the ring, and what the big button does next; while a count-in plays
+/// (`count`: its beat, zero before it begins, and the beats of a bar) it counts the beats
+pub(super) fn loop_words(
+    state: LoopState,
+    count: Option<(u32, u32)>,
+) -> (&'static str, &'static str) {
+    const BEATS: [&str; 9] = [
+        "Count in", "Count 1", "Count 2", "Count 3", "Count 4", "Count 5", "Count 6", "Count 7",
+        "Count 8",
+    ];
     match state {
+        LoopState::Empty if count.is_some() => {
+            let (beat, _) = count.unwrap_or_default();
+            (BEATS[(beat as usize).min(BEATS.len() - 1)], "Cancel")
+        }
         LoopState::Empty => ("Empty", "Record"),
         LoopState::Recording => ("Recording", "Play"),
         LoopState::Playing => ("Playing", "Overdub"),
@@ -104,20 +134,25 @@ pub(super) fn looper_plate(
     );
     let control = shared.looper;
     let state = control.state();
-    if matches!(state, LoopState::Recording | LoopState::Playing | LoopState::Overdubbing) {
-        // The head goes round and the fill grows: look again 30 times a second
+    if matches!(state, LoopState::Recording | LoopState::Playing | LoopState::Overdubbing)
+        || control.count_in().is_some()
+    {
+        // The head goes round, the fill grows and the beats of a count-in light: look again 30
+        // times a second
         ui.ctx().request_repaint_after(std::time::Duration::from_millis(33));
     }
     let close = ui::plate(ui, rect, "looper", anchor, |ui, rect| {
         ui::plate::plate_title(ui.painter(), rect, "Looper");
         let at = |x: f32, y: f32| rect.min + vec2(x, y);
         let centre = rect.min + LOOPER_RING;
-        let ring = loop_ring(state, control.length(), control.position(), control.fills_against());
+        let count = control.count_in();
+        let ring =
+            loop_ring(state, control.length(), control.position(), control.fills_against(), count);
         ui::lamp_ring(ui.painter(), centre, LOOPER_RING_RADIUS, ring);
         if ui::footswitch(ui, centre, "looper-press").clicked() {
             control.press();
         }
-        let (named, next) = loop_words(state);
+        let (named, next) = loop_words(state, count);
         silk_label(ui.painter(), centre + vec2(0.0, LOOPER_STATE_DY), named, 12.0);
         silk_label(ui.painter(), centre + vec2(0.0, LOOPER_NEXT_DY), next, 12.0);
 
@@ -141,9 +176,8 @@ pub(super) fn looper_plate(
 
         // The click's row: the metronome's own parameters, so this plate and the metronome's agree
         let click_on = params.metronome_on.value();
-        let [metro, tempo, click, bars] =
-            [LOOPER_METRO_X, LOOPER_TEMPO_X, LOOPER_CLICK_X, LOOPER_BARS_X]
-                .map(|x| at(x, LOOPER_ROW_Y));
+        let [metro, tempo, click] =
+            [LOOPER_METRO_X, LOOPER_TEMPO_X, LOOPER_CLICK_X].map(|x| at(x, LOOPER_ROW_Y));
         let caption = |x: f32| at(x, LOOPER_ROW_CAPTION_Y);
         silk_label(ui.painter(), caption(LOOPER_METRO_X), "Metro", 13.0);
         rig_led(ui.painter(), at(LOOPER_METRO_LED_X, LOOPER_ROW_Y), click_on);
@@ -153,10 +187,14 @@ pub(super) fn looper_plate(
         silk_label(ui.painter(), caption(LOOPER_TEMPO_X), "Tempo", 13.0);
         tempo_display(ui, setter, params, tempo, "looper-tempo");
 
-        // Click and Bars count on the click: with it off they are dimmed, and Bars reads Free
+        // Click, Bars and Count-in count on the click: with it off they are dimmed, and Bars and
+        // Count-in read Free and Off
         silk_label(ui.painter(), caption(LOOPER_CLICK_X), "Click", 13.0);
-        silk_label(ui.painter(), caption(LOOPER_BARS_X), "Bars", 13.0);
+        let side = |x: f32| at(x, LOOPER_SIDE_Y);
+        silk_label(ui.painter(), at(LOOPER_BARS_X, LOOPER_SIDE_CAPTION_Y), "Bars", 13.0);
+        silk_label(ui.painter(), at(LOOPER_COUNT_X, LOOPER_SIDE_CAPTION_Y), "Count-in", 13.0);
         let shown_bars = if click_on { params.looper_bars.value() } else { LoopBars::Free };
+        let shown_count = if click_on { params.looper_count_in.value() } else { CountIn::Off };
         let way = params.looper_click.value();
         ui.add_enabled_ui(click_on, |ui| {
             if let Some(step) =
@@ -164,16 +202,30 @@ pub(super) fn looper_plate(
             {
                 set(setter, &params.looper_click, neighbour(&LoopClick::ALL, way, step));
             }
-            if let Some(step) =
-                stepper(ui, bars, LOOPER_BARS_WIDTH, shown_bars.name(), "looper-bars")
-            {
+            if let Some(step) = stepper(
+                ui,
+                side(LOOPER_BARS_X),
+                LOOPER_BARS_WIDTH,
+                shown_bars.name(),
+                "looper-bars",
+            ) {
                 set(setter, &params.looper_bars, neighbour(&LoopBars::ALL, shown_bars, step));
+            }
+            if let Some(step) = stepper(
+                ui,
+                side(LOOPER_COUNT_X),
+                LOOPER_COUNT_WIDTH,
+                shown_count.name(),
+                "looper-count-in",
+            ) {
+                set(setter, &params.looper_count_in, neighbour(&CountIn::ALL, shown_count, step));
             }
         });
         if !click_on {
             for (centre, width, id) in [
                 (click, LOOPER_CLICK_WIDTH, "looper-click-way-hint"),
-                (bars, LOOPER_BARS_WIDTH, "looper-bars-hint"),
+                (side(LOOPER_BARS_X), LOOPER_BARS_WIDTH, "looper-bars-hint"),
+                (side(LOOPER_COUNT_X), LOOPER_COUNT_WIDTH, "looper-count-in-hint"),
             ] {
                 let reach = width / 2.0 + STEPPER_REACH;
                 let area = Rect::from_center_size(centre, vec2(2.0 * reach, LED_HEIGHT));

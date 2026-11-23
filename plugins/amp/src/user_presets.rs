@@ -730,7 +730,7 @@ pub(crate) mod tests {
 
     // The parameters a preset leaves alone: the player's gain staging, and the switches
     // that are not part of the sound
-    const LEFT_ALONE: [&str; 14] = [
+    const LEFT_ALONE: [&str; 15] = [
         "bypass",
         "in_gain",
         "out_level",
@@ -745,6 +745,7 @@ pub(crate) mod tests {
         "looper_level",
         "looper_bars",
         "looper_click",
+        "looper_count_in",
     ];
 
     /// Stands in for the host: writes down what it is asked to set, and sets nothing

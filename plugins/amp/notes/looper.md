@@ -32,7 +32,7 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   them. Nothing waits when the click is off, just switched on (its downbeat is the first sample), or
   follows a host that is stopped (no downbeat is coming): a record starts at the press. While it
   waits the state is still Empty (the plate shows nothing yet, `Looper::is_idle` is false so the
-  plugin stays awake), and a second Record press or Clear takes the press back. There is no count-in.
+  plugin stays awake), and a second Record press or Clear takes the press back. A count-in (#451, below) is the same wait, longer.
   The loop does not follow the host's transport (decided on #280)
 - **Bars (#450, `looper_bars`):** Free, 1, 2, 4 or 8 bars of the click. `lib.rs` hands the looper
   `LooperSettings::length_samples` = bars times `bar_samples`, only while the click is on (click off
@@ -49,5 +49,19 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   looper's block): the click's clock runs on and only its voice is faded over 5 ms (`Metronome::gate`,
   1.0 and bit-identical when never hushed), so it is back on the beat after Clear. The loop never holds the click either way
 - The plate (500 x 264) carries a click row under the ring: the metronome's own on-switch and tempo
-  (`metronome_on`, `metronome_bpm`, the tempo display is `tempo_display` shared with the metronome's plate), the Click
-  stepper and the Bars stepper; the last two are dimmed (hover text says why) while the click is off
+  (`metronome_on`, `metronome_bpm`, the tempo display is `tempo_display` shared with the metronome's plate) and the Click
+  stepper; the Bars stepper stands under the Level knob and the Count-in stepper under Clear (#451, the plate has no
+  room to grow); Click, Bars and Count-in are dimmed (hover text says why) while the click is off
+- **Count-in (#451, `looper_count_in`):** Off, 1 or 2 bars. `lib.rs` hands the looper a `CountInPlan`
+  (`LooperSettings::count_in`) only while the click is on: `length` is the bars times `bar_samples`, `lead` the
+  samples to wait before it begins. A Record press on an Empty looper then arms the existing `armed` countdown
+  with `lead + length`, so the recording starts on the sample after the count-in, a downbeat, and the sound passes
+  untouched meanwhile. A click that runs by itself (no host tempo followed) is **restarted at the press**
+  (`Looper::take_restart`, taken by `process` after the looper's block, then `Metronome::restart`), so the press is
+  beat one and `lead` is 0. A click that follows the host keeps the host's clock: `lead` is the wait to the host's next
+  downbeat (`samples_to_downbeat`), and with the host stopped there is no count-in (the press records at once, as
+  it does with no downbeat coming). A second press or Clear takes it back (nothing restarts the click again).
+  The plate reads `LooperControl::count_in` (`(beat, beats a bar)`, beat from 1, zero while still waiting for the
+  host's downbeat): the ring lights the beats in amber round the circle once a bar and the words read Count 1 to
+  Count n; it asks to be drawn 30 times a second meanwhile. Bars and the count-in go together: count in, record the
+  set bars, close, play. The beat is worked out in `publish` from the samples left, so it follows the sample count

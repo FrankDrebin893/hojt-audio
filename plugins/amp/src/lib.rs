@@ -53,7 +53,7 @@ use eq::EqSettings;
 use fuzz::FuzzSettings;
 use gate::{GATE_RELEASE_MS, GATE_THRESHOLD_DB};
 use layout::Layout;
-use looper::{Looper, LooperSettings};
+use looper::{CountInPlan, Looper, LooperSettings};
 use metronome::{ClickOut, Metronome, MetronomeSettings, Sound, TimeSignature};
 use mods::chorus::{self, ChorusSettings};
 use mods::flanger::{self, FlangerSettings};
@@ -481,7 +481,7 @@ pub struct GuitarAmpParams {
     #[nested(id_prefix = "slot16", group = "Slot 16")]
     pub slot16: SlotParams,
 
-    // The looper's length and its click (#450). After the slots, at the very end, so every
+    // The looper's length and its click (#450), and its count-in (#451). After the slots, at the very end, so every
     // parameter before them keeps its place for a host that shows them in order. Not part of a
     // sound, so presets leave them alone like the looper's level
     /// How many bars of the click a loop is, or Free
@@ -490,6 +490,9 @@ pub struct GuitarAmpParams {
     /// Whether the click goes on while the loop plays
     #[id = "looper_click"]
     pub looper_click: EnumParam<looper::LoopClick>,
+    /// How many bars of the click are played before a recording starts (#451)
+    #[id = "looper_count_in"]
+    pub looper_count_in: EnumParam<looper::CountIn>,
 }
 
 impl Default for GuitarAmpPlugin {
@@ -762,6 +765,7 @@ impl Default for GuitarAmpParams {
 
             looper_bars: EnumParam::new("Looper Bars", looper::LoopBars::Free),
             looper_click: EnumParam::new("Looper Click", looper::LoopClick::Always),
+            looper_count_in: EnumParam::new("Looper Count-in", looper::CountIn::Off),
         }
     }
 }
@@ -1095,17 +1099,42 @@ impl Plugin for GuitarAmpPlugin {
             let bars = self.params.looper_bars.value().bars()?;
             Some(bar.saturating_mul(bars))
         });
+        // A count-in plays that many bars of the click before the recording starts. A click that
+        // runs by itself restarts at the press, so the press is its beat one; one that follows the
+        // host keeps the host's clock, so the count-in begins on the host's next downbeat (and
+        // there is none while the host is stopped, when no downbeat is coming)
+        let count_in = bar_samples.and_then(|bar| {
+            let bars = self.params.looper_count_in.value().bars()?;
+            let following = metronome.sync && metronome.host_tempo.is_some_and(|tempo| tempo > 0.0);
+            let (lead, restart) = if following {
+                (self.metronome.samples_to_downbeat(&metronome)?, false)
+            } else {
+                (0, true)
+            };
+            Some(CountInPlan {
+                lead,
+                length: bar.saturating_mul(bars),
+                bars,
+                per_bar: metronome.time_signature.beats(),
+                restart,
+            })
+        });
         let looping = LooperSettings {
             level: looper::level_gain(self.params.looper_level.value()),
             muted: self.params.tuner_on.value(),
             bar_samples,
             downbeat_samples: self.metronome.samples_to_downbeat(&metronome),
             length_samples,
+            count_in,
         };
         match buffer.as_slice() {
             [left, right] => self.looper.process(&looping, left, Some(&mut **right)),
             [mono] => self.looper.process(&looping, mono, None),
             _ => {}
+        }
+        // A count-in began with the click running by itself: it restarts, the press is its beat one
+        if self.looper.take_restart() {
+            self.metronome.restart();
         }
         // Click set to Rec only: held back (faded, the clock running on) while the loop plays
         metronome.hushed = self.params.looper_click.value().hushes(self.looper.control().state());
@@ -1935,6 +1964,165 @@ mod tests {
         assert_eq!(control.length(), 96_000);
     }
 
+    /// An amp with the click on (120 bpm, 4/4), Bars at `bars` and the looper's Count-in at `count`
+    fn with_count_in(bars: looper::LoopBars, count: looper::CountIn) -> GuitarAmpPlugin {
+        let mut amp = clicking(true, ClickOut::Mixed);
+        amp.params = Arc::new(GuitarAmpParams {
+            metronome_on: BoolParam::new("Metronome", true),
+            looper_bars: EnumParam::new("Looper Bars", bars),
+            looper_count_in: EnumParam::new("Looper Count-in", count),
+            ..GuitarAmpParams::default()
+        });
+        amp
+    }
+
+    #[test]
+    fn test_a_count_in_of_one_bar_starts_recording_exactly_96000_samples_after_the_press() {
+        use looper::{CountIn, LoopBars, State};
+        for sizes in [&[64usize][..], &[333], &[512], &[64, 333, 512, 480]] {
+            let mut amp = with_count_in(LoopBars::Free, CountIn::Bar1);
+            let mut plain = with_bars(false, LoopBars::Free, looper::LoopClick::Always);
+            let control = amp.looper.control();
+            // Pressed in the middle of a beat: the click runs by itself and is not on a downbeat
+            let (mut pressed_at, mut first_recording) = (None, None);
+            let total = 10_000 + 96_000 + 3000;
+            play_sizes(&mut amp, sizes, total, |played, amp| {
+                if pressed_at.is_none() && played >= 10_000 {
+                    pressed_at = Some(played);
+                    amp.looper.control().press();
+                }
+                if first_recording.is_none() && amp.looper.control().state() == State::Recording {
+                    first_recording = Some(played);
+                }
+            });
+            let press = pressed_at.unwrap();
+            // The block that holds sample press + 96000 is where recording began: it is the last
+            // block start at or before it, so the recorder has seen everything from there
+            let (recorded, _) = amp.looper.recorded();
+            assert_eq!(recorded.len(), total - press - 96_000, "{sizes:?}: exactly a bar after");
+            let alone = play_sizes(&mut plain, sizes, total, |_, _| {});
+            for k in 480..recorded.len() {
+                assert_eq!(recorded[k], alone[press + 96_000 + k], "{sizes:?}: sample {k}");
+            }
+            assert!(first_recording.is_some());
+            assert_eq!(control.state(), State::Recording);
+        }
+    }
+
+    #[test]
+    fn test_a_count_in_restarts_the_click_so_the_press_is_beat_one_and_the_start_is_a_downbeat() {
+        use looper::{CountIn, LoopBars};
+        let mut amp = with_count_in(LoopBars::Free, CountIn::Bar1);
+        let reading = amp.metronome.reading();
+        let mut seen = Vec::new();
+        // Blocks of 64: the press lands at 6400, a bar of 96 000 is a whole number of blocks
+        play_sizes(&mut amp, &[64], 6400 + 96_000 + 640, |played, amp| {
+            if played == 6400 {
+                amp.looper.control().press();
+            }
+            seen.push((played, reading.read()));
+        });
+        let at = |played: usize| seen.iter().find(|(p, _)| *p == played).unwrap().1;
+        // The block after the press holds a downbeat: one more beat counted, accented
+        let (before, _) = at(6400);
+        assert_eq!(at(6400 + 64), (before + 1, true), "the press is beat one");
+        // A beat every 24 000 samples from there, and the fifth is the start, accented
+        let after_bar = at(6400 + 96_000 + 64);
+        assert_eq!(after_bar, (before + 5, true), "the recording starts on a downbeat");
+        assert_eq!(at(6400 + 96_000).0, before + 4);
+        assert_eq!(amp.looper.control().state(), looper::State::Recording);
+    }
+
+    #[test]
+    fn test_a_second_press_or_clear_takes_a_count_in_back_and_off_is_as_it_was() {
+        use looper::{CountIn, LoopBars, LoopClick, State};
+        for how in 0..2 {
+            let mut amp = with_count_in(LoopBars::Free, CountIn::Bars2);
+            let control = amp.looper.control();
+            play_sizes(&mut amp, &[480], 480 * 600, |played, amp| {
+                let control = amp.looper.control();
+                if played == 0 {
+                    control.press();
+                }
+                if played == 480 * 100 {
+                    assert!(control.count_in().is_some());
+                    if how == 0 {
+                        control.press();
+                    } else {
+                        control.clear();
+                    }
+                }
+                if played > 480 * 100 {
+                    assert_eq!(control.state(), State::Empty);
+                }
+            });
+            assert!(control.count_in().is_none());
+            assert_eq!(control.state(), State::Empty);
+        }
+        // Off: the same as an amp that has never heard of a count-in
+        let session = |mut amp: GuitarAmpPlugin| {
+            play_sizes(&mut amp, &[480], 480 * 300, |played, amp| {
+                if [0, 480 * 40, 480 * 120].contains(&played) {
+                    amp.looper.control().press();
+                }
+            })
+        };
+        assert_eq!(
+            session(with_count_in(LoopBars::Free, CountIn::Off)),
+            session(with_bars(true, LoopBars::Free, LoopClick::Always))
+        );
+    }
+
+    #[test]
+    fn test_a_count_in_then_two_bars_closes_and_plays_to_the_sample() {
+        use looper::{CountIn, LoopBars, State};
+        let mut amp = with_count_in(LoopBars::Bars2, CountIn::Bar1);
+        let control = amp.looper.control();
+        let mut closed = None;
+        let total = 3 * 96_000 + 3000;
+        play_sizes(&mut amp, &[333], total, |played, amp| {
+            if played == 0 {
+                amp.looper.control().press();
+            }
+            if closed.is_none() && amp.looper.control().state() == State::Playing {
+                closed = Some(played);
+            }
+        });
+        let closed = closed.expect("closed by itself");
+        // Counted in one bar, two recorded: the block holding sample 288 000 closes it
+        assert!((3 * 96_000..=3 * 96_000 + 333).contains(&closed), "{closed}");
+        assert_eq!(control.length(), 192_000);
+        assert_eq!(control.position() as usize, total - 3 * 96_000);
+    }
+
+    #[test]
+    fn test_process_through_a_count_in_allocates_nothing() {
+        use looper::{CountIn, LoopBars, State};
+        use suite_common::host;
+        let mut amp = with_count_in(LoopBars::Bars1, CountIn::Bar1);
+        let control = amp.looper.control();
+        let (mut left, mut right) = (vec![0.1f32; 480], vec![0.1f32; 480]);
+        // 200 blocks of 480 are a bar of count-in, then the recording starts
+        for block in 0..260 {
+            if block == 3 {
+                control.press();
+            }
+            let mut buffer = Buffer::default();
+            // SAFETY: the slices are the vectors above, which outlive the buffer, 480 long
+            unsafe {
+                buffer.set_slices(480, |slices| {
+                    slices.clear();
+                    slices.extend([&mut left[..], &mut right[..]]);
+                });
+            }
+            let mut aux = AuxiliaryBuffers { inputs: &mut [], outputs: &mut [] };
+            host::assert_allocates_nothing("The looper counting in", || {
+                amp.process(&mut buffer, &mut aux, &mut PlainHost(PluginApi::Vst3));
+            });
+        }
+        assert_eq!(control.state(), State::Recording);
+    }
+
     /// What `process` answers after `blocks` blocks of silence
     fn status_after_silence(amp: &mut GuitarAmpPlugin, blocks: usize) -> ProcessStatus {
         let mut status = ProcessStatus::Normal;
@@ -1989,8 +2177,8 @@ mod tests {
         let mut ids: Vec<String> =
             GuitarAmpParams::default().param_map().into_iter().map(|(id, _, _)| id).collect();
         // The looper's bars and click (#450) are the very last, after the slots
-        assert_eq!(ids[ids.len() - 2..], ["looper_bars", "looper_click"]);
-        ids.truncate(ids.len() - 2);
+        assert_eq!(ids[ids.len() - 3..], ["looper_bars", "looper_click", "looper_count_in"]);
+        ids.truncate(ids.len() - 3);
         // Only the EQ's five, the wah's five, the looper's level and the slots' ninety-six come after it
         let slots = slots::MAX_SLOTS * (1 + slots::KNOBS);
         assert_eq!(ids.iter().position(|id| id == "metronome_out"), Some(ids.len() - 12 - slots));
