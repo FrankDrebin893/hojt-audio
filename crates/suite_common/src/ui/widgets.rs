@@ -847,6 +847,48 @@ pub fn nameplate_stepper_sized(
     step.or(plate_clicked.then_some(Step::Next))
 }
 
+/// How far the push button of a `nameplate_opener` stands from the middle of its plate
+pub fn nameplate_opener_reach(width: f32) -> f32 {
+    width / 2.0 + STEPPER_BUTTON_GAP + STEPPER_BUTTON_RADIUS
+}
+
+/// A nameplate for the thing that is picked from a drawer (an amp on its head, a cabinet at its
+/// foot): `text` printed in `print` on a plate of `plate` `width` wide, centred on `center`, with
+/// one chrome push button at its right, a chevron engraved in it. Returns whether the button was
+/// clicked. The plate itself takes no click, so a double-click on it reaches what is under it
+#[allow(clippy::too_many_arguments)]
+pub fn nameplate_opener(
+    ui: &mut Ui,
+    center: Pos2,
+    width: f32,
+    plate: Plate,
+    print: Color32,
+    text: &str,
+    id_source: &str,
+    text_size: f32,
+) -> bool {
+    let rect = Rect::from_center_size(center, vec2(width, NAMEPLATE_HEIGHT));
+    let button = center + vec2(nameplate_opener_reach(width), 0.0);
+    let hit = Rect::from_center_size(button, Vec2::splat(STEPPER_BUTTON_RADIUS * 2.0 + 4.0));
+    let response = ui
+        .interact(hit, Id::new(("nameplate-opener", id_source)), Sense::click())
+        .on_hover_text("Choose from a drawer");
+
+    let painter = ui.painter();
+    super::raster::paint_plate(painter, rect, 3.0, plate);
+    spaced_text(
+        painter,
+        center + vec2(0.0, 1.0),
+        Align2::CENTER_CENTER,
+        &text.to_uppercase(),
+        display(text_size),
+        print,
+        0.2,
+    );
+    push_button(painter, button, Engraving::Rise, response.is_pointer_button_down_on());
+    response.clicked()
+}
+
 /// One row of a column of a `drop_panel`: a strip of label tape with `text` on it
 #[derive(Clone, Default)]
 pub struct Row {
@@ -1323,6 +1365,8 @@ enum Engraving {
     Arrow(f32),
     /// A dot: a button that does one thing, named by the caption beside it
     Dot,
+    /// A chevron pointing up: what opens a drawer that rises from below
+    Rise,
 }
 
 /// A small chrome push button on its own, like those at the ends of a `stepper`, with a dot
@@ -1363,6 +1407,12 @@ fn push_button(painter: &Painter, center: Pos2, engraving: Engraving, pressed: b
         }
         Engraving::Dot => {
             painter.circle_filled(cap, 3.0, INK);
+        }
+        Engraving::Rise => {
+            let stroke = Stroke::new(2.2_f32, INK);
+            let tip = cap + vec2(0.0, -2.8);
+            painter.line_segment([tip + vec2(-4.5, 4.5), tip], stroke);
+            painter.line_segment([tip, tip + vec2(4.5, 4.5)], stroke);
         }
     }
 }

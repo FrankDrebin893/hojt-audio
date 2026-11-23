@@ -206,22 +206,7 @@ pub(crate) fn show(
                 NOTE_SIZE,
                 theme::SILK,
             );
-            let undo = undo_rect(rect);
-            let response = ui.interact(undo, Id::new("bank-undo"), Sense::click());
-            let painter = ui.painter();
-            painter.rect_filled(
-                undo,
-                3.0,
-                if response.hovered() { theme::CHROME_SHINE } else { theme::CHROME_LIGHT },
-            );
-            painter.rect_stroke(
-                undo,
-                3.0,
-                Stroke::new(1.0_f32, Color32::from_black_alpha(120)),
-                StrokeKind::Inside,
-            );
-            ui::center_label(painter, undo.center(), "Undo", 14.0, theme::INK);
-            if response.clicked() {
+            if sheet_button(ui, undo_rect(rect), "bank-undo", "Undo") {
                 action = Some(Action::Undo(kept));
             }
         } else {
@@ -235,22 +220,7 @@ pub(crate) fn show(
             };
             ui::left_label(ui.painter(), note_at, &note, NOTE_SIZE, theme::SILK);
         }
-        let close = close_rect(rect);
-        let response = ui.interact(close, Id::new("bank-close"), Sense::click());
-        let painter = ui.painter();
-        painter.rect_filled(
-            close,
-            3.0,
-            if response.hovered() { theme::CHROME_SHINE } else { theme::CHROME_LIGHT },
-        );
-        painter.rect_stroke(
-            close,
-            3.0,
-            Stroke::new(1.0_f32, Color32::from_black_alpha(120)),
-            StrokeKind::Inside,
-        );
-        ui::center_label(painter, close.center(), "Close", 14.0, theme::INK);
-        if response.clicked() {
+        if sheet_button(ui, close_rect(rect), "bank-close", "Close") {
             action = Some(Action::Close);
         }
 
@@ -336,6 +306,25 @@ pub(crate) fn show(
         *slot = None;
         ui.ctx().request_repaint();
     }
+}
+
+/// A chrome button in a sheet's header (Close, Undo) filling `rect`: true when it was clicked
+pub(crate) fn sheet_button(ui: &mut Ui, rect: Rect, id: &'static str, label: &str) -> bool {
+    let response = ui.interact(rect, Id::new(id), Sense::click());
+    let painter = ui.painter();
+    painter.rect_filled(
+        rect,
+        3.0,
+        if response.hovered() { theme::CHROME_SHINE } else { theme::CHROME_LIGHT },
+    );
+    painter.rect_stroke(
+        rect,
+        3.0,
+        Stroke::new(1.0_f32, Color32::from_black_alpha(120)),
+        StrokeKind::Inside,
+    );
+    ui::center_label(painter, rect.center(), label, 14.0, theme::INK);
+    response.clicked()
 }
 
 /// The pedal of `kind` as a miniature filling `rect` (the window's points): the pedal itself, in

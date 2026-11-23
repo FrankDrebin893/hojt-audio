@@ -50,8 +50,9 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   | Sang | deep blue smooth | salt-and-pepper cloth | brushed brass, ink | black chicken-head | silver |
   | Drøn | dark green bronco | black felt | dark wood, cream | gold top | none |
 
-  The amp is picked on a `nameplate_stepper` in the middle of the grille: its name on a plate
-  of the panel's metal, a chrome button each side. The panel holds, left to right, the input
+  The amp is picked from a drawer (#447, below): a double-click on the head opens it, and the
+  `nameplate_opener` in the middle of the grille, its name on a plate of the panel's metal with one
+  chrome button at its right, opens it with a single click. The panel holds, left to right, the input
   jack the cable from the pedals goes into with its `In` caption, the six dials as
   `panel_knob`s (radius 18, caption above, value tape under, in the panel's print and the amp's
   cap), and the jewel pilot lamp, lit while the amp is On. Tests hold every scale, caption and
@@ -205,6 +206,17 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   rocker a bare slot) with the count under it; a pedal not in the chain is dimmed. `SHEET_HEIGHT` is
   250, which leaves the tops of the pedals and the gaps' plus in view above it. The ghost under a
   dragged card is the same miniature
+- **The amp drawer** (#447, `editor/drawer.rs`, built to be reused for cabinets by #448): a sheet like
+  the bank's (handle, title `AMPS` and a note naming the lane, Close), two rows of six cards, each a
+  miniature head at a third of its size (`ui::amp_head` drawn into `ui::miniature`, in the look of
+  `looks::look`, so a new amp has one with nothing else to do; no dial captions or tapes), its name
+  and an `On Amp 1` / `On Amp 2` mark for each lane it plays on. The amp that plays on the drawer's lane
+  has the brass outline. Opened by a double-click on a head (it is a hit area under the dials, jack and
+  switch, so they keep their own clicks) or the nameplate's button; `View.drawer` is one more surface
+  beside `plate` and `effects`, so opening one closes the others. A click on a card picks (`dial_memory::switch_amp` /
+  `switch_second_amp`) and the drawer stays open; it closes on Close, Escape, a click outside (a click on
+  a head is not outside, so the second double-click on it can close) or the second double-click. `drawer::Spec`
+  holds a kind of drawer's size and cards, `drawer::show` draws any list of `Card`s
 - **Typed text** is taken in two places only: the name of a new preset bank, on its row of the
   preset plate, and the name of a new preset, on the plate's foot after Save
   (`type_on_tape`, 24 letters, the last 15 shown). Both are `type_into`: the letters on the tape or display with a `_` after them,

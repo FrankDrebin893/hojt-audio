@@ -1,7 +1,7 @@
 use nih_plug::prelude::*;
 use nih_plug_egui::egui::{
-    emath::TSTransform, vec2, Color32, Context, Id, LayerId, Order, Pos2, Rect, Sense, Ui,
-    UiBuilder, Vec2, ViewportCommand,
+    emath::TSTransform, vec2, Color32, Context, CursorIcon, Id, LayerId, Order, Pos2, Rect, Sense,
+    Ui, UiBuilder, Vec2, ViewportCommand,
 };
 use nih_plug_egui::resizable_window::ResizableWindow;
 use nih_plug_egui::{create_egui_editor, EguiState};
@@ -9,7 +9,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, PoisonError};
 use suite_common::ui::{
-    self, chrome_button, drop_panel_with, led_display, led_stepper, led_width, nameplate_stepper,
+    self, chrome_button, drop_panel_with, led_display, led_stepper, led_width, nameplate_opener,
     nameplate_stepper_sized, panel_knob, param_knob, param_switch, print_label, rig_led,
     signal_lamp, silk_frame, silk_label, small_footswitch, stepper, theme, tuner_display,
     type_into, type_on_tape, Beat, Column, MiniStyle, Motif, Ornament, PedalStyle, Pick, Plate,
@@ -20,7 +20,6 @@ use suite_common::ui::{
 use crate::board::{Line, STACK_WIDTH};
 use crate::cab::MicType;
 use crate::cab_stage::{CabLoader, CabStatus, NO_FILES_SHOWN};
-use crate::dial_memory;
 use crate::lamps::{LampReading, LampView};
 use crate::looks;
 use crate::looper::{CountIn, LoopBars, LoopClick, LooperControl, State as LoopState};
@@ -35,7 +34,7 @@ use crate::tuner::{Note, TunerReading};
 use crate::user_cab;
 use crate::user_presets::{self, Bank};
 use crate::wah::WahMode;
-use crate::{Amp, GuitarAmpParams, GuitarAmpPlugin, Task};
+use crate::{GuitarAmpParams, GuitarAmpPlugin, Task};
 use suite_common::update::UpdateCheck;
 
 /// The width of the line's design layer for the chain a project had before it could be built:
@@ -197,6 +196,7 @@ const ROCKER_TAPE_SIZE: f32 = 11.0;
 // from its left edge, the input jack the cable from the pedals goes into, the amp's six dials
 // in an even row, and at its right end the pilot lamp, lit while the amp is on
 const NAMEPLATE_WIDTH: f32 = 140.0;
+const NAMEPLATE_TEXT_SIZE: f32 = 22.0;
 // The middle of the jack, the first dial and the line of the dials, from the panel's top left
 // corner; captions are on one line above them
 const DIAL_Y: f32 = 52.0;
@@ -407,6 +407,11 @@ pub(crate) struct Pedals<'a> {
     cab_loader: &'a CabLoader,
     /// Has the chosen cabinet read in the background
     load_cabinet: &'a dyn Fn(),
+    /// The lane whose head was double-clicked, or whose nameplate button was, in this frame: the
+    /// window opens (or closes) that lane's amp drawer
+    drawer_ask: std::cell::Cell<Option<usize>>,
+    /// Where each lane's head stands this frame, which the drawer's click outside spares
+    heads: std::cell::Cell<[Rect; 2]>,
 }
 
 impl Pedals<'_> {
@@ -714,7 +719,20 @@ impl Pedals<'_> {
             corner + vec2(LANE_DIAL_FIRST_X + LANE_DIAL_SPACING * index as f32, DIAL_Y)
         });
         let id = if second { "amp2" } else { "amp" };
-        if let Some(step) = nameplate_stepper(
+        let lane = usize::from(second);
+        let mut heads = self.heads.get();
+        heads[lane] = head;
+        self.heads.set(heads);
+        // The head takes a double-click, under the dials, jack and switch, which are added after
+        // it and so answer their own clicks first
+        let hit = ui.interact(head, Id::new(("head-drawer", id)), Sense::click());
+        if hit.hovered() {
+            ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
+        }
+        if hit.double_clicked() {
+            self.drawer_ask.set(Some(lane));
+        }
+        if nameplate_opener(
             ui,
             faces.grille.center(),
             NAMEPLATE_WIDTH,
@@ -722,12 +740,9 @@ impl Pedals<'_> {
             print,
             amp.model().name,
             id,
+            NAMEPLATE_TEXT_SIZE,
         ) {
-            if second {
-                dial_memory::switch_second_amp(params, setter, neighbour_amp(amp, step));
-            } else {
-                dial_memory::switch_amp(params, setter, neighbour_amp(amp, step));
-            }
+            self.drawer_ask.set(Some(lane));
         }
         let own_dials = if second { params.amp2_dials() } else { params.amp_dials() };
         for ((param, label), at) in own_dials.into_iter().zip(DIALS).zip(dials) {
@@ -902,6 +917,9 @@ pub(crate) struct View {
     /// The effects bank, rising from below the line while it is open. One surface is open at a
     /// time, a plate or the sheet
     effects: Option<crate::bank::Sheet>,
+    /// The amp's (or the cabinet's) drawer, rising from below the line while it is open: the
+    /// third surface beside the plates and the bank, of which one is open at a time
+    drawer: Option<drawer::Drawer>,
 }
 
 /// A plate open under the strip: configuration is a plate that opens from an icon or a display,
@@ -966,6 +984,7 @@ impl View {
         if !was_open {
             self.plate = Some(open());
             self.effects = None;
+            self.drawer = None;
         }
     }
 }
@@ -1211,16 +1230,6 @@ fn paint_resize_corner(ui: &mut Ui) {
     );
 }
 
-/// The amp a step of the selector arrives at, round the list
-pub(crate) fn neighbour_amp(amp: Amp, step: Step) -> Amp {
-    let count = Amp::ALL.len();
-    let index = match step {
-        Step::Next => (amp.index() + 1) % count,
-        Step::Previous => (amp.index() + count - 1) % count,
-    };
-    Amp::ALL[index]
-}
-
 /// The microphone a step of its selector arrives at, round the list
 pub(crate) fn neighbour_mic(mic: MicType, step: Step) -> MicType {
     let count = MicType::ALL.len();
@@ -1263,6 +1272,7 @@ pub fn create(
             beat: BeatView::default(),
             scroll: 0.0,
             effects: None,
+            drawer: None,
         },
         move |egui_ctx, view| {
             ui::install(egui_ctx);
@@ -1542,6 +1552,8 @@ fn draw(
             gate_open,
             cab_loader: shared.cab_loader,
             load_cabinet: shared.load_cabinet,
+            drawer_ask: std::cell::Cell::new(None),
+            heads: std::cell::Cell::new([Rect::NOTHING; 2]),
         };
 
         // The line, scrolled sideways where the window shows only part of it. The wheel scrolls it
@@ -1549,9 +1561,12 @@ fn draw(
         view.scroll = view.scroll.clamp(0.0, fit.furthest());
         if fit.furthest() > 0.0 && view.plate.is_none() {
             // Not over the sheet of the bank, which stands on the line's lower part
-            let sheet_top = view.effects.as_ref().map_or(f32::MAX, |bank| {
-                bank.top(ui.max_rect().bottom() - window.y, now) + window.y
-            });
+            let below = ui.max_rect().bottom() - window.y;
+            let sheet_top = view
+                .effects
+                .as_ref()
+                .map_or(f32::MAX, |bank| bank.top(below, now) + window.y)
+                .min(view.drawer.map_or(f32::MAX, |drawer| drawer.top(below, now) + window.y));
             let over_line = ui.input(|input| input.pointer.hover_pos()).is_some_and(|at| {
                 at.y / fit.zoom > STACK_TOP - BENCH_MARGIN && at.y / fit.zoom < sheet_top
             });
@@ -1571,9 +1586,23 @@ fn draw(
             view.scroll,
             now,
         );
-        // Opening the bank closes the plate that was open
-        if view.effects.as_ref().is_some_and(|bank| bank.fresh) && view.plate.is_some() {
+        // Opening the bank closes the plate that was open, and the drawer
+        if view.effects.as_ref().is_some_and(|bank| bank.fresh) {
             view.close_plate(host);
+            view.drawer = None;
+        }
+        // A double-click on a head, or its nameplate's button, opens that lane's drawer, or
+        // closes it if it is the one open; it takes the bank and the plate down
+        if let Some(lane) = pedals.drawer_ask.take() {
+            let what = drawer::What::Amp;
+            if view.drawer.is_some_and(|open| open.lane == lane && open.what == what) {
+                view.drawer = None;
+            } else {
+                view.drawer = Some(drawer::Drawer::opened(lane, what, now));
+                view.effects = None;
+                view.close_plate(host);
+                ui.ctx().request_repaint();
+            }
         }
         let bottom = ui.max_rect().bottom();
         let track = Rect::from_min_max(
@@ -1585,6 +1614,7 @@ fn draw(
         // The bank and the plates after everything else, each in a layer above the window; one is
         // open at most
         crate::bank::show(ui, window, fit.visible, &pedals, &mut view.effects, view.scroll, now);
+        drawer::show_amps(ui, window, fit.visible, &pedals, &mut view.drawer, now);
         presets.plate(ui, origin, view, now);
         metronome_plate(
             ui,
@@ -1617,6 +1647,7 @@ fn set<P: Param>(setter: &ParamSetter, param: &P, value: P::Plain) {
     setter.end_set_parameter(param);
 }
 
+mod drawer;
 mod looper;
 mod metronome;
 mod mix;

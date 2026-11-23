@@ -1,4 +1,5 @@
 use super::*;
+use crate::Amp;
 #[cfg(target_os = "linux")]
 use std::cell::RefCell;
 #[cfg(target_os = "linux")]
@@ -48,6 +49,7 @@ fn fresh_view(params: &GuitarAmpParams, lamp_reading: &LampReading) -> View {
         beat: BeatView::default(),
         scroll: 0.0,
         effects: None,
+        drawer: None,
     }
 }
 
@@ -1964,18 +1966,22 @@ fn test_the_plate_holds_the_fader_and_what_the_cabinets_share_in_order() {
 }
 
 #[test]
-fn test_the_nameplate_and_its_buttons_sit_on_the_grille_clear_of_the_handle() {
+fn test_the_nameplate_and_its_button_sit_on_the_grille_clear_of_the_handle() {
     for (amp, head, faces) in heads() {
         let nameplate = faces.grille.center();
         let plate =
             Rect::from_center_size(nameplate, vec2(NAMEPLATE_WIDTH, ui::widgets::NAMEPLATE_HEIGHT));
         assert!(faces.grille.contains_rect(plate), "{amp:?}: {plate:?}");
-        let reach = reach(NAMEPLATE_WIDTH) - 2.0;
-        let buttons = Rect::from_center_size(nameplate, vec2(2.0 * (reach + BUTTON), 2.0 * BUTTON));
+        // One button at the plate's right
+        let button = Rect::from_center_size(
+            nameplate + vec2(ui::nameplate_opener_reach(NAMEPLATE_WIDTH), 0.0),
+            vec2(2.0 * BUTTON, 2.0 * BUTTON),
+        );
+        assert!(button.left() > plate.right(), "{amp:?}");
         // Inside the grille, away from its edge and the piping round it
-        assert!(faces.grille.shrink(4.0).contains_rect(buttons), "{amp:?}: {buttons:?}");
+        assert!(faces.grille.shrink(4.0).contains_rect(button), "{amp:?}: {button:?}");
         // The handle stands on the box, over the grille
-        assert!(buttons.top() > head.top() + ui::amp::HANDLE_HEIGHT + 4.0, "{amp:?}");
+        assert!(button.top() > head.top() + ui::amp::HANDLE_HEIGHT + 4.0, "{amp:?}");
     }
 }
 
@@ -2029,27 +2035,6 @@ fn test_mic_stepper_goes_round_the_list_both_ways() {
     }
     for one in MicType::ALL {
         assert_eq!(neighbour_mic(neighbour_mic(one, Step::Previous), Step::Next), one);
-    }
-}
-
-#[test]
-fn test_amp_stepper_goes_round_the_list_both_ways() {
-    let mut amp = Amp::ALL[0];
-    let mut seen = vec![amp];
-    for _ in 0..Amp::ALL.len() {
-        amp = neighbour_amp(amp, Step::Next);
-        seen.push(amp);
-    }
-    // Every amp once, and back where it started
-    assert_eq!(seen.first(), seen.last());
-    for one in Amp::ALL {
-        assert_eq!(
-            seen.iter().filter(|&&seen| seen == one).count(),
-            if one == seen[0] { 2 } else { 1 }
-        );
-    }
-    for one in Amp::ALL {
-        assert_eq!(neighbour_amp(neighbour_amp(one, Step::Next), Step::Previous), one);
     }
 }
 
@@ -2900,4 +2885,279 @@ fn test_a_double_click_above_the_cabinet_plate_asks_for_the_folder_and_one_on_it
     // Above the plate on the first: the folder
     double_click(&mut harness, Pos2::new(cab.center().x, cab.top() + 40.0));
     assert_eq!(opened(), before + 1);
+}
+
+// The amps' drawer (#447): a double-click on a head, or its nameplate's button, raises a sheet with
+// a miniature head of each amp; a click on one picks it for that lane
+
+/// Where each lane's head stands in the line at the full size
+#[cfg(target_os = "linux")]
+fn head_places(params: &GuitarAmpParams) -> [Rect; 2] {
+    let stack = Line::of_chain(&params.chain.get()).stack_for_test();
+    [0.0, LANE_HEIGHT + LANE_GAP].map(|down| {
+        Rect::from_min_size(Pos2::new(stack, STACK_TOP + down), vec2(LANE_HEAD_WIDTH, LANE_HEIGHT))
+    })
+}
+
+#[cfg(target_os = "linux")]
+fn amp_sheet() -> Rect {
+    drawer::AMPS.risen_rect(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32)
+}
+
+#[cfg(target_os = "linux")]
+fn drawer_lane(view: &Rc<RefCell<View>>) -> Option<usize> {
+    view.borrow().drawer.map(|open| open.lane)
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_a_double_click_on_the_grille_opens_the_amp_drawer_for_that_lane_and_one_on_a_dial_does_not()
+{
+    let params = GuitarAmpParams::default();
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let (mut harness, view) = bank_harness(&params, &setter);
+    let [first, second] = head_places(&params);
+    let faces = ui::head_faces(first, &looks::look(params.amp.value()).head);
+    // On a dial: nothing opens
+    let dial = faces.panel.left_top() + vec2(LANE_DIAL_FIRST_X, DIAL_Y);
+    double_click(&mut harness, dial);
+    assert_eq!(drawer_lane(&view), None);
+    // On the grille, clear of the nameplate: the first lane's
+    double_click(&mut harness, faces.grille.left_center() + vec2(30.0, 0.0));
+    assert_eq!(drawer_lane(&view), Some(0));
+    // A double-click on the second head, above the sheet's reach in a tall window or not, the
+    // button on its nameplate opens that lane's
+    view.borrow_mut().drawer = None;
+    harness.run_ok();
+    let faces = ui::head_faces(second, &looks::look(params.amp2.value()).head);
+    let button = faces.grille.center() + vec2(ui::nameplate_opener_reach(NAMEPLATE_WIDTH), 0.0);
+    click(&mut harness, button);
+    assert_eq!(drawer_lane(&view), Some(1));
+}
+
+/// A host that keeps what the editor sets, in order
+#[cfg(target_os = "linux")]
+#[derive(Default)]
+struct RecordHost {
+    sets: std::sync::Mutex<Vec<(ParamPtr, f32)>>,
+}
+
+#[cfg(target_os = "linux")]
+impl GuiContext for RecordHost {
+    fn plugin_api(&self) -> PluginApi {
+        PluginApi::Clap
+    }
+    fn request_resize(&self) -> bool {
+        false
+    }
+    unsafe fn raw_begin_set_parameter(&self, _: ParamPtr) {}
+    unsafe fn raw_set_parameter_normalized(&self, param: ParamPtr, normalized: f32) {
+        self.sets.lock().unwrap().push((param, normalized));
+    }
+    unsafe fn raw_end_set_parameter(&self, _: ParamPtr) {}
+    fn get_state(&self) -> PluginState {
+        unreachable!()
+    }
+    fn set_state(&self, _: PluginState) {}
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_a_click_on_each_card_picks_that_amp_for_that_lane_and_leaves_the_other_alone() {
+    for lane in 0..2 {
+        let params = GuitarAmpParams::default();
+        let host = RecordHost::default();
+        let setter = ParamSetter::new(&host);
+        let (mut harness, view) = bank_harness(&params, &setter);
+        view.borrow_mut().drawer = Some(drawer::Drawer::risen(lane, drawer::What::Amp));
+        harness.run_ok();
+        let (own, other) =
+            if lane == 0 { (&params.amp, &params.amp2) } else { (&params.amp2, &params.amp) };
+        for (index, amp) in Amp::ALL.into_iter().enumerate() {
+            host.sets.lock().unwrap().clear();
+            click(&mut harness, drawer::AMPS.card_rect(amp_sheet(), index).center());
+            let sets = host.sets.lock().unwrap().clone();
+            // Picking the amp that plays already sets nothing; any other sets this lane's amp
+            if own.value() == amp {
+                assert!(sets.is_empty(), "lane {lane}, {amp:?}");
+            } else {
+                assert!(
+                    sets.contains(&(own.as_ptr(), own.preview_normalized(amp))),
+                    "lane {lane}, {amp:?}"
+                );
+            }
+            assert!(sets.iter().all(|(param, _)| *param != other.as_ptr()), "lane {lane}");
+            // It stays open, so the next can be tried
+            assert_eq!(drawer_lane(&view), Some(lane));
+        }
+    }
+}
+
+#[test]
+fn test_the_cards_say_which_lane_plays_each_amp_and_outline_the_one_of_their_lane() {
+    let params =
+        GuitarAmpParams { amp: EnumParam::new("Amp", Amp::Torden), ..GuitarAmpParams::default() };
+    let (one, two) = (params.amp.value(), params.amp2.value());
+    let cards = drawer::amp_cards(&params, 0);
+    assert_eq!(cards.len(), Amp::ALL.len());
+    for (card, amp) in cards.iter().zip(Amp::ALL) {
+        assert_eq!(card.name, amp.model().name);
+        assert_eq!(card.lit, amp == one);
+        assert_eq!(card.marks.contains(&"On Amp 1".to_owned()), amp == one);
+        assert_eq!(card.marks.contains(&"On Amp 2".to_owned()), amp == two);
+    }
+    // The same amp on both lanes says both
+    if one == two {
+        assert_eq!(cards[one.index()].marks.len(), 2);
+    }
+    let lit = |lane| drawer::amp_cards(&params, lane).iter().position(|card| card.lit);
+    assert_eq!(lit(0), Some(one.index()));
+    assert_eq!(lit(1), Some(two.index()));
+}
+
+// A miniature head is drawn in the look of its amp
+#[test]
+fn test_a_miniature_head_has_the_look_of_its_amp() {
+    for (index, amp) in Amp::ALL.into_iter().enumerate() {
+        assert!(std::ptr::eq(drawer::amp_face(index), &looks::look(amp).head));
+    }
+}
+
+// Every card lies on the sheet, apart from the next and clear of Close, and the miniature is on its card
+#[test]
+fn test_every_amp_card_lies_on_the_sheet_apart_and_clear_of_close() {
+    let spec = &drawer::AMPS;
+    for width in [2600.0, WINDOW_WIDTH as f32] {
+        let sheet = spec.risen_rect(width, WINDOW_HEIGHT as f32);
+        let close = crate::bank::close_rect(sheet);
+        let cards: Vec<Rect> = (0..Amp::ALL.len()).map(|i| spec.card_rect(sheet, i)).collect();
+        for (index, card) in cards.iter().enumerate() {
+            assert!(sheet.contains_rect(*card), "{index}");
+            assert!(!card.intersects(close), "{index}");
+            assert!(card.contains_rect(spec.face_rect(*card)), "{index}");
+            for other in &cards[index + 1..] {
+                assert!(!card.intersects(*other));
+            }
+        }
+    }
+    // The first lane's head is still in view above the sheet
+    let top = WINDOW_HEIGHT as f32 - spec.height();
+    assert!(top > STACK_TOP + LANE_HEIGHT * 0.5, "{top}");
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_drawer_the_bank_and_a_plate_are_never_open_together() {
+    use crate::order::Zone;
+    let params = GuitarAmpParams::default();
+    params.chain.put(half_chain());
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let (mut harness, view) = bank_harness(&params, &setter);
+    let [first, _] = head_places(&params);
+    let faces = ui::head_faces(first, &looks::look(params.amp.value()).head);
+    double_click(&mut harness, faces.grille.left_center() + vec2(30.0, 0.0));
+    assert_eq!(drawer_lane(&view), Some(0));
+    // A plate takes it down
+    click(&mut harness, Pos2::new(SETTINGS_X, STRIP_Y));
+    assert!(view.borrow().drawer.is_none());
+    assert!(view.borrow().is_open(Plates::Settings));
+    // The drawer takes the plate down
+    double_click(&mut harness, faces.grille.left_center() + vec2(30.0, 0.0));
+    assert_eq!(drawer_lane(&view), Some(0));
+    assert!(view.borrow().plate.is_none());
+    // The bank takes the drawer down
+    view.borrow_mut().effects = Some(crate::bank::Sheet::opened((Zone::Front, 3), 0.0, None));
+    harness.run_ok();
+    assert!(view.borrow().effects.is_some());
+    assert!(view.borrow().drawer.is_none());
+    // And the drawer takes the bank down
+    view.borrow_mut().effects = None;
+    harness.run_ok();
+    double_click(&mut harness, faces.grille.left_center() + vec2(30.0, 0.0));
+    assert!(view.borrow().drawer.is_some());
+    assert!(view.borrow().effects.is_none());
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_amp_drawer_closes_on_escape_close_a_click_outside_and_a_second_double_click() {
+    let params = GuitarAmpParams::default();
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let (mut harness, view) = bank_harness(&params, &setter);
+    let open = |view: &Rc<RefCell<View>>, harness: &mut Harness| {
+        view.borrow_mut().drawer = Some(drawer::Drawer::risen(0, drawer::What::Amp));
+        harness.run_ok();
+    };
+    open(&view, &mut harness);
+    press_escape(&mut harness);
+    assert!(view.borrow().drawer.is_none());
+    open(&view, &mut harness);
+    click(&mut harness, Pos2::new(1500.0, 40.0));
+    assert!(view.borrow().drawer.is_none());
+    open(&view, &mut harness);
+    click(&mut harness, crate::bank::close_rect(amp_sheet()).center());
+    assert!(view.borrow().drawer.is_none());
+    // A click on the sheet's bare metal leaves it open
+    open(&view, &mut harness);
+    let between = drawer::AMPS.card_rect(amp_sheet(), 0).right() + 3.0;
+    click(&mut harness, Pos2::new(between, amp_sheet().top() + 80.0));
+    assert!(view.borrow().drawer.is_some(), "a click on the bare metal leaves it open");
+    // The second double-click on the head it opened for closes it
+    let [first, _] = head_places(&params);
+    let faces = ui::head_faces(first, &looks::look(params.amp.value()).head);
+    let at = faces.grille.left_center() + vec2(30.0, 0.0);
+    open(&view, &mut harness);
+    click(&mut harness, at);
+    assert!(view.borrow().drawer.is_some(), "one click on the head leaves it open");
+    double_click(&mut harness, at);
+    assert!(view.borrow().drawer.is_none());
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_an_open_amp_drawer_at_rest_asks_for_no_repaint() {
+    let params = GuitarAmpParams::default();
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let (mut harness, view) = bank_harness(&params, &setter);
+    view.borrow_mut().drawer = Some(drawer::Drawer::risen(0, drawer::What::Amp));
+    for _ in 0..20 {
+        harness.step();
+    }
+    let delays: Vec<_> =
+        harness.output().viewport_output.values().map(|viewport| viewport.repaint_delay).collect();
+    assert!(!delays.is_empty());
+    assert!(delays.iter().all(|delay| *delay == std::time::Duration::MAX), "{delays:?}");
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_amp_drawer_looks_as_it_did() {
+    let params = GuitarAmpParams::default();
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let (mut harness, view) = bank_harness(&params, &setter);
+    view.borrow_mut().drawer = Some(drawer::Drawer::risen(0, drawer::What::Amp));
+    harness.run_ok();
+    harness.run_ok();
+    harness.snapshot("amp_drawer");
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_amp_drawer_for_the_second_lane_looks_as_it_did() {
+    let params = GuitarAmpParams {
+        amp2: EnumParam::new("Amp 2", Amp::Torden),
+        ..GuitarAmpParams::default()
+    };
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let (mut harness, view) = bank_harness(&params, &setter);
+    view.borrow_mut().drawer = Some(drawer::Drawer::risen(1, drawer::What::Amp));
+    harness.run_ok();
+    harness.run_ok();
+    harness.snapshot("amp_drawer_second");
 }
