@@ -308,11 +308,11 @@ The reasons behind choices that the code alone does not explain. What it does is
 - The window's size is persisted under a key of its own (`editor-state-rig12`); it is renamed
   whenever the default size changes, so a project saved before opens at the new size. The key
   is not renamed for #270: a saved size is still a size, and it is clamped to the screen at
-  open. The line is drawn in a layer of its own width on `ui::rig_layer()` (3411 x 584 points for
+  open. The line is drawn in a layer of its own width on `ui::rig_layer()` (3501 x 584 points for
   the gate, twelve pedals and the stack of today's chain; each block more is 207 points more)
   and scaled by a layer transform, the zoom that fits the layer in the window wide and high,
-  kept between 0.5 and 1.0 (#270). Opening is sized to the screen at 0.55 (the full `3411 x 584`
-  or `1876 x 321` on a `1920 x 1080` screen). The corner handle drags to any size from
+  kept between 0.5 and 1.0 (#270). Opening is sized to the screen (the full `3501 x 584`
+  or `1876 x 313` on a `1920 x 1080` screen). The corner handle drags to any size from
   1301 x 293, no proportions locked: a chain that grows is a line that grows. The slim strip
   (#267) made it 66 points lower than the 650 it was: the pedals and the stack kept their size
 - **The line scales and scrolls (#270).** A block keeps its size and the gap between two is

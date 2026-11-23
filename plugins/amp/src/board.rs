@@ -139,13 +139,13 @@ impl Line {
         &self.pieces
     }
 
-    /// The left edge of the piece at each place of the line, from the left edge of the layer
     #[cfg(test)]
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))] // its tests draw, and run on Linux alone
     pub(crate) fn stack_for_test(&self) -> f32 {
         self.places()[Piece::Stack.key()]
     }
 
+    /// The left edge of the piece at each place of the line, from the left edge of the layer
     #[cfg(test)]
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))] // its tests draw, and run on Linux alone
     pub(crate) fn places_for_test(&self) -> Vec<f32> {
