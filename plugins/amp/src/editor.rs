@@ -10,11 +10,11 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, PoisonError};
 use suite_common::ui::{
     self, chrome_button, drop_panel_with, led_display, led_stepper, led_width, nameplate_stepper,
-    panel_knob, param_knob, param_switch, print_label, rig_led, signal_lamp, silk_frame,
-    silk_label, small_footswitch, stepper, theme, tuner_display, type_into, type_on_tape, Beat,
-    Column, MiniStyle, Motif, Ornament, PedalStyle, Pick, Plate, Row, Step, Typed, BENCH_MARGIN,
-    LED_HEIGHT, SLIM_JACK_X, SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED, SLIM_PRINT_REACH,
-    SLIM_STRIP_HEIGHT, SLIM_SWITCH,
+    nameplate_stepper_sized, panel_knob, param_knob, param_switch, print_label, rig_led,
+    signal_lamp, silk_frame, silk_label, small_footswitch, stepper, theme, tuner_display,
+    type_into, type_on_tape, Beat, Column, MiniStyle, Motif, Ornament, PedalStyle, Pick, Plate,
+    Row, Step, Typed, BENCH_MARGIN, LED_HEIGHT, SLIM_JACK_X, SLIM_KNOBS, SLIM_KNOB_RADIUS,
+    SLIM_LED, SLIM_PRINT_REACH, SLIM_STRIP_HEIGHT, SLIM_SWITCH,
 };
 
 use crate::board::{Line, STACK_WIDTH};
@@ -41,18 +41,20 @@ use suite_common::update::UpdateCheck;
 /// The width of the line's design layer for the chain a project had before it could be built:
 /// the gate, the twelve pedals and the stack. The strip's places are made at this width and move
 /// with the layer's (`Fit`); the line's own width follows its chain (`board::Line::width`)
-const WINDOW_WIDTH: u32 = 3411;
+const WINDOW_WIDTH: u32 = 3501;
 const WINDOW_HEIGHT: u32 = (STACK_TOP + HEAD_HEIGHT + PEDAL_HEIGHT + BENCH_MARGIN) as u32;
 
 // The line is drawn in a layer of its own width and `WINDOW_HEIGHT` high, and the layer is
 // scaled onto the window by a zoom that is what fits (`Fit`), from `MIN_ZOOM` to `MAX_ZOOM`. A
 // line too long to fit at `MIN_ZOOM` is scrolled sideways, with the strip staying where it is.
-// A window opens sized to the screen (up to the full 3411 x 584, or 1876 x 321 on a 1920 x 1080
+// A window opens sized to the screen (up to the full 3501 x 584, or 1876 x 313 on a 1920 x 1080
 // screen) and is dragged by its corner to any size from `MIN_WIDTH` x `MIN_HEIGHT` up
 const MIN_ZOOM: f32 = 0.5;
 const MAX_ZOOM: f32 = 1.0;
-const DEFAULT_ZOOM: f32 = 0.55;
-const DEFAULT_WIDTH: u32 = (WINDOW_WIDTH as f32 * DEFAULT_ZOOM).round() as u32;
+// What a 1920 px screen leaves of the window beside it, as ever (the window opens 1876 wide there)
+const SCREEN_MARGIN: u32 = 44;
+const DEFAULT_WIDTH: u32 = FALLBACK_SCREEN_WIDTH - SCREEN_MARGIN;
+const DEFAULT_ZOOM: f32 = DEFAULT_WIDTH as f32 / WINDOW_WIDTH as f32;
 /// The narrowest the strip may be: what the controls on it need to stand clear of each other.
 /// It stretches with the window from there, and so does the layer
 const STRIP_MIN_WIDTH: f32 = 2600.0;
@@ -61,7 +63,6 @@ const SCROLL_INSET: f32 = 40.0;
 const MIN_WIDTH: u32 = (STRIP_MIN_WIDTH * MIN_ZOOM) as u32 + 1;
 const MIN_HEIGHT: u32 = (WINDOW_HEIGHT as f32 * MIN_ZOOM) as u32 + 1;
 const FALLBACK_SCREEN_WIDTH: u32 = 1920;
-const SCREEN_MARGIN: u32 = FALLBACK_SCREEN_WIDTH - DEFAULT_WIDTH;
 const RESIZE_ID: &str = "amp-resize";
 
 // The strip across the top, and under it the line: the pedals, and among them the stack, the
@@ -190,7 +191,6 @@ const PLATE_TOP: f32 = BENCH_MARGIN + SLIM_STRIP_HEIGHT + 4.0;
 // The wah's Toe, Heel and Rocker captions, and the rocker's value on its tape
 const ROCKER_END_SIZE: f32 = 12.0;
 const ROCKER_TAPE_SIZE: f32 = 11.0;
-const LANE_CAPTION_SIZE: f32 = 15.0;
 
 // On the head, which looks as its amp does (`looks`): the nameplate on the grille, the amp's
 // name between two buttons that step to the next amp, and the panel under it. On the panel,
@@ -203,8 +203,7 @@ const DIAL_Y: f32 = 52.0;
 const DIALS: [&str; 6] = ["Gain", "Bass", "Mid", "Treble", "Presence", "Master"];
 // The stack is two lanes, one per amp, one above the other: a head with the cabinet beside it,
 // that play together. Each lane's head looks as its amp (`looks`), its cabinet as the cabinet
-// that plays through it (`looks::cab_look`; no plate: the lane's own choice is on the head's
-// lower line). The lanes end at a black plate where the signal meets, with the Blend fader
+// that plays through it (`looks::cab_look`), with the lane's choice on a nameplate at its foot. The lanes end at a black plate where the signal meets, with the Blend fader
 // between the two, and what both share: Mic, Res, the microphone, the cabinets' switch and the
 // one output jack. Positions are from the stack's top left corner
 const LANE_GAP: f32 = 18.0;
@@ -212,23 +211,25 @@ const LANE_HEIGHT: f32 = (HEAD_HEIGHT + PEDAL_HEIGHT - LANE_GAP) / 2.0;
 /// The stack's height: both lanes and the gap between them
 pub(crate) const STACK_HEIGHT: f32 = HEAD_HEIGHT + PEDAL_HEIGHT;
 const LANE_HEAD_WIDTH: f32 = 420.0;
-const LANE_CAB_WIDTH: f32 = 120.0;
+const LANE_CAB_WIDTH: f32 = 210.0;
 const LANE_CAB_GAP: f32 = 6.0;
 // The plate starts after the cabinets, with room for a coupler between
 const MIX_GAP: f32 = 12.0;
 const MIX_X: f32 = LANE_HEAD_WIDTH + LANE_CAB_WIDTH + LANE_CAB_GAP + MIX_GAP - LANE_CAB_GAP;
 const MIX_WIDTH: f32 = STACK_WIDTH - MIX_X;
 // On a lane's head, from the panel's top left corner: the dials in a row, the lane's name,
-// its cabinet's stepper and, on the second lane, its switch, on the line under the dials
+// and, on the second lane, its switch, on the line under the dials
 const LANE_JACK_X: f32 = 16.0;
 const LANE_DIAL_FIRST_X: f32 = 54.0;
 const LANE_DIAL_SPACING: f32 = 55.0;
 const LANE_DIAL_RADIUS: f32 = 15.0;
 const LANE_LINE_DY: f32 = 72.0;
 const LANE_NAME_X: f32 = 48.0;
-const LANE_CAB_X: f32 = 170.0;
-const LANE_CAB_CAPTION_DY: f32 = -24.0;
-const LANE_CAB_STEPPER_WIDTH: f32 = 90.0;
+// A cabinet's nameplate, centred across the cabinet and this far up from its foot: the choice's
+// name between two step buttons, on brushed chrome
+const CAB_PLATE_WIDTH: f32 = 128.0;
+const CAB_PLATE_FOOT: f32 = 28.0;
+const CAB_PLATE_TEXT_SIZE: f32 = 15.0;
 // From the panel's right edge
 const LANE_ON_CAPTION_DX: f32 = -116.0;
 const LANE_ON_LED_DX: f32 = -88.0;
@@ -695,8 +696,8 @@ impl Pedals<'_> {
     }
 
     /// One lane at `origin`: the head of its amp with its nameplate and six dials, the cabinet
-    /// it plays through beside it, and the line under the dials with its name, its cabinet's
-    /// stepper and, for the second, its On switch. Returns the middle of the head's input jack
+    /// it plays through beside it with its choice on a nameplate at its foot, and the line under
+    /// the dials with its name and, for the second, its On switch. Returns the middle of the head's input jack
     /// and where its cabinet ends on the right
     fn lane(&self, ui: &mut Ui, origin: Pos2, second: bool) -> (Pos2, Pos2) {
         let (params, setter) = (self.params, self.setter);
@@ -745,14 +746,6 @@ impl Pedals<'_> {
             18.0,
             print,
         );
-        let cab_at = Pos2::new(corner.x + LANE_CAB_X, line);
-        print_label(
-            ui.painter(),
-            cab_at + vec2(0.0, LANE_CAB_CAPTION_DY),
-            "Cabinet",
-            LANE_CAPTION_SIZE,
-            print,
-        );
         if second {
             let right = faces.panel.right();
             print_label(
@@ -783,25 +776,36 @@ impl Pedals<'_> {
         );
         ui::cabinet(ui, cab, &style);
 
-        // Its stepper: the amp's own, the built-in ones and, for the first, the files too
+        // Its nameplate at the foot: the amp's own, the built-in ones and, for the first, the
+        // files too
+        let plate_at = Pos2::new(cab.center().x, cab.bottom() - CAB_PLATE_FOOT);
+        let step_of = |ui: &mut Ui, shown: &str, id: &str| {
+            nameplate_stepper_sized(
+                ui,
+                plate_at,
+                CAB_PLATE_WIDTH,
+                Plate::BrushedChrome,
+                theme::INK,
+                shown,
+                id,
+                CAB_PLATE_TEXT_SIZE,
+            )
+        };
         if second {
             let shown = match params.cabinet_second.get() {
                 Some(speaker) => crate::amp::model::SPEAKERS[speaker].name.to_owned(),
                 None => "OWN".to_owned(),
             };
-            if let Some(step) = stepper(ui, cab_at, LANE_CAB_STEPPER_WIDTH, &shown, "cabinet2") {
+            if let Some(step) = step_of(ui, &shown, "cabinet2") {
                 params.cabinet_second.step(step == Step::Next);
             }
         } else {
-            // Where the files go: shown when the caption is hovered, and opened by a
-            // double-click on it
+            // Where the files go: shown when the cabinet is hovered above its plate, and
+            // opened by a double-click on it (until the cabinet drawer, #448, takes it over)
             if let Some(dir) = user_cab::cabinets_dir() {
-                let caption = Rect::from_center_size(
-                    cab_at + vec2(0.0, LANE_CAB_CAPTION_DY),
-                    vec2(70.0, 18.0),
-                );
+                let body = cabinet_folder_area(cab);
                 let response = ui
-                    .interact(caption, Id::new("cabinet-folder"), Sense::click())
+                    .interact(body, Id::new("cabinet-folder"), Sense::click())
                     .on_hover_text(format!("Cabinet files go in {}", dir.display()));
                 if response.double_clicked() {
                     let _ = std::fs::create_dir_all(&dir);
@@ -813,12 +817,18 @@ impl Pedals<'_> {
                 ui.ctx().request_repaint_after(NO_FILES_SHOWN);
             }
             let shown = self.cab_loader.display_name(&chosen, CAB_NAME_CHARS);
-            if let Some(step) = stepper(ui, cab_at, LANE_CAB_STEPPER_WIDTH, &shown, "cabinet") {
+            if let Some(step) = step_of(ui, &shown, "cabinet") {
                 step_cabinet(params, self.cab_loader, self.load_cabinet, step == Step::Next);
             }
         }
         (jack, cab.right_center())
     }
+}
+
+/// Where a double-click on the first lane's cabinet opens the cabinets folder: the cabinet above
+/// its nameplate and the step buttons
+fn cabinet_folder_area(cab: Rect) -> Rect {
+    Rect::from_min_max(cab.min, Pos2::new(cab.right(), cab.bottom() - CAB_PLATE_FOOT - 22.0))
 }
 
 /// A jack socket: the nut a patch cable's plug goes into

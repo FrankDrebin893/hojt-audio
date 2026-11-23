@@ -5,7 +5,7 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
 - Besides its own cabinet an amp can play through any of the fourteen built-in cabinets
   (`SPEAKERS` in `amp/model.rs`: `1X10 SMALL`, `1X12 OPEN`, `2X12 OPEN`, `4X10 CRISP`,
   `4X12 MID`, `4X12 TIGHT`, `1X15 DEEP`, `1X8 TINY`, `2X12 PUNCH`, `4X12 HEAVY`, and the clear ones of the cabinets work that followed the ten: `1X12 CLEAR`, `1X10 SNAP`, `2X12 CHIME` and `FULL RANGE`, a woofer and a tweeter for clean and acoustic sounds, the one that is no guitar speaker; designs of their own, not the amps'), picked on the
-  lane's `Cabinet` stepper after `OWN` (the second amp's has no file, only its own amp's
+  lane's cabinet nameplate (at the cabinet's foot, #446) after `OWN` (the second amp's has no file, only its own amp's
   cabinet and these). A built-in cabinet is stored as `speaker:<id>` in the cabinet choice;
   the ids are frozen (a test holds them), the order may change. One this build does not have
   plays the amp's own and is shown with `?`. Picking the cabinet that already plays changes
@@ -20,7 +20,7 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   cabinet
 - Files are read on a background task (`initialize` only asks for one, which the first block hands to the host's background thread), never on the audio thread; the taps
   reach it through `CabStage` without allocating, freeing or waiting
-- The folder is created the first time the stepper is used, not by loading the plugin
+- The folder is created the first time the nameplate is used, not by loading the plugin
 - A 40 ms cabinet adds about 0.1 % of a core against the amp's own at any rate. Its late part is
   convolved in FFT partitions whose work is spread over the samples of a block: no added latency,
   the worst block as with the amp's own cabinet, output independent of the host's block size
