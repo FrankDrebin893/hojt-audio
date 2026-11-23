@@ -725,7 +725,9 @@ impl Pedals<'_> {
         self.heads.set(heads);
         // The head takes a double-click, under the dials, jack and switch, which are added after
         // it and so answer their own clicks first
-        let hit = ui.interact(head, Id::new(("head-drawer", id)), Sense::click());
+        let hit = ui
+            .interact(head, Id::new(("head-drawer", id)), Sense::click())
+            .on_hover_text("Double-click to choose");
         if hit.hovered() {
             ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
         }

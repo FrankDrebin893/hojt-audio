@@ -54,6 +54,8 @@ param looper_bars
 param looper_click
 param looper_count_in
 param looper_level
+param looper_level_2
+param looper_level_3
 param master
 param metronome_bpm
 param metronome_on

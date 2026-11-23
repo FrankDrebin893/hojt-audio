@@ -248,6 +248,13 @@ The reasons behind choices that the code alone does not explain. What it does is
   window has no room for a taller one, and the click row had no room for a third stepper). While it counts, the ring
   lights the bar's beats round the circle in amber, a quarter to a beat of four, and the words read
   Count 1 to Count 4 (once a bar, for two bars); the recording then fills red from the top as ever
+- #452, three tracks: the spec's recommendations stood (nobody answered the questions): tabs over one ring, all tracks the
+  length of track 1, three tracks, three full buffers. The plate stays 264 high, so the tabs (three round lamps with their
+  number, brass ring on the selected one) sit on the title's line at the left, not above the ring as the spec drew them: the
+  ring, the click row and the side steppers use every point below it. The footswitch, ring, Stop, Clear and Level act on the
+  selected track. A track 2 or 3 press waits for the loop to come round (a red head goes round) and then fills the ring red
+  as the loop goes round. Alternatives not taken: three concentric rings (every state at once, harder to read), three
+  footswitches side by side (800 wide), tracks of 2x or 4x the first (a ring each)
 
 ## Wah
 

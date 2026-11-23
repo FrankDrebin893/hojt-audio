@@ -64,7 +64,8 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
 | Looper Level (`looper_level`) | -60 to +6 dB | 0 dB | The loop against the live sound; -60 is silence. Not in presets. The looper's buttons are commands, not parameters |
 | Looper Bars (`looper_bars`) | Free, 1, 2, 4, 8 bars | Free | How long a loop is, in bars of the click (#450). Variant ids `free`, `bars1`, `bars2`, `bars4`, `bars8`. Needs the click on, else it reads Free. Last in `GuitarAmpParams`, after the slots. Not in presets |
 | Looper Click (`looper_click`) | Always, Rec only | Always | Whether the click sounds while the loop plays, overdubs or is muted (Always) or only while the looper is empty or recording (Rec only). Variant ids `always`, `recording`. After `looper_bars`. Not in presets |
-| Looper Count-in (`looper_count_in`) | Off, 1 bar, 2 bars | Off | Bars of the click played before a recording starts (#451). Variant ids `off`, `bar1`, `bars2`. Needs the click on. After `looper_click`, the last parameter. Not in presets |
+| Looper Count-in (`looper_count_in`) | Off, 1 bar, 2 bars | Off | Bars of the click played before a recording starts (#451). Variant ids `off`, `bar1`, `bars2`. Needs the click on. After `looper_click`. Not in presets |
+| Looper Level 2, 3 (`looper_level_2`, `looper_level_3`) | -60 to +6 dB | 0 dB | The level of tracks 2 and 3 of the looper against the live sound (#452), as `looper_level` is track 1's. The last two parameters, after `looper_count_in`. Not in presets |
 | Metronome (`metronome_on`) | on / off | off | The click, on top of the finished sound. Not in presets |
 | Metronome Tempo (`metronome_bpm`) | 40-300 bpm | 120 | Beats a minute: quarter notes, in 6/8 eighths |
 | Metronome Sync (`metronome_sync`) | on / off | off | Follow the host's tempo and position; silent while the host is stopped. With no tempo from the host, the Tempo knob's |

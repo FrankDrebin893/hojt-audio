@@ -28,6 +28,12 @@ GitHub release.
   recording starts on the downbeat that follows. With the click running by itself it restarts at the press, so the
   press is beat one; synced to the host it begins on the host's next downbeat. A second press or Clear takes it
   back. Bars now stands under the Level knob, so the two settings sit either side of the ring.
+- The looper has three tracks that play together. Three round tabs (1, 2, 3) at the top of its plate, each with a lamp
+  in its state's colour, choose the track that the big switch, Mute, Clear and Level work on. Track 1 is recorded as
+  before and sets the length for all. Pressing Record on track 2 or 3 waits for the loop to come round, records one pass
+  over what plays (the ring shows the wait and fills as it goes round) and plays by itself; a press during the pass
+  ends it early. Each track overdubs, mutes and clears on its own, with a Level of its own (two new parameters, Looper
+  Level 2 and 3); clearing track 1 clears all three. The looper now holds three buffers, about 69 MB at 48 kHz.
 
 ### Pitch Shifter
 
