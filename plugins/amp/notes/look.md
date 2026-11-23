@@ -23,15 +23,18 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
 - **The stack is two lanes** (#177): the first amp's head with the cabinet beside it, and under
   it the second amp's, as tall as the pedals together (`LANE_HEIGHT`). Each lane has a head
   that looks as its amp (below), a nameplate, six dials of radius 15, and a line under the dials
-  with the lane's name (`Amp 1`, `Amp 2`), the `Cabinet` stepper of its own cabinet and, on the
-  second lane, its `On` switch with a `rig_led`. The cabinet beside it looks as the cabinet that
-  plays through that amp and has no plate. Both input jacks take the guitar (a cable links
+  with the lane's name (`Amp 1`, `Amp 2`) and, on the second lane, its `On` switch with a
+  `rig_led`. The cabinet beside it (`LANE_CAB_WIDTH`, 210 wide since #446) looks as the cabinet
+  that plays through that amp and has no control plate; its choice is a nameplate at its foot
+  (a `nameplate_stepper_sized` on brushed chrome: the name, a chrome step button each side), and
+  a double-click on the first lane's cabinet above the nameplate opens the cabinets folder, its
+  hover text naming the folder. Both input jacks take the guitar (a cable links
   them), and both lanes end at a black plate, `MIX_WIDTH` wide, through a coupler each. The
   plate holds, from the top: `Blend` over a `crossfader` (`ui::crossfader`: `Amp 1` at the
   top of the slot, `Amp 2` at the bottom, the value on label tape under it), the Mic and Res
   knobs (radius 17), the `Mic Type` stepper, the output jack with its `Out` caption, at the
   height of the pedals' plugs, and the Cab switch with its LED and caption. Mic, Res, Mic Type
-  and Cab act on both amps' cabinets. The first lane's `Cabinet` stepper goes through the amp's
+  and Cab act on both amps' cabinets. The first lane's cabinet nameplate goes through the amp's
   own, the built-in cabinets and the files, as the Speaker stepper did; the second's through its
   own and the built-in ones (`cabinet2`, never a file). Nothing of the lanes is dimmed while
   the second amp is off: its lamp and its switch say so
@@ -100,9 +103,9 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
 - **The signal line** (#270, replacing "equal pedals, one row, 3204 px wide"): every block of the
   chain is a pedal `PEDAL_WIDTH` (180 px) wide and `GAP` (27 px) from the next, in signal order
   from the left: the gate that is always first, the blocks in front of the amps, the stack
-  (`STACK_WIDTH` wide), the blocks behind the cabinets. The line is as wide as its blocks (3411
-  px for the gate, twelve pedals and the stack, as it always was: a project from before is that
-  line, to the pixel) and is never stretched. A block draws from its own parameters where it
+  (`STACK_WIDTH` wide, 790 since #446), the blocks behind the cabinets. The line is as wide as its blocks (3501
+  px for the gate, twelve pedals and the stack; it was 3411 before the cabinets grew by 90. No saved
+  value holds a width, so a project from before opens as that line) and is never stretched. A block draws from its own parameters where it
   stands on its pedal's slot and from its slot's `slot<n>_*` parameters otherwise (`editor::Src`:
   a slot's knob is told in the terms of the pedal's own parameter, at the same position), each
   kind with its own paint, art and size (a pair, a trio, a diagonal pair, the EQ's four, the
@@ -223,9 +226,10 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   `ui::host_keys::want_all_keys`, which puts that answer in front of the window (#132). The
   standalone does not show the difference, only a host does; try it in REAPER with "Send all
   keyboard input to plug-in" off (its default)
-- **Steppers on the lanes and the plate** (each lane's `Cabinet` and the plate's `Mic Type`): the
+- **Steppers on the plate** (`Mic Type`): the
   `silk_label` caption above the tape, and the buttons clear of the next knob, caption or LED.
-  The amp's is the nameplate on its head, which needs no caption: it says the amp's name
+  The amp's is the nameplate on its head and each lane's cabinet's the nameplate at its foot,
+  which need no caption: they say the name
 - **Save (a preset):** a `chrome_button` (a stepper's push button with a dot in its cap) right
   of the preset stepper, its `silk_label` caption on the stepper's caption line. It writes the
   sound into the bank showing and the stepper's tape says `SAVED` (or `NOT SAVED`) for 1.5 s.
@@ -236,12 +240,12 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   `ParamSetter` and keeps only the index in a `#[persist]` field
 - **Pick a file (cabinets):** files are never picked in a dialog. They live in one folder and are
   stepped through in name order with a `stepper` under a `silk_label` caption, after the built-in
-  choices: the amp's own (`OWN`), then the built-in cabinets. On the first lane's line under
-  the dials the tape is 90 px wide and shows at most 10 characters: no extension, capitals, long names as the first 5 and last 4
+  choices: the amp's own (`OWN`), then the built-in cabinets. On the first lane's cabinet nameplate
+  the name shows at most 10 characters (print size 15 on a 128 px plate): no extension, capitals, long names as the first 5 and last 4
   with `~` between. `!` in front of the name of a file that cannot be used, `?` in front of the name of one
   that is not there. Stepping on to `OWN` past where the files would be, with none in the folder,
   says `NO FILES` for 1.5 s. Hovering the
-  `Cabinet` caption names the folder; a double-click on it opens the folder
+  cabinet (above its nameplate) names the folder; a double-click on it opens the folder
 - **A file choice is never a parameter.** Keep the file name (not the path) in a `#[persist]` field
 - **Metronome:** one cluster on the strip between Save and Output, its controls closer
   (`METRONOME_GAP`) than the strip's others (`STRIP_GAP`), left to right: a `small_footswitch`

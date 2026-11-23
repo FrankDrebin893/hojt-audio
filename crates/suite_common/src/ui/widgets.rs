@@ -810,6 +810,22 @@ pub fn nameplate_stepper(
     text: &str,
     id_source: &str,
 ) -> Option<Step> {
+    nameplate_stepper_sized(ui, center, width, plate, print, text, id_source, NAMEPLATE_TEXT_SIZE)
+}
+
+/// A `nameplate_stepper` whose print is `text_size` high: the cabinet's, at its foot, is smaller
+/// than the amp's because its names are longer
+#[allow(clippy::too_many_arguments)]
+pub fn nameplate_stepper_sized(
+    ui: &mut Ui,
+    center: Pos2,
+    width: f32,
+    plate: Plate,
+    print: Color32,
+    text: &str,
+    id_source: &str,
+    text_size: f32,
+) -> Option<Step> {
     let rect = Rect::from_center_size(center, vec2(width, NAMEPLATE_HEIGHT));
     let reach = width / 2.0 + STEPPER_BUTTON_GAP + STEPPER_BUTTON_RADIUS;
     let plate_clicked =
@@ -823,7 +839,7 @@ pub fn nameplate_stepper(
         center + vec2(0.0, 1.0),
         Align2::CENTER_CENTER,
         &text.to_uppercase(),
-        display(NAMEPLATE_TEXT_SIZE),
+        display(text_size),
         print,
         0.2,
     );

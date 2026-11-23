@@ -25,9 +25,9 @@ use crate::order::Zone;
 use crate::slots::{Block, Chain, EffectKind, StoredChain, MAX_AMPS, MAX_SLOTS};
 
 /// The two lanes (a head and its cabinet each) and the plate where they meet
-pub const STACK_WIDTH: f32 = 700.0;
+pub const STACK_WIDTH: f32 = 790.0;
 /// The space between two neighbours of the line. What it always was: the old row of thirteen
-/// pedals and the stack filled 3411 points with it
+/// pedals and the stack filled 3411 points with it (before the cabinets grew by 90: now 3501)
 pub const GAP: f32 = 27.0;
 
 // Share of its way to its place that a block making room goes in a second, were it to keep its speed
@@ -718,11 +718,11 @@ mod tests {
     }
 
     #[test]
-    fn test_the_line_of_a_project_from_before_is_the_old_board_to_the_point() {
-        // The gate, the twelve pedals and the stack filled 3411 points, a gap of 27 between each
+    fn test_the_line_of_a_project_from_before_is_the_old_board_with_the_cabinets_grown() {
+        // The gate, the twelve pedals and the stack filled 3501 points (3411 before the cabinets grew by 90), a gap of 27 between each
         let line = default_line();
         assert_eq!(line.pieces.len(), 14);
-        assert_eq!(line.width(), 3411.0);
+        assert_eq!(line.width(), 3501.0);
         let lefts = line.places();
         assert_eq!(lefts[Piece::Gate.key()], BENCH_MARGIN);
         for pair in line.pieces.windows(2) {

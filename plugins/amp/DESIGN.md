@@ -76,7 +76,7 @@ The reasons behind choices that the code alone does not explain. What it does is
 - Mic is a shelf pair and Resonance a bell after the IR, skipped at 5.0 so the default is
   bit-identical
 - More cabinets than amps: fourteen built in (`SPEAKERS`), picked
-  on the same Cabinet stepper as files (each lane's, since #177), between `OWN` and the files.
+  on the same nameplate as files (each lane's, since #177; on its cabinet's foot since #446, before that a `Cabinet` stepper on the head), between `OWN` and the files.
   Not a parameter, like the file: one stepper, one stored choice. Each is a `CabModel` like the amps' own, so it
   is designed, levelled and resampled alike and the dials work on its own frequencies.
   They are not the amps' own: those were tuned with their amps and lie within 1 to 2 dB of

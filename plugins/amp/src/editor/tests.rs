@@ -281,7 +281,7 @@ fn test_the_update_line_has_room_on_the_strip() {
     }
 }
 
-// The window at the size it opens at (0.55 zoom, 1876 x 321): every pedal, label and the
+// The window at the size it opens at (0.55 zoom, 1876 x 313): every pedal, label and the
 // strip scaled down together, nothing clipped
 #[test]
 #[cfg(target_os = "linux")]
@@ -385,7 +385,7 @@ fn test_the_twelve_pedals_in_a_large_window_look_as_they_did() {
     line_harness(3840, 640, &params, &setter, 0.0).0.snapshot("line_large");
 }
 
-// Sixteen blocks in the window that shows them whole at the least zoom (4239 points at 0.5): the
+// Sixteen blocks in the window that shows them whole at the least zoom (4329 points at 0.5): the
 // second of each kind, eight of them, on the parameters of their slots
 #[test]
 #[cfg(target_os = "linux")]
@@ -394,7 +394,7 @@ fn test_sixteen_blocks_look_as_they_did() {
     params.chain.put(sixteen_blocks());
     let host = NoHost;
     let setter = ParamSetter::new(&host);
-    line_harness(2120, 292, &params, &setter, 0.0).0.snapshot("line_sixteen");
+    line_harness(2165, 292, &params, &setter, 0.0).0.snapshot("line_sixteen");
 }
 
 // The same sixteen in the smallest window: they do not fit at the zoom it stops at, so the
@@ -425,7 +425,7 @@ fn test_sixteen_blocks_and_both_amps_look_as_they_did() {
     params.chain.put(sixteen_blocks());
     let host = NoHost;
     let setter = ParamSetter::new(&host);
-    line_harness(2120, 292, &params, &setter, 0.0).0.snapshot("line_sixteen_two_amps");
+    line_harness(2165, 292, &params, &setter, 0.0).0.snapshot("line_sixteen_two_amps");
     // The stack stands after the eight blocks in front of it: scrolled so that it is in view
     let stack_at = Line::of_chain(&sixteen_blocks()).places_for_test()[8 + 1];
     let (mut harness, _) = line_harness(MIN_WIDTH, MIN_HEIGHT, &params, &setter, stack_at - 200.0);
@@ -470,7 +470,7 @@ fn test_the_wheel_scrolls_a_line_that_does_not_fit_and_stops_at_its_ends() {
     assert!((view.borrow().scroll - 280.0).abs() < 0.01);
     wheel(&mut harness, over_the_line, vec2(0.0, 1000.0));
     assert_eq!(view.borrow().scroll, 0.0);
-    let furthest = Fit::of(vec2(MIN_WIDTH as f32, MIN_HEIGHT as f32), 4239.0).furthest();
+    let furthest = Fit::of(vec2(MIN_WIDTH as f32, MIN_HEIGHT as f32), 4329.0).furthest();
     wheel(&mut harness, over_the_line, vec2(0.0, -100_000.0));
     assert_eq!(view.borrow().scroll, furthest);
     // Over the strip the wheel is left alone
@@ -493,7 +493,7 @@ fn test_the_scroll_bar_takes_the_line_where_it_is_pressed_and_dragged() {
     let host = NoHost;
     let setter = ParamSetter::new(&host);
     let (mut harness, view) = line_harness(MIN_WIDTH, MIN_HEIGHT, &params, &setter, 0.0);
-    let furthest = Fit::of(vec2(MIN_WIDTH as f32, MIN_HEIGHT as f32), 4239.0).furthest();
+    let furthest = Fit::of(vec2(MIN_WIDTH as f32, MIN_HEIGHT as f32), 4329.0).furthest();
     let bar_y = WINDOW_HEIGHT as f32 * MIN_ZOOM - 2.0;
     // Pressed at the groove's far end: the line is at its end
     click(&mut harness, Pos2::new(MIN_WIDTH as f32 - 25.0, bar_y));
@@ -1579,16 +1579,15 @@ fn test_the_head_panel_holds_the_jack_the_dials_and_the_lamp_in_a_row() {
 }
 
 #[test]
-fn test_the_line_under_the_dials_holds_the_name_the_cabinet_and_the_switch_apart() {
+fn test_the_line_under_the_dials_holds_the_name_and_the_switch_apart() {
     for (amp, _, faces) in heads() {
         let line = DIAL_Y + LANE_LINE_DY;
-        let stepper = reach(LANE_CAB_STEPPER_WIDTH) + BUTTON;
         let right = faces.panel.width();
-        // Across: the name, the cabinet's stepper, the switch's caption, LED and switch
+        // Across: the name, the switch's caption, LED and switch; the cabinet's choice is no
+        // longer on this line
         in_a_row(&[
             ("the panel's edge", 0.0, 0.0),
             ("the name", LANE_NAME_X - 32.0, LANE_NAME_X + 32.0),
-            ("the cabinet", LANE_CAB_X - stepper, LANE_CAB_X + stepper),
             (
                 "the On caption",
                 right + LANE_ON_CAPTION_DX - 10.0,
@@ -1602,14 +1601,40 @@ fn test_the_line_under_the_dials_holds_the_name_the_cabinet_and_the_switch_apart
             ),
             ("the panel's edge", right, right),
         ]);
-        // Down: the dials' tapes, then the cabinet's caption, then its stepper, and the
-        // switch inside the panel
+        // Down: the dials' tapes, then the line, and the switch inside the panel
         let tape = ui::panel_knob_rect(Pos2::new(0.0, DIAL_Y), LANE_DIAL_RADIUS).bottom();
-        let caption_top = line + LANE_CAB_CAPTION_DY - 7.0;
-        let caption_bottom = line + LANE_CAB_CAPTION_DY + 7.0;
-        assert!(tape + 2.0 < caption_top, "{amp:?}: the caption is under the dials' tapes");
-        assert!(caption_bottom + 4.0 < line - 11.0, "{amp:?}");
+        assert!(tape + 2.0 < line - 11.0, "{amp:?}: the line is under the dials' tapes");
         assert!(line + SWITCH < faces.panel.height(), "{amp:?}: the switch is off the panel");
+    }
+}
+
+#[test]
+fn test_the_cabinets_are_210_wide_and_the_stack_is_790() {
+    assert_eq!(LANE_CAB_WIDTH, 210.0);
+    assert_eq!(STACK_WIDTH, 790.0);
+    assert_eq!(WINDOW_WIDTH, 3501);
+}
+
+#[test]
+fn test_each_cabinet_nameplate_lies_on_its_cabinet_clear_of_the_head_the_plate_and_the_cable() {
+    for second in [false, true] {
+        let origin = Pos2::new(0.0, if second { LANE_HEIGHT + LANE_GAP } else { 0.0 });
+        let cab = Rect::from_min_size(
+            origin + vec2(LANE_HEAD_WIDTH + LANE_CAB_GAP, 0.0),
+            vec2(LANE_CAB_WIDTH, LANE_HEIGHT),
+        );
+        let at = Pos2::new(cab.center().x, cab.bottom() - CAB_PLATE_FOOT);
+        let plate =
+            Rect::from_center_size(at, vec2(CAB_PLATE_WIDTH, ui::widgets::NAMEPLATE_HEIGHT));
+        let buttons = Rect::from_center_size(
+            at,
+            vec2(2.0 * (reach(CAB_PLATE_WIDTH) - 2.0 + BUTTON), 2.0 * BUTTON),
+        );
+        assert!(cab.contains_rect(plate), "the plate is on the cabinet");
+        assert!(cab.shrink(4.0).contains_rect(buttons), "the buttons are on the cabinet");
+        // Clear of the head on the left and of the plate where the lanes meet on the right
+        assert!(buttons.left() > LANE_HEAD_WIDTH);
+        assert!(buttons.right() < MIX_X);
     }
 }
 
@@ -1769,10 +1794,10 @@ fn test_amp_stepper_goes_round_the_list_both_ways() {
 #[test]
 fn test_default_window_scales_with_screen_and_fits_inside_each_screen() {
     assert_eq!(size_for_screen(1366), (1322, MIN_HEIGHT));
-    assert_eq!(size_for_screen(1920), (1876, 321));
-    assert_eq!(size_for_screen(2560), (2516, 431));
-    assert_eq!(size_for_screen(2752), (2708, 464));
-    assert_eq!(size_for_screen(3440), (3396, 581));
+    assert_eq!(size_for_screen(1920), (1876, 313));
+    assert_eq!(size_for_screen(2560), (2516, 420));
+    assert_eq!(size_for_screen(2752), (2708, 452));
+    assert_eq!(size_for_screen(3440), (3396, 566));
     assert_eq!(size_for_screen(3840), (WINDOW_WIDTH, WINDOW_HEIGHT));
     for screen_w in [1366, 1536, 1920, 2560, 2752, 3440, 3840] {
         let (width, height) = size_for_screen(screen_w);
@@ -1805,7 +1830,7 @@ fn fit(width: f32, height: f32, line: f32) -> Fit {
 fn test_the_zoom_fits_the_layer_in_the_window_and_stays_between_its_limits() {
     let default_line = WINDOW_WIDTH as f32;
     // The window that opens on a 1920 screen shows the twelve-pedal line whole, at 0.55
-    let opening = fit(1876.0, 321.0, default_line);
+    let opening = fit(1876.0, 313.0, default_line);
     assert!((opening.zoom - DEFAULT_ZOOM).abs() < 0.001);
     assert_eq!(opening.furthest(), 0.0);
     assert_eq!(opening.layer, default_line);
@@ -1821,7 +1846,7 @@ fn test_the_zoom_fits_the_layer_in_the_window_and_stays_between_its_limits() {
     // Nothing is scaled below the minimum, nor made above the maximum
     for width in [100.0, 1301.0, 1500.0, 2400.0, 4000.0, 9000.0] {
         for height in [50.0, 234.0, 584.0, 2000.0] {
-            for line in [default_line / 2.0, default_line, 4239.0, 9000.0] {
+            for line in [default_line / 2.0, default_line, 4329.0, 9000.0] {
                 let fit = fit(width, height, line);
                 assert!((MIN_ZOOM..=MAX_ZOOM).contains(&fit.zoom), "{fit:?}");
                 assert!(fit.strip_width() >= STRIP_MIN_WIDTH);
@@ -1833,29 +1858,29 @@ fn test_the_zoom_fits_the_layer_in_the_window_and_stays_between_its_limits() {
 
 #[test]
 fn test_a_line_too_long_for_the_minimum_zoom_scrolls_and_shorter_ones_do_not() {
-    // Sixteen blocks and a gate, the stack and the gaps: 4239 points
+    // Sixteen blocks and a gate, the stack and the gaps: 4329 points
     let long = Line::of_chain(&full_chain_of_sixteen()).width();
-    assert_eq!(long, 4239.0);
-    // A window of 2120 shows it whole, at the least zoom there is
-    let fits = fit(2120.0, 292.0, long);
+    assert_eq!(long, 4329.0);
+    // A window of 2165 shows it whole, at the least zoom there is
+    let fits = fit(2165.0, 292.0, long);
     assert!((fits.zoom - MIN_ZOOM).abs() < 0.001, "{fits:?}");
     assert_eq!(fits.furthest(), 0.0, "{fits:?}");
     // On the window of a 1920 screen it would be under the minimum: scrolled instead, the
     // blocks no smaller than the minimum makes them
-    let scrolls = fit(1876.0, 321.0, long);
+    let scrolls = fit(1876.0, 313.0, long);
     assert_eq!(scrolls.zoom, MIN_ZOOM);
     assert!((scrolls.furthest() - (long - 1876.0 / MIN_ZOOM)).abs() < 0.01);
     assert!(scrolls.furthest() > 0.0);
-    // Today's twelve-pedal line scrolls only below 1706 points
-    assert_eq!(fit(1706.0, 292.0, 3411.0).furthest(), 0.0);
-    assert!(fit(1500.0, 292.0, 3411.0).furthest() > 0.0);
+    // Today's twelve-pedal line scrolls only below 1751 points
+    assert_eq!(fit(1751.0, 292.0, 3501.0).furthest(), 0.0);
+    assert!(fit(1500.0, 292.0, 3501.0).furthest() > 0.0);
     // The strip is what the window shows, never less than its controls need
     assert!(scrolls.strip_width() >= STRIP_MIN_WIDTH);
     // The window's smallest size shows a whole strip
     let smallest = fit(MIN_WIDTH as f32, MIN_HEIGHT as f32, long);
     assert!(smallest.visible >= STRIP_MIN_WIDTH, "{smallest:?}");
     // The strip's places are those of the default width where the layer is that wide
-    assert_eq!(fit(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32, 3411.0).shift(), 0.0);
+    assert_eq!(fit(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32, 3501.0).shift(), 0.0);
 }
 
 // Sixteen blocks, eight on each side, with no more than `MAX_PER_KIND` of a kind
@@ -2341,7 +2366,7 @@ fn test_sixteen_blocks_offer_no_plus_and_say_why() {
     params.chain.put(sixteen_blocks());
     let host = NoHost;
     let setter = ParamSetter::new(&host);
-    let (mut harness, view) = line_harness(2120, 292, &params, &setter, 0.0);
+    let (mut harness, view) = line_harness(2165, 292, &params, &setter, 0.0);
     let plus = gap_plus(&params.chain.get(), crate::order::Zone::Front, 3) * MIN_ZOOM;
     hover(&mut harness, plus + vec2(0.0, -20.0));
     harness.snapshot("bank_full");
