@@ -226,11 +226,13 @@ impl LooperControl {
     }
 
     /// Mute track 1 and keep it, or bring it back
+    #[cfg_attr(not(test), allow(dead_code))] // the plate stops by track; the tests use this
     pub fn stop(&self) {
         self.stop_track(0);
     }
 
     /// Empty track 1, which empties them all: their length is gone
+    #[cfg_attr(not(test), allow(dead_code))] // the plate clears by track; the tests use this
     pub fn clear(&self) {
         self.clear_track(0);
     }
