@@ -7,6 +7,7 @@
 //! fade at the ends of a recorded loop and of an overdub takes the click out of the seam.
 //! The editor reaches it through [`LooperControl`], atomics only, so nothing locks.
 
+use nih_plug::prelude::Enum;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU8, Ordering};
 use std::sync::Arc;
 
@@ -30,6 +31,84 @@ pub fn level_gain(db: f32) -> f32 {
         0.0
     } else {
         10.0f32.powf(db.min(LEVEL_MAX_DB) / 20.0)
+    }
+}
+
+/// How long a loop is, in bars of the click (#450). Frozen like the time signatures: new ones go
+/// at the end
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoopBars {
+    /// Whatever is played, closed by a second press (rounded to whole bars where the click is on)
+    #[id = "free"]
+    #[name = "Free"]
+    Free,
+    #[id = "bars1"]
+    #[name = "1 bar"]
+    Bars1,
+    #[id = "bars2"]
+    #[name = "2 bars"]
+    Bars2,
+    #[id = "bars4"]
+    #[name = "4 bars"]
+    Bars4,
+    #[id = "bars8"]
+    #[name = "8 bars"]
+    Bars8,
+}
+
+impl LoopBars {
+    pub const ALL: [Self; 5] = [Self::Free, Self::Bars1, Self::Bars2, Self::Bars4, Self::Bars8];
+
+    /// How many bars, or `None` for Free
+    pub fn bars(self) -> Option<u32> {
+        match self {
+            Self::Free => None,
+            Self::Bars1 => Some(1),
+            Self::Bars2 => Some(2),
+            Self::Bars4 => Some(4),
+            Self::Bars8 => Some(8),
+        }
+    }
+
+    /// What the plate's stepper shows
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Free => "Free",
+            Self::Bars1 => "1 bar",
+            Self::Bars2 => "2 bars",
+            Self::Bars4 => "4 bars",
+            Self::Bars8 => "8 bars",
+        }
+    }
+}
+
+/// Whether the click goes on sounding while the loop plays (#450). Frozen like `LoopBars`
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoopClick {
+    /// As it always was: the click sounds as long as it is on
+    #[id = "always"]
+    #[name = "Always"]
+    Always,
+    /// Only while the loop is empty or recording; silent while it plays, overdubs or is muted
+    #[id = "recording"]
+    #[name = "Rec only"]
+    Recording,
+}
+
+impl LoopClick {
+    pub const ALL: [Self; 2] = [Self::Always, Self::Recording];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Always => "Always",
+            Self::Recording => "Rec only",
+        }
+    }
+
+    /// Whether the click is held back while the looper is in `state`
+    pub fn hushes(self, state: State) -> bool {
+        self == Self::Recording
+            && matches!(state, State::Playing | State::Overdubbing | State::Stopped)
     }
 }
 
@@ -68,6 +147,8 @@ pub struct LooperControl {
     length: AtomicU32,
     position: AtomicU32,
     capacity: AtomicU32,
+    /// The length a recording is fixed at, in samples, while one is (Bars set); zero otherwise
+    goal: AtomicU32,
 }
 
 impl LooperControl {
@@ -99,6 +180,23 @@ impl LooperControl {
     /// fills against while recording
     pub fn capacity(&self) -> u32 {
         self.capacity.load(Ordering::Relaxed)
+    }
+
+    /// What the ring fills against while recording: the length a set number of bars fixed at
+    /// the press, so it goes a full circle exactly when the loop is complete, else what the
+    /// buffer holds
+    pub fn fills_against(&self) -> u32 {
+        match self.goal.load(Ordering::Relaxed) {
+            0 => self.capacity(),
+            goal => goal,
+        }
+    }
+
+    /// Fixes the length a recording fills, for the editor's own tests
+    #[cfg(test)]
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))] // its tests draw, and run on Linux alone
+    pub(crate) fn show_goal(&self, goal: u32) {
+        self.goal.store(goal, Ordering::Relaxed);
     }
 
     /// Sets what the editor reads, for the editor's own tests
@@ -140,6 +238,9 @@ pub struct LooperSettings {
     /// Samples from the start of the block to the metronome's next downbeat, where it is on and
     /// one is coming: the first Record press waits for it
     pub downbeat_samples: Option<u32>,
+    /// The length a recording is to have, in samples: the Bars setting times the bar, where the
+    /// click is on. Taken when the recording starts; when it is reached the loop closes by itself
+    pub length_samples: Option<u32>,
 }
 
 impl Default for LooperSettings {
@@ -149,6 +250,7 @@ impl Default for LooperSettings {
             muted: false,
             bar_samples: None,
             downbeat_samples: None,
+            length_samples: None,
         }
     }
 }
@@ -171,6 +273,9 @@ pub struct Looper {
     clearing: bool,
     /// A first Record press that waits for the metronome's downbeat: samples still to go
     armed: Option<usize>,
+    /// A recording of a set length: the length and the bar it is in, both taken when the
+    /// recording started, so a tempo change does not move them
+    fixed: Option<(usize, u32)>,
     level: f32,
     level_coef: f32,
 }
@@ -211,6 +316,7 @@ impl Looper {
             dub_gain: 0.0,
             clearing: false,
             armed: None,
+            fixed: None,
             level: 1.0,
             level_coef: 1.0,
         }
@@ -262,6 +368,7 @@ impl Looper {
         self.dub_gain = 0.0;
         self.clearing = false;
         self.armed = None;
+        self.fixed = None;
         self.publish();
     }
 
@@ -279,6 +386,11 @@ impl Looper {
     fn publish(&self) {
         self.control.length.store(self.len as u32, Ordering::Relaxed);
         self.control.position.store(self.pos as u32, Ordering::Relaxed);
+        let goal = match (self.state, self.fixed) {
+            (State::Recording, Some((length, _))) => length as u32,
+            _ => 0,
+        };
+        self.control.goal.store(goal, Ordering::Relaxed);
         self.control.state.store(self.state as u8, Ordering::Release);
     }
 
@@ -312,16 +424,30 @@ impl Looper {
         self.right[end..len].fill(0.0);
         self.len = len;
         self.pos = 0;
+        self.fixed = None;
         self.state = State::Playing;
         self.play_gain = 1.0;
         self.dub_gain = 0.0;
     }
 
-    fn start_recording(&mut self) {
+    fn start_recording(&mut self, settings: &LooperSettings) {
         self.armed = None;
         self.state = State::Recording;
         self.len = 0;
         self.pos = 0;
+        // A set number of bars: the length and the bar are fixed now, to the whole bars the
+        // buffer holds. Too short for a loop, or a bar longer than the buffer: as Free
+        let capacity = self.capacity();
+        self.fixed = settings
+            .length_samples
+            .zip(settings.bar_samples)
+            .filter(|(length, bar)| *length > 0 && *bar > 0)
+            .map(|(length, bar)| {
+                let (length, bar_len) = (length as usize, bar as usize);
+                let length = if length > capacity { capacity / bar_len * bar_len } else { length };
+                (length, bar)
+            })
+            .filter(|(length, _)| *length >= 2 * self.fade);
     }
 
     fn take_commands(&mut self, settings: &LooperSettings) {
@@ -343,9 +469,10 @@ impl Looper {
                 State::Empty if self.armed.is_some() => self.armed = None,
                 State::Empty => match settings.downbeat_samples {
                     Some(wait) if wait > 0 => self.armed = Some(wait as usize),
-                    _ => self.start_recording(),
+                    _ => self.start_recording(settings),
                 },
-                State::Recording => self.close(bar),
+                // A set length rounds to the bar it was started in
+                State::Recording => self.close(self.fixed.map_or(bar, |(_, bar)| Some(bar))),
                 State::Playing => self.state = State::Overdubbing,
                 State::Overdubbing | State::Stopped => self.state = State::Playing,
             }
@@ -381,7 +508,7 @@ impl Looper {
             // The first press waits for the downbeat: until then the sound passes untouched
             if let Some(wait) = self.armed {
                 if wait == 0 {
-                    self.start_recording();
+                    self.start_recording(settings);
                 } else {
                     self.armed = Some(wait - 1);
                     continue;
@@ -392,7 +519,11 @@ impl Looper {
                 self.left[self.len] = live_l * ramp;
                 self.right[self.len] = live_r * ramp;
                 self.len += 1;
-                if self.len == self.capacity() {
+                // The set length is reached: the loop is exactly that many bars, and it plays
+                // from its first sample on the very next one, with no press
+                if let Some((_, bar)) = self.fixed.filter(|(length, _)| self.len == *length) {
+                    self.close(Some(bar));
+                } else if self.len == self.capacity() {
                     self.close(None);
                 }
                 continue;
@@ -676,6 +807,134 @@ mod tests {
         assert_eq!(looper.state(), State::Playing);
         assert_eq!(control.length(), 24_000);
         assert_eq!(looper.capacity(), 24_000);
+    }
+
+    /// What `blocks` of `size` through a looper set to two bars of 4000 give, from a press
+    /// on the first sample: the output, and the looper
+    fn two_bars(size: usize, total: usize) -> (Vec<f32>, Looper) {
+        let mut looper = Looper::with_seconds(1.0);
+        looper.control().press();
+        let settings = LooperSettings {
+            bar_samples: Some(4000),
+            length_samples: Some(8000),
+            ..LooperSettings::default()
+        };
+        let input = tone(0, total, 220.0, 0.4);
+        let mut heard = Vec::new();
+        for block in input.chunks(size) {
+            let mut left = block.to_vec();
+            looper.process(&settings, &mut left, None);
+            heard.extend(left);
+        }
+        (heard, looper)
+    }
+
+    #[test]
+    fn test_a_set_number_of_bars_closes_itself_on_the_sample_and_plays_on_the_next() {
+        for size in [64usize, 333, 512] {
+            let (heard, looper) = two_bars(size, 8000 + 3000);
+            assert_eq!(looper.state(), State::Playing, "block {size}");
+            assert_eq!(looper.control().length(), 8000, "block {size}");
+            // Up to the close the sound passes untouched; the loop begins on the next sample
+            let phrase = tone(0, 8000 + 3000, 220.0, 0.4);
+            assert_eq!(heard[..8000], phrase[..8000], "block {size}");
+            let (recorded, _) = looper.recorded();
+            for k in 0..3000 {
+                let want = (phrase[8000 + k] + recorded[k]).clamp(-1.0, 1.0);
+                assert!((heard[8000 + k] - want).abs() < 1e-6, "block {size} sample {k}");
+            }
+            // And the recording is what was played, faded at its ends
+            for k in FADE..8000 - FADE {
+                assert_eq!(recorded[k], phrase[k], "block {size} sample {k}");
+            }
+        }
+    }
+
+    #[test]
+    fn test_a_loop_of_a_set_length_is_the_same_however_the_blocks_fall() {
+        // The loop of a set length is the same however the blocks fall
+        let (_, a) = two_bars(64, 9000);
+        let (_, b) = two_bars(1000, 9000);
+        assert_eq!(a.recorded().0, b.recorded().0);
+        assert_eq!(a.control().position(), b.control().position());
+    }
+
+    #[test]
+    fn test_a_press_before_a_set_length_is_full_closes_at_whole_bars() {
+        let mut looper = fresh();
+        let control = looper.control();
+        let settings = LooperSettings {
+            bar_samples: Some(4000),
+            length_samples: Some(16_000),
+            ..LooperSettings::default()
+        };
+        control.press();
+        looper.process(&settings, &mut vec![0.3; 5600], None);
+        assert_eq!(looper.state(), State::Recording);
+        assert_eq!(control.fills_against(), 16_000, "the ring fills against the set length");
+        control.press();
+        looper.process(&settings, &mut [0.0; 10], None);
+        assert_eq!(looper.state(), State::Playing);
+        assert_eq!(control.length(), 4000, "1.4 bars is one");
+        assert_eq!(control.fills_against(), looper.capacity() as u32, "back to the buffer");
+    }
+
+    #[test]
+    fn test_a_tempo_change_while_recording_does_not_move_the_set_length() {
+        let mut looper = fresh();
+        let settings = LooperSettings {
+            bar_samples: Some(4000),
+            length_samples: Some(8000),
+            ..LooperSettings::default()
+        };
+        looper.control().press();
+        looper.process(&settings, &mut vec![0.3; 3000], None);
+        // The click is slowed to a bar of 6000: the length is as it was fixed at the press
+        let slower = LooperSettings {
+            bar_samples: Some(6000),
+            length_samples: Some(12_000),
+            ..LooperSettings::default()
+        };
+        looper.process(&slower, &mut vec![0.3; 5500], None);
+        assert_eq!(looper.state(), State::Playing);
+        assert_eq!(looper.control().length(), 8000);
+    }
+
+    #[test]
+    fn test_a_set_length_longer_than_the_buffer_is_the_whole_bars_that_fit() {
+        // The buffer holds 48000: three bars of 16000 fit, the fourth does not
+        let mut looper = fresh();
+        let settings = LooperSettings {
+            bar_samples: Some(16_000),
+            length_samples: Some(64_000),
+            ..LooperSettings::default()
+        };
+        looper.control().press();
+        looper.process(&settings, &mut vec![0.3; 50_000], None);
+        assert_eq!(looper.state(), State::Playing);
+        assert_eq!(looper.control().length(), 48_000);
+        // A bar longer than the buffer: as Free, the buffer's end
+        let mut looper = fresh();
+        let settings = LooperSettings {
+            bar_samples: Some(60_000),
+            length_samples: Some(60_000),
+            ..LooperSettings::default()
+        };
+        looper.control().press();
+        looper.process(&settings, &mut vec![0.3; 50_000], None);
+        assert_eq!(looper.control().length(), 48_000);
+        assert_eq!(looper.control().fills_against(), looper.capacity() as u32);
+    }
+
+    #[test]
+    fn test_no_set_length_is_free_as_it_was() {
+        // No length in the settings: the buffer's end closes it, a press closes at the bar
+        let mut looper = fresh();
+        let settings = LooperSettings { bar_samples: Some(4000), ..LooperSettings::default() };
+        looper.control().press();
+        looper.process(&settings, &mut vec![0.3; 9000], None);
+        assert_eq!(looper.state(), State::Recording);
+        assert_eq!(looper.control().fills_against(), looper.capacity() as u32);
     }
 
     #[test]

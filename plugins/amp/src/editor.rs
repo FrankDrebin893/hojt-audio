@@ -23,7 +23,7 @@ use crate::cab_stage::{CabLoader, CabStatus, NO_FILES_SHOWN};
 use crate::dial_memory;
 use crate::lamps::{LampReading, LampView};
 use crate::looks;
-use crate::looper::{LooperControl, State as LoopState};
+use crate::looper::{LoopBars, LoopClick, LooperControl, State as LoopState};
 use crate::metronome::{BeatReading, ClickOut, Sound, TapTempo, TimeSignature, BPM_MAX, BPM_MIN};
 use crate::order::Zone;
 use crate::presets::{self, PRESETS};

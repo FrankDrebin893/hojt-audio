@@ -50,6 +50,8 @@ param gate_on
 param gate_release
 param gate_thresh
 param in_gain
+param looper_bars
+param looper_click
 param looper_level
 param master
 param metronome_bpm
