@@ -41,6 +41,10 @@ GitHub release.
 
 ### Guitar Amp
 
+- The effects bank shows each pedal as a small copy of the pedal itself, in its own paint, art, title,
+  LED, knobs and footswitch, in one row of twelve, with how many of it are in the chain under it
+  (dimmed when it is not in the chain). The pedal you drag out of the bank is the same small copy.
+  Clicking, dragging, the counts and Undo work as before.
 - The looper snaps to whole bars when the metronome is on: the first press waits for the next downbeat
   and starts recording there, and the press that closes the loop rounds its length to the nearest whole
   bar (at least one, so 1.4 bars is one and 1.6 is two), at the host's tempo too when the click follows

@@ -2065,8 +2065,10 @@ fn test_the_sheet_covers_the_line_and_a_click_on_a_card_adds_the_effect() {
     // The foot switch of a pedal is under the sheet
     assert_eq!(order_at(&harness, Pos2::new(400.0, PEDAL_TOP + 273.0)), Some(Order::Foreground));
     assert_ne!(order_at(&harness, Pos2::new(400.0, top - 40.0)), Some(Order::Foreground));
-    // A click on the bare metal between the two rows of cards, over a foot switch
-    click(&mut harness, Pos2::new(400.0, top + 52.0 + 64.0 + 4.0));
+    // A click on the bare metal between two cards, over a foot switch
+    let sheet = crate::bank::risen_rect(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32);
+    let between = crate::bank::card_rect(sheet, 3).right() + 3.0;
+    click(&mut harness, Pos2::new(between, top + 100.0));
     assert!(view.borrow().effects.is_some(), "a click on the sheet leaves it open");
     assert_eq!(params.chain.get().blocks().len(), 7);
 
@@ -2079,6 +2081,53 @@ fn test_the_sheet_covers_the_line_and_a_click_on_a_card_adds_the_effect() {
     assert!(Chain::is_home(chain.front()[3]));
     // The gap it adds to moves on past it, so the next card follows it
     assert_eq!(view.borrow().effects.as_ref().map(|sheet| sheet.from), Some((Zone::Front, 4)));
+}
+
+// Each card of the bank is a small copy of its pedal, in its own paint with its art and knobs:
+// not a flat block of colour, and no two alike
+#[test]
+#[cfg(target_os = "linux")]
+fn test_every_card_of_the_bank_draws_its_pedal_in_its_own_paint() {
+    use crate::order::Zone;
+    let params = GuitarAmpParams::default();
+    params.chain.put(half_chain());
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let (mut harness, view) = bank_harness(&params, &setter);
+    risen(&view, (Zone::Front, 3));
+    harness.run_ok();
+    harness.run_ok();
+    let image = harness.render().unwrap();
+    let ppp = image.width() as f32 / WINDOW_WIDTH as f32;
+    let sheet = crate::bank::risen_rect(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32);
+    // What the miniature on each card holds: how many distinct colours, and the mean of them
+    let looks: Vec<(usize, [f32; 3])> = (0..crate::bank::CARDS.len())
+        .map(|index| {
+            let mini = crate::bank::mini_rect(crate::bank::card_rect(sheet, index));
+            let (mut colours, mut sum, mut n) =
+                (std::collections::HashSet::new(), [0.0_f32; 3], 0.0);
+            for y in (mini.top() * ppp) as u32..(mini.bottom() * ppp) as u32 {
+                for x in (mini.left() * ppp) as u32..(mini.right() * ppp) as u32 {
+                    let pixel = image.get_pixel(x, y).0;
+                    colours.insert(pixel);
+                    for (total, channel) in sum.iter_mut().zip(pixel) {
+                        *total += f32::from(channel);
+                    }
+                    n += 1.0;
+                }
+            }
+            (colours.len(), sum.map(|total| total / n))
+        })
+        .collect();
+    for (index, (colours, _)) in looks.iter().enumerate() {
+        assert!(*colours > 200, "card {index} is flat: {colours} colours");
+    }
+    for a in 0..looks.len() {
+        for b in a + 1..looks.len() {
+            let apart: f32 = looks[a].1.iter().zip(looks[b].1).map(|(x, y)| (x - y).abs()).sum();
+            assert!(apart > 4.0, "cards {a} and {b} look alike: {apart}");
+        }
+    }
 }
 
 // A card dragged out of the sheet opens a place in the nearest gap and lands there when it is
@@ -2095,7 +2144,7 @@ fn test_a_card_dragged_into_a_gap_opens_a_place_and_lands_there() {
     risen(&view, (Zone::Front, 3));
     harness.run_ok();
     let sheet = crate::bank::risen_rect(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32);
-    // The flanger: second row, third card
+    // The flanger: the ninth card
     let flanger = crate::bank::card_rect(sheet, 8).center();
     let target = Pos2::new(gap_plus(&params.chain.get(), Zone::Front, 2).x, PEDAL_TOP + 40.0);
     carry(&mut harness, flanger, target);

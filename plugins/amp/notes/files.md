@@ -115,7 +115,9 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
 - `src/bank.rs` - The effects bank (#272): the sheet that rises from the bottom of the window over the line
   (`ui::sheet`; `Sheet` is held by the editor's `View` as `effects`: one open at most, and opening it closes
   a plate and the other way round). A card for each of twelve effects (the Gate is the line's first piece and
-  has none) with how many of it are in the chain, any number of times. A click on a card adds it in the gap the
+  has none), one row, each a miniature pedal at half size (`editor::paint_miniature` drawn through
+  `ui::miniature`, a scaled layer that takes no clicks; captions, value tapes, Sync and the Wah's
+  Auto button are left off it) with how many of it are in the chain under it, any number of times. A click on a card adds it in the gap the
   bank was opened from (and moves that gap on, so the next card follows it); a card dragged out opens a place in
   the nearest gap of the line (`Line::drop_target`) and lands there when it is let go over the line, over the
   sheet it goes back; the cross on a block (`Pedals::take_out`, `StoredChain::take_out`) opens the bank with a

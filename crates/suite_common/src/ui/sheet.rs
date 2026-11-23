@@ -9,8 +9,8 @@
 //! (`Close::outside` for the click and the handle, as for a plate).
 
 use nih_plug_egui::egui::{
-    vec2, Align2, Area, Color32, CornerRadius, Id, Key, Order, Painter, Pos2, Rect, Response,
-    Sense, Shape, Stroke, StrokeKind, Ui,
+    emath::TSTransform, vec2, Align2, Area, Color32, CornerRadius, Id, Key, Order, Painter, Pos2,
+    Rect, Response, Sense, Shape, Stroke, StrokeKind, Ui, Vec2,
 };
 
 use super::plate::{Close, PLATE_RADIUS};
@@ -174,6 +174,36 @@ pub fn floating(ui: &Ui, rect: Rect, id_source: &str, add_contents: impl FnOnce(
                 ui.ctx().set_transform_layer(ui.layer_id(), to_global);
             }
             add_contents(ui, rect);
+        });
+}
+
+/// A small copy of something drawn at full size: `add_contents` draws it in a rectangle `full`
+/// big whose top left is the origin, and it is shown scaled to fill `at` (the window's own
+/// points; the scale is `at.width() / full.x`). It is drawn in a layer of its own above the
+/// sheets and takes no clicks, so a pedal painted into it (`mini_pedal`, knobs, a switch) shows
+/// as it is and answers nothing. `id_source` tells one copy from another.
+pub fn miniature(
+    ui: &Ui,
+    at: Rect,
+    full: Vec2,
+    id_source: impl std::hash::Hash,
+    add_contents: impl FnOnce(&mut Ui, Rect),
+) {
+    let parent_layer = ui.layer_id();
+    let scale = at.width() / full.x;
+    Area::new(Id::new(("miniature", id_source)))
+        .order(Order::Tooltip)
+        .fixed_pos(Pos2::ZERO)
+        .constrain(false)
+        .interactable(false)
+        .show(ui.ctx(), |ui| {
+            let own = TSTransform::new(at.min.to_vec2(), scale);
+            let to_global =
+                ui.ctx().layer_transform_to_global(parent_layer).map_or(own, |parent| parent * own);
+            ui.ctx().set_transform_layer(ui.layer_id(), to_global);
+            let face = Rect::from_min_size(Pos2::ZERO, full);
+            ui.set_clip_rect(face.expand(12.0));
+            add_contents(ui, face);
         });
 }
 
