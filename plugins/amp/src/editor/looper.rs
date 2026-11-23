@@ -1,4 +1,5 @@
 use super::*;
+use nih_plug_egui::egui::{Align2, FontId, Response, Stroke};
 
 // The looper's plate (#280, the Ring picked on the issue): the footswitch stands in a ring of
 // lamps that is the loop (it fills red while recording, then a head goes round), the state printed
@@ -35,6 +36,12 @@ pub(super) const LOOPER_COUNT_WIDTH: f32 = 50.0;
 pub(super) const LOOPER_SIDE_CAPTION_Y: f32 = 170.0;
 pub(super) const LOOPER_SIDE_Y: f32 = 192.0;
 // What a dimmed Bars or Click says when it is hovered
+// The tabs of the three tracks (#452), on the title's line at the left: the plate has no room to
+// grow, and the ring and the click row fill the rest. Centres from the plate's left, the radius of
+// a tab and of the brass ring round the selected one
+pub(super) const LOOPER_TABS: [f32; 3] = [36.0, 66.0, 96.0];
+pub(super) const LOOPER_TAB_Y: f32 = 19.0;
+pub(super) const LOOPER_TAB_RADIUS: f32 = 8.5;
 pub(super) const LOOPER_NEEDS_CLICK: &str =
     "Needs the click: switch it on with Metro (a set number of bars, and a count-in, count its bars)";
 
@@ -79,6 +86,97 @@ pub(super) fn loop_ring(
             ui::Ring::Head { fraction: share(position, length), color: ui::RING_AMBER }
         }
     }
+}
+
+/// What the ring shows for `track` (0 to 2): track 1 as `loop_ring` does. Track 2 or 3 fills red
+/// as the loop goes round while it records its pass, and while it waits for the loop to start
+/// again a red head goes round; otherwise it is the loop's own ring, dark while the track is empty
+pub(super) fn track_ring(
+    track: usize,
+    state: LoopState,
+    waiting: bool,
+    length: u32,
+    position: u32,
+    count: Option<(u32, u32)>,
+    fills: u32,
+) -> ui::Ring {
+    let share = |part: u32, whole: u32| if whole == 0 { 0.0 } else { part as f32 / whole as f32 };
+    match (track, state) {
+        (0, _) => loop_ring(state, length, position, fills, count),
+        (_, LoopState::Empty) if waiting => {
+            ui::Ring::Head { fraction: share(position, length), color: ui::RING_RED }
+        }
+        (_, LoopState::Recording) => {
+            ui::Ring::Filled { fraction: share(position, length), color: ui::RING_RED }
+        }
+        (_, state) => loop_ring(state, length, position, fills, None),
+    }
+}
+
+/// What the state of `track` is called in the ring, and what the big button does next. A track 2
+/// or 3 needs track 1's loop to be in time with: until there is one it says so
+pub(super) fn track_words(
+    track: usize,
+    state: LoopState,
+    waiting: bool,
+    master: LoopState,
+    count: Option<(u32, u32)>,
+) -> (&'static str, &'static str) {
+    if track == 0 {
+        return loop_words(state, count);
+    }
+    match state {
+        LoopState::Empty if waiting => ("Waiting", "Cancel"),
+        LoopState::Empty if master == LoopState::Empty || master == LoopState::Recording => {
+            ("Empty", "Record 1 first")
+        }
+        LoopState::Empty => ("Empty", "Record"),
+        state => loop_words(state, None),
+    }
+}
+
+/// The colour of a track's tab: its lamp, as the strip's icon has one
+pub(super) fn tab_lamp(state: LoopState, waiting: bool) -> Color32 {
+    match state {
+        LoopState::Empty if waiting => ui::RING_RED.gamma_multiply(0.55),
+        LoopState::Empty | LoopState::Stopped => Color32::from_rgb(40, 34, 30),
+        LoopState::Recording => ui::RING_RED,
+        LoopState::Playing => ui::RING_GREEN,
+        LoopState::Overdubbing => ui::RING_AMBER,
+    }
+}
+
+/// One tab: a round lamp in the track's colour with its number on it, outlined in brass while it
+/// is the selected one
+fn track_tab(
+    ui: &mut Ui,
+    centre: Pos2,
+    number: usize,
+    lamp: Color32,
+    selected: bool,
+    id: &str,
+) -> Response {
+    let reach = LOOPER_TAB_RADIUS + 3.0;
+    let response = ui.interact(
+        Rect::from_center_size(centre, Vec2::splat(2.0 * reach)),
+        Id::new(id),
+        Sense::click(),
+    );
+    let painter = ui.painter();
+    if selected {
+        painter.circle_stroke(centre, LOOPER_TAB_RADIUS + 2.5, Stroke::new(1.5_f32, ui::BRASS));
+    }
+    painter.circle_filled(centre, LOOPER_TAB_RADIUS, lamp);
+    painter.circle_stroke(centre, LOOPER_TAB_RADIUS, Stroke::new(1.0_f32, Color32::BLACK));
+    let lit = lamp.r() as u32 + lamp.g() as u32 > 200;
+    painter.text(
+        centre,
+        Align2::CENTER_CENTER,
+        number.to_string(),
+        FontId::proportional(11.0),
+        if lit { theme::INK } else { theme::SILK },
+    );
+    response
 }
 
 /// What the state is called in the ring, and what the big button does next; while a count-in plays
@@ -133,8 +231,11 @@ pub(super) fn looper_plate(
         vec2(LOOPER_WIDTH, LOOPER_HEIGHT),
     );
     let control = shared.looper;
-    let state = control.state();
-    if matches!(state, LoopState::Recording | LoopState::Playing | LoopState::Overdubbing)
+    let track = control.selected();
+    let master = control.state();
+    let state = control.track_state(track);
+    let waiting = control.track_waiting(track);
+    if matches!(master, LoopState::Recording | LoopState::Playing | LoopState::Overdubbing)
         || control.count_in().is_some()
     {
         // The head goes round, the fill grows and the beats of a count-in light: look again 30
@@ -146,28 +247,37 @@ pub(super) fn looper_plate(
         let at = |x: f32, y: f32| rect.min + vec2(x, y);
         let centre = rect.min + LOOPER_RING;
         let count = control.count_in();
+        // Track 1 fills against what it fills against; a track 2 or 3 against the loop it is a pass of
+        let fills = if track == 0 { control.fills_against() } else { control.length() };
         let ring =
-            loop_ring(state, control.length(), control.position(), control.fills_against(), count);
+            track_ring(track, state, waiting, control.length(), control.position(), count, fills);
         ui::lamp_ring(ui.painter(), centre, LOOPER_RING_RADIUS, ring);
         if ui::footswitch(ui, centre, "looper-press").clicked() {
-            control.press();
+            control.press_track(track);
         }
-        let (named, next) = loop_words(state, count);
+        let (named, next) = track_words(track, state, waiting, master, count);
+        for (index, x) in LOOPER_TABS.into_iter().enumerate() {
+            let lamp = tab_lamp(control.track_state(index), control.track_waiting(index));
+            let id = format!("looper-track-{}", index + 1);
+            if track_tab(ui, at(x, LOOPER_TAB_Y), index + 1, lamp, index == track, &id).clicked() {
+                control.select(index);
+            }
+        }
         silk_label(ui.painter(), centre + vec2(0.0, LOOPER_STATE_DY), named, 12.0);
         silk_label(ui.painter(), centre + vec2(0.0, LOOPER_NEXT_DY), next, 12.0);
 
         silk_label(ui.painter(), at(LOOPER_BUTTONS_X, LOOPER_STOP[0]), stop_word(state), 13.0);
         if chrome_button(ui, at(LOOPER_BUTTONS_X, LOOPER_STOP[1]), "looper-stop").clicked() {
-            control.stop();
+            control.stop_track(track);
         }
         silk_label(ui.painter(), at(LOOPER_BUTTONS_X, LOOPER_CLEAR[0]), "Clear", 13.0);
         if chrome_button(ui, at(LOOPER_BUTTONS_X, LOOPER_CLEAR[1]), "looper-clear").clicked() {
-            control.clear();
+            control.clear_track(track);
         }
         param_knob(
             ui,
             setter,
-            &params.looper_level,
+            [&params.looper_level, &params.looper_level_2, &params.looper_level_3][track],
             rect.min + LOOPER_LEVEL,
             LOOPER_LEVEL_RADIUS,
             "Level",

@@ -16,6 +16,9 @@ pub const MAX_SECONDS: f32 = 60.0;
 pub const HIGH_RATE_SECONDS: f32 = 40.0;
 const HIGH_RATE: f32 = 96_000.0;
 
+/// How many tracks play together (#452): track 1 sets the length, tracks 2 and 3 are one pass of it
+pub const TRACKS: usize = 3;
+
 /// The fade at the loop point and at the ends of a record or an overdub, in seconds
 const FADE_SECONDS: f32 = 0.005;
 /// How fast the level knob is followed, in seconds
@@ -194,10 +197,17 @@ impl State {
 /// and taken by the audio thread at the start of the next block
 #[derive(Default)]
 pub struct LooperControl {
-    presses: AtomicU8,
-    stop: AtomicBool,
-    clear: AtomicBool,
+    /// Commands, per track: index 0 is track 1, which sets the loop's length for all
+    presses: [AtomicU8; TRACKS],
+    stop: [AtomicBool; TRACKS],
+    clear: [AtomicBool; TRACKS],
     state: AtomicU8,
+    /// The track the plate's buttons act on (0 to 2): the editor's choice, kept here so it
+    /// survives the window being closed
+    selected: AtomicU8,
+    /// What tracks 2 and 3 are doing, and whether one waits for the loop to come round (#452)
+    track_states: [AtomicU8; TRACKS - 1],
+    track_waiting: [AtomicBool; TRACKS - 1],
     length: AtomicU32,
     position: AtomicU32,
     capacity: AtomicU32,
@@ -210,19 +220,63 @@ pub struct LooperControl {
 }
 
 impl LooperControl {
-    /// The big button: Record, then Play, then Overdub, then Play again
+    /// The big button of track 1: Record, then Play, then Overdub, then Play again
     pub fn press(&self) {
-        self.presses.fetch_add(1, Ordering::Release);
+        self.press_track(0);
     }
 
-    /// Mute the loop and keep it, or bring it back
+    /// Mute track 1 and keep it, or bring it back
     pub fn stop(&self) {
-        self.stop.store(true, Ordering::Release);
+        self.stop_track(0);
     }
 
-    /// Empty the loop
+    /// Empty track 1, which empties them all: their length is gone
     pub fn clear(&self) {
-        self.clear.store(true, Ordering::Release);
+        self.clear_track(0);
+    }
+
+    /// The big button of `track` (0 to 2). Tracks 2 and 3 wait for the loop to come round, record
+    /// one pass of it and play; they do nothing while track 1 holds no loop
+    pub fn press_track(&self, track: usize) {
+        self.presses[track.min(TRACKS - 1)].fetch_add(1, Ordering::Release);
+    }
+
+    /// Mute `track` and keep it, or bring it back
+    pub fn stop_track(&self, track: usize) {
+        self.stop[track.min(TRACKS - 1)].store(true, Ordering::Release);
+    }
+
+    /// Empty `track`; clearing track 1 clears every track
+    pub fn clear_track(&self, track: usize) {
+        self.clear[track.min(TRACKS - 1)].store(true, Ordering::Release);
+    }
+
+    /// Where `track` (0 to 2) is. A track that waits for the loop to come round is still Empty
+    /// here: `track_waiting` says it waits
+    pub fn track_state(&self, track: usize) -> State {
+        match track {
+            0 => self.state(),
+            t => State::from_u8(self.track_states[(t - 1).min(TRACKS - 2)].load(Ordering::Acquire)),
+        }
+    }
+
+    /// The track the plate's buttons and ring are on
+    pub fn selected(&self) -> usize {
+        usize::from(self.selected.load(Ordering::Relaxed)).min(TRACKS - 1)
+    }
+
+    pub fn select(&self, track: usize) {
+        self.selected.store(track.min(TRACKS - 1) as u8, Ordering::Relaxed);
+    }
+
+    /// Track 2 or 3 is pressed to record and waits for the loop's start
+    pub fn track_waiting(&self, track: usize) -> bool {
+        track > 0 && self.track_waiting[(track - 1).min(TRACKS - 2)].load(Ordering::Relaxed)
+    }
+
+    /// Track 2 or 3 records or waits to: what the click's Rec only mode counts as recording
+    pub fn extra_recording(&self) -> bool {
+        (1..TRACKS).any(|t| self.track_waiting(t) || self.track_state(t) == State::Recording)
     }
 
     pub fn state(&self) -> State {
@@ -284,14 +338,22 @@ impl LooperControl {
         self.state.store(state as u8, Ordering::Release);
     }
 
-    /// The commands the audio has not taken yet: presses, stop, clear
+    /// Sets what the editor reads of track 2 or 3, for the editor's own tests
     #[cfg(test)]
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))] // its tests draw, and run on Linux alone
-    pub(crate) fn pending(&self) -> (u8, bool, bool) {
+    pub(crate) fn show_track(&self, track: usize, state: State, waiting: bool) {
+        self.track_states[track - 1].store(state as u8, Ordering::Release);
+        self.track_waiting[track - 1].store(waiting, Ordering::Relaxed);
+    }
+
+    /// The commands of `track` the audio has not taken yet: presses, stop, clear
+    #[cfg(test)]
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))] // its tests draw, and run on Linux alone
+    pub(crate) fn pending(&self, track: usize) -> (u8, bool, bool) {
         (
-            self.presses.load(Ordering::Acquire),
-            self.stop.load(Ordering::Acquire),
-            self.clear.load(Ordering::Acquire),
+            self.presses[track].load(Ordering::Acquire),
+            self.stop[track].load(Ordering::Acquire),
+            self.clear[track].load(Ordering::Acquire),
         )
     }
 
@@ -318,6 +380,8 @@ pub struct LooperSettings {
     pub length_samples: Option<u32>,
     /// The count-in a Record press starts, where one is set and the click can play it (#451)
     pub count_in: Option<CountInPlan>,
+    /// Linear gain of tracks 2 and 3 against the live sound (`level` is track 1's)
+    pub extra_levels: [f32; TRACKS - 1],
 }
 
 impl Default for LooperSettings {
@@ -329,7 +393,121 @@ impl Default for LooperSettings {
             downbeat_samples: None,
             length_samples: None,
             count_in: None,
+            extra_levels: [level_gain(LEVEL_DEFAULT_DB); TRACKS - 1],
         }
+    }
+}
+
+/// What a track beside the first needs to know about the sample it plays
+struct Pass {
+    /// The loop's length, and the sample of it now
+    len: usize,
+    pos: usize,
+    /// One step of the 5 ms ramp, and the muting of the tuner
+    step: f32,
+    level: f32,
+    level_coef: f32,
+    muted: bool,
+}
+
+/// Track 2 or 3 (#452): one pass of track 1's loop, recorded as it goes round and played with it.
+/// It has the loop's length and counts on the loop's position, so it cannot drift from it
+struct Extra {
+    left: Vec<f32>,
+    right: Vec<f32>,
+    state: State,
+    /// Pressed to record: begins when the loop next starts
+    waiting: bool,
+    play_gain: f32,
+    dub_gain: f32,
+    clearing: bool,
+    level: f32,
+}
+
+impl Extra {
+    fn new() -> Self {
+        Self {
+            left: Vec::new(),
+            right: Vec::new(),
+            state: State::Empty,
+            waiting: false,
+            play_gain: 0.0,
+            dub_gain: 0.0,
+            clearing: false,
+            level: 1.0,
+        }
+    }
+
+    /// Nothing recorded; the buffer is left as it is, a pass writes before it reads
+    fn empty(&mut self) {
+        self.state = State::Empty;
+        self.waiting = false;
+        self.play_gain = 0.0;
+        self.dub_gain = 0.0;
+        self.clearing = false;
+    }
+
+    /// The loop's gain, or the gain it fades to, is silence: Empty or clearing
+    fn active(&self) -> bool {
+        self.state != State::Empty || self.waiting
+    }
+
+    /// A press that closes a pass before the loop is round: what was played stays, faded out at the
+    /// end, and the rest of the loop is silent; a pass of under 10 ms is thrown away
+    fn close_early(&mut self, pos: usize, len: usize, fade: usize) {
+        if pos < 2 * fade {
+            return self.empty();
+        }
+        for k in 0..fade {
+            let gain = (fade - k) as f32 / fade as f32;
+            self.left[pos - fade + k] *= gain;
+            self.right[pos - fade + k] *= gain;
+        }
+        self.left[pos..len].fill(0.0);
+        self.right[pos..len].fill(0.0);
+        self.state = State::Playing;
+        self.play_gain = 1.0;
+        self.dub_gain = 0.0;
+    }
+
+    /// One sample: records or overdubs the live sound, and gives what the track plays
+    fn step(&mut self, pass: &Pass, live_l: f32, live_r: f32) -> (f32, f32) {
+        let pos = pass.pos;
+        if self.waiting && pos == 0 {
+            self.waiting = false;
+            self.state = State::Recording;
+        }
+        if self.state == State::Recording {
+            // Faded in over the first 5 ms of the pass and out over the last
+            let ramp = (pos.min(pass.len - pos) as f32 * pass.step).min(1.0);
+            self.left[pos] = live_l * ramp;
+            self.right[pos] = live_r * ramp;
+            if pos + 1 == pass.len {
+                self.state = State::Playing;
+                self.play_gain = 1.0;
+                self.dub_gain = 0.0;
+            }
+            return (0.0, 0.0);
+        }
+        if self.state == State::Empty {
+            return (0.0, 0.0);
+        }
+        let silent = self.state == State::Stopped || pass.muted || self.clearing;
+        let target = if silent { 0.0 } else { 1.0 };
+        self.play_gain += (target - self.play_gain).clamp(-pass.step, pass.step);
+        let dub = if self.state == State::Overdubbing && !self.clearing { 1.0 } else { 0.0 };
+        self.dub_gain += (dub - self.dub_gain).clamp(-pass.step, pass.step);
+        self.level += (pass.level - self.level) * pass.level_coef;
+        let (old_l, old_r) = (self.left[pos], self.right[pos]);
+        if self.dub_gain > 0.0 {
+            self.left[pos] = crate::delay::soft_limit(old_l + live_l * self.dub_gain);
+            self.right[pos] = crate::delay::soft_limit(old_r + live_r * self.dub_gain);
+        }
+        let heard = self.level * self.play_gain;
+        if self.clearing && self.play_gain == 0.0 && self.dub_gain == 0.0 {
+            self.empty();
+        }
+        (old_l * heard, old_r * heard)
     }
 }
 
@@ -360,6 +538,8 @@ pub struct Looper {
     fixed: Option<(usize, u32)>,
     level: f32,
     level_coef: f32,
+    /// Tracks 2 and 3 (#452)
+    extras: [Extra; TRACKS - 1],
 }
 
 impl Default for Looper {
@@ -403,6 +583,7 @@ impl Looper {
             fixed: None,
             level: 1.0,
             level_coef: 1.0,
+            extras: [Extra::new(), Extra::new()],
         }
     }
 
@@ -437,6 +618,14 @@ impl Looper {
             self.left = vec![0.0; capacity];
             self.right = vec![0.0; capacity];
         }
+        // Tracks 2 and 3 are as long as track 1 can be: three full buffers (zeroed memory the
+        // system hands out as it is used), here and nowhere else
+        for extra in &mut self.extras {
+            if extra.left.len() != capacity {
+                extra.left = vec![0.0; capacity];
+                extra.right = vec![0.0; capacity];
+            }
+        }
         self.control.capacity.store(capacity as u32, Ordering::Relaxed);
         self.fade = ((FADE_SECONDS * sample_rate) as usize).max(1);
         self.level_coef = 1.0 - (-1.0 / (LEVEL_SECONDS * sample_rate)).exp();
@@ -453,6 +642,9 @@ impl Looper {
         self.clearing = false;
         self.disarm();
         self.fixed = None;
+        for extra in &mut self.extras {
+            extra.empty();
+        }
         self.publish();
     }
 
@@ -505,6 +697,10 @@ impl Looper {
         };
         self.control.count_beat.store(beat, Ordering::Relaxed);
         self.control.count_beats.store(beats, Ordering::Relaxed);
+        for (index, extra) in self.extras.iter().enumerate() {
+            self.control.track_waiting[index].store(extra.waiting, Ordering::Relaxed);
+            self.control.track_states[index].store(extra.state as u8, Ordering::Release);
+        }
         self.control.state.store(self.state as u8, Ordering::Release);
     }
 
@@ -566,14 +762,25 @@ impl Looper {
 
     fn take_commands(&mut self, settings: &LooperSettings) {
         let bar = settings.bar_samples;
-        if self.control.clear.swap(false, Ordering::Acquire) {
+        if self.control.clear[0].swap(false, Ordering::Acquire) {
             match self.state {
                 State::Empty => self.disarm(),
                 State::Recording => self.empty(),
-                _ => self.clearing = true,
+                _ => {
+                    // Track 1 sets the length of all: they fade out with it
+                    self.clearing = true;
+                    for extra in &mut self.extras {
+                        match extra.state {
+                            State::Playing | State::Overdubbing | State::Stopped => {
+                                extra.clearing = true
+                            }
+                            _ => extra.empty(),
+                        }
+                    }
+                }
             }
         }
-        for _ in 0..self.control.presses.swap(0, Ordering::Acquire) {
+        for _ in 0..self.control.presses[0].swap(0, Ordering::Acquire) {
             if self.clearing {
                 break;
             }
@@ -599,11 +806,48 @@ impl Looper {
                 State::Overdubbing | State::Stopped => self.state = State::Playing,
             }
         }
-        if self.control.stop.swap(false, Ordering::Acquire) && !self.clearing {
+        if self.control.stop[0].swap(false, Ordering::Acquire) && !self.clearing {
             match self.state {
                 State::Playing | State::Overdubbing => self.state = State::Stopped,
                 State::Stopped => self.state = State::Playing,
                 State::Empty | State::Recording => {}
+            }
+        }
+        self.take_extra_commands();
+    }
+
+    /// The commands of tracks 2 and 3. They need a loop to be in time with: while track 1 holds
+    /// none, or fades out, they do nothing
+    fn take_extra_commands(&mut self) {
+        let looping = !self.clearing
+            && matches!(self.state, State::Playing | State::Overdubbing | State::Stopped);
+        let (len, pos, fade) = (self.len, self.pos, self.fade);
+        for (index, extra) in self.extras.iter_mut().enumerate() {
+            let track = index + 1;
+            if self.control.clear[track].swap(false, Ordering::Acquire) {
+                match extra.state {
+                    State::Playing | State::Overdubbing | State::Stopped => extra.clearing = true,
+                    _ => extra.empty(),
+                }
+            }
+            for _ in 0..self.control.presses[track].swap(0, Ordering::Acquire) {
+                if !looping || extra.clearing {
+                    break;
+                }
+                match extra.state {
+                    // Waiting for the loop to come round: a second press takes it back
+                    State::Empty => extra.waiting = !extra.waiting,
+                    State::Recording => extra.close_early(pos, len, fade),
+                    State::Playing => extra.state = State::Overdubbing,
+                    State::Overdubbing | State::Stopped => extra.state = State::Playing,
+                }
+            }
+            if self.control.stop[track].swap(false, Ordering::Acquire) && !extra.clearing {
+                match extra.state {
+                    State::Playing | State::Overdubbing => extra.state = State::Stopped,
+                    State::Stopped => extra.state = State::Playing,
+                    State::Empty | State::Recording => {}
+                }
             }
         }
     }
@@ -623,6 +867,11 @@ impl Looper {
             return;
         }
         let step = 1.0 / self.fade as f32;
+        for (extra, level) in self.extras.iter_mut().zip(settings.extra_levels) {
+            if !extra.active() {
+                extra.level = level;
+            }
+        }
         for index in 0..left.len() {
             let live_l = left[index];
             let live_r = right.as_deref().map_or(0.0, |right| right[index]);
@@ -667,9 +916,26 @@ impl Looper {
                 self.right[self.pos] = crate::delay::soft_limit(old_r + live_r * self.dub_gain);
             }
             let heard = self.level * self.play_gain;
-            left[index] = (live_l + old_l * heard).clamp(-1.0, 1.0);
+            let (mut sum_l, mut sum_r) = (old_l * heard, old_r * heard);
+            // Tracks 2 and 3 count on this track's position: one loop, in time
+            for (extra, level) in self.extras.iter_mut().zip(settings.extra_levels) {
+                if extra.active() {
+                    let pass = Pass {
+                        len: self.len,
+                        pos: self.pos,
+                        step,
+                        level,
+                        level_coef: self.level_coef,
+                        muted: settings.muted,
+                    };
+                    let (more_l, more_r) = extra.step(&pass, live_l, live_r);
+                    sum_l += more_l;
+                    sum_r += more_r;
+                }
+            }
+            left[index] = (live_l + sum_l).clamp(-1.0, 1.0);
             if let Some(right) = right.as_deref_mut() {
-                right[index] = (live_r + old_r * heard).clamp(-1.0, 1.0);
+                right[index] = (live_r + sum_r).clamp(-1.0, 1.0);
             }
 
             self.pos += 1;
@@ -683,6 +949,9 @@ impl Looper {
         self.publish();
     }
 }
+
+#[cfg(test)]
+mod tracks_tests;
 
 #[cfg(test)]
 mod tests {
