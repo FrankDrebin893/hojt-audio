@@ -112,6 +112,60 @@ impl LoopClick {
     }
 }
 
+/// How many bars of the click are played before a recording starts (#451). Frozen like
+/// `LoopBars`: new ones go at the end
+#[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CountIn {
+    /// Record starts at once (or on the next downbeat), as it always did
+    #[id = "off"]
+    #[name = "Off"]
+    Off,
+    #[id = "bar1"]
+    #[name = "1 bar"]
+    Bar1,
+    #[id = "bars2"]
+    #[name = "2 bars"]
+    Bars2,
+}
+
+impl CountIn {
+    pub const ALL: [Self; 3] = [Self::Off, Self::Bar1, Self::Bars2];
+
+    /// How many bars, or `None` for Off
+    pub fn bars(self) -> Option<u32> {
+        match self {
+            Self::Off => None,
+            Self::Bar1 => Some(1),
+            Self::Bars2 => Some(2),
+        }
+    }
+
+    /// What the plate's stepper shows
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Off => "Off",
+            Self::Bar1 => "1 bar",
+            Self::Bars2 => "2 bars",
+        }
+    }
+}
+
+/// A count-in a Record press would start, worked out ahead of the block by `lib.rs` from the
+/// click (#451)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CountInPlan {
+    /// Samples from the start of the block until the count-in begins: zero where the click is
+    /// restarted by the press, the wait for the host's next downbeat where it follows the host
+    pub lead: u32,
+    /// The count-in's own length in samples: its bars times the bar
+    pub length: u32,
+    /// How many bars it is, and how many beats a bar has: what the plate counts
+    pub bars: u32,
+    pub per_bar: u32,
+    /// The click is to restart at the press, so the press is beat one (it runs by itself)
+    pub restart: bool,
+}
+
 /// Where the looper is, as the editor reads it
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum State {
@@ -149,6 +203,10 @@ pub struct LooperControl {
     capacity: AtomicU32,
     /// The length a recording is fixed at, in samples, while one is (Bars set); zero otherwise
     goal: AtomicU32,
+    /// While a count-in plays: the beat of the bar it is on (from 1; zero while it still waits
+    /// for the host's downbeat), and how many beats a bar has; both zero otherwise
+    count_beat: AtomicU8,
+    count_beats: AtomicU8,
 }
 
 impl LooperControl {
@@ -190,6 +248,23 @@ impl LooperControl {
             0 => self.capacity(),
             goal => goal,
         }
+    }
+
+    /// While a count-in plays: the beat it is on (zero while it waits to begin) and the beats of
+    /// a bar; `None` when there is no count-in
+    pub fn count_in(&self) -> Option<(u32, u32)> {
+        match self.count_beats.load(Ordering::Relaxed) {
+            0 => None,
+            beats => Some((u32::from(self.count_beat.load(Ordering::Relaxed)), u32::from(beats))),
+        }
+    }
+
+    /// Sets the count-in the editor reads, for the editor's own tests
+    #[cfg(test)]
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))] // its tests draw, and run on Linux alone
+    pub(crate) fn show_count(&self, beat: u8, beats: u8) {
+        self.count_beat.store(beat, Ordering::Relaxed);
+        self.count_beats.store(beats, Ordering::Relaxed);
     }
 
     /// Fixes the length a recording fills, for the editor's own tests
@@ -241,6 +316,8 @@ pub struct LooperSettings {
     /// The length a recording is to have, in samples: the Bars setting times the bar, where the
     /// click is on. Taken when the recording starts; when it is reached the loop closes by itself
     pub length_samples: Option<u32>,
+    /// The count-in a Record press starts, where one is set and the click can play it (#451)
+    pub count_in: Option<CountInPlan>,
 }
 
 impl Default for LooperSettings {
@@ -251,6 +328,7 @@ impl Default for LooperSettings {
             bar_samples: None,
             downbeat_samples: None,
             length_samples: None,
+            count_in: None,
         }
     }
 }
@@ -273,6 +351,10 @@ pub struct Looper {
     clearing: bool,
     /// A first Record press that waits for the metronome's downbeat: samples still to go
     armed: Option<usize>,
+    /// The count-in the armed wait is, when it is one (#451)
+    counting: Option<CountInPlan>,
+    /// A count-in began this block and the click is to restart: `lib.rs` takes it
+    restart_click: bool,
     /// A recording of a set length: the length and the bar it is in, both taken when the
     /// recording started, so a tempo change does not move them
     fixed: Option<(usize, u32)>,
@@ -316,6 +398,8 @@ impl Looper {
             dub_gain: 0.0,
             clearing: false,
             armed: None,
+            counting: None,
+            restart_click: false,
             fixed: None,
             level: 1.0,
             level_coef: 1.0,
@@ -367,9 +451,21 @@ impl Looper {
         self.play_gain = 0.0;
         self.dub_gain = 0.0;
         self.clearing = false;
-        self.armed = None;
+        self.disarm();
         self.fixed = None;
         self.publish();
+    }
+
+    /// Takes back a wait for a downbeat or a count-in
+    fn disarm(&mut self) {
+        self.armed = None;
+        self.counting = None;
+        self.restart_click = false;
+    }
+
+    /// True once after a count-in began that wants the click to restart at the press
+    pub fn take_restart(&mut self) -> bool {
+        std::mem::take(&mut self.restart_click)
     }
 
     /// What has been recorded, for the tests that look inside the loop
@@ -391,6 +487,24 @@ impl Looper {
             _ => 0,
         };
         self.control.goal.store(goal, Ordering::Relaxed);
+        let (beat, beats) = match (self.armed, self.counting) {
+            (Some(left), Some(plan)) => {
+                let elapsed = (plan.lead as usize + plan.length as usize).saturating_sub(left);
+                let beat = match elapsed.checked_sub(plan.lead as usize) {
+                    None => 0,
+                    Some(into) => {
+                        let total = u64::from(plan.bars * plan.per_bar);
+                        let k =
+                            (into as u64 * total / u64::from(plan.length.max(1))).min(total - 1);
+                        k % u64::from(plan.per_bar) + 1
+                    }
+                };
+                (beat as u8, plan.per_bar as u8)
+            }
+            _ => (0, 0),
+        };
+        self.control.count_beat.store(beat, Ordering::Relaxed);
+        self.control.count_beats.store(beats, Ordering::Relaxed);
         self.control.state.store(self.state as u8, Ordering::Release);
     }
 
@@ -431,7 +545,7 @@ impl Looper {
     }
 
     fn start_recording(&mut self, settings: &LooperSettings) {
-        self.armed = None;
+        self.disarm();
         self.state = State::Recording;
         self.len = 0;
         self.pos = 0;
@@ -454,7 +568,7 @@ impl Looper {
         let bar = settings.bar_samples;
         if self.control.clear.swap(false, Ordering::Acquire) {
             match self.state {
-                State::Empty => self.armed = None,
+                State::Empty => self.disarm(),
                 State::Recording => self.empty(),
                 _ => self.clearing = true,
             }
@@ -466,10 +580,18 @@ impl Looper {
             match self.state {
                 State::Empty if self.capacity() == 0 => {}
                 // Waiting for a downbeat: a second press takes it back
-                State::Empty if self.armed.is_some() => self.armed = None,
-                State::Empty => match settings.downbeat_samples {
-                    Some(wait) if wait > 0 => self.armed = Some(wait as usize),
-                    _ => self.start_recording(settings),
+                State::Empty if self.armed.is_some() => self.disarm(),
+                // A count-in: the click's bars, then the recording starts on the downbeat after
+                State::Empty => match settings.count_in.filter(|plan| plan.length > 0) {
+                    Some(plan) => {
+                        self.armed = Some(plan.lead as usize + plan.length as usize);
+                        self.counting = Some(plan);
+                        self.restart_click = plan.restart;
+                    }
+                    None => match settings.downbeat_samples {
+                        Some(wait) if wait > 0 => self.armed = Some(wait as usize),
+                        _ => self.start_recording(settings),
+                    },
                 },
                 // A set length rounds to the bar it was started in
                 State::Recording => self.close(self.fixed.map_or(bar, |(_, bar)| Some(bar))),
@@ -1089,5 +1211,172 @@ mod tests {
         time(&mut looper, "playing", &mut left, &mut right);
         control.press();
         time(&mut looper, "overdubbing", &mut left, &mut right);
+    }
+
+    // A count-in (#451): one bar of 96 000 samples (120 bpm, 4/4 at 48 kHz) of the click, then
+    // the recording
+
+    const BAR: u32 = 96_000;
+
+    fn plan(lead: u32, bars: u32, restart: bool) -> CountInPlan {
+        CountInPlan { lead, length: bars * BAR, bars, per_bar: 4, restart }
+    }
+
+    /// Plays `total` samples of a tone through `looper` in blocks of `block`, with `settings`;
+    /// `after` sees the looper after each block with the samples played so far
+    fn run(
+        looper: &mut Looper,
+        settings: &LooperSettings,
+        total: usize,
+        block: usize,
+        mut after: impl FnMut(usize, &Looper),
+    ) -> Vec<f32> {
+        let mut heard = Vec::new();
+        let mut played = 0;
+        while played < total {
+            let n = block.min(total - played);
+            let mut left = tone(played, n, 220.0, 0.4);
+            let mut right = left.clone();
+            looper.process(settings, &mut left, Some(&mut right));
+            heard.extend(left);
+            played += n;
+            after(played, looper);
+        }
+        heard
+    }
+
+    #[test]
+    fn test_a_count_in_starts_the_recording_exactly_one_bar_after_the_press_and_touches_nothing() {
+        for block in [64usize, 333, 512] {
+            let mut looper = Looper::with_seconds(6.0);
+            let settings =
+                LooperSettings { count_in: Some(plan(0, 1, true)), ..Default::default() };
+            looper.control().press();
+            let mut first_recording = None;
+            let total = BAR as usize + 1000;
+            let heard = run(&mut looper, &settings, total, block, |played, looper| {
+                if first_recording.is_none() && looper.state() == State::Recording {
+                    first_recording = Some(played);
+                }
+                assert!(!looper.is_idle(), "the plugin stays awake while it counts");
+            });
+            // The block that begins the recording is the first at or past the bar
+            let began = first_recording.expect("recording began");
+            assert!(began > BAR as usize && began <= BAR as usize + block, "{block}: {began}");
+            // Nothing recorded before the bar: from sample 96 000 on, what was played
+            let (recorded, _) = looper.recorded();
+            assert_eq!(recorded.len(), 1000, "{block}");
+            let want = tone(BAR as usize + 300, 100, 220.0, 0.4);
+            assert_eq!(&recorded[300..400], &want[..], "{block}: the first sample is the bar's");
+            // The sound passed untouched during the count-in
+            assert_eq!(&heard[..BAR as usize], &tone(0, BAR as usize, 220.0, 0.4)[..], "{block}");
+        }
+    }
+
+    #[test]
+    fn test_a_second_press_or_clear_takes_a_count_in_back() {
+        for take_back in [0, 1] {
+            let mut looper = Looper::with_seconds(6.0);
+            let control = looper.control();
+            let settings =
+                LooperSettings { count_in: Some(plan(0, 2, true)), ..Default::default() };
+            control.press();
+            run(&mut looper, &settings, 10_000, 480, |_, _| {});
+            assert!(control.count_in().is_some());
+            if take_back == 0 {
+                control.press();
+            } else {
+                control.clear();
+            }
+            run(&mut looper, &settings, 2 * BAR as usize + 5000, 480, |_, looper| {
+                assert_eq!(looper.state(), State::Empty);
+            });
+            assert!(control.count_in().is_none());
+            assert!(looper.is_idle());
+            assert!(!looper.take_restart(), "a count-in taken back leaves the click alone");
+        }
+    }
+
+    #[test]
+    fn test_a_count_in_that_waits_for_the_hosts_downbeat_counts_after_it() {
+        let mut looper = Looper::with_seconds(6.0);
+        let settings = LooperSettings { count_in: Some(plan(700, 1, false)), ..Default::default() };
+        looper.control().press();
+        let mut began = None;
+        run(&mut looper, &settings, BAR as usize + 2000, 100, |played, looper| {
+            if began.is_none() && looper.state() == State::Recording {
+                began = Some(played);
+            }
+        });
+        // 700 to the downbeat, a bar of count-in, in blocks of 100: the block that holds it
+        assert_eq!(
+            began,
+            Some(BAR as usize + 800),
+            "sample 96 700 is the first of the recording, in the block ending at 96 800"
+        );
+        assert!(!looper.take_restart(), "a click that follows the host is not restarted");
+    }
+
+    #[test]
+    fn test_the_beat_shown_follows_the_sample_count_and_the_restart_is_asked_once() {
+        let mut looper = Looper::with_seconds(6.0);
+        let control = looper.control();
+        let settings = LooperSettings { count_in: Some(plan(0, 2, true)), ..Default::default() };
+        control.press();
+        let mut seen = Vec::new();
+        let mut asked = 0;
+        run(&mut looper, &settings, 2 * BAR as usize, 1000, |played, _| {
+            seen.push((played, control.count_in()));
+        });
+        if looper.take_restart() {
+            asked += 1;
+        }
+        assert_eq!(asked, 1);
+        assert!(!looper.take_restart());
+        for (played, shown) in seen {
+            if played == 2 * BAR as usize {
+                break;
+            }
+            // Four beats a bar, two bars: beat 1 to 4 and again, each 24 000 samples
+            let beat = (played / 24_000) % 4 + 1;
+            assert_eq!(shown, Some((beat as u32, 4)), "after {played}");
+        }
+        // The recording begins: no count any more
+        run(&mut looper, &settings, 10, 10, |_, _| {});
+        assert_eq!(control.count_in(), None);
+        assert_eq!(looper.state(), State::Recording);
+    }
+
+    #[test]
+    fn test_a_count_in_then_two_bars_line_up_to_the_sample() {
+        let mut looper = Looper::with_seconds(6.0);
+        let control = looper.control();
+        let settings = LooperSettings {
+            bar_samples: Some(BAR),
+            length_samples: Some(2 * BAR),
+            count_in: Some(plan(0, 1, true)),
+            ..Default::default()
+        };
+        control.press();
+        let mut closed = None;
+        run(&mut looper, &settings, 3 * BAR as usize + 4000, 64, |played, looper| {
+            if closed.is_none() && looper.state() == State::Playing {
+                closed = Some(played);
+            }
+        });
+        // Count in one bar, record two, close in the block holding sample 288 000
+        let closed = closed.expect("it closed by itself");
+        assert!((3 * BAR as usize..=3 * BAR as usize + 64).contains(&closed), "{closed}");
+        assert_eq!(control.length(), 2 * BAR);
+    }
+
+    #[test]
+    fn test_with_no_count_in_a_press_starts_as_it_always_did() {
+        let mut looper = Looper::with_seconds(6.0);
+        let settings = LooperSettings::default();
+        looper.control().press();
+        run(&mut looper, &settings, 100, 100, |_, _| {});
+        assert_eq!(looper.state(), State::Recording);
+        assert!(looper.control().count_in().is_none());
     }
 }
