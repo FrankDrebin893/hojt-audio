@@ -12,6 +12,11 @@ GitHub release.
   complete, and recording closes by itself and the loop plays from its first sample, with no second press.
   Free works as before. The plate now carries the click's switch and tempo too, and a Click setting: Always
   (as before) or Rec only, which silences the click while the loop plays and brings it back on the beat after Clear.
+- The looper has a count-in. A new Count-in setting on its plate (Off, 1 or 2 bars) plays that many bars of the
+  click when you press Record, the ring lights the beats and the plate counts "Count 1" to "Count 4", and
+  recording starts on the downbeat that follows. With the click running by itself it restarts at the press, so the
+  press is beat one; synced to the host it begins on the host's next downbeat. A second press or Clear takes it
+  back. Bars now stands under the Level knob, so the two settings sit either side of the ring.
 
 ### Pitch Shifter
 
