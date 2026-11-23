@@ -7,6 +7,13 @@ GitHub release.
 
 ### Guitar Amp
 
+- Pick an amp from a drawer. A double-click on an amp's head (clear of its dials) raises a drawer from the
+  bottom of the window with a miniature head of each of the twelve amps, its name beside it and an `On Amp 1`
+  or `On Amp 2` mark on each one that plays; the amp that plays on that lane is outlined in brass. A click
+  on a card picks the amp for that lane, as stepping did, and the drawer stays open so amps can be tried one
+  after another. It closes on Close, Escape, a click outside or a second double-click on the head. The
+  nameplate's two arrows are gone: it keeps the amp's name and has one chrome button at its right that opens
+  the drawer with a single click.
 - Fuller cabinets: each lane's cabinet is 210 points wide, up from 120, and its choice (the amp's own,
   a built-in cabinet or a file) sits on a nameplate at its foot, with the step buttons either side.
   The `Cabinet` caption and stepper are gone from the head's lower line. The window's line is 90 points

@@ -313,7 +313,9 @@ The reasons behind choices that the code alone does not explain. What it does is
   stage, and stepping through them shows what changes before it is heard. The looks are in
   `looks.rs`, apart from `amp/model.rs`: tuning a sound never touches a look, and the other way
   round. They are all our own: no maker's logo, script or plate shape. The amp is picked on a
-  nameplate on the grille, which replaces the Amp stepper of #97: the name is the control. The
+  nameplate on the grille, which replaces the Amp stepper of #97: the name is the control. Since #447 stepping is
+  gone: a drawer with a miniature head of every amp (a double-click on the head, or the nameplate's one button,
+  because a double-click alone cannot be found) replaces the two arrows, so all twelve are seen before one is heard. The
   panel's one line of knobs left no room for full scales at radius 19 with the jack and the
   pilot lamp beside them, so the dials are radius 18, and a scale is measured by where its
   ticks end, not by a circle round it (#99)
