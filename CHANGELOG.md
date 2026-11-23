@@ -5,6 +5,14 @@ GitHub release.
 
 ## Unreleased
 
+### Guitar Amp
+
+- The looper can record a set number of bars. A new Bars setting on its plate (Free, 1, 2, 4 or 8) fixes the
+  loop's length against the click: press Record, the ring fills to a full circle exactly when the loop is
+  complete, and recording closes by itself and the loop plays from its first sample, with no second press.
+  Free works as before. The plate now carries the click's switch and tempo too, and a Click setting: Always
+  (as before) or Rec only, which silences the click while the loop plays and brings it back on the beat after Clear.
+
 ### Pitch Shifter
 
 - A shifted note keeps the tone of your guitar. The shifter used to move the guitar's own sound (the

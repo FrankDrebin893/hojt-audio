@@ -86,6 +86,56 @@ pub(super) fn beat_shown(
     }
 }
 
+/// The tempo as a display on `centre` to drag up and down or to scroll, with a button at each
+/// end: the metronome's own plate and the looper's both carry it, and both set `metronome_bpm`.
+/// `id` keeps the two apart
+pub(super) fn tempo_display(
+    ui: &mut Ui,
+    setter: &ParamSetter,
+    params: &GuitarAmpParams,
+    centre: Pos2,
+    id: &str,
+) {
+    let bpm = params.metronome_bpm.value();
+    let window = Rect::from_center_size(centre, vec2(TEMPO_WIDTH, LED_HEIGHT));
+    let step = led_stepper(ui, centre, TEMPO_CHARS, &format!("{}", bpm.round() as i32), id);
+    let turn = ui.interact(window, Id::new((id, "turn")), Sense::click_and_drag());
+    let mut wanted = None;
+    if let Some(Pick::Step(step)) = step {
+        let by = if matches!(step, Step::Next) { 1.0 } else { -1.0 };
+        wanted = Some((bpm.round() + by).clamp(BPM_MIN, BPM_MAX));
+    }
+    if turn.drag_started() {
+        setter.begin_set_parameter(&params.metronome_bpm);
+        ui.data_mut(|data| data.insert_temp(turn.id, bpm));
+    }
+    if turn.dragged() {
+        let fine = ui.input(|input| input.modifiers.shift);
+        let points = if fine { TEMPO_DRAG_POINTS * 4.0 } else { TEMPO_DRAG_POINTS };
+        let held = ui.data_mut(|data| {
+            let held = data.get_temp_mut_or(turn.id, bpm);
+            *held = (*held - turn.drag_delta().y / points).clamp(BPM_MIN, BPM_MAX);
+            *held
+        });
+        setter.set_parameter(&params.metronome_bpm, held.round());
+    }
+    if turn.drag_stopped() {
+        setter.end_set_parameter(&params.metronome_bpm);
+    }
+    if turn.hovered() {
+        let scrolled = ui.input(|input| input.raw_scroll_delta.y);
+        if scrolled != 0.0 {
+            wanted = Some((bpm.round() + scrolled.signum()).clamp(BPM_MIN, BPM_MAX));
+        }
+    }
+    if turn.double_clicked() {
+        wanted = Some(crate::metronome::BPM_DEFAULT);
+    }
+    if let Some(value) = wanted {
+        set(setter, &params.metronome_bpm, value);
+    }
+}
+
 /// The metronome's plate under its icon, while it is the plate that is open: the tempo, the tap,
 /// the sound, the time signature, where the click is heard, its volume and Sync
 #[allow(clippy::too_many_arguments)]
@@ -112,46 +162,8 @@ pub(super) fn metronome_plate(
         let at = |x: f32, y: f32| rect.min + vec2(x, y);
 
         // The tempo: a display to drag up and down or to scroll, with a button at each end
-        let bpm = params.metronome_bpm.value();
-        let tempo = at(TEMPO_X, TEMPO_Y);
         silk_label(ui.painter(), at(TEMPO_X, TEMPO_CAPTION_Y), "Tempo", 13.0);
-        let window = Rect::from_center_size(tempo, vec2(TEMPO_WIDTH, LED_HEIGHT));
-        let step = led_stepper(ui, tempo, TEMPO_CHARS, &format!("{}", bpm.round() as i32), "tempo");
-        let turn = ui.interact(window, Id::new("tempo-turn"), Sense::click_and_drag());
-        let mut wanted = None;
-        if let Some(Pick::Step(step)) = step {
-            let by = if matches!(step, Step::Next) { 1.0 } else { -1.0 };
-            wanted = Some((bpm.round() + by).clamp(BPM_MIN, BPM_MAX));
-        }
-        if turn.drag_started() {
-            setter.begin_set_parameter(&params.metronome_bpm);
-            ui.data_mut(|data| data.insert_temp(turn.id, bpm));
-        }
-        if turn.dragged() {
-            let fine = ui.input(|input| input.modifiers.shift);
-            let points = if fine { TEMPO_DRAG_POINTS * 4.0 } else { TEMPO_DRAG_POINTS };
-            let held = ui.data_mut(|data| {
-                let held = data.get_temp_mut_or(turn.id, bpm);
-                *held = (*held - turn.drag_delta().y / points).clamp(BPM_MIN, BPM_MAX);
-                *held
-            });
-            setter.set_parameter(&params.metronome_bpm, held.round());
-        }
-        if turn.drag_stopped() {
-            setter.end_set_parameter(&params.metronome_bpm);
-        }
-        if turn.hovered() {
-            let scrolled = ui.input(|input| input.raw_scroll_delta.y);
-            if scrolled != 0.0 {
-                wanted = Some((bpm.round() + scrolled.signum()).clamp(BPM_MIN, BPM_MAX));
-            }
-        }
-        if turn.double_clicked() {
-            wanted = Some(crate::metronome::BPM_DEFAULT);
-        }
-        if let Some(value) = wanted {
-            set(setter, &params.metronome_bpm, value);
-        }
+        tempo_display(ui, setter, params, at(TEMPO_X, TEMPO_Y), "tempo");
 
         // Tap: the tempo of the last few taps
         silk_label(ui.painter(), at(TAP_X, TEMPO_CAPTION_Y), "Tap", 13.0);
