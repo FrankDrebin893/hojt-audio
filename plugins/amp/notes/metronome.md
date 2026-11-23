@@ -17,6 +17,11 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   may otherwise stop calling a plugin that is waiting for the song). A click still ringing is cut
   when a synced host stops. The seven `metronome_*` parameters are not in presets
 
+- **Held back for the looper (#450):** `MetronomeSettings::hushed` (set by `process` for the looper's
+  Click: Rec only while the loop plays) fades the voice to nothing over 5 ms through `gate`; the clock is
+  untouched, so the click returns on the beat. `process_alone` goes through the same `render`, so the separate output follows
+  too. A click that is not hushed is bit-identical to before (`* 1.0`). The looper's fixed length uses `bar_samples` times the bars
+
 - **The click's own output (`metronome_out`, follows #181):** both audio layouts carry one more
   stereo output, the auxiliary port named `Metronome` (`CLICK_PORT`). Mixed (the default, so
   existing projects are unchanged) is the click added to the main output as above, bit for bit,

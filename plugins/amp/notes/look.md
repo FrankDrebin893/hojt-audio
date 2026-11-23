@@ -239,12 +239,13 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
 - **A preset choice is never a parameter.** The editor sets the real parameters through the
   `ParamSetter` and keeps only the index in a `#[persist]` field
 - **Pick a file (cabinets):** files are never picked in a dialog. They live in one folder and are
-  stepped through in name order with a `stepper` under a `silk_label` caption, after the built-in
+  stepped through in name order with the two chrome buttons of the cabinet's nameplate (no caption:
+  the plate says the name), after the built-in
   choices: the amp's own (`OWN`), then the built-in cabinets. On the first lane's cabinet nameplate
   the name shows at most 10 characters (print size 15 on a 128 px plate): no extension, capitals, long names as the first 5 and last 4
   with `~` between. `!` in front of the name of a file that cannot be used, `?` in front of the name of one
   that is not there. Stepping on to `OWN` past where the files would be, with none in the folder,
-  says `NO FILES` for 1.5 s. Hovering the
+  says `NO FILES` on the plate for 1.5 s. Hovering the
   cabinet (above its nameplate) names the folder; a double-click on it opens the folder
 - **A file choice is never a parameter.** Keep the file name (not the path) in a `#[persist]` field
 - **Metronome:** one cluster on the strip between Save and Output, its controls closer

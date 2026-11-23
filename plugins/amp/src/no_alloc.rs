@@ -189,6 +189,7 @@ fn test_the_metronome_allocates_nothing() {
                     host_tempo: (block % 9 != 0).then_some(60.0 + (block % 100) as f64),
                     host_playing: block % 13 != 0,
                     host_beats: (block % 5 != 0).then_some(block as f64 * 0.37),
+                    hushed: block / 17 % 2 == 1,
                 };
                 metronome.process(&settings, &mut left[..len], Some(&mut right[..len]));
                 metronome.process(&settings, &mut left[..len], None);

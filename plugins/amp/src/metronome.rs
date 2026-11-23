@@ -20,6 +20,9 @@ pub const VOLUME_DEFAULT_DB: f32 = -12.0;
 /// How loud a beat other than the first is, against the first (the downbeat)
 const SECONDARY_LEVEL: f32 = 0.6;
 
+/// How long a click takes to be held back or let go, in seconds (the looper's Rec only)
+const HUSH_SECONDS: f32 = 0.005;
+
 // Frozen: the variant ids and their order are what DAW projects store. A new value goes at
 // the end
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
@@ -135,6 +138,9 @@ pub struct MetronomeSettings {
     pub host_tempo: Option<f64>,
     pub host_playing: bool,
     pub host_beats: Option<f64>,
+    /// Held back while the looper plays (#450, Click set to Rec only): the clock keeps running
+    /// and the voice is faded out, so the click is back on the beat when this lets go
+    pub hushed: bool,
 }
 
 impl Default for MetronomeSettings {
@@ -149,6 +155,7 @@ impl Default for MetronomeSettings {
             host_tempo: None,
             host_playing: false,
             host_beats: None,
+            hushed: false,
         }
     }
 }
@@ -306,6 +313,8 @@ pub struct Metronome {
     next_beat: u32,
     was_on: bool,
     voice: Voice,
+    /// 1 while the click sounds, 0 while it is hushed, ramped between over `HUSH_SECONDS`
+    gate: f32,
     reading: Arc<BeatReading>,
 }
 
@@ -323,6 +332,7 @@ impl Metronome {
             next_beat: 0,
             was_on: false,
             voice: Voice::IDLE,
+            gate: 1.0,
             reading: Arc::new(BeatReading::default()),
         }
     }
@@ -450,6 +460,13 @@ impl Metronome {
         len: usize,
         mut emit: impl FnMut(usize, f32),
     ) {
+        // Hushed or not: a click that is not sounding takes the gate at once, one that is
+        // ramps it, so a sound is never cut off with a step
+        let gate_target = if settings.hushed { 0.0 } else { 1.0 };
+        if !self.voice.live() {
+            self.gate = gate_target;
+        }
+        let gate_step = 1.0 / (HUSH_SECONDS * self.sample_rate).max(1.0);
         if !settings.on {
             self.was_on = false;
         }
@@ -511,7 +528,11 @@ impl Metronome {
                 self.until_beat -= 1.0;
             }
             if self.voice.live() {
-                emit(index, self.voice.next() * settings.gain);
+                if self.gate != gate_target {
+                    self.gate += (gate_target - self.gate).clamp(-gate_step, gate_step);
+                }
+                // `* 1.0` is exact: a click that is never hushed is as it was
+                emit(index, self.voice.next() * settings.gain * self.gate);
             }
         }
     }
@@ -592,6 +613,51 @@ pub(crate) mod tests {
 
     fn running(bpm: f32) -> MetronomeSettings {
         MetronomeSettings { on: true, bpm, gain: 1.0, ..MetronomeSettings::default() }
+    }
+
+    #[test]
+    fn test_a_hushed_click_keeps_its_time_and_comes_back_on_the_beat_without_a_step() {
+        let mut plain = Metronome::new();
+        plain.set_sample_rate(48_000.0);
+        let (starts_plain, heard) = onsets(&mut plain, &running(120.0), 96_000 * 3, &[480]);
+        // Hushed from the middle of the first beat to the middle of the third bar's: the clock
+        // goes on, so the clicks that sound again are the plain ones to the sample
+        let mut hushed = Metronome::new();
+        hushed.set_sample_rate(48_000.0);
+        let mut out = Vec::new();
+        for block in 0..600 {
+            let mut left = vec![0.0f32; 480];
+            let settings =
+                MetronomeSettings { hushed: (50..450).contains(&block), ..running(120.0) };
+            hushed.process(&settings, &mut left, None);
+            out.extend(left);
+        }
+        // Silent well inside the hush, and the clicks of the last bar are the plain ones, bit for bit
+        assert!(out[480 * 60..480 * 449].iter().all(|s| *s == 0.0));
+        let from = 480 * 450;
+        assert_eq!(out[from..], heard[from..out.len()]);
+        assert!(starts_plain.len() >= 12);
+        // Never a step of its own: no jump between samples bigger than the click makes by itself
+        let biggest = |signal: &[f32]| {
+            signal.windows(2).map(|pair| (pair[1] - pair[0]).abs()).fold(0.0f32, f32::max)
+        };
+        assert!(biggest(&out) <= biggest(&heard), "the hush stepped");
+    }
+
+    #[test]
+    fn test_a_click_that_is_never_hushed_is_bit_identical_to_what_it_was() {
+        // The gate is 1.0 all along: `* 1.0` changes nothing
+        let mut a = Metronome::new();
+        a.set_sample_rate(48_000.0);
+        let mut b = Metronome::new();
+        b.set_sample_rate(48_000.0);
+        let (_, first) = onsets(&mut a, &running(137.0), 50_000, &[333]);
+        let mut second = vec![0.0f32; 50_000];
+        let settings = MetronomeSettings { hushed: false, ..running(137.0) };
+        for block in second.chunks_mut(333) {
+            b.process(&settings, block, None);
+        }
+        assert_eq!(first, second);
     }
 
     #[test]

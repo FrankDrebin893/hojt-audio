@@ -62,6 +62,8 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
 | Output (`out_level`) | -30 to +6 dB | 0 dB | Output level, in front of the safety clip |
 | Tuner (`tuner`) | on / off | off | Silent tuning. Not automatable, not in presets, not changed when a project is loaded |
 | Looper Level (`looper_level`) | -60 to +6 dB | 0 dB | The loop against the live sound; -60 is silence. Not in presets. The looper's buttons are commands, not parameters |
+| Looper Bars (`looper_bars`) | Free, 1, 2, 4, 8 bars | Free | How long a loop is, in bars of the click (#450). Variant ids `free`, `bars1`, `bars2`, `bars4`, `bars8`. Needs the click on, else it reads Free. Last in `GuitarAmpParams`, after the slots. Not in presets |
+| Looper Click (`looper_click`) | Always, Rec only | Always | Whether the click sounds while the loop plays, overdubs or is muted (Always) or only while the looper is empty or recording (Rec only). Variant ids `always`, `recording`. After `looper_bars`. Not in presets |
 | Metronome (`metronome_on`) | on / off | off | The click, on top of the finished sound. Not in presets |
 | Metronome Tempo (`metronome_bpm`) | 40-300 bpm | 120 | Beats a minute: quarter notes, in 6/8 eighths |
 | Metronome Sync (`metronome_sync`) | on / off | off | Follow the host's tempo and position; silent while the host is stopped. With no tempo from the host, the Tempo knob's |

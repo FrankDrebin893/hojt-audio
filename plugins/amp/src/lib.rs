@@ -480,6 +480,16 @@ pub struct GuitarAmpParams {
     pub slot15: SlotParams,
     #[nested(id_prefix = "slot16", group = "Slot 16")]
     pub slot16: SlotParams,
+
+    // The looper's length and its click (#450). After the slots, at the very end, so every
+    // parameter before them keeps its place for a host that shows them in order. Not part of a
+    // sound, so presets leave them alone like the looper's level
+    /// How many bars of the click a loop is, or Free
+    #[id = "looper_bars"]
+    pub looper_bars: EnumParam<looper::LoopBars>,
+    /// Whether the click goes on while the loop plays
+    #[id = "looper_click"]
+    pub looper_click: EnumParam<looper::LoopClick>,
 }
 
 impl Default for GuitarAmpPlugin {
@@ -749,6 +759,9 @@ impl Default for GuitarAmpParams {
             slot14: SlotParams::new(14),
             slot15: SlotParams::new(15),
             slot16: SlotParams::new(16),
+
+            looper_bars: EnumParam::new("Looper Bars", looper::LoopBars::Free),
+            looper_click: EnumParam::new("Looper Click", looper::LoopClick::Always),
         }
     }
 }
@@ -790,6 +803,8 @@ impl GuitarAmpParams {
             host_tempo: if sync { tempo } else { None },
             host_playing: playing,
             host_beats: if sync { beats } else { None },
+            // Set by `process`, which knows what the looper is doing
+            hushed: false,
         }
     }
 
@@ -1071,21 +1086,29 @@ impl Plugin for GuitarAmpPlugin {
         } else {
             (None, false, None)
         };
-        let metronome = self.params.metronome_settings(tempo, playing, beats);
+        let mut metronome = self.params.metronome_settings(tempo, playing, beats);
         // The loop records the finished sound and plays on top of it, before the click, which
-        // is therefore never in it. A whole bar is the metronome's, where it is on
+        // is therefore never in it. A whole bar is the metronome's, where it is on; a set number
+        // of bars is that many of them (with the click off the bar is none, so it is Free)
         let bar_samples = self.metronome.bar_samples(&metronome);
+        let length_samples = bar_samples.and_then(|bar| {
+            let bars = self.params.looper_bars.value().bars()?;
+            Some(bar.saturating_mul(bars))
+        });
         let looping = LooperSettings {
             level: looper::level_gain(self.params.looper_level.value()),
             muted: self.params.tuner_on.value(),
             bar_samples,
             downbeat_samples: self.metronome.samples_to_downbeat(&metronome),
+            length_samples,
         };
         match buffer.as_slice() {
             [left, right] => self.looper.process(&looping, left, Some(&mut **right)),
             [mono] => self.looper.process(&looping, mono, None),
             _ => {}
         }
+        // Click set to Rec only: held back (faded, the clock running on) while the loop plays
+        metronome.hushed = self.params.looper_click.value().hushes(self.looper.control().state());
         // Mixed: on top of the amp. Separate: alone on the "Metronome" output, and the main
         // output is the amp alone. Where the host gives no such output (the standalone
         // program, or a host that left it off) the click is mixed in, so it is never lost
@@ -1708,6 +1731,210 @@ mod tests {
         assert_eq!(control.state(), looper::State::Recording);
     }
 
+    /// An amp with the click `on` (120 bpm, 4/4), the looper's Bars at `bars` and its Click at `click`
+    fn with_bars(on: bool, bars: looper::LoopBars, click: looper::LoopClick) -> GuitarAmpPlugin {
+        let mut amp = clicking(on, ClickOut::Mixed);
+        amp.params = Arc::new(GuitarAmpParams {
+            metronome_on: BoolParam::new("Metronome", on),
+            looper_bars: EnumParam::new("Looper Bars", bars),
+            looper_click: EnumParam::new("Looper Click", click),
+            ..GuitarAmpParams::default()
+        });
+        amp
+    }
+
+    /// Plays `total` samples of a tone through `amp` in blocks of the sizes in `sizes` in turn;
+    /// `before` is called ahead of each block with the samples played so far
+    fn play_sizes(
+        amp: &mut GuitarAmpPlugin,
+        sizes: &[usize],
+        total: usize,
+        mut before: impl FnMut(usize, &GuitarAmpPlugin),
+    ) -> Vec<f32> {
+        let mut heard = Vec::with_capacity(total);
+        let (mut played, mut turn) = (0, 0);
+        while played < total {
+            let len = sizes[turn % sizes.len()].min(total - played);
+            turn += 1;
+            before(played, amp);
+            let mut left: Vec<f32> = (0..len)
+                .map(|i| {
+                    0.3 * (std::f32::consts::TAU * 110.0 * (played + i) as f32 / 48_000.0).sin()
+                })
+                .collect();
+            let mut right = left.clone();
+            let mut buffer = Buffer::default();
+            // SAFETY: the slices are the vectors above, which outlive the buffer, `len` long
+            unsafe {
+                buffer.set_slices(len, |slices| {
+                    slices.clear();
+                    slices.extend([&mut left[..], &mut right[..]]);
+                });
+            }
+            let mut aux = AuxiliaryBuffers { inputs: &mut [], outputs: &mut [] };
+            amp.process(&mut buffer, &mut aux, &mut PlainHost(PluginApi::Vst3));
+            drop(buffer);
+            heard.extend(left);
+            played += len;
+        }
+        heard
+    }
+
+    #[test]
+    fn test_two_bars_at_120_close_after_exactly_192000_samples_and_play_on_the_next() {
+        use looper::{LoopBars, LoopClick, State};
+        for sizes in [&[64usize][..], &[333], &[512], &[64, 333, 512, 480]] {
+            let mut amp = with_bars(true, LoopBars::Bars2, LoopClick::Always);
+            let control = amp.looper.control();
+            let mut states = Vec::new();
+            // Pressed on the first sample: the click was just switched on, so that is a downbeat
+            let total = 192_000 + 5000;
+            play_sizes(&mut amp, sizes, total, |played, amp| {
+                if played == 0 {
+                    amp.looper.control().press();
+                }
+                states.push((played, amp.looper.control().state()));
+            });
+            assert_eq!(control.state(), State::Playing, "{sizes:?}");
+            assert_eq!(control.length(), 192_000, "{sizes:?}");
+            // The loop's head is where the samples since the close put it: it closed on the
+            // 192000th sample and began on the next
+            assert_eq!(control.position() as usize, total - 192_000, "{sizes:?}");
+            // And it was still recording at the block that started on or before that sample
+            let last_recording = states.iter().rev().find(|(_, s)| *s == State::Recording).unwrap();
+            assert!(last_recording.0 < 192_000, "{sizes:?}");
+        }
+    }
+
+    #[test]
+    fn test_the_loop_of_a_set_length_is_what_was_played_and_starts_the_sample_after() {
+        use looper::{LoopBars, LoopClick};
+        let mut amp = with_bars(true, LoopBars::Bars1, LoopClick::Always);
+        let (mut plain, mut click) = (
+            with_bars(false, LoopBars::Free, LoopClick::Always),
+            with_bars(true, LoopBars::Free, LoopClick::Always),
+        );
+        // A bar of 96000: what plays before the close is the amp and the click, as ever
+        let total = 96_000 + 2000;
+        let heard = play_sizes(&mut amp, &[333], total, |played, amp| {
+            if played == 0 {
+                amp.looper.control().press();
+            }
+        });
+        let before = play_sizes(&mut click, &[333], total, |_, _| {});
+        assert_eq!(heard[..96_000], before[..96_000], "until the close nothing is touched");
+        // The loop holds what the amp gave (no click): the amp alone, from the first sample
+        let alone = play_sizes(&mut plain, &[333], 96_000, |_, _| {});
+        let (recorded, _) = amp.looper.recorded();
+        assert_eq!(recorded.len(), 96_000);
+        for k in 480..96_000 - 480 {
+            assert_eq!(recorded[k], alone[k], "sample {k}");
+        }
+        // The very next sample is the loop's first, with the click beside it
+        assert_ne!(heard[96_000..], before[96_000..], "the loop plays from the next sample");
+    }
+
+    #[test]
+    fn test_with_the_click_off_a_set_number_of_bars_reads_free() {
+        use looper::{LoopBars, LoopClick};
+        let session = |bars| {
+            let mut amp = with_bars(false, bars, LoopClick::Always);
+            play_sizes(&mut amp, &[480], 480 * 300, |played, amp| {
+                if [0, 480 * 40, 480 * 120].contains(&played) {
+                    amp.looper.control().press();
+                }
+            })
+        };
+        assert_eq!(session(LoopBars::Bars2), session(LoopBars::Free));
+    }
+
+    #[test]
+    fn test_rec_only_silences_the_click_while_the_loop_plays_and_it_is_back_after_clear() {
+        use looper::{LoopBars, LoopClick, State};
+        // Record 4 beats (a bar of 96000 is 200 blocks), then play, overdub, mute, and clear
+        let run = |click| {
+            let mut amp = with_bars(true, LoopBars::Bars1, click);
+            let mut seen = Vec::new();
+            let heard = play_sizes(&mut amp, &[480], 480 * 1000, |played, amp| {
+                let control = amp.looper.control();
+                match played / 480 {
+                    0 => control.press(),
+                    // Playing from 200; overdub at 300 to 400; muted at 500, back at 600
+                    300 | 400 => control.press(),
+                    500 | 600 => control.stop(),
+                    800 => control.clear(),
+                    _ => {}
+                }
+                if played % 480 == 0 {
+                    seen.push((played / 480, control.state()));
+                }
+            });
+            (heard, seen)
+        };
+        let (always, states) = run(LoopClick::Always);
+        let (rec_only, _) = run(LoopClick::Recording);
+        let state_at = |block: usize| states.iter().find(|(b, _)| *b == block).unwrap().1;
+        assert_eq!(state_at(100), State::Recording);
+        assert_eq!(state_at(250), State::Playing);
+        assert_eq!(state_at(350), State::Overdubbing);
+        assert_eq!(state_at(550), State::Stopped);
+        let samples =
+            |signal: &[f32], from: usize, to: usize| signal[from * 480..to * 480].to_vec();
+        // While recording, the same click: bit for bit
+        assert_eq!(samples(&always, 0, 200), samples(&rec_only, 0, 200));
+        // While the loop plays, overdubs and is muted, only the click differs, and it is missing
+        for (from, to) in [(205, 300), (305, 400), (405, 500), (505, 600), (605, 790)] {
+            assert_ne!(samples(&always, from, to), samples(&rec_only, from, to), "{from}..{to}");
+        }
+        // Back on the beat after Clear: from the block after the fade, the two are the same
+        assert_eq!(samples(&always, 830, 1000), samples(&rec_only, 830, 1000));
+        // The loop is the same either way: what plays back is the same loop (the click is not in it)
+        assert_eq!(state_at(900), State::Empty);
+    }
+
+    #[test]
+    fn test_the_loop_holds_no_click_with_either_setting_of_the_click() {
+        use looper::{LoopBars, LoopClick};
+        let loops = |click| {
+            let mut amp = with_bars(true, LoopBars::Bars1, click);
+            play_sizes(&mut amp, &[480], 480 * 250, |played, amp| {
+                if played == 0 {
+                    amp.looper.control().press();
+                }
+            });
+            amp.looper.recorded().0.to_vec()
+        };
+        assert_eq!(loops(LoopClick::Always), loops(LoopClick::Recording));
+    }
+
+    #[test]
+    fn test_process_through_a_set_length_close_allocates_nothing() {
+        use looper::{LoopBars, LoopClick};
+        use suite_common::host;
+        let mut amp = with_bars(true, LoopBars::Bars1, LoopClick::Recording);
+        let control = amp.looper.control();
+        let (mut left, mut right) = (vec![0.1f32; 480], vec![0.1f32; 480]);
+        for block in 0..260 {
+            if block == 0 {
+                control.press();
+            }
+            let mut buffer = Buffer::default();
+            // SAFETY: the slices are the vectors above, which outlive the buffer, 480 long
+            unsafe {
+                buffer.set_slices(480, |slices| {
+                    slices.clear();
+                    slices.extend([&mut left[..], &mut right[..]]);
+                });
+            }
+            let mut aux = AuxiliaryBuffers { inputs: &mut [], outputs: &mut [] };
+            host::assert_allocates_nothing("The looper closing itself", || {
+                amp.process(&mut buffer, &mut aux, &mut PlainHost(PluginApi::Vst3));
+            });
+        }
+        assert_eq!(control.state(), looper::State::Playing);
+        assert_eq!(control.length(), 96_000);
+    }
+
     /// What `process` answers after `blocks` blocks of silence
     fn status_after_silence(amp: &mut GuitarAmpPlugin, blocks: usize) -> ProcessStatus {
         let mut status = ProcessStatus::Normal;
@@ -1759,8 +1986,11 @@ mod tests {
             assert_eq!(layout.aux_output_ports[0].get(), 2);
             assert_eq!(layout.names.aux_outputs, &["Metronome"]);
         }
-        let ids: Vec<String> =
+        let mut ids: Vec<String> =
             GuitarAmpParams::default().param_map().into_iter().map(|(id, _, _)| id).collect();
+        // The looper's bars and click (#450) are the very last, after the slots
+        assert_eq!(ids[ids.len() - 2..], ["looper_bars", "looper_click"]);
+        ids.truncate(ids.len() - 2);
         // Only the EQ's five, the wah's five, the looper's level and the slots' ninety-six come after it
         let slots = slots::MAX_SLOTS * (1 + slots::KNOBS);
         assert_eq!(ids.iter().position(|id| id == "metronome_out"), Some(ids.len() - 12 - slots));

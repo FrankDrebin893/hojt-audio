@@ -33,6 +33,7 @@ fn test_looper() -> Arc<LooperControl> {
 #[cfg(target_os = "linux")]
 fn loop_shows(state: LoopState, length: u32, position: u32, capacity: u32) {
     test_looper().show(state, length, position, capacity);
+    test_looper().show_goal(0);
 }
 
 /// A view as the window has it after it opened: nothing open, the bank the params name
@@ -805,6 +806,155 @@ fn test_the_looper_looks_as_it_did_muted() {
     looper_picture("looper_muted", LoopState::Stopped);
 }
 
+/// The looper's plate with the click `on` and the stepper settings, for the pictures of the click's
+/// row: a loop of two bars (192 000 samples) set, recording `length` of it, in `state`
+#[cfg(target_os = "linux")]
+fn looper_click_picture(
+    name: &str,
+    on: bool,
+    bars: crate::looper::LoopBars,
+    click: crate::looper::LoopClick,
+    state: LoopState,
+    length: u32,
+) {
+    loop_shows(state, length, length / 3, 40 * 48_000);
+    if state == LoopState::Recording {
+        test_looper().show_goal(192_000);
+    }
+    let params = GuitarAmpParams {
+        metronome_on: BoolParam::new("Metronome", on),
+        looper_bars: EnumParam::new("Looper Bars", bars),
+        looper_click: EnumParam::new("Looper Click", click),
+        ..GuitarAmpParams::default()
+    };
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    harness_of(&params, &setter, None, |view| view.plate = Some(Open::Looper)).snapshot(name);
+}
+
+// The click's row on the looper's plate: the click on with two bars set, half way through the
+// loop and at the very sample that closes it (the ring is a full circle), then Rec only while the
+// loop plays, and last the click off, where Bars and Click are dimmed and Bars reads Free
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_looper_looks_as_it_did_recording_two_bars() {
+    use crate::looper::{LoopBars, LoopClick};
+    looper_click_picture(
+        "looper_bars_recording",
+        true,
+        LoopBars::Bars2,
+        LoopClick::Always,
+        LoopState::Recording,
+        96_000,
+    );
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_looper_looks_as_it_did_when_two_bars_are_full() {
+    use crate::looper::{LoopBars, LoopClick};
+    looper_click_picture(
+        "looper_bars_full",
+        true,
+        LoopBars::Bars2,
+        LoopClick::Always,
+        LoopState::Recording,
+        192_000,
+    );
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_looper_looks_as_it_did_playing_with_rec_only() {
+    use crate::looper::{LoopBars, LoopClick};
+    looper_click_picture(
+        "looper_rec_only",
+        true,
+        LoopBars::Bars4,
+        LoopClick::Recording,
+        LoopState::Playing,
+        192_000,
+    );
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_looper_looks_as_it_did_with_the_click_off() {
+    use crate::looper::{LoopBars, LoopClick};
+    looper_click_picture(
+        "looper_click_off",
+        false,
+        LoopBars::Bars2,
+        LoopClick::Always,
+        LoopState::Empty,
+        0,
+    );
+}
+
+// The ring is a full circle at the sample that closes a set length, against the set length and
+// not the buffer
+#[test]
+fn test_the_ring_is_a_full_circle_when_the_set_length_is_reached() {
+    // Two bars of 96000 in a 60 second buffer: half way is half a circle, the end is all of it
+    assert_eq!(
+        loop_ring(LoopState::Recording, 96_000, 0, 192_000),
+        ui::Ring::Filled { fraction: 0.5, color: ui::RING_RED }
+    );
+    assert_eq!(
+        loop_ring(LoopState::Recording, 192_000, 0, 192_000),
+        ui::Ring::Filled { fraction: 1.0, color: ui::RING_RED }
+    );
+    // With no length set it fills against the buffer, as it did
+    let control = LooperControl::default();
+    control.show(LoopState::Recording, 0, 0, 2_880_000);
+    assert_eq!(control.fills_against(), 2_880_000);
+    control.show_goal(192_000);
+    assert_eq!(control.fills_against(), 192_000);
+}
+
+// The click's row changes the metronome's own parameters, so the looper's plate and the
+// metronome's agree; Bars and Click are the looper's, and are dead while the click is off
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_looper_plates_click_row_sets_the_metronomes_own_parameters() {
+    let plate = Pos2::new(LOOPER_X - ui::icons::ICON_REACH, PLATE_TOP);
+    let row = |x: f32| plate + vec2(x, LOOPER_ROW_Y);
+    let next = |x: f32, width: f32| row(x) + vec2(reach(width) - 2.0, 0.0);
+    let run = |on: bool, act: &dyn Fn(&mut Harness)| {
+        let params = GuitarAmpParams {
+            metronome_on: BoolParam::new("Metronome", on),
+            ..GuitarAmpParams::default()
+        };
+        let host = crate::user_presets::tests::Host::default();
+        let setter = ParamSetter::new(&host);
+        let (mut harness, _) =
+            harness_shared(&params, &setter, None, None, |view| view.plate = Some(Open::Looper));
+        act(&mut harness);
+        let told = host.told.lock().unwrap();
+        let sets =
+            |ptr: ParamPtr| told.iter().filter(|(kind, p)| *kind == 's' && *p == ptr).count();
+        (
+            sets(params.metronome_on.as_ptr()),
+            sets(params.metronome_bpm.as_ptr()),
+            sets(params.looper_bars.as_ptr()),
+            sets(params.looper_click.as_ptr()),
+        )
+    };
+    // The switch and the tempo's buttons are the metronome's, on or off
+    assert_eq!(run(true, &|h| click(h, row(LOOPER_METRO_X))), (1, 0, 0, 0));
+    assert_eq!(run(false, &|h| click(h, row(LOOPER_METRO_X))), (1, 0, 0, 0));
+    assert_eq!(
+        run(true, &|h| click(h, next(LOOPER_TEMPO_X, TEMPO_WIDTH))),
+        (0, 1, 0, 0),
+        "tempo up"
+    );
+    // Bars and Click answer while the click is on, and not while it is off
+    assert_eq!(run(true, &|h| click(h, next(LOOPER_BARS_X, LOOPER_BARS_WIDTH))), (0, 0, 1, 0));
+    assert_eq!(run(true, &|h| click(h, next(LOOPER_CLICK_X, LOOPER_CLICK_WIDTH))), (0, 0, 0, 1));
+    assert_eq!(run(false, &|h| click(h, next(LOOPER_BARS_X, LOOPER_BARS_WIDTH))), (0, 0, 0, 0));
+    assert_eq!(run(false, &|h| click(h, next(LOOPER_CLICK_X, LOOPER_CLICK_WIDTH))), (0, 0, 0, 0));
+}
+
 // The plate's buttons are the looper's commands: the big switch presses, Stop stops, Clear
 // clears, and the strip icon's own switch presses as the big one does
 #[test]
@@ -890,6 +1040,23 @@ fn test_the_looper_plate_stands_clear_of_itself_and_of_its_edges() {
             ),
         ),
     ];
+    // The click's row: its lamp and button, the tempo with its buttons, the two steppers with
+    // theirs, each with its caption over it
+    let row = |x: f32| vec2(x, LOOPER_ROW_Y);
+    let caption = |x: f32| vec2(x, LOOPER_ROW_CAPTION_Y);
+    let stepper_box = |x: f32, width: f32| around(row(x), vec2(reach(width) + BUTTON, 11.0));
+    let row_parts = [
+        ("the metro lamp", around(row(LOOPER_METRO_LED_X), Vec2::splat(LAMP))),
+        ("the metro button", around(row(LOOPER_METRO_X), Vec2::splat(BUTTON))),
+        ("the metro caption", around(caption(LOOPER_METRO_X), vec2(26.0, 7.0))),
+        ("the tempo", stepper_box(LOOPER_TEMPO_X, TEMPO_WIDTH)),
+        ("the tempo caption", around(caption(LOOPER_TEMPO_X), vec2(26.0, 7.0))),
+        ("the click stepper", stepper_box(LOOPER_CLICK_X, LOOPER_CLICK_WIDTH)),
+        ("the click caption", around(caption(LOOPER_CLICK_X), vec2(24.0, 7.0))),
+        ("the bars stepper", stepper_box(LOOPER_BARS_X, LOOPER_BARS_WIDTH)),
+        ("the bars caption", around(caption(LOOPER_BARS_X), vec2(24.0, 7.0))),
+    ];
+    let parts: Vec<_> = parts.into_iter().chain(row_parts).collect();
     let plate = Rect::from_min_size(Pos2::ZERO, vec2(LOOPER_WIDTH, LOOPER_HEIGHT));
     for (index, (name, rect)) in parts.iter().enumerate() {
         for (other, other_rect) in &parts[index + 1..] {
@@ -2537,4 +2704,105 @@ fn test_the_no_audio_lamp_and_the_update_line_have_room_on_the_strip() {
     }
     assert!(!update_line_fits(STRIP_MIN_WIDTH - WINDOW_WIDTH as f32, true));
     assert!(update_line_fits(3840.0 - WINDOW_WIDTH as f32, true), "both at the widest");
+}
+
+/// Where each lane's cabinet stands in the line at the full size: its rectangle and its
+/// nameplate's middle
+#[cfg(target_os = "linux")]
+fn cabinet_places(params: &GuitarAmpParams) -> [(Rect, Pos2); 2] {
+    let stack = Line::of_chain(&params.chain.get()).stack_for_test();
+    [0.0, LANE_HEIGHT + LANE_GAP].map(|down| {
+        let origin = Pos2::new(stack, STACK_TOP + down);
+        let cab = Rect::from_min_size(
+            origin + vec2(LANE_HEAD_WIDTH + LANE_CAB_GAP, 0.0),
+            vec2(LANE_CAB_WIDTH, LANE_HEIGHT),
+        );
+        (cab, Pos2::new(cab.center().x, cab.bottom() - CAB_PLATE_FOOT))
+    })
+}
+
+// A click on a cabinet's nameplate buttons sets the choice a step of the old stepper did, on
+// both lanes: the first through the amp's own, the built-in ones and the files, the second
+// through the amp's own and the built-in ones
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_cabinet_nameplate_buttons_step_the_choice_as_the_stepper_did() {
+    let params = GuitarAmpParams::default();
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let (mut harness, _) = bank_harness(&params, &setter);
+    let [(_, first), (_, second)] = cabinet_places(&params);
+    let (previous, next) = (-reach(CAB_PLATE_WIDTH), reach(CAB_PLATE_WIDTH));
+    // The first lane: what `user_cab::neighbour` says of the files as they are now
+    let files = crate::user_cab::cabinets_dir().map(|dir| crate::user_cab::list(&dir));
+    let files = files.unwrap_or_default();
+    click(&mut harness, first + vec2(next, 0.0));
+    let one_on = crate::user_cab::neighbour(&files, "", true);
+    assert!(one_on.starts_with("speaker:"), "{one_on}");
+    assert_eq!(*params.cabinet.lock().unwrap(), one_on);
+    click(&mut harness, first + vec2(previous, 0.0));
+    assert_eq!(*params.cabinet.lock().unwrap(), "");
+    // The second lane: the amp's own, then the first built-in cabinet, and back
+    assert_eq!(params.cabinet_second.get(), None);
+    click(&mut harness, second + vec2(next, 0.0));
+    assert_eq!(params.cabinet_second.get(), Some(0));
+    click(&mut harness, second + vec2(previous, 0.0));
+    assert_eq!(params.cabinet_second.get(), None);
+    click(&mut harness, second + vec2(previous, 0.0));
+    assert_eq!(params.cabinet_second.get(), Some(crate::amp::model::SPEAKERS.len() - 1));
+    // The first lane's choice did not move with the second's
+    assert_eq!(*params.cabinet.lock().unwrap(), "");
+}
+
+/// Two clicks at `at`, a frame apart (well inside egui's double-click delay): a double-click
+#[cfg(target_os = "linux")]
+fn double_click(harness: &mut Harness, at: Pos2) {
+    use nih_plug_egui::egui::{Event, Modifiers, PointerButton};
+    let button = |pressed| Event::PointerButton {
+        pos: at,
+        button: PointerButton::Primary,
+        pressed,
+        modifiers: Modifiers::NONE,
+    };
+    hover(harness, at);
+    // Let earlier clicks go stale: a third click inside the delay is a triple, not a double
+    harness.run_steps(60);
+    for pressed in [true, false, true, false] {
+        harness.input_mut().events.push(button(pressed));
+        harness.run_ok();
+    }
+}
+
+// A double-click on the first lane's cabinet above its plate reaches the folder's area and
+// asks for the folder; one on the plate's buttons steps (twice) and does not
+#[test]
+#[cfg(target_os = "linux")]
+fn test_a_double_click_above_the_cabinet_plate_asks_for_the_folder_and_one_on_its_buttons_does_not()
+{
+    use std::sync::atomic::Ordering::Relaxed;
+    let params = GuitarAmpParams::default();
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let (mut harness, _) = bank_harness(&params, &setter);
+    let [(cab, plate), (cab2, plate2)] = cabinet_places(&params);
+    // The area is above the plate and its buttons, on the cabinet
+    let area = cabinet_folder_area(cab);
+    assert!(cab.contains_rect(area));
+    assert!(area.bottom() + 4.0 < plate.y - ui::widgets::NAMEPLATE_HEIGHT / 2.0);
+    let opened = || crate::user_cab::FOLDER_OPENED.load(Relaxed);
+    let before = opened();
+    // On a button: the choice goes on twice, the folder is not asked for
+    double_click(&mut harness, plate + vec2(reach(CAB_PLATE_WIDTH), 0.0));
+    assert_eq!(opened(), before);
+    assert_eq!(*params.cabinet.lock().unwrap(), crate::user_cab::speaker_choice(1));
+    // On the plate's middle: not the folder's either
+    double_click(&mut harness, plate);
+    assert_eq!(opened(), before);
+    // On the second lane's cabinet, high up: that lane has no files and no folder
+    double_click(&mut harness, Pos2::new(cab2.center().x, cab2.top() + 40.0));
+    assert_eq!(opened(), before);
+    let _ = plate2;
+    // Above the plate on the first: the folder
+    double_click(&mut harness, Pos2::new(cab.center().x, cab.top() + 40.0));
+    assert_eq!(opened(), before + 1);
 }

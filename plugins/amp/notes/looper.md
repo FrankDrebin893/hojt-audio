@@ -34,3 +34,20 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   waits the state is still Empty (the plate shows nothing yet, `Looper::is_idle` is false so the
   plugin stays awake), and a second Record press or Clear takes the press back. There is no count-in.
   The loop does not follow the host's transport (decided on #280)
+- **Bars (#450, `looper_bars`):** Free, 1, 2, 4 or 8 bars of the click. `lib.rs` hands the looper
+  `LooperSettings::length_samples` = bars times `bar_samples`, only while the click is on (click off
+  reads Free). The length and the bar are **fixed when the recording starts** (`Looper::fixed`), so a tempo
+  change while recording does not move them; longer than the buffer it is the whole bars that fit,
+  and a bar longer than the buffer is Free. When the recording reaches the length it closes itself
+  with exactly that length (`close` with the bar, the same fade as a press) and the loop plays from
+  its first sample on the very next one, in the same block, with no press. A press before that
+  closes early, rounded to whole bars of the bar it started in. The ring fills against that length
+  (`LooperControl::fills_against`, published as `goal` while recording), so it is a full circle at the
+  close; Free fills against the buffer as before
+- **Click while playing (`looper_click`):** Always (as it was) or Rec only. With Rec only `lib.rs` sets
+  `MetronomeSettings::hushed` while the looper is Playing, Overdubbing or Stopped (read after the
+  looper's block): the click's clock runs on and only its voice is faded over 5 ms (`Metronome::gate`,
+  1.0 and bit-identical when never hushed), so it is back on the beat after Clear. The loop never holds the click either way
+- The plate (500 x 264) carries a click row under the ring: the metronome's own on-switch and tempo
+  (`metronome_on`, `metronome_bpm`, the tempo display is `tempo_display` shared with the metronome's plate), the Click
+  stepper and the Bars stepper; the last two are dimmed (hover text says why) while the click is off

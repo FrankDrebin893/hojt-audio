@@ -23,7 +23,7 @@ use crate::cab_stage::{CabLoader, CabStatus, NO_FILES_SHOWN};
 use crate::dial_memory;
 use crate::lamps::{LampReading, LampView};
 use crate::looks;
-use crate::looper::{LooperControl, State as LoopState};
+use crate::looper::{LoopBars, LoopClick, LooperControl, State as LoopState};
 use crate::metronome::{BeatReading, ClickOut, Sound, TapTempo, TimeSignature, BPM_MAX, BPM_MIN};
 use crate::order::Zone;
 use crate::presets::{self, PRESETS};
@@ -803,7 +803,7 @@ impl Pedals<'_> {
             // Where the files go: shown when the cabinet is hovered above its plate, and
             // opened by a double-click on it (until the cabinet drawer, #448, takes it over)
             if let Some(dir) = user_cab::cabinets_dir() {
-                let body = Rect::from_min_max(cab.min, Pos2::new(cab.right(), plate_at.y - 22.0));
+                let body = cabinet_folder_area(cab);
                 let response = ui
                     .interact(body, Id::new("cabinet-folder"), Sense::click())
                     .on_hover_text(format!("Cabinet files go in {}", dir.display()));
@@ -823,6 +823,12 @@ impl Pedals<'_> {
         }
         (jack, cab.right_center())
     }
+}
+
+/// Where a double-click on the first lane's cabinet opens the cabinets folder: the cabinet above
+/// its nameplate and the step buttons
+fn cabinet_folder_area(cab: Rect) -> Rect {
+    Rect::from_min_max(cab.min, Pos2::new(cab.right(), cab.bottom() - CAB_PLATE_FOOT - 22.0))
 }
 
 /// A jack socket: the nut a patch cable's plug goes into

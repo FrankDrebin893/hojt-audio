@@ -156,6 +156,23 @@ fn known_documents_dir() -> Option<PathBuf> {
 
 /// Shows the folder in the system's file manager. Nothing happens if there is none
 pub fn open_folder(dir: &Path) {
+    // A test counts the asks and opens nothing
+    #[cfg(test)]
+    {
+        let _ = dir;
+        FOLDER_OPENED.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+    #[cfg(not(test))]
+    open_folder_in_manager(dir);
+}
+
+/// How many times a test asked for the folder to be opened
+#[cfg(test)]
+pub(crate) static FOLDER_OPENED: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(0);
+
+#[cfg(not(test))]
+fn open_folder_in_manager(dir: &Path) {
     let program = if cfg!(target_os = "windows") {
         "explorer"
     } else if cfg!(target_os = "macos") {
