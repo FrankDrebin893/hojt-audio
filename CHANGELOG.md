@@ -7,6 +7,8 @@ GitHub release.
 
 ### Guitar Amp
 
+- The drawers and the effects bank are drawn whole in a window smaller than full size: their lower rows were cut
+  off at the window's foot, with the miniatures standing outside their cards.
 - Pick an amp from a drawer. A double-click on an amp's head (clear of its dials) raises a drawer from the
   bottom of the window with a miniature head of each of the twelve amps, its name beside it and an `On Amp 1`
   or `On Amp 2` mark on each one that plays; the amp that plays on that lane is outlined in brass. A click

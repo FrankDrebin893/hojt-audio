@@ -3678,3 +3678,33 @@ fn test_the_cabinet_drawer_for_the_second_lane_looks_as_it_did() {
     open_cabinet_drawer(&view, &mut harness, 1);
     harness.snapshot("cabinet_drawer_second");
 }
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_amp_drawer_at_the_default_window_looks_as_it_did() {
+    let params = GuitarAmpParams::default();
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let height = (WINDOW_HEIGHT as f32 * DEFAULT_ZOOM).round() as u32;
+    let (mut harness, view) = line_harness(DEFAULT_WIDTH, height, &params, &setter, 0.0);
+    view.borrow_mut().drawer = Some(drawer::Drawer::risen(0, drawer::What::Amp));
+    harness.run_ok();
+    harness.run_ok();
+    harness.snapshot("amp_drawer_default_window");
+}
+
+// A window smaller than the design layer scales it down; the sheet of a drawer and of the bank
+// is drawn in the layer's points all the same, whole, with its cards and miniatures inside it
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_cabinet_drawer_at_the_default_window_looks_as_it_did() {
+    let params = GuitarAmpParams::default();
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let height = (WINDOW_HEIGHT as f32 * DEFAULT_ZOOM).round() as u32;
+    let (mut harness, view) = line_harness(DEFAULT_WIDTH, height, &params, &setter, 0.0);
+    with_cabinet_files("drawer-default-window", &["a.wav", "b.wav"], || {
+        open_cabinet_drawer(&view, &mut harness, 0);
+        harness.snapshot("cabinet_drawer_default_window");
+    });
+}
