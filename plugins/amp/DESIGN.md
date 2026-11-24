@@ -96,7 +96,7 @@ The reasons behind choices that the code alone does not explain. What it does is
   60 Hz to 12 kHz, no cone breakup, for an acoustic or a clean sound. The tests that hold a
   cabinet to a guitar speaker's shape leave it out by its id (`FULL_RANGE_ID`); `1X12 CLEAR`
   and `2X12 CHIME` are held to 12 dB under their mids at 10 kHz where the others are held to 20
-- No file dialog (the style guide forbids pop-ups): files in one folder, stepped through. The
+- No file dialog (the style guide forbids pop-ups): files in one folder, picked from a drawer of cards (stepped through before #448). The
   folder is found through the Windows known-folder call by a hand-written FFI declaration (it
   follows OneDrive), no crate. The choice is a persisted file name, not a parameter, not in
   presets, and stays when the amp changes

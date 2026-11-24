@@ -259,8 +259,8 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
 - **A preset choice is never a parameter.** The editor sets the real parameters through the
   `ParamSetter` and keeps only the index in a `#[persist]` field
 - **Pick a file (cabinets):** files are never picked in a dialog. They live in one folder and are
-  stepped through in name order with the two chrome buttons of the cabinet's nameplate (no caption:
-  the plate says the name), after the built-in
+  picked from the cabinets' drawer (#448: a double-click on the cabinet or the one chrome button of its
+  nameplate; a card for each file in name order), after the built-in
   choices: the amp's own (`OWN`), then the built-in cabinets. On the first lane's cabinet nameplate
   the name shows at most 10 characters (print size 15 on a 128 px plate): no extension, capitals, long names as the first 5 and last 4
   with `~` between. `!` in front of the name of a file that cannot be used, `?` in front of the name of one
