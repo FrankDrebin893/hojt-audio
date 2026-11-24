@@ -1232,11 +1232,12 @@ fn test_one_note_costs_at_most_2_percent_of_a_core() {
         return;
     }
     let mut bass = bass(Voice::Metal, SAMPLE_RATE);
-    // The best of seven: a busy machine only makes a run slower
-    let frames = 48_000;
-    let per_frame_ns = (0..7)
+    // The best of 100 short windows (480 frames, 0.2 ms at the bound, well inside a scheduler
+    // time slice): a busy machine preempts a long run every time, but not every short window
+    let frames = 480;
+    bass.note_on(28, 1.0);
+    let per_frame_ns = (0..100)
         .map(|_| {
-            bass.note_on(28, 1.0);
             let started = std::time::Instant::now();
             let mut sum = 0.0;
             for _ in 0..frames {

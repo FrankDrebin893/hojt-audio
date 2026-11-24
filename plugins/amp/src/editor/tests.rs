@@ -1253,6 +1253,23 @@ fn test_the_looper_plate_says_what_the_loop_is_doing_and_what_a_press_does_next(
     assert_ne!(loop_lamp(Playing), loop_lamp(Overdubbing));
 }
 
+/// Every pair of parts that runs into each other (2 points apart counts) and every part
+/// over the plate's edge, one line each, so a layout change is mended in one run
+fn overlaps(parts: &[(&str, Rect)], plate: Rect) -> Vec<String> {
+    let mut faults = Vec::new();
+    for (index, (name, rect)) in parts.iter().enumerate() {
+        for (other, other_rect) in &parts[index + 1..] {
+            if rect.expand(2.0).intersects(*other_rect) {
+                faults.push(format!("{name} runs into {other}"));
+            }
+        }
+        if !plate.shrink(6.0).contains_rect(*rect) {
+            faults.push(format!("{name} is over the plate's edge"));
+        }
+    }
+    faults
+}
+
 // Nothing on the looper's plate runs into anything else or over the plate's edge: the ring
 // with its lamps and the switch in it, the buttons with their captions, the knob
 #[test]
@@ -1305,12 +1322,8 @@ fn test_the_looper_plate_stands_clear_of_itself_and_of_its_edges() {
     ];
     let parts: Vec<_> = parts.into_iter().chain(row_parts).chain(side_parts).collect();
     let plate = Rect::from_min_size(Pos2::ZERO, vec2(LOOPER_WIDTH, LOOPER_HEIGHT));
-    for (index, (name, rect)) in parts.iter().enumerate() {
-        for (other, other_rect) in &parts[index + 1..] {
-            assert!(!rect.expand(2.0).intersects(*other_rect), "{name} runs into {other}");
-        }
-        assert!(plate.shrink(6.0).contains_rect(*rect), "{name} is over the plate's edge");
-    }
+    let faults = overlaps(&parts, plate);
+    assert!(faults.is_empty(), "the looper plate's parts collide:\n{}", faults.join("\n"));
     // The state's word is in the ring over the switch (74 across), the next action's under
     // it, both inside the ring's lamps
     const { assert!(-LOOPER_STATE_DY > 37.0 && LOOPER_NEXT_DY > 37.0) };
