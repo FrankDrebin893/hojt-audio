@@ -2,6 +2,12 @@
   "enabledPlugins": {
     "mattpocock-skills@claude-plugins-official": true
   },
+  "permissions": {
+    "allow": [
+      "Bash(cargo clean)",
+      "Bash(cargo clean:*)"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {

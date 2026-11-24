@@ -132,10 +132,14 @@ A branch that changes only light paths (the page, markdown, `.claude/`, the lice
 `quick`, `scripts/page-check.sh links`, and `cargo test -p xtask` when a skill changed. `scripts/check.sh full` forces every
 step; `scripts/check.sh scope` prints `light`, `skills` or `full`. `scripts/test-check-light.sh` tests the choice on a
 temporary repo and checks that neither `ci.yml` nor `check.sh` holds a list of its own; it is a step of `check.sh` and CI.
-A full run starts by printing the free disk space and stops under 2 GB, naming what to clean (`scripts/check.sh space` is
-that check alone; `scripts/test-check-space.sh` tests it with a stubbed `df` and is a step of `check.sh` and CI). A cloud
-session builds in its worktree's own `target/` and deletes the `target/` of merged worktrees first when `df` shows under 2 GB
-free. A full run also prints the target directory and the number of other cargo processes, and stops at once when
+A full run starts by printing the free disk space and stops under 8 GB when the checkout's `target/` is cold (no
+`target/debug/deps`) and under 2 GB when it is warm; `CHECK_MIN_FREE_GB=<n>` overrides both for a person whose disk is
+large. When it stops it lists the `target/` of the main checkout and of every worktree with its size, largest first and the
+total, and names what to free (`cargo clean` in your own worktree, `git worktree remove` for a merged branch).
+`scripts/check.sh space` is that check alone and always lists the sizes; `scripts/test-check-space.sh` tests it with a
+stubbed `df` and `du` in a temporary repo with two worktrees and is a step of `check.sh` and CI. A cold `target/` is 2 to
+7 GB per worktree, so a 252 GB volume holds only so many at once: `/next` checks `space` before it starts a session and
+deletes the `target/` of accepted and merged worktrees (`.claude/skills/next/SKILL.md`). A full run also prints the target directory and the number of other cargo processes, and stops at once when
 `CARGO_TARGET_DIR` points outside the checkout (two sessions on one directory fight over cargo's build lock): the fix is
 `unset CARGO_TARGET_DIR`, or `CHECK_SHARED_TARGET=1` on a machine that is yours alone (`scripts/check.sh target` is that check
 alone; `scripts/test-check-target.sh` tests it and is a step of `check.sh` and CI).
