@@ -82,7 +82,22 @@ goes on to the next issue, with no further prompt, until the list is done. Words
    a clean session or sub-agent). Its brief is "The builder" below, with the issue number,
    title and `kind:*` label filled in, the sub-session's worktree path (for "Commands in the worktree"),
    and the link to the issue: never a summary of the spec
-   from here, the sub-session reads the issue itself. One sub-session at a time: the next
+   from here, the sub-session reads the issue itself.
+   **Space first**, before this and before every session of step 5 that will build or run tests: free what is
+   done, then check the disk.
+   - Delete `<worktree>/target` (the directory only, never the worktree or the branch) of every worktree whose
+     pull request is open with `Verdict: accept` (auto-merge on, nothing left to fix) and of every worktree of a
+     merged or closed branch. A review that asked for fixes keeps its `target/`, since the builder will rebuild. A
+     later fix on an accepted pull request then starts cold: accepted, it merges on green CI anyway
+   - Run `scripts/check.sh space` in the repository. It exits 1 under the floor (8 GB free when `target/` is cold,
+     2 GB when warm) and prints every `target/` with its size. Still under the floor after the deletions above: do
+     not start the session, leave the issue as it is, and tell the engineer in one line with the sizes. No
+     `needs:engineer`: a full disk is not a question
+   - Cap by free space: free GB divided by 8, rounded down, is the number of sessions that may build cold at once (the
+     builder counts as one, and so does a reviewer or retro session that will run `cargo test`; warm trees count as
+     zero). At the cap, wait (Monitor, an until-loop on `scripts/check.sh space`) instead of starting another
+
+   One sub-session at a time: the next
    starts from a `main` that has the last one merged. An approved issue is built in this run,
    in its own sub-session: never deferred to "a run of its own" or to a later night, and never
    built in the orchestrator's own context. Only the cap or a usage limit (step 6) ends a run
@@ -96,7 +111,8 @@ goes on to the next issue, with no further prompt, until the list is done. Words
    - **It opened a pull request**: go to step 5
 5. **Review and retrospective, each in a session of its own.** When the builder reports a pull
    request, start two more fresh sub-sessions (the way step 3 starts one), neither of them the
-   builder's session. They may run side by side; the builder stays available for fixes.
+   builder's session. They may run side by side; the builder stays available for fixes. Do "Space first" (step 3)
+   before each of them that will build or run tests, and count it against the cold-build cap.
    - **The reviewer** is the independent code review (a session, never a GitHub review request on the
      pull request: its author cannot be one): see "The reviewer" below. It gets only the
      issue and the pull request, and writes its scores and findings as a comment on the pull
@@ -196,8 +212,13 @@ What every sub-session is asked to do, for issue `<n>`:
 - A build uses the worktree's own `target/` (the default). Never set `CARGO_TARGET_DIR` to a path another
   session can also name: two builders on one directory fight over cargo's build lock, and a full
   `scripts/check.sh` refuses such a path at once (`unset CARGO_TARGET_DIR`). The cold build this costs
-  is accepted. When `df` shows under 2 GB free, delete the `target/` of merged worktrees first
-  (`git worktree remove`, then the directory); `scripts/check.sh` prints the free space and stops under 2 GB
+  is accepted. Free your own space yourself: when `scripts/check.sh space` stops you, or a build fails with `No
+  space left on device`, run `scripts/check.sh space` (it names the sizes, so never `du` by hand), then `cargo clean`
+  in your own worktree (allowed in `.claude/settings.json`; `rm -rf` of `target/` is not) after `unset
+  CARGO_TARGET_DIR`, and say so in the Progress comment. Never retry a build in a loop under the limit
+- Never a full build under the floor (8 GB free with a cold `target/`, 2 GB with a warm one). A builder that cannot reach
+  it after cleaning its own `target/` writes the Progress comment ("space: N GB free, gate owed, CI is the proof"), runs
+  `scripts/check.sh quick` only, and hands back: no `timeout 115` runs squeezed under the limit
 - Before the first `scripts/check.sh`: run `scripts/check.sh deps` if CI's packages or `cpio` are missing,
   and `CLAUDE_CODE_REMOTE=true bash .claude/hooks/session-start.sh` if `rustup toolchain list` lacks the
   pinned version (the hook does nothing without that variable)

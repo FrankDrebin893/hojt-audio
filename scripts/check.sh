@@ -11,7 +11,8 @@
 #   scripts/check.sh quick      the package check, the script modes, format and clippy only
 #   scripts/check.sh deps       installs the Linux packages CI installs that are missing (sudo apt-get, no sudo
 #                               as root); quick and the full run only name them when they are missing
-#   scripts/check.sh space      only the disk-space check a full run starts with: prints the free space, stops under 2 GB
+#   scripts/check.sh space      only the disk-space check a full run starts with: prints the free space and every worktree's
+#                               target/ size, stops under 8 GB (cold target/) or 2 GB (warm); CHECK_MIN_FREE_GB overrides
 #   scripts/check.sh notes      only that every plugins/amp/notes/*.md is linked from the amp's router and every link exists
 #   scripts/check.sh modes      only that every tracked scripts/*.sh is executable in git's index
 #   scripts/check.sh --verbose  (before any mode) the full output of every step, also under an agent: where
@@ -218,32 +219,64 @@ scope() {
     fi
 }
 
-# Prints the free disk space of the checkout's file system and stops under 2 GB: a full build fills a disk
-# mid-test otherwise (every issue with a target directory of its own did exactly that).
+# Prints one line per target/ directory of the main checkout and every worktree, largest first, then the total
+# (`du -sk`, no network): what to free first, without reading du by hand.
+list_worktree_targets() {
+    local path kb total=0 rows=""
+    while IFS= read -r path; do
+        [[ -d "$path/target" ]] || continue
+        kb="$(du -sk "$path/target" 2> /dev/null | awk '{print $1}')"
+        [[ "$kb" =~ ^[0-9]+$ ]] || continue
+        total=$((total + kb))
+        rows+="$kb $path/target"$'\n'
+    done < <(git worktree list --porcelain 2> /dev/null | sed -n 's/^worktree //p')
+    echo "== target/ directories of the worktrees, largest first:"
+    if [[ -z "$rows" ]]; then
+        echo "   (none)"
+        return 0
+    fi
+    printf '%s' "$rows" | sort -rn | awk '{ k = $1; sub(/^[0-9]+ /, ""); printf "  %5.1f GB  %s\n", k / 1024 / 1024, $0 }'
+    awk -v k="$total" 'BEGIN { printf "  %5.1f GB  total\n", k / 1024 / 1024 }'
+}
+
+# Prints the free disk space of the checkout's file system and stops under a floor: a full build fills a disk
+# mid-test otherwise (every issue with a target directory of its own did exactly that). The floor is 8 GB when the
+# checkout's target/ is cold (no debug/deps) and 2 GB when it is warm. One cold build is 2 to 7 GB, with its .rmeta
+# and incremental data; an incremental rebuild needs little. CHECK_MIN_FREE_GB overrides both. The sizes of every
+# worktree's target/ are printed when it stops, and ($1 = list, the `space` mode) also when it does not.
 check_disk_space() {
-    local min_kb=$((2 * 1024 * 1024)) avail_kb
+    local kind=warm floor_gb=2 min_kb avail_kb gb
+    if target_is_cold "$root/target"; then kind=cold floor_gb=8; fi
+    if [[ "${CHECK_MIN_FREE_GB:-}" =~ ^[0-9]+$ ]]; then floor_gb="$CHECK_MIN_FREE_GB"; fi
+    min_kb=$((floor_gb * 1024 * 1024))
     avail_kb="$(df -Pk "$root" 2> /dev/null | awk 'NR==2 {print $4}')"
     if [[ ! "$avail_kb" =~ ^[0-9]+$ ]]; then
         echo "== Free disk space: unknown (df gave no number), going on"
         return 0
     fi
-    local gb
     gb="$(awk -v k="$avail_kb" 'BEGIN { printf "%.1f", k / 1024 / 1024 }')"
-    echo "== Free disk space: $gb GB free"
+    echo "== Free disk space: $gb GB free (floor $floor_gb GB, target/ $kind)"
     if ((avail_kb < min_kb)); then
         {
-            echo "scripts/check.sh: only $gb GB free, a full run needs 2 GB or more. Free some first:"
-            echo "  - worktrees of merged branches: git worktree remove <path>, then their target/ directories"
-            echo "    (a build uses its worktree's own target/, never a directory another session can name)"
-            echo "  - cargo's cache: cargo clean, or rm -rf ~/.cargo/registry/cache"
+            echo "scripts/check.sh: only $gb GB free, a $kind target/ needs $floor_gb GB or more. Free some first:"
+            list_worktree_targets
+            echo "  - the largest first: cargo clean in your own worktree (a build uses its worktree's own target/, never a directory another session can name)"
+            echo "  - a worktree whose branch is merged: git worktree remove <path>"
+            echo "  - cargo's cache: rm -rf ~/.cargo/registry/cache"
+            echo "  - a person whose disk is large: CHECK_MIN_FREE_GB=<n> scripts/check.sh"
         } >&2
         exit 1
     fi
+    if [[ "${1:-}" == list ]]; then list_worktree_targets; fi
 }
 
-# Says whether the target directory ($1) is cold (no debug/deps: the test step compiles everything). Only prints.
+# Succeeds when the target directory ($1) is cold: no debug/deps, so the test step compiles everything. The one
+# test check_cold_target and check_disk_space share.
+target_is_cold() { [[ ! -d "$1/debug/deps" ]]; }
+
+# Says whether the target directory ($1) is cold. Only prints.
 check_cold_target() {
-    if [[ -d "$1/debug/deps" ]]; then
+    if ! target_is_cold "$1"; then
         echo "== Target directory is warm"
     else
         echo "== Target directory is cold: the test step compiles the whole workspace from scratch (about 30 minutes in a cloud session)."
@@ -344,7 +377,7 @@ scope) scope "${2:-}" ;;
 quick) quick ;;
 modes) script_modes ;;
 notes) amp_notes ;;
-space) check_disk_space ;;
+space) check_disk_space list ;;
 target) check_target_dir ;;
 deps) deps ;;
 hook) hook ;;
