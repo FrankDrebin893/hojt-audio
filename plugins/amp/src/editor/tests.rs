@@ -2040,15 +2040,15 @@ fn test_each_cabinet_nameplate_lies_on_its_cabinet_clear_of_the_head_the_plate_a
         let at = Pos2::new(cab.center().x, cab.bottom() - CAB_PLATE_FOOT);
         let plate =
             Rect::from_center_size(at, vec2(CAB_PLATE_WIDTH, ui::widgets::NAMEPLATE_HEIGHT));
-        let buttons = Rect::from_center_size(
-            at,
-            vec2(2.0 * (reach(CAB_PLATE_WIDTH) - 2.0 + BUTTON), 2.0 * BUTTON),
+        let button = Rect::from_center_size(
+            at + vec2(ui::nameplate_opener_reach(CAB_PLATE_WIDTH), 0.0),
+            vec2(2.0 * BUTTON, 2.0 * BUTTON),
         );
         assert!(cab.contains_rect(plate), "the plate is on the cabinet");
-        assert!(cab.shrink(4.0).contains_rect(buttons), "the buttons are on the cabinet");
+        assert!(cab.shrink(4.0).contains_rect(button), "the button is on the cabinet");
         // Clear of the head on the left and of the plate where the lanes meet on the right
-        assert!(buttons.left() > LANE_HEAD_WIDTH);
-        assert!(buttons.right() < MIX_X);
+        assert!(plate.left() > LANE_HEAD_WIDTH);
+        assert!(button.right() < MIX_X);
     }
 }
 
@@ -2951,39 +2951,6 @@ fn cabinet_places(params: &GuitarAmpParams) -> [(Rect, Pos2); 2] {
     })
 }
 
-// A click on a cabinet's nameplate buttons sets the choice a step of the old stepper did, on
-// both lanes: the first through the amp's own, the built-in ones and the files, the second
-// through the amp's own and the built-in ones
-#[test]
-#[cfg(target_os = "linux")]
-fn test_the_cabinet_nameplate_buttons_step_the_choice_as_the_stepper_did() {
-    let params = GuitarAmpParams::default();
-    let host = NoHost;
-    let setter = ParamSetter::new(&host);
-    let (mut harness, _) = bank_harness(&params, &setter);
-    let [(_, first), (_, second)] = cabinet_places(&params);
-    let (previous, next) = (-reach(CAB_PLATE_WIDTH), reach(CAB_PLATE_WIDTH));
-    // The first lane: what `user_cab::neighbour` says of the files as they are now
-    let files = crate::user_cab::cabinets_dir().map(|dir| crate::user_cab::list(&dir));
-    let files = files.unwrap_or_default();
-    click(&mut harness, first + vec2(next, 0.0));
-    let one_on = crate::user_cab::neighbour(&files, "", true);
-    assert!(one_on.starts_with("speaker:"), "{one_on}");
-    assert_eq!(*params.cabinet.lock().unwrap(), one_on);
-    click(&mut harness, first + vec2(previous, 0.0));
-    assert_eq!(*params.cabinet.lock().unwrap(), "");
-    // The second lane: the amp's own, then the first built-in cabinet, and back
-    assert_eq!(params.cabinet_second.get(), None);
-    click(&mut harness, second + vec2(next, 0.0));
-    assert_eq!(params.cabinet_second.get(), Some(0));
-    click(&mut harness, second + vec2(previous, 0.0));
-    assert_eq!(params.cabinet_second.get(), None);
-    click(&mut harness, second + vec2(previous, 0.0));
-    assert_eq!(params.cabinet_second.get(), Some(crate::amp::model::SPEAKERS.len() - 1));
-    // The first lane's choice did not move with the second's
-    assert_eq!(*params.cabinet.lock().unwrap(), "");
-}
-
 /// Two clicks at `at`, a frame apart (well inside egui's double-click delay): a double-click
 #[cfg(target_os = "linux")]
 fn double_click(harness: &mut Harness, at: Pos2) {
@@ -3001,40 +2968,6 @@ fn double_click(harness: &mut Harness, at: Pos2) {
         harness.input_mut().events.push(button(pressed));
         harness.run_ok();
     }
-}
-
-// A double-click on the first lane's cabinet above its plate reaches the folder's area and
-// asks for the folder; one on the plate's buttons steps (twice) and does not
-#[test]
-#[cfg(target_os = "linux")]
-fn test_a_double_click_above_the_cabinet_plate_asks_for_the_folder_and_one_on_its_buttons_does_not()
-{
-    use std::sync::atomic::Ordering::Relaxed;
-    let params = GuitarAmpParams::default();
-    let host = NoHost;
-    let setter = ParamSetter::new(&host);
-    let (mut harness, _) = bank_harness(&params, &setter);
-    let [(cab, plate), (cab2, plate2)] = cabinet_places(&params);
-    // The area is above the plate and its buttons, on the cabinet
-    let area = cabinet_folder_area(cab);
-    assert!(cab.contains_rect(area));
-    assert!(area.bottom() + 4.0 < plate.y - ui::widgets::NAMEPLATE_HEIGHT / 2.0);
-    let opened = || crate::user_cab::FOLDER_OPENED.load(Relaxed);
-    let before = opened();
-    // On a button: the choice goes on twice, the folder is not asked for
-    double_click(&mut harness, plate + vec2(reach(CAB_PLATE_WIDTH), 0.0));
-    assert_eq!(opened(), before);
-    assert_eq!(*params.cabinet.lock().unwrap(), crate::user_cab::speaker_choice(1));
-    // On the plate's middle: not the folder's either
-    double_click(&mut harness, plate);
-    assert_eq!(opened(), before);
-    // On the second lane's cabinet, high up: that lane has no files and no folder
-    double_click(&mut harness, Pos2::new(cab2.center().x, cab2.top() + 40.0));
-    assert_eq!(opened(), before);
-    let _ = plate2;
-    // Above the plate on the first: the folder
-    double_click(&mut harness, Pos2::new(cab.center().x, cab.top() + 40.0));
-    assert_eq!(opened(), before + 1);
 }
 
 // The amps' drawer (#447): a double-click on a head, or its nameplate's button, raises a sheet with
@@ -3334,4 +3267,401 @@ fn test_the_head_says_double_click_to_choose_when_the_pointer_rests_on_it() {
         memory.areas().visible_layer_ids().iter().any(|layer| layer.order == Order::Tooltip)
     });
     assert!(tip, "a tooltip stands by the pointer");
+}
+
+// The cabinets' drawer (#448): a double-click on a cabinet, or its nameplate's button, raises the
+// same sheet with a miniature of each cabinet that can be picked for that lane
+
+/// One notch of the wheel over the middle of the cabinet sheet: negative brings later rows up
+#[cfg(target_os = "linux")]
+fn wheel_over_sheet(harness: &mut Harness, delta: f32) {
+    use nih_plug_egui::egui::{Event, Modifiers, MouseWheelUnit};
+    harness.input_mut().events.push(Event::PointerMoved(cab_sheet().center()));
+    harness.input_mut().events.push(Event::MouseWheel {
+        unit: MouseWheelUnit::Line,
+        delta: vec2(0.0, delta),
+        modifiers: Modifiers::NONE,
+    });
+    harness.run_ok();
+    harness.run_ok();
+}
+
+#[cfg(target_os = "linux")]
+fn cab_sheet() -> Rect {
+    drawer::CABS.risen_rect(WINDOW_WIDTH as f32, WINDOW_HEIGHT as f32)
+}
+
+/// The cabinets' drawer open for `lane`, risen, with `files` in the folder it reads
+#[cfg(target_os = "linux")]
+fn open_cabinet_drawer(view: &Rc<RefCell<View>>, harness: &mut Harness, lane: usize) {
+    view.borrow_mut().drawer = Some(drawer::Drawer::risen(lane, drawer::What::Cabinet));
+    harness.run_ok();
+    harness.run_ok();
+}
+
+/// A folder of `names` as empty WAV files, for the drawer to list while `body` runs
+#[cfg(target_os = "linux")]
+fn with_cabinet_files(name: &str, names: &[&str], body: impl FnOnce()) {
+    let dir = crate::user_cab::tests::test_dir(name);
+    for file in names {
+        std::fs::write(dir.join(file), b"").unwrap();
+    }
+    drawer::TEST_FOLDER.with(|folder| *folder.borrow_mut() = Some(dir.clone()));
+    body();
+    drawer::TEST_FOLDER.with(|folder| *folder.borrow_mut() = None);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_a_double_click_on_a_cabinet_or_its_nameplate_button_opens_its_drawer_and_not_the_amps() {
+    let params = GuitarAmpParams::default();
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let (mut harness, view) = bank_harness(&params, &setter);
+    let [(first, first_plate), (second, second_plate)] = cabinet_places(&params);
+    let kind = |view: &Rc<RefCell<View>>| view.borrow().drawer.map(|open| (open.lane, open.what));
+    assert_eq!(kind(&view), None);
+    double_click(&mut harness, Pos2::new(first.center().x, first.top() + 40.0));
+    assert_eq!(kind(&view), Some((0, drawer::What::Cabinet)));
+    view.borrow_mut().drawer = None;
+    harness.run_ok();
+    double_click(&mut harness, Pos2::new(second.center().x, second.top() + 40.0));
+    assert_eq!(kind(&view), Some((1, drawer::What::Cabinet)));
+    // The button on the nameplate opens it with one click, the first lane's as well
+    view.borrow_mut().drawer = None;
+    harness.run_ok();
+    let reach = ui::nameplate_opener_reach(CAB_PLATE_WIDTH);
+    click(&mut harness, first_plate + vec2(reach, 0.0));
+    assert_eq!(kind(&view), Some((0, drawer::What::Cabinet)));
+    view.borrow_mut().drawer = None;
+    harness.run_ok();
+    click(&mut harness, second_plate + vec2(reach, 0.0));
+    assert_eq!(kind(&view), Some((1, drawer::What::Cabinet)));
+    // The plate's middle takes no click
+    view.borrow_mut().drawer = None;
+    harness.run_ok();
+    click(&mut harness, first_plate);
+    assert_eq!(kind(&view), None);
+}
+
+#[test]
+fn test_the_cabinet_choices_are_own_every_speaker_in_order_the_files_and_the_folder() {
+    let files = ["alpha.wav".to_owned(), "beta.wav".to_owned()];
+    let choices = drawer::cab_choices("", &files, false);
+    let speakers = crate::amp::model::SPEAKERS.len();
+    assert_eq!(choices.len(), 1 + speakers + 2 + 1);
+    assert_eq!(choices[0], drawer::CabChoice::Own);
+    for speaker in 0..speakers {
+        assert_eq!(choices[1 + speaker], drawer::CabChoice::Speaker(speaker));
+    }
+    assert_eq!(choices[1 + speakers], drawer::CabChoice::File("alpha.wav".to_owned()));
+    assert_eq!(choices[2 + speakers], drawer::CabChoice::File("beta.wav".to_owned()));
+    assert_eq!(choices.last(), Some(&drawer::CabChoice::Folder));
+    // The second lane has no files and no folder
+    let second = drawer::cab_choices("", &files, true);
+    assert_eq!(second.len(), 1 + speakers);
+    assert!(second.iter().all(|choice| !matches!(
+        choice,
+        drawer::CabChoice::File(_) | drawer::CabChoice::Folder | drawer::CabChoice::Lost(_)
+    )));
+    // What is chosen and not there is a first card
+    for gone in ["gone.wav", "speaker:8x10-huge"] {
+        let lost = drawer::cab_choices(gone, &files, false);
+        assert_eq!(lost[0], drawer::CabChoice::Lost(gone.to_owned()));
+        assert_eq!(lost.len(), choices.len() + 1);
+    }
+    // A file that is there, and a built-in cabinet, are not lost
+    for here in ["beta.wav", "speaker:4x12-mid"] {
+        assert_eq!(drawer::cab_choices(here, &files, false).len(), choices.len(), "{here}");
+    }
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_cabinet_drawer_lists_the_files_the_loader_lists_for_the_first_lane_only() {
+    with_cabinet_files("drawer_two_files", &["room.wav", "Alpha.wav", "notes.txt"], || {
+        let params = GuitarAmpParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, view) = bank_harness(&params, &setter);
+        let speakers = crate::amp::model::SPEAKERS.len();
+        for (lane, expected) in [(0, 1 + speakers + 2 + 1), (1, 1 + speakers)] {
+            open_cabinet_drawer(&view, &mut harness, lane);
+            let dir = drawer::TEST_FOLDER.with(|folder| folder.borrow().clone()).unwrap();
+            let files = crate::user_cab::list(&dir);
+            assert_eq!(files, ["Alpha.wav", "room.wav"]);
+            let choices =
+                drawer::cab_choices("", &if lane == 0 { files } else { vec![] }, lane == 1);
+            assert_eq!(choices.len(), expected, "lane {lane}");
+        }
+    });
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_a_click_on_a_cabinet_card_sets_the_choice_as_the_stepper_did() {
+    with_cabinet_files("drawer_pick", &["alpha.wav", "beta.wav"], || {
+        let params = GuitarAmpParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, view) = bank_harness(&params, &setter);
+        let sheet = cab_sheet();
+        let at = |index: usize| drawer::CABS.card_rect(sheet, index).center();
+        let speakers = crate::amp::model::SPEAKERS.len();
+        open_cabinet_drawer(&view, &mut harness, 0);
+        // The first built-in cabinet, then a file, then the amp's own again
+        click(&mut harness, at(1));
+        assert_eq!(*params.cabinet.lock().unwrap(), crate::user_cab::speaker_choice(0));
+        wheel_over_sheet(&mut harness, -1.0);
+        click(&mut harness, at(1 + speakers + 1 - drawer::CABS.columns));
+        assert_eq!(*params.cabinet.lock().unwrap(), "beta.wav");
+        wheel_over_sheet(&mut harness, 1.0);
+        click(&mut harness, at(0));
+        assert_eq!(*params.cabinet.lock().unwrap(), "");
+        // The drawer stayed open for the next
+        assert_eq!(drawer_lane(&view), Some(0));
+        // The second lane: a built-in cabinet, and the first lane's choice does not move
+        open_cabinet_drawer(&view, &mut harness, 1);
+        click(&mut harness, at(3));
+        assert_eq!(params.cabinet_second.get(), Some(2));
+        assert_eq!(*params.cabinet.lock().unwrap(), "");
+        click(&mut harness, at(0));
+        assert_eq!(params.cabinet_second.get(), None);
+    });
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_cabinet_card_marks_follow_the_lanes_and_outline_the_one_that_plays() {
+    let loader = CabLoader::new(Arc::new(crate::cab_stage::CabStage::new()), 48_000.0);
+    let files = ["alpha.wav".to_owned()];
+    let playing = [crate::user_cab::speaker_choice(1), String::new()];
+    let choices = drawer::cab_choices(&playing[0], &files, false);
+    let cards = drawer::cab_cards(&choices, &playing, 0, &loader);
+    let card = |choice: drawer::CabChoice| {
+        &cards[choices.iter().position(|each| *each == choice).unwrap()]
+    };
+    assert!(card(drawer::CabChoice::Speaker(1)).lit);
+    assert_eq!(card(drawer::CabChoice::Speaker(1)).marks, ["On Amp 1"]);
+    assert!(!card(drawer::CabChoice::Own).lit);
+    assert_eq!(card(drawer::CabChoice::Own).marks, ["On Amp 2"]);
+    assert!(card(drawer::CabChoice::Folder).marks.is_empty());
+    assert!(!card(drawer::CabChoice::Folder).lit);
+    // The second lane outlines its own
+    let second = drawer::cab_cards(&drawer::cab_choices("", &[], true), &playing, 1, &loader);
+    assert!(second[0].lit);
+    assert_eq!(second.iter().filter(|card| card.lit).count(), 1);
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_open_folder_is_the_only_thing_that_opens_the_folder() {
+    use std::sync::atomic::Ordering::Relaxed;
+    with_cabinet_files("drawer_folder", &[], || {
+        let params = GuitarAmpParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, view) = bank_harness(&params, &setter);
+        let [(cab, plate), _] = cabinet_places(&params);
+        let opened = || crate::user_cab::FOLDER_OPENED.load(Relaxed);
+        let before = opened();
+        // A double-click on the cabinet opens the drawer, not the folder
+        double_click(&mut harness, Pos2::new(cab.center().x, cab.top() + 40.0));
+        assert_eq!(drawer_lane(&view), Some(0));
+        assert_eq!(opened(), before);
+        view.borrow_mut().drawer = None;
+        harness.run_ok();
+        click(&mut harness, plate + vec2(ui::nameplate_opener_reach(CAB_PLATE_WIDTH), 0.0));
+        assert_eq!(opened(), before);
+        // A click on a cabinet card picks it and does not either
+        click(&mut harness, drawer::CABS.card_rect(cab_sheet(), 0).center());
+        assert_eq!(opened(), before);
+        // The folder's own card does, once, and the choice stays
+        let speakers = crate::amp::model::SPEAKERS.len();
+        let folder = drawer::CABS.card_rect(cab_sheet(), 1 + speakers);
+        click(&mut harness, folder.center());
+        assert_eq!(opened(), before + 1);
+        assert_eq!(*params.cabinet.lock().unwrap(), "");
+    });
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_a_choice_that_is_not_there_is_a_first_card_that_picking_does_not_change() {
+    with_cabinet_files("drawer_lost", &["alpha.wav"], || {
+        let params = GuitarAmpParams::default();
+        *params.cabinet.lock().unwrap() = "gone.wav".to_owned();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, view) = bank_harness(&params, &setter);
+        open_cabinet_drawer(&view, &mut harness, 0);
+        let loader = CabLoader::new(Arc::new(crate::cab_stage::CabStage::new()), 48_000.0);
+        let choices = drawer::cab_choices("gone.wav", &["alpha.wav".to_owned()], false);
+        let playing = ["gone.wav".to_owned(), String::new()];
+        let cards = drawer::cab_cards(&choices, &playing, 0, &loader);
+        assert!(cards[0].name.starts_with('?'), "{}", cards[0].name);
+        assert!(cards[0].lit);
+        // It looks as the amp's own
+        let amp = params.amp.value();
+        assert!(std::ptr::eq(
+            drawer::cab_face(&choices[0], amp, CabStatus::Fine),
+            looks::cab_look(amp, "", CabStatus::Fine)
+        ));
+        click(&mut harness, drawer::CABS.card_rect(cab_sheet(), 0).center());
+        assert_eq!(*params.cabinet.lock().unwrap(), "gone.wav");
+        harness.snapshot("cabinet_drawer_lost");
+    });
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_a_cabinet_drawer_with_more_than_two_rows_scrolls_with_the_wheel() {
+    let names: Vec<String> = (1..=20).map(|n| format!("take {n:02}.wav")).collect();
+    let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+    with_cabinet_files("drawer_scroll", &refs, || {
+        let params = GuitarAmpParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, view) = bank_harness(&params, &setter);
+        open_cabinet_drawer(&view, &mut harness, 0);
+        let spec = &drawer::CABS;
+        let count = 1 + crate::amp::model::SPEAKERS.len() + names.len() + 1;
+        assert!(spec.last_row(count) >= 1);
+        let row = |view: &Rc<RefCell<View>>| view.borrow().drawer.unwrap().row;
+        assert_eq!(row(&view), 0);
+        wheel_over_sheet(&mut harness, -1.0);
+        assert_eq!(row(&view), 1);
+        harness.snapshot("cabinet_drawer_scrolled");
+        // The first card on view now is the one a row on
+        let card = spec.card_rect(cab_sheet(), 0).center();
+        click(&mut harness, card);
+        // Card 8 is the speaker after the seven before it (card 0 is the amp's own)
+        let stored = crate::user_cab::speaker_choice(spec.columns - 1);
+        assert_eq!(*params.cabinet.lock().unwrap(), stored);
+        // Never past the last row, and back up again
+        for _ in 0..10 {
+            wheel_over_sheet(&mut harness, -1.0);
+        }
+        assert_eq!(row(&view), spec.last_row(count));
+        for _ in 0..10 {
+            wheel_over_sheet(&mut harness, 1.0);
+        }
+        assert_eq!(row(&view), 0);
+    });
+}
+
+// Every cabinet card lies on the sheet, apart from the next and clear of Close, and the
+// miniature is on its card; the sheet leaves the first lane's cabinet in view above it
+#[test]
+fn test_every_cabinet_card_lies_on_the_sheet_apart_and_clear_of_close() {
+    let spec = &drawer::CABS;
+    for width in [2600.0, WINDOW_WIDTH as f32] {
+        let sheet = spec.risen_rect(width, WINDOW_HEIGHT as f32);
+        let close = crate::bank::close_rect(sheet);
+        let shown = spec.columns * spec.rows;
+        let cards: Vec<Rect> = (0..shown).map(|i| spec.card_rect(sheet, i)).collect();
+        for (index, card) in cards.iter().enumerate() {
+            assert!(sheet.contains_rect(*card), "{index}");
+            assert!(!card.intersects(close), "{index}");
+            assert!(card.contains_rect(spec.face_rect(*card)), "{index}");
+            for other in &cards[index + 1..] {
+                assert!(!card.intersects(*other));
+            }
+        }
+    }
+    let top = WINDOW_HEIGHT as f32 - spec.height();
+    assert!(top > STACK_TOP + 20.0, "{top}");
+    // The fifteen built-in cards and the amp's own fill two rows exactly: files scroll
+    assert_eq!(spec.columns * spec.rows, 1 + crate::amp::model::SPEAKERS.len() + 1);
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_cabinet_drawer_closes_on_escape_close_and_a_second_double_click_on_the_cabinet() {
+    let params = GuitarAmpParams::default();
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let (mut harness, view) = bank_harness(&params, &setter);
+    open_cabinet_drawer(&view, &mut harness, 0);
+    press_escape(&mut harness);
+    assert!(view.borrow().drawer.is_none());
+    open_cabinet_drawer(&view, &mut harness, 0);
+    click(&mut harness, crate::bank::close_rect(cab_sheet()).center());
+    assert!(view.borrow().drawer.is_none());
+    open_cabinet_drawer(&view, &mut harness, 0);
+    click(&mut harness, Pos2::new(1500.0, 40.0));
+    assert!(view.borrow().drawer.is_none());
+    let [(cab, _), _] = cabinet_places(&params);
+    let at = Pos2::new(cab.center().x, cab.top() + 40.0);
+    open_cabinet_drawer(&view, &mut harness, 0);
+    click(&mut harness, at);
+    assert!(view.borrow().drawer.is_some(), "one click on the cabinet leaves it open");
+    double_click(&mut harness, at);
+    assert!(view.borrow().drawer.is_none());
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_drawer_the_bank_and_a_plate_are_never_open_together_for_cabinets_too() {
+    let params = GuitarAmpParams::default();
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let (mut harness, view) = bank_harness(&params, &setter);
+    let [(cab, _), _] = cabinet_places(&params);
+    let at = Pos2::new(cab.center().x, cab.top() + 40.0);
+    double_click(&mut harness, at);
+    assert!(view.borrow().drawer.is_some());
+    click(&mut harness, Pos2::new(SETTINGS_X, STRIP_Y));
+    assert!(view.borrow().drawer.is_none());
+    assert!(view.borrow().is_open(Plates::Settings));
+    // The plate stands over the cabinet's upper part: the lower part is clear of it
+    double_click(&mut harness, Pos2::new(cab.center().x, cab.bottom() - 90.0));
+    assert!(view.borrow().drawer.is_some());
+    assert!(view.borrow().plate.is_none());
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_an_open_cabinet_drawer_at_rest_asks_for_no_repaint() {
+    let params = GuitarAmpParams::default();
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let (mut harness, view) = bank_harness(&params, &setter);
+    view.borrow_mut().drawer = Some(drawer::Drawer::risen(0, drawer::What::Cabinet));
+    for _ in 0..20 {
+        harness.step();
+    }
+    let delays: Vec<_> =
+        harness.output().viewport_output.values().map(|viewport| viewport.repaint_delay).collect();
+    assert!(!delays.is_empty());
+    assert!(delays.iter().all(|delay| *delay == std::time::Duration::MAX), "{delays:?}");
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_cabinet_drawer_looks_as_it_did() {
+    with_cabinet_files("drawer_snapshot", &["alpha.wav", "room mic.wav"], || {
+        let params = GuitarAmpParams::default();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, view) = bank_harness(&params, &setter);
+        open_cabinet_drawer(&view, &mut harness, 0);
+        harness.snapshot("cabinet_drawer");
+    });
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_cabinet_drawer_for_the_second_lane_looks_as_it_did() {
+    let params = GuitarAmpParams {
+        amp2: EnumParam::new("Amp 2", Amp::Torden),
+        ..GuitarAmpParams::default()
+    };
+    params.cabinet_second.put(crate::amp::model::speaker_index("4x12-mid"));
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let (mut harness, view) = bank_harness(&params, &setter);
+    open_cabinet_drawer(&view, &mut harness, 1);
+    harness.snapshot("cabinet_drawer_second");
 }

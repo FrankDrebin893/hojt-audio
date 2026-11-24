@@ -14,6 +14,12 @@ GitHub release.
   after another. It closes on Close, Escape, a click outside or a second double-click on the head. The
   nameplate's two arrows are gone: it keeps the amp's name and has one chrome button at its right that opens
   the drawer with a single click.
+- Pick a cabinet from a drawer. A double-click on a cabinet, or the chrome button on its nameplate, raises the
+  same drawer with a miniature of the amp's own cabinet, each of the fourteen built-in ones and each file in the
+  cabinets folder, then a card that opens the folder; a click picks it as stepping did and the one that plays is
+  outlined in brass. The second amp's drawer has its own and the built-in cabinets only. A cabinet that is
+  chosen but missing shows first with a `?`. With more than two rows of cards the mouse wheel scrolls it.
+  The nameplate's step buttons are gone, and the folder now opens from the drawer's card, not by a double-click on the cabinet.
 - Fuller cabinets: each lane's cabinet is 210 points wide, up from 120, and its choice (the amp's own,
   a built-in cabinet or a file) sits on a nameplate at its foot, with the step buttons either side.
   The `Cabinet` caption and stepper are gone from the head's lower line. The window's line is 90 points

@@ -113,7 +113,7 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   blocks in front of the amps, the stack, the blocks behind, each a `Piece`, the couplers and
   patch cables between them, and dragging a block by its title to another place (`Chain::move_block`), the plus in each gap (hover) that opens the bank, the dashed place a dragged card opens, the cross on a block's corner that takes it out, and the two dashed sides of an empty chain (#272)
 - `src/editor/drawer.rs` - The picker drawer (#447): the bank's kind of sheet with cards that hold a miniature, a name and
-  a mark for each lane that plays it; the amps' (`show_amps`), the cabinets' to follow (#448). `View.drawer` holds the open one
+  a mark for each lane that plays it; the amps' (`show_amps`), the cabinets' (`show_cabs`, #448: files, a `?` card, an `Open folder` card, rows that scroll). `View.drawer` holds the open one
 - `src/bank.rs` - The effects bank (#272): the sheet that rises from the bottom of the window over the line
   (`ui::sheet`; `Sheet` is held by the editor's `View` as `effects`: one open at most, and opening it closes
   a plate and the other way round). A card for each of twelve effects (the Gate is the line's first piece and

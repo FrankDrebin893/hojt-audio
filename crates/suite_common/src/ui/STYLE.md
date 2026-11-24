@@ -9,7 +9,7 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
 - `widgets.rs` - `param_knob` (fluted knob, name, value on label tape; `param_knob_as` for a knob whose value is told in the terms of another parameter, `scroll_bar` for a line wider than the window; `param_knob_with` for another
   `KnobCap` and print colour), `panel_knob` (a knob on an amp head's panel: name above, value tape under,
   where there is room for one line of controls; `panel_knob_rect` is the room it takes),
-  `nameplate_stepper` (a name on a plate with a chrome step button each side; `nameplate_stepper_sized` for print of another size, as on a cabinet's foot), `nameplate_opener` (the name on a plate with one chrome button at its right, a chevron up, that opens a drawer: the amp's head),
+  `nameplate_stepper` (a name on a plate with a chrome step button each side; `nameplate_stepper_sized` for print of another size, as on a cabinet's foot), `nameplate_opener` (the name on a plate with one chrome button at its right, a chevron up, that opens a drawer: the amp's head, a cabinet's foot),
   `footswitch`, `led`,
   `small_footswitch`, `rig_led` and `param_switch` (the switch and LED of a rig, bound to an on/off
   parameter), `stepper` (label tape with a chrome button at each end, for picking one of many),
@@ -106,7 +106,7 @@ controls, portrait) or `plugins/drums/src/editor.rs` (many controls, landscape) 
   and `ui::dashed_frame` for the place a dragged card will land in; the amp's `bank.rs`; its cards
   are miniatures of the real pedals, painted at full size into `ui::miniature`'s scaled layer, which
   answers no clicks, with their captions and value tapes left off; the amp's picker drawer, `editor/drawer.rs`, is the same sheet with
-  cards that hold a miniature head, a name and an `On Amp n` mark, the pick outlined in brass, the sheet staying open after a click). No other pop-ups, no menus or dropdowns, no widgets of egui's own. A
+  cards that hold a miniature head or cabinet, a name and an `On Amp n` mark, the pick outlined in brass, the sheet staying open after a click, and rows that scroll by the wheel a row at a time when there are more cards than it holds). No other pop-ups, no menus or dropdowns, no widgets of egui's own. A
   plate keeps the amp's plate look: a dark plate with a chrome edge, label-tape rows, steppers
   and lit lamps. One is open at a time; it closes on a click outside it, on escape, or on its
   icon
