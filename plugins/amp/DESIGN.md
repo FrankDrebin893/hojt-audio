@@ -76,8 +76,8 @@ The reasons behind choices that the code alone does not explain. What it does is
 - Mic is a shelf pair and Resonance a bell after the IR, skipped at 5.0 so the default is
   bit-identical
 - More cabinets than amps: fourteen built in (`SPEAKERS`), picked
-  on the same nameplate as files (each lane's, since #177; on its cabinet's foot since #446, before that a `Cabinet` stepper on the head), between `OWN` and the files.
-  Not a parameter, like the file: one stepper, one stored choice. Each is a `CabModel` like the amps' own, so it
+  in the same drawer as files (each lane's, since #177; a drawer of miniature cabinets since #448, opened by a double-click on the cabinet or the button on its nameplate, before that a stepper), between `OWN` and the files.
+  Not a parameter, like the file: one stored choice. Each is a `CabModel` like the amps' own, so it
   is designed, levelled and resampled alike and the dials work on its own frequencies.
   They are not the amps' own: those were tuned with their amps and lie within 1 to 2 dB of
   each other per octave band, too close to be heard as a choice. Every two built-in ones
@@ -96,7 +96,7 @@ The reasons behind choices that the code alone does not explain. What it does is
   60 Hz to 12 kHz, no cone breakup, for an acoustic or a clean sound. The tests that hold a
   cabinet to a guitar speaker's shape leave it out by its id (`FULL_RANGE_ID`); `1X12 CLEAR`
   and `2X12 CHIME` are held to 12 dB under their mids at 10 kHz where the others are held to 20
-- No file dialog (the style guide forbids pop-ups): files in one folder, stepped through. The
+- No file dialog (the style guide forbids pop-ups): files in one folder, picked from a drawer of cards (stepped through before #448). The
   folder is found through the Windows known-folder call by a hand-written FFI declaration (it
   follows OneDrive), no crate. The choice is a persisted file name, not a parameter, not in
   presets, and stays when the amp changes

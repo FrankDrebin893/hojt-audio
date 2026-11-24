@@ -10,11 +10,11 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, PoisonError};
 use suite_common::ui::{
     self, chrome_button, drop_panel_with, led_display, led_stepper, led_width, nameplate_opener,
-    nameplate_stepper_sized, panel_knob, param_knob, param_switch, print_label, rig_led,
-    signal_lamp, silk_frame, silk_label, small_footswitch, stepper, theme, tuner_display,
-    type_into, type_on_tape, Beat, Column, MiniStyle, Motif, Ornament, PedalStyle, Pick, Plate,
-    Row, Step, Typed, BENCH_MARGIN, LED_HEIGHT, SLIM_JACK_X, SLIM_KNOBS, SLIM_KNOB_RADIUS,
-    SLIM_LED, SLIM_PRINT_REACH, SLIM_STRIP_HEIGHT, SLIM_SWITCH,
+    panel_knob, param_knob, param_switch, print_label, rig_led, signal_lamp, silk_frame,
+    silk_label, small_footswitch, stepper, theme, tuner_display, type_into, type_on_tape, Beat,
+    Column, MiniStyle, Motif, Ornament, PedalStyle, Pick, Plate, Row, Step, Typed, BENCH_MARGIN,
+    LED_HEIGHT, SLIM_JACK_X, SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED, SLIM_PRINT_REACH,
+    SLIM_STRIP_HEIGHT, SLIM_SWITCH,
 };
 
 use crate::board::{Line, STACK_WIDTH};
@@ -407,11 +407,13 @@ pub(crate) struct Pedals<'a> {
     cab_loader: &'a CabLoader,
     /// Has the chosen cabinet read in the background
     load_cabinet: &'a dyn Fn(),
-    /// The lane whose head was double-clicked, or whose nameplate button was, in this frame: the
-    /// window opens (or closes) that lane's amp drawer
-    drawer_ask: std::cell::Cell<Option<usize>>,
-    /// Where each lane's head stands this frame, which the drawer's click outside spares
+    /// The lane whose head or cabinet was double-clicked, or whose nameplate button was, in this
+    /// frame, and which: the window opens (or closes) that lane's drawer of amps or cabinets
+    drawer_ask: std::cell::Cell<Option<(usize, drawer::What)>>,
+    /// Where each lane's head stands this frame, which the amp drawer's click outside spares
     heads: std::cell::Cell<[Rect; 2]>,
+    /// The same for the cabinets, which the cabinet drawer's click outside spares
+    cabs: std::cell::Cell<[Rect; 2]>,
 }
 
 impl Pedals<'_> {
@@ -732,7 +734,7 @@ impl Pedals<'_> {
             ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
         }
         if hit.double_clicked() {
-            self.drawer_ask.set(Some(lane));
+            self.drawer_ask.set(Some((lane, drawer::What::Amp)));
         }
         if nameplate_opener(
             ui,
@@ -744,7 +746,7 @@ impl Pedals<'_> {
             id,
             NAMEPLATE_TEXT_SIZE,
         ) {
-            self.drawer_ask.set(Some(lane));
+            self.drawer_ask.set(Some((lane, drawer::What::Amp)));
         }
         let own_dials = if second { params.amp2_dials() } else { params.amp_dials() };
         for ((param, label), at) in own_dials.into_iter().zip(DIALS).zip(dials) {
@@ -793,59 +795,48 @@ impl Pedals<'_> {
         );
         ui::cabinet(ui, cab, &style);
 
-        // Its nameplate at the foot: the amp's own, the built-in ones and, for the first, the
-        // files too
-        let plate_at = Pos2::new(cab.center().x, cab.bottom() - CAB_PLATE_FOOT);
-        let step_of = |ui: &mut Ui, shown: &str, id: &str| {
-            nameplate_stepper_sized(
-                ui,
-                plate_at,
-                CAB_PLATE_WIDTH,
-                Plate::BrushedChrome,
-                theme::INK,
-                shown,
-                id,
-                CAB_PLATE_TEXT_SIZE,
-            )
-        };
-        if second {
-            let shown = match params.cabinet_second.get() {
+        // A double-click on the cabinet opens its drawer, under the nameplate's button, which is
+        // added after it and so answers its own click first
+        let mut cabs = self.cabs.get();
+        cabs[lane] = cab;
+        self.cabs.set(cabs);
+        let hit = ui
+            .interact(cab, Id::new(("cabinet-drawer", id)), Sense::click())
+            .on_hover_text("Double-click to choose");
+        if hit.hovered() {
+            ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
+        }
+        if hit.double_clicked() {
+            self.drawer_ask.set(Some((lane, drawer::What::Cabinet)));
+        }
+        // Its nameplate at the foot: what plays, with a button that opens the drawer of the
+        // amp's own, the built-in ones and, for the first, the files
+        let shown = if second {
+            match params.cabinet_second.get() {
                 Some(speaker) => crate::amp::model::SPEAKERS[speaker].name.to_owned(),
                 None => "OWN".to_owned(),
-            };
-            if let Some(step) = step_of(ui, &shown, "cabinet2") {
-                params.cabinet_second.step(step == Step::Next);
             }
         } else {
-            // Where the files go: shown when the cabinet is hovered above its plate, and
-            // opened by a double-click on it (until the cabinet drawer, #448, takes it over)
-            if let Some(dir) = user_cab::cabinets_dir() {
-                let body = cabinet_folder_area(cab);
-                let response = ui
-                    .interact(body, Id::new("cabinet-folder"), Sense::click())
-                    .on_hover_text(format!("Cabinet files go in {}", dir.display()));
-                if response.double_clicked() {
-                    let _ = std::fs::create_dir_all(&dir);
-                    user_cab::open_folder(&dir);
-                }
-            }
             if self.cab_loader.no_files_showing() {
                 // Draw once more when the note is over
                 ui.ctx().request_repaint_after(NO_FILES_SHOWN);
             }
-            let shown = self.cab_loader.display_name(&chosen, CAB_NAME_CHARS);
-            if let Some(step) = step_of(ui, &shown, "cabinet") {
-                step_cabinet(params, self.cab_loader, self.load_cabinet, step == Step::Next);
-            }
+            self.cab_loader.display_name(&chosen, CAB_NAME_CHARS)
+        };
+        if nameplate_opener(
+            ui,
+            Pos2::new(cab.center().x, cab.bottom() - CAB_PLATE_FOOT),
+            CAB_PLATE_WIDTH,
+            Plate::BrushedChrome,
+            theme::INK,
+            &shown,
+            if second { "cabinet2" } else { "cabinet" },
+            CAB_PLATE_TEXT_SIZE,
+        ) {
+            self.drawer_ask.set(Some((lane, drawer::What::Cabinet)));
         }
         (jack, cab.right_center())
     }
-}
-
-/// Where a double-click on the first lane's cabinet opens the cabinets folder: the cabinet above
-/// its nameplate and the step buttons
-fn cabinet_folder_area(cab: Rect) -> Rect {
-    Rect::from_min_max(cab.min, Pos2::new(cab.right(), cab.bottom() - CAB_PLATE_FOOT - 22.0))
 }
 
 /// A jack socket: the nut a patch cable's plug goes into
@@ -1556,6 +1547,7 @@ fn draw(
             load_cabinet: shared.load_cabinet,
             drawer_ask: std::cell::Cell::new(None),
             heads: std::cell::Cell::new([Rect::NOTHING; 2]),
+            cabs: std::cell::Cell::new([Rect::NOTHING; 2]),
         };
 
         // The line, scrolled sideways where the window shows only part of it. The wheel scrolls it
@@ -1595,8 +1587,7 @@ fn draw(
         }
         // A double-click on a head, or its nameplate's button, opens that lane's drawer, or
         // closes it if it is the one open; it takes the bank and the plate down
-        if let Some(lane) = pedals.drawer_ask.take() {
-            let what = drawer::What::Amp;
+        if let Some((lane, what)) = pedals.drawer_ask.take() {
             if view.drawer.is_some_and(|open| open.lane == lane && open.what == what) {
                 view.drawer = None;
             } else {
@@ -1617,6 +1608,7 @@ fn draw(
         // open at most
         crate::bank::show(ui, window, fit.visible, &pedals, &mut view.effects, view.scroll, now);
         drawer::show_amps(ui, window, fit.visible, &pedals, &mut view.drawer, now);
+        drawer::show_cabs(ui, window, fit.visible, &pedals, &mut view.drawer, now);
         presets.plate(ui, origin, view, now);
         metronome_plate(
             ui,

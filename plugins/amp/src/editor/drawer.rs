@@ -1,7 +1,9 @@
 //! The picker drawer (#447): the sheet that rises from the bottom of the window, as the effects
 //! bank does, with a card for each thing that can be picked for a lane: a miniature of it, its
 //! name and a mark for each lane it plays on. The amps' drawer is the first; the cabinets' (#448)
-//! is another `Spec` and another list of cards on the same sheet.
+//! is another `Spec` and another list of cards on the same sheet, with a card that opens the
+//! folder of the player's own cabinets and more cards than the sheet holds, which the wheel
+//! moves a row at a time.
 //!
 //! What the drawer keeps from frame to frame is a `Drawer`, held by the editor's `View`: `None`
 //! is closed. It is one more surface beside a plate and the bank, so one is open at a time (the
@@ -17,6 +19,9 @@ use nih_plug_egui::egui::{
 use suite_common::ui::{self, theme};
 
 use crate::bank::{close_rect, sheet_button};
+use crate::cab_stage::{CabLoader, CabStatus};
+use crate::looks;
+use crate::user_cab;
 
 /// How long it takes to rise, in seconds
 const RISE_S: f64 = 0.2;
@@ -58,6 +63,17 @@ pub(crate) const AMPS: Spec = Spec {
     rows: 2,
 };
 
+/// The cabinets: the cabinet at about two fifths of its size and its name beside it, rows of
+/// eight. More cards than two rows scroll
+pub(crate) const CABS: Spec = Spec {
+    title: "Cabinets",
+    full: vec2(super::LANE_CAB_WIDTH, super::LANE_HEIGHT),
+    face_width: 90.0,
+    card: vec2(250.0, 120.0),
+    columns: 8,
+    rows: 2,
+};
+
 impl Spec {
     /// How tall the sheet stands once it has risen: the title row, the rows of cards and the
     /// margins. It leaves the first lane's head in view above it
@@ -75,6 +91,11 @@ impl Spec {
             ),
             self.card,
         )
+    }
+
+    /// The last row the wheel can bring to the top, for `count` cards
+    pub(crate) fn last_row(&self, count: usize) -> usize {
+        count.div_ceil(self.columns).saturating_sub(self.rows)
     }
 
     /// Where the miniature stands on `card`
@@ -98,12 +119,14 @@ impl Spec {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum What {
     Amp,
+    Cabinet,
 }
 
 impl What {
     pub(crate) fn spec(self) -> &'static Spec {
         match self {
             What::Amp => &AMPS,
+            What::Cabinet => &CABS,
         }
     }
 }
@@ -118,18 +141,20 @@ pub(crate) struct Drawer {
     since: f64,
     /// It was opened or moved in this frame, which the click that did it must not close
     pub fresh: bool,
+    /// The row of cards at the top of what shows: the wheel moves it a row at a time
+    pub row: usize,
 }
 
 impl Drawer {
     pub(crate) fn opened(lane: usize, what: What, now: f64) -> Drawer {
-        Drawer { lane, what, since: now, fresh: true }
+        Drawer { lane, what, since: now, fresh: true, row: 0 }
     }
 
     /// The same drawer, already risen: as it is a moment after it was opened
     #[cfg(test)]
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     pub(crate) fn risen(lane: usize, what: What) -> Drawer {
-        Drawer { lane, what, since: -10.0, fresh: false }
+        Drawer { lane, what, since: -10.0, fresh: false, row: 0 }
     }
 
     /// Where the sheet's top edge is, from the window's top, in a window `height` points high,
@@ -153,6 +178,8 @@ pub(crate) struct Card {
     pub marks: Vec<String>,
     /// It is what plays on the lane the drawer is for: outlined in brass
     pub lit: bool,
+    /// Said when the pointer rests on it
+    pub hint: Option<String>,
 }
 
 /// Draws the drawer, if one is open, and does what is done on it. `window` is the layer's top
@@ -189,6 +216,15 @@ pub(crate) fn show(
     let pointer = ui.input(|input| input.pointer.interact_pos());
     let pointer = pointer
         .map(|at| ui.ctx().layer_transform_from_global(ui.layer_id()).map_or(at, |from| from * at));
+    // The wheel over the sheet moves the rows when there are more than it holds
+    let last_row = spec.last_row(cards.len());
+    let wheel = ui.input(|input| input.raw_scroll_delta.y);
+    if wheel != 0.0 && pointer.is_some_and(|at| rect.contains(at)) {
+        drawer.row = if wheel < 0.0 { drawer.row + 1 } else { drawer.row.saturating_sub(1) };
+        ui.ctx().request_repaint();
+    }
+    drawer.row = drawer.row.min(last_row);
+    let (top_row, first) = (drawer.row, drawer.row * spec.columns);
 
     let mut picked = None;
     let mut closed = false;
@@ -211,10 +247,17 @@ pub(crate) fn show(
         if sheet_button(ui, close_rect(rect), "drawer-close", "Close") {
             closed = true;
         }
-        for (index, card) in cards.iter().enumerate() {
-            let at = spec.card_rect(rect, index);
-            let response =
+        if last_row > 0 {
+            paint_scroll_bar(ui, spec, rect, top_row, last_row);
+        }
+        let end = cards.len().min(first + spec.columns * spec.rows);
+        for (index, card) in cards.iter().enumerate().take(end).skip(first) {
+            let at = spec.card_rect(rect, index - first);
+            let mut response =
                 ui.interact(at, Id::new(("drawer-card", what as u8, index)), Sense::click());
+            if let Some(hint) = &card.hint {
+                response = response.on_hover_text(hint);
+            }
             if response.hovered() {
                 ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
             }
@@ -244,6 +287,25 @@ pub(crate) fn show(
         ui.ctx().request_repaint();
     }
     picked
+}
+
+/// A thin bar down the sheet's right edge when there are more rows than it shows: where the
+/// rows on view stand among all
+fn paint_scroll_bar(ui: &Ui, spec: &Spec, sheet: Rect, row: usize, last_row: usize) {
+    let track = Rect::from_min_max(
+        Pos2::new(sheet.right() - 14.0, sheet.top() + CARDS_TOP),
+        Pos2::new(sheet.right() - 8.0, sheet.bottom() - FOOT),
+    );
+    let rows = (last_row + spec.rows) as f32;
+    let thumb_height = track.height() * spec.rows as f32 / rows;
+    let top = track.top() + (track.height() - thumb_height) * row as f32 / last_row as f32;
+    let painter = ui.painter();
+    painter.rect_filled(track, 3.0, theme::SHADOW);
+    painter.rect_filled(
+        Rect::from_min_size(Pos2::new(track.left(), top), vec2(track.width(), thumb_height)),
+        3.0,
+        ui::BRASS.gamma_multiply(0.7),
+    );
 }
 
 /// A card: a plate with the miniature on it and, beside that, the name and what plays it
@@ -286,6 +348,7 @@ pub(super) fn amp_cards(params: &crate::GuitarAmpParams, lane: usize) -> Vec<Car
                 .map(|each| format!("On Amp {}", each + 1))
                 .collect(),
             lit: playing[lane] == amp,
+            hint: None,
         })
         .collect()
 }
@@ -305,7 +368,7 @@ pub(super) fn show_amps(
     slot: &mut Option<Drawer>,
     now: f64,
 ) {
-    let Some(open) = *slot else {
+    let Some(open) = slot.filter(|open| open.what == What::Amp) else {
         return;
     };
     let (params, setter) = (pedals.params, pedals.setter);
@@ -323,4 +386,215 @@ pub(super) fn show_amps(
             crate::dial_memory::switch_second_amp(params, setter, amp);
         }
     }
+}
+
+/// One thing the cabinets' drawer can pick, in the order of its cards
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum CabChoice {
+    /// The amp's own cabinet
+    Own,
+    /// A built-in cabinet, by its place in `SPEAKERS`
+    Speaker(usize),
+    /// A file of the cabinets folder, by name
+    File(String),
+    /// What is chosen but is not there (a file that is gone, a cabinet of another build)
+    Lost(String),
+    /// The card that opens the cabinets folder
+    Folder,
+}
+
+impl CabChoice {
+    /// What the choice is stored as: the empty name for the amp's own
+    pub(crate) fn stored(&self) -> String {
+        match self {
+            CabChoice::Own | CabChoice::Folder => String::new(),
+            CabChoice::Speaker(speaker) => user_cab::speaker_choice(*speaker),
+            CabChoice::File(name) | CabChoice::Lost(name) => name.clone(),
+        }
+    }
+}
+
+/// The cards' choices for a lane: a first one for what is chosen but not there (the first lane
+/// only), the amp's own, the built-in cabinets in their order, and for the first lane the files
+/// in `files` and the card that opens the folder. The second lane has no files
+pub(crate) fn cab_choices(chosen: &str, files: &[String], second: bool) -> Vec<CabChoice> {
+    let mut choices = Vec::new();
+    let known = user_cab::speaker_of(chosen).is_some() || files.iter().any(|file| file == chosen);
+    if !second && !chosen.is_empty() && !known {
+        choices.push(CabChoice::Lost(chosen.to_owned()));
+    }
+    choices.push(CabChoice::Own);
+    choices.extend((0..crate::amp::model::SPEAKERS.len()).map(CabChoice::Speaker));
+    if !second {
+        choices.extend(files.iter().cloned().map(CabChoice::File));
+        choices.push(CabChoice::Folder);
+    }
+    choices
+}
+
+#[cfg(test)]
+thread_local! {
+    /// A folder a test has the drawer read the cabinets from, in place of the player's
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))] // its tests draw, and run on Linux alone
+    pub(super) static TEST_FOLDER: std::cell::RefCell<Option<std::path::PathBuf>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// The folder the player's cabinets are in
+fn folder() -> Option<std::path::PathBuf> {
+    #[cfg(test)]
+    if let Some(dir) = TEST_FOLDER.with(|folder| folder.borrow().clone()) {
+        return Some(dir);
+    }
+    user_cab::cabinets_dir()
+}
+
+/// The longest name a card holds, in letters
+const CARD_NAME_CHARS: usize = 12;
+
+/// The cards of the cabinets' drawer for `lane`, one for each of `choices`: `playing` is what
+/// each lane's cabinet is chosen as. The one that plays on the lane is outlined, and a card says
+/// which lanes play it. A name is as the cabinet's nameplate shows it
+pub(crate) fn cab_cards(
+    choices: &[CabChoice],
+    playing: &[String; 2],
+    lane: usize,
+    loader: &CabLoader,
+) -> Vec<Card> {
+    choices
+        .iter()
+        .map(|choice| {
+            let stored = choice.stored();
+            let is_folder = *choice == CabChoice::Folder;
+            let plays = |each: usize| !is_folder && playing[each] == stored;
+            let name = match choice {
+                CabChoice::Own => user_cab::OWN_NAME.to_owned(),
+                CabChoice::Speaker(speaker) => {
+                    crate::amp::model::SPEAKERS[*speaker].name.to_owned()
+                }
+                CabChoice::File(name) if lane == 0 && plays(0) => {
+                    loader.display_name(name, CARD_NAME_CHARS)
+                }
+                CabChoice::File(name) => user_cab::display_name(name, CARD_NAME_CHARS),
+                CabChoice::Lost(name) => {
+                    let shown = loader.display_name(name, CARD_NAME_CHARS);
+                    if shown.starts_with(user_cab::MISSING_MARK) {
+                        shown
+                    } else {
+                        format!("{}{shown}", user_cab::MISSING_MARK)
+                    }
+                }
+                CabChoice::Folder => "Open folder".to_owned(),
+            };
+            let hint = is_folder.then(|| {
+                folder().map_or_else(
+                    || "There is no folder for cabinet files".to_owned(),
+                    |dir| format!("Cabinet files go in {}", dir.display()),
+                )
+            });
+            Card {
+                name,
+                marks: (0..2)
+                    .filter(|&each| plays(each))
+                    .map(|each| format!("On Amp {}", each + 1))
+                    .collect(),
+                lit: plays(lane),
+                hint,
+            }
+        })
+        .collect()
+}
+
+/// The look of the cabinet the miniature of `choice` is drawn in. `amp` is the lane's amp, whose
+/// own cabinet it is; `status` is what the loader says of the choice that is playing
+pub(crate) fn cab_face(
+    choice: &CabChoice,
+    amp: crate::Amp,
+    status: CabStatus,
+) -> &'static suite_common::ui::CabStyle {
+    match choice {
+        CabChoice::Own | CabChoice::Folder => looks::cab_look(amp, "", CabStatus::Fine),
+        CabChoice::Speaker(speaker) => {
+            looks::cab_look(amp, &user_cab::speaker_choice(*speaker), CabStatus::Fine)
+        }
+        CabChoice::File(name) => looks::cab_look(amp, name, status),
+        CabChoice::Lost(name) => looks::cab_look(amp, name, CabStatus::Missing),
+    }
+}
+
+/// The cabinets' drawer, if it is open. A click on a card picks the cabinet for the drawer's
+/// lane as a step of the old selector did; the card of the folder opens it instead
+pub(super) fn show_cabs(
+    ui: &mut Ui,
+    window: Pos2,
+    visible: f32,
+    pedals: &super::Pedals,
+    slot: &mut Option<Drawer>,
+    now: f64,
+) {
+    let Some(open) = slot.filter(|open| open.what == What::Cabinet) else {
+        return;
+    };
+    let (params, loader) = (pedals.params, pedals.cab_loader);
+    let second = open.lane == 1;
+    let amps = [params.amp.value(), params.amp2.value()];
+    let playing = [pedals.chosen(), params.cabinet_second.choice()];
+    let files = if second {
+        Vec::new()
+    } else {
+        folder().map(|dir| user_cab::list(&dir)).unwrap_or_default()
+    };
+    let choices = cab_choices(&playing[open.lane], &files, second);
+    let cards = cab_cards(&choices, &playing, open.lane, loader);
+    let note = format!("Cabinet for Amp {} · click one to play it", open.lane + 1);
+    let status = if second { CabStatus::Fine } else { loader.status() };
+    let paint = |ui: &Ui, index: usize, face: Rect| match &choices[index] {
+        CabChoice::Folder => paint_folder(ui, face),
+        choice => {
+            let mut style = *cab_face(choice, amps[open.lane], status);
+            style.plate_height = 0.0;
+            ui::cabinet(ui, face, &style);
+        }
+    };
+    let cabs = pedals.cabs.get();
+    let picked = show(ui, window, visible, slot, &cards, &note, &cabs, &paint, now);
+    let Some(choice) = picked.map(|index| &choices[index]) else {
+        return;
+    };
+    match choice {
+        CabChoice::Folder => {
+            if let Some(dir) = folder() {
+                let _ = std::fs::create_dir_all(&dir);
+                user_cab::open_folder(&dir);
+            }
+        }
+        // What is chosen and not there stays as it is until another is picked
+        CabChoice::Lost(_) => {}
+        choice if second => params.cabinet_second.set_choice(&choice.stored()),
+        choice => {
+            let stored = choice.stored();
+            let mut chosen =
+                params.cabinet.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            if *chosen != stored {
+                *chosen = stored;
+                drop(chosen);
+                loader.chosen();
+                (pedals.load_cabinet)();
+            }
+        }
+    }
+}
+
+/// The folder card's picture: an open folder in brass, standing for the player's own files
+fn paint_folder(ui: &Ui, face: Rect) {
+    let painter = ui.painter();
+    let body = Rect::from_center_size(
+        face.center() + vec2(0.0, 14.0),
+        vec2(face.width() * 0.8, face.height() * 0.5),
+    );
+    let tab =
+        Rect::from_min_size(body.left_top() - vec2(0.0, 22.0), vec2(body.width() * 0.4, 28.0));
+    painter.rect_filled(tab, 8.0, ui::BRASS.gamma_multiply(0.7));
+    painter.rect_filled(body, 10.0, ui::BRASS);
+    painter.rect_stroke(body, 10.0, Stroke::new(3.0_f32, theme::CHROME_DARK), StrokeKind::Inside);
 }

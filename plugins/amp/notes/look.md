@@ -26,17 +26,16 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   with the lane's name (`Amp 1`, `Amp 2`) and, on the second lane, its `On` switch with a
   `rig_led`. The cabinet beside it (`LANE_CAB_WIDTH`, 210 wide since #446) looks as the cabinet
   that plays through that amp and has no control plate; its choice is a nameplate at its foot
-  (a `nameplate_stepper_sized` on brushed chrome: the name, a chrome step button each side), and
-  a double-click on the first lane's cabinet above the nameplate opens the cabinets folder, its
-  hover text naming the folder. Both input jacks take the guitar (a cable links
+  (a `nameplate_opener` on brushed chrome: the name and one chrome button at its right, #448), and
+  a double-click on the cabinet, or that button, opens the cabinets' drawer (below). Both input jacks take the guitar (a cable links
   them), and both lanes end at a black plate, `MIX_WIDTH` wide, through a coupler each. The
   plate holds, from the top: `Blend` over a `crossfader` (`ui::crossfader`: `Amp 1` at the
   top of the slot, `Amp 2` at the bottom, the value on label tape under it), the Mic and Res
   knobs (radius 17), the `Mic Type` stepper, the output jack with its `Out` caption, at the
   height of the pedals' plugs, and the Cab switch with its LED and caption. Mic, Res, Mic Type
-  and Cab act on both amps' cabinets. The first lane's cabinet nameplate goes through the amp's
-  own, the built-in cabinets and the files, as the Speaker stepper did; the second's through its
-  own and the built-in ones (`cabinet2`, never a file). Nothing of the lanes is dimmed while
+  and Cab act on both amps' cabinets. The first lane's cabinet drawer offers the amp's
+  own, the built-in cabinets and the files; the second's its own and the built-in ones (`cabinet2`,
+  never a file). Nothing of the lanes is dimmed while
   the second amp is off: its lamp and its switch say so
 - **Head and cabinet:** each amp has a head of its own (`looks.rs`, drawn by `ui::amp_head`),
   which changes the moment another amp is picked:
@@ -217,6 +216,15 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   `switch_second_amp`) and the drawer stays open; it closes on Close, Escape, a click outside (a click on
   a head is not outside, so the second double-click on it can close) or the second double-click. `drawer::Spec`
   holds a kind of drawer's size and cards, `drawer::show` draws any list of `Card`s
+- **The cabinet drawer** (#448, `drawer::CABS`, `show_cabs`): the same sheet titled `CABINETS`, cards of a cabinet
+  miniature (`ui::cabinet` at 90 wide, no plate, in `looks::cab_look`) and its name, rows of eight, two rows high. The
+  cards, in order (`cab_choices`): what is chosen but not there (a `?` card in the amp's own look, first lane
+  only, picking it changes nothing), `OWN`, the fourteen of `SPEAKERS`, the files of the cabinets folder (first
+  lane only; the charcoal file look) and an `Open folder` card (a brass folder; it creates the folder and shows it).
+  More cards than two rows scroll: the wheel over the sheet moves the rows one at a time (`Drawer.row`, so a card
+  is never half cut) and a thin bar at the right edge says where. A click picks the choice as a step did
+  (`params.cabinet` and the loader for the first lane, `cabinet_second.set_choice` for the second), a card
+  already playing sets nothing. With any file in the folder the `Open folder` card is on the third row
 - **Typed text** is taken in two places only: the name of a new preset bank, on its row of the
   preset plate, and the name of a new preset, on the plate's foot after Save
   (`type_on_tape`, 24 letters, the last 15 shown). Both are `type_into`: the letters on the tape or display with a `_` after them,
@@ -251,14 +259,14 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
 - **A preset choice is never a parameter.** The editor sets the real parameters through the
   `ParamSetter` and keeps only the index in a `#[persist]` field
 - **Pick a file (cabinets):** files are never picked in a dialog. They live in one folder and are
-  stepped through in name order with the two chrome buttons of the cabinet's nameplate (no caption:
-  the plate says the name), after the built-in
+  picked from the cabinets' drawer (#448: a double-click on the cabinet or the one chrome button of its
+  nameplate; a card for each file in name order), after the built-in
   choices: the amp's own (`OWN`), then the built-in cabinets. On the first lane's cabinet nameplate
   the name shows at most 10 characters (print size 15 on a 128 px plate): no extension, capitals, long names as the first 5 and last 4
   with `~` between. `!` in front of the name of a file that cannot be used, `?` in front of the name of one
   that is not there. Stepping on to `OWN` past where the files would be, with none in the folder,
-  says `NO FILES` on the plate for 1.5 s. Hovering the
-  cabinet (above its nameplate) names the folder; a double-click on it opens the folder
+  says `NO FILES` on the plate for 1.5 s (the settings plate's stepping; the cabinets' drawer has the folder card instead). The cabinets' drawer's
+  `Open folder` card names the folder on hover and is the one thing on the head's side that opens it
 - **A file choice is never a parameter.** Keep the file name (not the path) in a `#[persist]` field
 - **Metronome:** one cluster on the strip between Save and Output, its controls closer
   (`METRONOME_GAP`) than the strip's others (`STRIP_GAP`), left to right: a `small_footswitch`
