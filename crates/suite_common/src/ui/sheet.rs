@@ -50,6 +50,11 @@ pub fn sheet(
             if let Some(to_global) = ui.ctx().layer_transform_to_global(parent_layer) {
                 ui.ctx().set_transform_layer(ui.layer_id(), to_global);
             }
+            // The area's clip is the screen as it was before the scale was set, in the layer's
+            // own points: at a zoom under 1 it ends above the sheet's foot, and what stands
+            // below it neither shows nor answers. The sheet's own rectangle (and its shadow
+            // above it) is what it may draw in
+            ui.set_clip_rect(rect.expand(8.0));
             ui.allocate_rect(rect, Sense::click_and_drag());
             paint_sheet(ui.painter(), rect);
 
