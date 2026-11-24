@@ -91,7 +91,7 @@ How it behaves:
   Metal against Groove's brightness is 1.7 times, not 2 (it was 2.14: Groove's finger knock is
   brightness); and the hard-pluck test measures the first plane alone (`line_other` silenced),
   since the 0.4 Hz beat biases a 20 ms period read on the low E
-- The cost of one note is held by `test_one_note_costs_at_most_2_percent_of_a_core`, which runs
+- The cost of one note is held by `test_one_note_costs_at_most_2_percent_of_a_core` (measured as the best of 100 short windows), which runs
   only optimised (`scripts/check.sh` and `ci.yml` run `cargo test -p amp -p bass --profile optimised`)
 - The hand: Metal's pick scrapes (noise of 2.5 ms that swells over a fifth of it and dies, in
   the pluck), Groove's finger lands with a knock (an impulse through a resonance at 1.5 kHz, with
