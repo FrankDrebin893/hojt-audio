@@ -9,7 +9,7 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
 - `widgets.rs` - `param_knob` (fluted knob, name, value on label tape; `param_knob_as` for a knob whose value is told in the terms of another parameter, `scroll_bar` for a line wider than the window; `param_knob_with` for another
   `KnobCap` and print colour), `panel_knob` (a knob on an amp head's panel: name above, value tape under,
   where there is room for one line of controls; `panel_knob_rect` is the room it takes),
-  `nameplate_stepper` (a name on a plate with a chrome step button each side; `nameplate_stepper_sized` for print of another size, as on a cabinet's foot), `nameplate_opener` (the name on a plate with one chrome button at its right, a chevron up, that opens a drawer: the amp's head, a cabinet's foot),
+  `nameplate_stepper` (a name on a plate with a chrome step button each side; `nameplate_stepper_sized` for print of another size), `nameplate_opener` (the name on a plate with one chrome button at its right, a chevron up, that opens a drawer: the amp's head, a cabinet's foot),
   `footswitch`, `led`,
   `small_footswitch`, `rig_led` and `param_switch` (the switch and LED of a rig, bound to an on/off
   parameter), `stepper` (label tape with a chrome button at each end, for picking one of many),

@@ -21,7 +21,7 @@ GitHub release.
   chosen but missing shows first with a `?`. With more than two rows of cards the mouse wheel scrolls it.
   The nameplate's step buttons are gone, and the folder now opens from the drawer's card, not by a double-click on the cabinet.
 - Fuller cabinets: each lane's cabinet is 210 points wide, up from 120, and its choice (the amp's own,
-  a built-in cabinet or a file) sits on a nameplate at its foot, with the step buttons either side.
+  a built-in cabinet or a file) sits on a nameplate at its foot, with one chrome button at its right that opens the cabinets drawer above.
   The `Cabinet` caption and stepper are gone from the head's lower line. The window's line is 90 points
   wider (3501), so a window of the same size shows the rig about 2.6 % smaller. What plays does not change.
 - The looper can record a set number of bars. A new Bars setting on its plate (Free, 1, 2, 4 or 8) fixes the
