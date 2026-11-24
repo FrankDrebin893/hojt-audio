@@ -165,10 +165,24 @@ What every sub-session is asked to do, for issue `<n>`:
 - Every Read, Edit and Write uses the worktree's path, never the shared checkout's
 - Wait for a long gate (`scripts/check.sh`) once, with Monitor and an until-loop on the log's last line,
   never `sleep` and never polled (the tool refuses `sleep`)
-- A gate that cannot finish: after 30 minutes of one full `scripts/check.sh` with no result, stop waiting.
-  Push on a passing `scripts/check.sh quick`, say in the pull request that the full gate did not finish and
+- The gate is chosen at the start, not found out at the limit. Run `scripts/check.sh space`, then read the
+  `target/` line the full run prints (or `ls target/debug/deps`). Cold target and the change confined to some crates:
+  the gate is `scripts/check.sh quick` plus `cargo test -p <touched crates>` (and `-p suite_common` when it changed),
+  and CI's `Test` is the proof of the rest. Warm: the full `scripts/check.sh`, once, in the background
+- A gate that cannot finish: after 30 minutes of one full `scripts/check.sh` with no finished test step, stop
+  waiting (a run that works takes about 20 minutes, so a shorter limit kills healthy runs). Kill it (`TaskStop`), run
+  `scripts/check.sh quick` and the touched crates' tests, say in the pull request that the full gate did not finish and
   CI's `Test` is the only proof, and post a "Progress" comment (step 7) with "Next: full gate owed, CI is
   the proof"; the orchestrator's review reads that line
+- Run `scripts/check.sh quick` after every edit batch and before any `cargo test` that takes minutes: a clippy error
+  found after a 300 s test run costs the run
+- Edit with `Edit` and a string match, never `sed -i` on line numbers (a later edit shifts the lines) and never a
+  python heredoc. A chain such as `cargo test ...; UPDATE_IDS=1 cargo test ...; git diff` is one command per Bash call
+- An editor change: view every new or changed snapshot render before the commit (list them with
+  `git status --short <plugin>/tests/snapshots`), and name in the pull request which were looked at; one not looked at is
+  said so
+- A change that alters a number a doc names (a plate size, a count): `grep` for the old number in `DESIGN.md`,
+  `plugins/amp/notes/`, `ui/STYLE.md` and `scripts/README.md`, and update it in the same pull request
 - A build uses the worktree's own `target/` (the default). Never set `CARGO_TARGET_DIR` to a path another
   session can also name: two builders on one directory fight over cargo's build lock, and a full
   `scripts/check.sh` refuses such a path at once (`unset CARGO_TARGET_DIR`). The cold build this costs
@@ -239,6 +253,9 @@ What every sub-session is asked to do, for issue `<n>`:
 5. **Pull request** with the template, never naming a person: no "Rasmus" or any other name
    in the title, description or comments. Say "somebody" or that something "needs to be
    manually reviewed" (for a sound change: the renders to listen to). Names are for chat only.
+   The template's gate line `scripts/check.sh passes` is ticked only when the final `== All of CI's steps pass` was
+   printed; otherwise leave it unticked and put a line under it naming what ran (for example "`quick` and
+   `cargo test -p amp -p suite_common`, 734 and 103 passed") and that CI's `Test` is the proof of the rest.
    Put `Closes #<n>`, the report diffs and the screenshot in the description. The orchestrator
    adds the reviewer's verdict and the retrospective line. Then `scripts/move-issue.sh <n> review` (or the label rule above, where `gh` cannot run).
    A piano change that adds a harness scene says in the description that the scene's reference PNG
@@ -312,7 +329,8 @@ thinks of its work, nor why it did what it did. Its brief:
 >    `#[id]` or `#[persist]` key changed or removed, and `ids.txt` only gains lines
 > 3. **Tests prove the change**: a test fails without the change and passes with it, or the
 >    spec says how else it is checked (a report, a listen, a look)
-> 4. **Stays in scope**: nothing the spec did not ask for
+> 4. **Stays in scope**: nothing the spec did not ask for, and no doc left stale that names a changed
+>    value (a finding, not a fifth score)
 >
 > Then list each finding as file, line and what is wrong, and end with one line:
 > `Verdict: accept` if all four pass, otherwise `Verdict: revise`.

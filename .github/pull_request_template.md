@@ -3,6 +3,7 @@ Closes #
 <!-- What changed and why, in a few lines. -->
 
 - [ ] `scripts/check.sh` passes (what CI runs: format, clippy, the tests, the amp's tests optimised)
+<!-- If the full gate did not finish, leave the box empty and say here what ran -->
 - [ ] Reports before and after are in the description (when DSP changed)
 - [ ] Somebody has listened (`kind:sound`), or it needs to be manually reviewed
 - [ ] Standalone screenshot attached (when an editor changed; `scripts/screenshots.ps1 <plugin>` takes it)
