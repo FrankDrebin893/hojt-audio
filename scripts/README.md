@@ -117,8 +117,10 @@ CI's lint job): make a new one so with `git update-index --chmod=+x scripts/<nam
 `== <command>` as each step starts, so a session waiting on it reads the output file with one `tail` and does not
 poll; the long step is `cargo test --workspace`, which shows no progress of its own until it ends.
 Measured in a cloud session (`time` around the run): `check.sh quick` takes about 35 s on a cold build cache and
-about 1 s warm; a full run takes about 10 minutes cold (581 s to the macOS package step) and about 4 minutes (223 s) warm. Start
-the full run once in the background and wait for it, do not poll in a loop. A cloud session's start hook
+about 1 s warm. A full run takes about 30 minutes or more cold (re-measured from builder runs, 2026-11-24: a worktree's own
+`target/` is cold on its first run) and about 20 minutes when it works warm-ish, with the amp's optimised tests (674 s for
+`cargo test --workspace` plus 507 s for the optimised amp and bass tests); the older 10 minutes cold and 4 warm no longer hold.
+A full run says up front whether `target/` is cold or warm. Start the full run once in the background and wait for it, do not poll in a loop. A cloud session's start hook
 (`.claude/hooks/session-start.sh`) installs CI's packages, `shellcheck`, `cpio` and the pinned Rust first; where
 it did not run, `scripts/check.sh deps` installs the missing packages (`quick` and the full run name them and
 stop when they are missing, they never install on their own).

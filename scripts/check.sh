@@ -241,6 +241,16 @@ check_disk_space() {
     fi
 }
 
+# Says whether the target directory ($1) is cold (no debug/deps: the test step compiles everything). Only prints.
+check_cold_target() {
+    if [[ -d "$1/debug/deps" ]]; then
+        echo "== Target directory is warm"
+    else
+        echo "== Target directory is cold: the test step compiles the whole workspace from scratch (about 30 minutes in a cloud session)."
+        echo "   For a change confined to some crates: scripts/check.sh quick, then cargo test -p <touched crates>; CI's Test is the proof of the rest."
+    fi
+}
+
 # Prints the target directory in use and how many other cargo processes run, and stops when CARGO_TARGET_DIR
 # points outside the checkout: two sessions naming one directory fight over cargo's build lock (a 45-minute
 # gate). CHECK_SHARED_TARGET=1 is for a person whose machine is theirs alone.
@@ -252,6 +262,7 @@ check_target_dir() {
     if command -v pgrep > /dev/null; then
         echo "== Other cargo processes running: $(pgrep -x cargo | wc -l | tr -d ' ')"
     fi
+    check_cold_target "$abs"
     if [[ -n "${CARGO_TARGET_DIR:-}" && "$abs" != "$root" && "$abs" != "$root"/* && "${CHECK_SHARED_TARGET:-}" != 1 ]]; then
         {
             echo "scripts/check.sh: CARGO_TARGET_DIR is $abs, outside this checkout ($root)."
