@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Tests the target-directory check of scripts/check.sh (`check.sh target`, the first step of a full run): a
 # CARGO_TARGET_DIR outside the checkout is refused with the fix named, unless CHECK_SHARED_TARGET=1; unset or
-# inside the checkout it passes and prints the directory. Also that the full run starts with that check.
+# inside the checkout it passes and prints the directory; a target without debug/deps is called cold (and names
+# the quick gate), one with it warm, both exiting 0. Also that the full run starts with that check.
 #
 #   scripts/test-check-target.sh
 set -euo pipefail

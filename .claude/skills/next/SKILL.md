@@ -165,8 +165,8 @@ What every sub-session is asked to do, for issue `<n>`:
 - Every Read, Edit and Write uses the worktree's path, never the shared checkout's
 - Wait for a long gate (`scripts/check.sh`) once, with Monitor and an until-loop on the log's last line,
   never `sleep` and never polled (the tool refuses `sleep`)
-- The gate is chosen at the start, not found out at the limit. Run `scripts/check.sh space`, then read the
-  `target/` line the full run prints (or `ls target/debug/deps`). Cold target and the change confined to some crates:
+- The gate is chosen at the start, not found out at the limit. Run `scripts/check.sh target` (it prints whether `target/` is cold or warm; `scripts/check.sh space` is the disk check)
+  or `ls target/debug/deps`. Cold target and the change confined to some crates:
   the gate is `scripts/check.sh quick` plus `cargo test -p <touched crates>` (and `-p suite_common` when it changed),
   and CI's `Test` is the proof of the rest. Warm: the full `scripts/check.sh`, once, in the background
 - A gate that cannot finish: after 30 minutes of one full `scripts/check.sh` with no finished test step, stop
