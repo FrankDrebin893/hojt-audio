@@ -7,6 +7,8 @@ GitHub release.
 
 ### Guitar Amp
 
+- The tuner no longer throws the metronome and the looper out of step: it hushed the click by switching it off, so
+  the click began again on beat one afterwards while the loop had gone on. Its clock now runs on, silent.
 - The drawers and the effects bank are drawn whole in a window smaller than full size: their lower rows were cut
   off at the window's foot, with the miniatures standing outside their cards.
 - Pick an amp from a drawer. A double-click on an amp's head (clear of its dials) raises a drawer from the

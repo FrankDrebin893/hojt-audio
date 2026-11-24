@@ -3,8 +3,8 @@
 Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says when to read it. Read it before editing the files it names.
 
 - The metronome (`metronome.rs`) is added to the output after the whole chain, in `process` of
-  `lib.rs`: the amp never distorts it, and Output and Bypass leave it alone. The tuner silences
-  it (a click already sounding rings out, a few ms). Off, it adds nothing and the output is
+  `lib.rs`: the amp never distorts it, and Output and Bypass leave it alone. The tuner hushes
+  it (`hushed`, a fade of a few ms) but its clock runs on, so a loop, which counts in the click's bars, stays in step. Off, it adds nothing and the output is
   bit-identical. Its clock is a count of samples to the next beat kept as an `f64`, so a tempo
   that is not a whole number of samples per beat never drifts and the clicks fall on the
   sample whatever the host's block size. A tempo change is taken at the next beat; switching
@@ -13,7 +13,7 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   position every block: silent while the host is stopped, a jump or a loop is followed, bar
   position from the position in the song. With no tempo it uses its own. Sounds: Woodblock,
   Beep, Click, each higher and louder (1.0 against 0.6) on the downbeat. It keeps the plugin
-  awake (`KeepAlive`) while on, and while Metro and Sync are both on (the tuner not muting it) even with the host stopped (a host
+  awake (`KeepAlive`) while on, and while Metro and Sync are both on (tuner or not) even with the host stopped (a host
   may otherwise stop calling a plugin that is waiting for the song). A click still ringing is cut
   when a synced host stops. The seven `metronome_*` parameters are not in presets
 

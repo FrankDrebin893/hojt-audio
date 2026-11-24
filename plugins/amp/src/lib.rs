@@ -801,7 +801,8 @@ impl GuitarAmpParams {
     }
 
     /// What the metronome is told this block: the knobs, and the host's tempo and transport
-    /// where Sync is on. The tuner silences it
+    /// where Sync is on. The tuner hushes it in `process`, but its clock runs on, so the loop,
+    /// which counts in the click's bars, stays in step
     fn metronome_settings(
         &self,
         tempo: Option<f64>,
@@ -810,7 +811,7 @@ impl GuitarAmpParams {
     ) -> MetronomeSettings {
         let sync = self.metronome_sync.value();
         MetronomeSettings {
-            on: self.metronome_on.value() && !self.tuner_on.value(),
+            on: self.metronome_on.value(),
             bpm: self.metronome_bpm.value(),
             sync,
             time_signature: self.metronome_time_sig.value(),
@@ -1091,11 +1092,9 @@ impl Plugin for GuitarAmpPlugin {
         }
 
         // The click goes on top of the finished sound: the amp never distorts it, and
-        // neither the Output knob nor Bypass changes it. The tuner silences it
+        // neither the Output knob nor Bypass changes it. The tuner hushes it, the clock running on
         // The host's tempo and place are only asked for while the click follows them
-        let following = self.params.metronome_on.value()
-            && self.params.metronome_sync.value()
-            && !self.params.tuner_on.value();
+        let following = self.params.metronome_on.value() && self.params.metronome_sync.value();
         let (tempo, playing, beats) = if following {
             let transport = context.transport();
             (transport.tempo, transport.playing, transport.pos_beats())
@@ -1157,7 +1156,8 @@ impl Plugin for GuitarAmpPlugin {
         let control = self.looper.control();
         let heard_as =
             if control.extra_recording() { looper::State::Recording } else { control.state() };
-        metronome.hushed = self.params.looper_click.value().hushes(heard_as);
+        metronome.hushed =
+            self.params.looper_click.value().hushes(heard_as) || self.params.tuner_on.value();
         // Mixed: on top of the amp. Separate: alone on the "Metronome" output, and the main
         // output is the amp alone. Where the host gives no such output (the standalone
         // program, or a host that left it off) the click is mixed in, so it is never lost
@@ -1387,7 +1387,7 @@ mod tests {
             tuner_on: BoolParam::new("Tuner", true),
             ..GuitarAmpParams::default()
         };
-        assert!(!tuning.metronome_settings(None, true, None).on);
+        assert!(tuning.metronome_settings(None, true, None).on, "the clock runs on while tuning");
     }
 
     #[test]
@@ -2216,29 +2216,39 @@ mod tests {
         status
     }
 
+    /// Beats the metronome has counted after `blocks` blocks, the tuner on for the given ones
+    fn beats_with_tuner_during(blocks: usize, tuning: std::ops::Range<usize>) -> u32 {
+        let mut amp = GuitarAmpPlugin::default();
+        let reading = amp.metronome.reading();
+        for block in 0..blocks {
+            amp.params = Arc::new(GuitarAmpParams {
+                metronome_on: BoolParam::new("Metronome", true),
+                tuner_on: BoolParam::new("Tuner", tuning.contains(&block)),
+                ..GuitarAmpParams::default()
+            });
+            status_after_silence(&mut amp, 1);
+        }
+        reading.read().0
+    }
+
     #[test]
-    fn test_a_tuner_that_mutes_the_metronome_lets_the_plugin_sleep() {
-        let make = |tuner: bool| GuitarAmpPlugin {
+    fn test_the_tuner_does_not_stop_the_metronomes_clock_so_the_loop_stays_in_step() {
+        // 600 blocks of 480 samples at 48 kHz is 6 s: 12 beats at 120 BPM. A tuner that
+        // silences the click must not stop or restart its clock, or it falls out of step
+        // with a loop that went on (the looper counts on it for its bars)
+        let steady = beats_with_tuner_during(600, 0..0);
+        let tuned = beats_with_tuner_during(600, 100..350);
+        assert_eq!(tuned, steady);
+        // And the bar the loop is rounded to is still there while tuning
+        let amp = GuitarAmpPlugin {
             params: Arc::new(GuitarAmpParams {
                 metronome_on: BoolParam::new("Metronome", true),
-                metronome_sync: BoolParam::new("Metronome Sync", true),
-                tuner_on: BoolParam::new("Tuner", tuner),
+                tuner_on: BoolParam::new("Tuner", true),
                 ..GuitarAmpParams::default()
             }),
             ..GuitarAmpPlugin::default()
         };
-        let mut tuning = make(true);
-        tuning.initialize(
-            &GuitarAmpPlugin::AUDIO_IO_LAYOUTS[0],
-            &BufferConfig {
-                sample_rate: 48_000.0,
-                min_buffer_size: None,
-                max_buffer_size: 512,
-                process_mode: ProcessMode::Realtime,
-            },
-            &mut CountingContext(std::cell::Cell::new(0)),
-        );
-        assert!(matches!(status_after_silence(&mut tuning, 200), ProcessStatus::Normal));
+        assert!(amp.params.metronome_settings(None, false, None).on);
     }
 
     #[test]
