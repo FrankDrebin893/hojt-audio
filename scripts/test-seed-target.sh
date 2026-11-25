@@ -143,6 +143,26 @@ seedsh copy "$tmp/wt" > /dev/null || fail "copy without CLAUDE_CODE_REMOTE faile
 [[ -f "$tmp/wt/target/debug/deps/libfoo.rlib" ]] || fail "copy without CLAUDE_CODE_REMOTE copied nothing"
 if seedsh copy "$tmp/nowhere" > /dev/null; then fail "copy of a missing directory was accepted"; fi
 
+# copy refuses under the cold floor (8 GB), also when the seed's own target/ is warm, and leaves nothing behind
+rm -rf "$tmp/wt/target"
+out="$(FAKE_AVAIL_KB=$((5 * 1024 * 1024)) seedsh copy "$tmp/wt")" || fail "copy under the floor failed: $out"
+grep -q "not enough disk space" <<< "$out" || fail "copy under the floor did not say why: $out"
+[[ ! -e "$tmp/wt/target" && ! -e "$tmp/wt/target.seed-copy" ]] || fail "copy under the floor left something behind"
+
+# A copy that fails half-way leaves no target/ and no temporary directory: a cp that fails on the second part
+mkdir "$tmp/cpbin"
+cat > "$tmp/cpbin/cp" << 'STUB'
+#!/usr/bin/env bash
+n=$(cat "$STUB_CP_COUNT" 2> /dev/null || echo 0)
+echo $((n + 1)) > "$STUB_CP_COUNT"
+((n < 1)) || exit 1
+exec /bin/cp "$@"
+STUB
+chmod +x "$tmp/cpbin/cp"
+rm -f "$tmp/cpcount"
+if out="$(STUB_CP_COUNT="$tmp/cpcount" PATH="$tmp/cpbin:$PATH" seedsh copy "$tmp/wt")"; then fail "a failing cp was accepted: $out"; fi
+[[ ! -e "$tmp/wt/target" && ! -e "$tmp/wt/target.seed-copy" ]] || fail "a failed copy left a half-copied tree behind"
+
 # A changed Cargo.lock rebuilds; so does a changed Rust
 echo 'version = 4' > "$repo/Cargo.lock"
 remote start > /dev/null || fail "start after a Cargo.lock change failed"

@@ -13,7 +13,8 @@
 #   scripts/seed-target.sh wait          blocks until no seed build runs; exits 1 (and prints the log's last line) when
 #                                        there is no finished seed for this Rust and Cargo.lock
 #   scripts/seed-target.sh copy <dir>    copies the seed into <dir>/target (cp -a, no incremental, no logs), unless that
-#                                        target/ is warm already (has debug/deps) or there is no finished seed. A plain
+#                                        target/ is warm already (has debug/deps), there is no finished seed or the disk
+#                                        is under the cold floor (8 GB); copied through a temporary directory. A plain
 #                                        copy, not hardlinks: cargo rewrites files in place and would write into the seed.
 #                                        Never writes into the seed
 #
@@ -58,6 +59,12 @@ need_remote() {
     }
 }
 
+# The disk check for a seed build and for a copy: both write a cold build's size (2 to 7 GB), whatever the main
+# checkout's target/ looks like, so the cold floor (8 GB) applies; CHECK_MIN_FREE_GB overrides it
+enough_space() {
+    (cd "$main" && CHECK_MIN_FREE_GB="${CHECK_MIN_FREE_GB:-8}" bash scripts/check.sh space > /dev/null 2>&1)
+}
+
 start() {
     need_remote
     if running; then
@@ -68,7 +75,7 @@ start() {
         echo "seed-target: the seed is current ($(head -1 "$marker" | tr -d '\n')), skipped"
         return 0
     fi
-    if ! (cd "$main" && bash scripts/check.sh space > /dev/null 2>&1); then
+    if ! enough_space; then
         echo "seed-target: not enough disk space for a seed build, skipped"
         return 0
     fi
@@ -77,12 +84,15 @@ start() {
     : > "$log"
     # setsid: the build outlives the hook that starts it
     setsid nohup bash "$self" build > "$log" 2>&1 < /dev/null &
-    echo $! > "$lock"
-    echo "seed-target: seed build started (pid $!), log $log"
+    local pid=$! waited=0
+    # the build writes its own lock (see build), so a build that ends at once cannot leave a stale one behind
+    while [[ ! -f "$lock" ]] && kill -0 "$pid" 2> /dev/null && ((waited++ < 100)); do sleep 0.1; done
+    echo "seed-target: seed build started (pid $pid), log $log"
 }
 
 # Internal: the build itself, run detached by `start`. Removes the lock when it ends; writes the marker on success.
 build() {
+    echo $$ > "$lock"
     trap 'rm -f "$lock"' EXIT
     cd "$main"
     unset CARGO_TARGET_DIR
@@ -130,7 +140,15 @@ copy() {
         echo "seed-target: no finished seed, $dest stays cold"
         return 0
     fi
-    mkdir -p "$dest"
+    if ! enough_space; then
+        echo "seed-target: not enough disk space for a copy (a copy is a cold build's size), $dest stays cold"
+        return 0
+    fi
+    # Copy into a temporary directory and move the parts in, so an interrupted copy leaves nothing that reads as warm
+    tmp="$dest.seed-copy" # not local: the EXIT trap reads it
+    rm -rf "$tmp"
+    trap 'rm -rf "$tmp"' EXIT
+    mkdir -p "$tmp"
     for entry in "$seed"/* "$seed"/.[!.]*; do
         [[ -e "$entry" ]] || continue
         name="$(basename "$entry")"
@@ -138,15 +156,21 @@ copy() {
         check-logs | seed.log | .seed.lock | .seed-done) continue ;;
         esac
         if [[ -d "$entry" && ( "$name" == debug || "$name" == optimised ) ]]; then
-            mkdir -p "$dest/$name"
+            mkdir -p "$tmp/$name"
             for sub in "$entry"/* "$entry"/.[!.]*; do
                 [[ -e "$sub" ]] || continue
                 [[ "$(basename "$sub")" == incremental ]] && continue
-                cp -a --reflink=auto "$sub" "$dest/$name/"
+                cp -a --reflink=auto "$sub" "$tmp/$name/"
             done
         else
-            cp -a --reflink=auto "$entry" "$dest/"
+            cp -a --reflink=auto "$entry" "$tmp/"
         fi
+    done
+    mkdir -p "$dest"
+    for entry in "$tmp"/* "$tmp"/.[!.]*; do
+        [[ -e "$entry" ]] || continue
+        rm -rf "${dest:?}/$(basename "$entry")"
+        mv "$entry" "$dest/"
     done
     echo "seed-target: copied the seed into $dest"
 }
