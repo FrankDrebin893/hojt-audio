@@ -119,6 +119,10 @@ poll; the long step is `cargo test --workspace`, which shows no progress of its 
 (`cargo test --workspace` and the optimised amp and bass tests) print their expected time when they start, also in quiet
 mode (`== cargo test --workspace --locked (expected about 11 min warm, about 30 min cold)`): plan one wait from it. The
 numbers are constants at the top of `check.sh`.
+`check.sh` and `check.sh quick` always end with one last line on stdout, `CHECK DONE rc=<exit code>` (`rc=0` a pass,
+`rc=1` a failed step or a stop at the disk or target check; the exit code itself is unchanged), quiet or verbose, so a run
+started in the background and redirected to a file is waited on once with `until grep -q 'CHECK DONE' <file>`. `hook`,
+`scope` and the one-line modes do not print it (`scripts/test-check-quiet.sh` holds this).
 Measured in a cloud session (`time` around the run): `check.sh quick` takes about 35 s on a cold build cache and
 about 1 s warm. A full run takes about 30 minutes or more cold (re-measured from builder runs, 2026-11-24: a worktree's own
 `target/` is cold on its first run) and about 20 minutes when it works warm-ish, with the amp's optimised tests (674 s for
