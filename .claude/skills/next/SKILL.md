@@ -89,6 +89,15 @@ goes on to the next issue, with no further prompt, until the list is done. Words
      pull request is open with `Verdict: accept` (auto-merge on, nothing left to fix) and of every worktree of a
      merged or closed branch. A review that asked for fixes keeps its `target/`, since the builder will rebuild. A
      later fix on an accepted pull request then starts cold: accepted, it merges on green CI anyway
+   - **The seed.** In a cloud session the start hook builds one seed `target/` in the main checkout in the background
+     (`scripts/seed-target.sh`). Before the first sub-session run `scripts/seed-target.sh wait` once (an until-loop in
+     the background with Monitor; exit 1 means no seed, go on cold). When you make each builder's worktree, run
+     `scripts/check.sh space` first, then `scripts/seed-target.sh copy <worktree>`: `copy` itself refuses under the cold
+     floor (8 GB free) and leaves the worktree cold, whatever the main checkout's `target/` looks like, and a copy
+     is made in a temporary directory, so a stopped one leaves nothing that reads as warm. The builder's first gate then
+     starts warm. For the cap below: the seed counts as one cold build only while it runs (`wait` returns when it
+     ends), and a copy counts as one cold build until its `copy` call returns (it writes 2 to 7 GB); afterwards that
+     worktree is warm and counts as zero, like any warm tree. Nobody sets `CARGO_TARGET_DIR` to the seed
    - Run `scripts/check.sh space` in the repository. It exits 1 under the floor (8 GB free when `target/` is cold,
      2 GB when warm) and prints every `target/` with its size. Still under the floor after the deletions above: do
      not start the session, leave the issue as it is, and tell the engineer in one line with the sizes. No
@@ -216,7 +225,8 @@ What every sub-session is asked to do, for issue `<n>`:
 - A build uses the worktree's own `target/` (the default). Never set `CARGO_TARGET_DIR` to a path another
   session can also name: two builders on one directory fight over cargo's build lock, and a full
   `scripts/check.sh` refuses such a path at once (`unset CARGO_TARGET_DIR`). The cold build this costs
-  is accepted. Free your own space yourself: when `scripts/check.sh space` stops you, or a build fails with `No
+  is accepted unless the orchestrator copied the seed into your `target/` (`scripts/seed-target.sh`; `scripts/check.sh target`
+  says warm), in which case the workspace's own crates recompile and the rest is reused. Free your own space yourself: when `scripts/check.sh space` stops you, or a build fails with `No
   space left on device`, run `scripts/check.sh space` (it names the sizes, so never `du` by hand), then `cargo clean`
   in your own worktree (allowed in `.claude/settings.json`; `rm -rf` of `target/` is not) after `unset
   CARGO_TARGET_DIR`, and say so in the Progress comment. Never retry a build in a loop under the limit

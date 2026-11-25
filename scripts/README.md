@@ -139,6 +139,19 @@ A branch that changes only light paths (the page, markdown, `.claude/`, the lice
 `quick`, `scripts/page-check.sh links`, and `cargo test -p xtask` when a skill changed. `scripts/check.sh full` forces every
 step; `scripts/check.sh scope` prints `light`, `skills` or `full`. `scripts/test-check-light.sh` tests the choice on a
 temporary repo and checks that neither `ci.yml` nor `check.sh` holds a list of its own; it is a step of `check.sh` and CI.
+**The seed** (`scripts/seed-target.sh`, issue 466): a worktree's own `target/` is cold on a builder's first run. A cloud
+session's start hook therefore starts one detached build of the workspace in the main checkout (`target/`, which no
+builder uses): `cargo test --workspace --no-run` and the optimised amp and bass build, with its log in `target/seed.log`.
+`seed-target.sh wait` blocks until it ends (exit 1 and the log's last line when there is no finished seed for this Rust
+and `Cargo.lock`); `seed-target.sh copy <worktree>` copies it into the worktree's `target/` (`cp -a`, without
+`incremental` and `check-logs`; a plain copy, not hardlinks, since cargo rewrites files in place) unless that `target/`
+is warm already. Nobody names the seed as `CARGO_TARGET_DIR`. `start` skips itself without `CLAUDE_CODE_REMOTE=true`, under
+the cold disk floor, while a build runs, and when `target/.seed-done` matches the Rust and `Cargo.lock`. A copy still
+recompiles the workspace's own crates (another path), not egui, wgpu, naga and image. The disk: the seed and each copy
+are a cold build in size (2 to 7 GB). `SEED_CARGO_JOBS=2` limits the seed build's cores. Not yet measured in a cloud
+session (seed wall time, sizes, copy time, a copied worktree's first `cargo test --workspace --no-run`): the first
+builder to use it writes the figures here. `scripts/test-seed-target.sh` tests it with a stub `cargo` and is a step of
+`check.sh` and CI.
 A full run starts by printing the free disk space and stops under 8 GB when the checkout's `target/` is cold (no
 `target/debug/deps`) and under 2 GB when it is warm; `CHECK_MIN_FREE_GB=<n>` overrides both for a person whose disk is
 large. When it stops it lists the `target/` of the main checkout and of every worktree with its size, largest first and the

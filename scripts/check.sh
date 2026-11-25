@@ -13,6 +13,7 @@
 #                               as root); quick and the full run only name them when they are missing
 #   scripts/check.sh space      only the disk-space check a full run starts with: prints the free space and every worktree's
 #                               target/ size, stops under 8 GB (cold target/) or 2 GB (warm); CHECK_MIN_FREE_GB overrides
+#   scripts/seed-target.sh copy <worktree>   (a separate script) starts a cold target/ from a copy of the machine's seed
 #   scripts/check.sh notes      only that every plugins/amp/notes/*.md is linked from the amp's router and every link exists
 #   scripts/check.sh modes      only that every tracked scripts/*.sh is executable in git's index
 #   scripts/check.sh --verbose  (before any mode) the full output of every step, also under an agent: where
@@ -345,6 +346,7 @@ full() {
     step bash scripts/test-pin-nih-plug.sh
     step bash scripts/test-check-light.sh
     step bash scripts/test-check-space.sh
+    step bash scripts/test-seed-target.sh
     step bash scripts/test-check-target.sh
     step bash scripts/test-check-notes.sh
     step bash scripts/test-check-quiet.sh
