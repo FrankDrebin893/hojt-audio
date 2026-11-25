@@ -1,26 +1,26 @@
-# HØJT
+# Højte Audio
 
 A free, beginner-friendly set of guitar and band tools (plugins, a practice app and a few web tools) so that people can start playing without paying for a pile of plugins first. This file is the product's vocabulary only. How work is organised (issues, specs, routines) is in `CLAUDE.md`; why things are the way they are is in `docs/adr/`.
 
 ## Brand and products
 
-**HØJT**:
-The brand, Danish for "loud" and "high". Written with the Ø everywhere a person reads it.
-_Avoid_: Hojt (except as the vendor string)
+**Højte Audio**:
+The brand: Højte is the author's surname, written with the Ø wherever a person reads it (the logo, the page, the README, window titles). In URLs and file names it is the ASCII `hojte-audio`. Until the rename is done (ADR 0010) the page still says HØJT.
+_Avoid_: HØJT, Hojt (both are the old name, except as the vendor string below)
 
-**HØJT DSP**:
+**Højte DSP**:
 All the plugins together, as a suite.
-_Avoid_: the VST suite, the audio plugins
+_Avoid_: HØJT DSP (old name), the VST suite, the audio plugins
 
 **Hojt Audio**:
-The ASCII vendor string a DAW lists the plugins under. It never changes.
+The ASCII vendor string a DAW lists the plugins under. It is the old name, frozen, and it never changes (ADR 0002, ADR 0010).
 
 **Plugin**:
-One VST3 / CLAP product of HØJT DSP, with one window: Pitch Shifter, Drum Synth, Bass Synth, Shimmer Pad, Glass Bells, Guitar Amp. Also runs as a standalone program.
+One VST3 / CLAP product of Højte DSP, with one window: Pitch Shifter, Drum Synth, Bass Synth, Shimmer Pad, Glass Bells, Guitar Amp. Also runs as a standalone program.
 _Avoid_: pedal (see below), effect (when meaning the whole product)
 
 **Piano viz**:
-The Windows app for practising piano with a MIDI keyboard. Not part of HØJT DSP.
+The Windows app for practising piano with a MIDI keyboard. Not part of Højte DSP. Called Højte Piano on the page and in its window once the rename is done; "piano viz" stays the word in code, docs and issues.
 _Avoid_: piano app, PMVA
 
 **Resources**:
