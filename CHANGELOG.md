@@ -7,6 +7,9 @@ GitHub release.
 
 ### Guitar Amp
 
+- Two metal presets at the end of the list: Hamre, a tight, thick chug (Torden with the Drive pedal and the
+  compressor on, the gate shut as the note ends), and Fløjl, a big singing lead (Sang the same way, for the
+  ribbon microphone, which a preset does not store: pick it on the cabinet). No amp, pedal or cabinet changed.
 - The tuner no longer throws the metronome and the looper out of step: it hushed the click by switching it off, so
   the click began again on beat one afterwards while the loop had gone on. Its clock now runs on, silent.
 - The drawers and the effects bank are drawn whole in a window smaller than full size: their lower rows were cut
