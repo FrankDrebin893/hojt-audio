@@ -105,6 +105,38 @@ grep -q 'about ${EXPECT_COLD_MIN} minutes in a cloud session' "$root/scripts/che
 run CLAUDECODE=1 -- step bash "$tmp/pass.sh"
 grep -q "/01-" <<< "$out" || fail "a new run does not start at 01: $out"
 
+# A gate ends with one last line, CHECK DONE rc=<exit code>, in every mode; the exit code is unchanged
+run CLAUDECODE=1 -- gate-step bash "$tmp/pass.sh"
+[[ "$code" == 0 ]] || fail "a passing gate exited $code: $out"
+[[ "$(tail -n 1 <<< "$out")" == "CHECK DONE rc=0" ]] || fail "a passing gate does not end with CHECK DONE rc=0: $out"
+[[ "$(grep -c 'CHECK DONE' <<< "$out")" == 1 ]] || fail "CHECK DONE is not printed exactly once: $out"
+run CLAUDECODE=1 -- gate-step bash "$tmp/failing.sh"
+[[ "$code" == 1 ]] || fail "a failing gate exited $code, not 1: $out"
+[[ "$(tail -n 1 <<< "$out")" == "CHECK DONE rc=1" ]] || fail "a failing gate does not end with CHECK DONE rc=1: $out"
+[[ "$(grep -n 'CHECK DONE' <<< "$out" | cut -d: -f1)" -gt "$(grep -n '== Failed' <<< "$out" | cut -d: -f1)" ]] || fail "CHECK DONE is not after the Failed lines: $out"
+run -- gate-step bash "$tmp/pass.sh"
+[[ "$(tail -n 1 <<< "$out")" == "CHECK DONE rc=0" ]] || fail "a terminal gate does not end with CHECK DONE: $out"
+run CLAUDECODE=1 CI=true -- gate-step bash "$tmp/pass.sh"
+[[ "$(tail -n 1 <<< "$out")" == "CHECK DONE rc=0" ]] || fail "a gate under CI does not end with CHECK DONE: $out"
+run CLAUDECODE=1 -- --verbose gate-step bash "$tmp/failing.sh"
+[[ "$(tail -n 1 <<< "$out")" == "CHECK DONE rc=1" ]] || fail "a --verbose gate does not end with CHECK DONE: $out"
+# A stop at the disk check is a gate that ends too: the real full run, with an impossible floor
+run CLAUDECODE=1 CHECK_MIN_FREE_GB=99999999 -- full
+[[ "$code" == 1 ]] || fail "a run stopped at the disk check exited $code: $out"
+[[ "$(tail -n 1 <<< "$out")" == "CHECK DONE rc=1" ]] || fail "a run stopped at the disk check does not end with CHECK DONE rc=1: $out"
+# The modes that are parsed or report to the hook, and the one-liners, do not print it
+run -- scope full
+[[ "$out" == full ]] || fail "scope printed more than its answer: $out"
+run -- step bash "$tmp/pass.sh"
+if grep -q 'CHECK DONE' <<< "$out"; then fail "step prints CHECK DONE: $out"; fi
+# The real branches of the final case use the gate: "", full and quick, and no other mode
+branches="$(awk '/^case "\$\{1:-\}" in/,/^esac/' "$root/scripts/check.sh")"
+[[ "$(grep -cE '^("\"|full|quick)\) gate ' <<< "$branches")" == 3 ]] || fail "the \"\", full and quick branches do not all run through gate"
+if grep -E '^(scope|modes|notes|space|target|deps|hook|step)\)' <<< "$branches" | grep -q 'gate'; then fail "a one-line mode, scope or hook runs through gate"; fi
+# The two places of the builder's rule name the line, so the rule cannot drift from the script
+[[ "$(grep -c 'CHECK DONE' "$root/.claude/skills/next/SKILL.md")" -ge 2 ]] || fail "SKILL.md does not name CHECK DONE in both places"
+grep -q "wait for its \`CHECK DONE\` line" "$root/.claude/skills/next/SKILL.md" || fail "the gates step of SKILL.md does not name CHECK DONE"
+
 # The commit hook stays verbose inside (it reports a failure's last 60 lines itself)
 awk '/^hook\(\) \{/,/^}/' "$root/scripts/check.sh" | grep -q 'CHECK_VERBOSE=1' || fail "hook() does not force the full output"
 

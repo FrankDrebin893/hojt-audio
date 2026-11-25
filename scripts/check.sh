@@ -18,6 +18,7 @@
 #   scripts/check.sh --verbose  (before any mode) the full output of every step, also under an agent: where
 #                               CLAUDECODE=1 and CI is not set, a step prints one line (passed, seconds, its log
 #                               in target/check-logs) and, when it fails, the failing lines and the log's tail
+#                               full and quick end with one line, `CHECK DONE rc=<exit code>`, pass or fail
 #   scripts/check.sh hook       the Claude Code PreToolUse hook (.claude/settings.json): the quick
 #                               part before a `git commit`, blocking the commit when it fails
 #                               in the tree the commit is made in (a worktree's own, not this checkout's)
@@ -384,11 +385,20 @@ if [[ "${1:-}" == --verbose ]]; then
     shift
 fi
 
+# Runs a gate ($@) and ends with one line on stdout whatever happens, a pass, a failed step or a stop at the disk or
+# target check: `CHECK DONE rc=<exit code>`. A run started in the background and redirected to a file is waited on
+# with `until grep -q 'CHECK DONE' <file>` (.claude/skills/next/SKILL.md, "The builder"). The exit code is unchanged.
+# Only the modes that run a gate use it: `scope` is parsed by other scripts, `hook` reports to the commit hook.
+gate() {
+    trap 'echo "CHECK DONE rc=$?"' EXIT
+    "$@"
+}
+
 case "${1:-}" in
-"") full ;;
-full) full full ;;
+"") gate full ;;
+full) gate full full ;;
 scope) scope "${2:-}" ;;
-quick) quick ;;
+quick) gate quick ;;
 modes) script_modes ;;
 notes) amp_notes ;;
 space) check_disk_space list ;;
@@ -398,6 +408,10 @@ hook) hook ;;
 step) # one step on its own, what scripts/test-check-quiet.sh runs
     shift
     step "$@"
+    ;;
+gate-step) # one step on its own inside `gate`, what scripts/test-check-quiet.sh runs to test the last line
+    shift
+    gate step "$@"
     ;;
 *)
     echo "usage: scripts/check.sh [--verbose] [full|quick|scope|modes|notes|space|deps|hook]" >&2

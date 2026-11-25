@@ -184,9 +184,12 @@ What every sub-session is asked to do, for issue `<n>`:
 - Write files with Write or Edit, never a `cat` or python heredoc or a script that also runs git (the
   guard refuses it)
 - Every Read, Edit and Write uses the worktree's path, never the shared checkout's
-- Wait for a long gate (`scripts/check.sh`) once, with Monitor and an until-loop on the log's last line,
-  never `sleep` and never polled (the tool refuses `sleep`); the expected time is in the step's start line
-  (`== cargo test --workspace --locked (expected ...)`): plan the one wait from it
+- Wait for a gate (`scripts/check.sh` or `scripts/check.sh quick`) once. Start it in the background with its whole output
+  redirected to a file outside `target/` (the scratchpad, so `cargo clean` does not delete it), wait with Monitor and
+  `until grep -q 'CHECK DONE' <that file>; do sleep 10; done`, then read the result in one call, `tail -n 12 <that file>`:
+  `CHECK DONE rc=0` after `== All of CI's steps pass` is a pass, anything else shows its failing lines printed above
+  the last line. Never `pgrep`, never a loop on the task's own output, never a poll per few minutes. The expected time is
+  in the step's start line (`== cargo test --workspace --locked (expected ...)`): plan the one wait from it
 - The gate is chosen at the start, not found out at the limit. Run `scripts/check.sh target` (it prints whether `target/` is cold or warm; `scripts/check.sh space` is the disk check)
   or `ls target/debug/deps`. Cold target and the change confined to some crates:
   the gate is `scripts/check.sh quick` plus `cargo test -p <touched crates>` (and `-p suite_common` when it changed),
@@ -271,8 +274,7 @@ What every sub-session is asked to do, for issue `<n>`:
      clippy failure shows in seconds, not after the whole of it
    - `scripts/check.sh`: every step of CI (format, clippy, the tests, the amp's tests optimised; for a
      branch of light paths only, as CI does it: quick and the page's links, `scripts/check.sh full` forces all). Run it
-     once, in the background, and wait with Monitor and an until-loop on the `== <step>` lines or the
-     final `== All of CI's steps pass`, never `sleep`. The script prints `== <step>` as each starts; the time is in
+     once, in the background, and wait for its `CHECK DONE` line as "Commands in the worktree" says, never `sleep`. The script prints `== <step>` as each starts; the time is in
      `scripts/README.md`, Testing. A cloud session's start hook has already installed CI's packages
    - The reports named in the spec, before (on `main`) and after
    - The standalone window looked at, if an editor changed
