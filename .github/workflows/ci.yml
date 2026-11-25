@@ -126,6 +126,11 @@ jobs:
         if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
         run: bash scripts/test-check-space.sh
 
+      # The seed build cache scripts/seed-target.sh makes for a cloud session, over a stub cargo
+      - name: Test the seed-target script
+        if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
+        run: bash scripts/test-seed-target.sh
+
       # The target-directory check a full run starts with (refuses a CARGO_TARGET_DIR outside the checkout)
       - name: Test the target-directory check
         if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'

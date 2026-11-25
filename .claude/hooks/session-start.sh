@@ -7,6 +7,8 @@
 #   - shellcheck, which scripts/test-linux-install.sh and scripts/test-macos-pkg.sh run when it is there,
 #     and cpio, which test-macos-pkg.sh needs
 #   - the Rust toolchain ci.yml pins for format and clippy
+#   - last, a detached seed build of the workspace (scripts/seed-target.sh start, in the main checkout's target/), so a
+#     builder's worktree can start from a copy of it instead of a cold build; the hook does not wait for it
 #
 # Only what is missing is installed, so a second start costs nothing.
 set -euo pipefail
@@ -35,4 +37,9 @@ if [ -n "$version" ] && command -v rustup > /dev/null &&
     ! rustup run "$version" cargo clippy --version > /dev/null 2>&1; then
     echo "session-start: installing Rust $version (rustfmt, clippy)" >&2
     rustup toolchain install "$version" --profile minimal --component rustfmt --component clippy --no-self-update
+fi
+
+# The seed build runs detached behind the hook (its log is target/seed.log); a failure to start it never fails the hook
+if [ -x scripts/seed-target.sh ]; then
+    scripts/seed-target.sh start >&2 || echo "session-start: the seed build did not start" >&2
 fi
