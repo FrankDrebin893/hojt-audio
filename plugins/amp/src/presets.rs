@@ -96,7 +96,7 @@ const USUAL_ORDER: &[&str] = &[
 // the gate starts to close on the tail of every mute. The gate closes 3 dB under its
 // threshold, so that is -60 dB, which was -54 dB with the 6 dB it had before. How fast a
 // gate shuts in a rest is its release, not its threshold: 8 dB of threshold are 9 ms
-pub static PRESETS: [Preset; 39] = [
+pub static PRESETS: [Preset; 41] = [
     Preset {
         name: "Init",
         amp: Amp::Brol,
@@ -756,6 +756,41 @@ pub static PRESETS: [Preset; 39] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
+    // Torden (#472). A tight, thick chug: the Drive pedal pushing the amp a little, the
+    // compressor holding the sustain, the gate shut as the note ends, no room behind it
+    Preset {
+        name: "Hamre",
+        amp: Amp::Torden,
+        second: NO_SECOND,
+        dials: [7.5, 6.0, 6.0, 4.5, 3.5, 4.6],
+        gate: (ON, -57.0, 100.0),
+        drive: (ON, [1.5, 6.0, 7.0]),
+        cab: (ON, [5.0, 3.5]),
+        delay: (OFF, 350.0, 30.0, 20.0),
+        reverb: (OFF, 1.5, 20.0),
+        comp: (ON, [4.0, 5.0]),
+        fuzz: FUZZ_OFF,
+        mods: MODS_OFF,
+        order: USUAL_ORDER,
+    },
+    // Sang (#472). A big singing lead: the same pedals as the chug with the Drive pedal
+    // lower and the middle forward. Meant for the ribbon microphone, which a preset does
+    // not store (the Mic dial is where the listening round left it)
+    Preset {
+        name: "Fløjl",
+        amp: Amp::Sang,
+        second: NO_SECOND,
+        dials: [7.5, 4.5, 6.0, 5.0, 4.0, 4.3],
+        gate: (ON, -57.0, 100.0),
+        drive: (ON, [1.0, 6.0, 6.0]),
+        cab: (ON, [5.0, 3.5]),
+        delay: (OFF, 350.0, 30.0, 20.0),
+        reverb: (OFF, 1.5, 20.0),
+        comp: (ON, [4.0, 5.0]),
+        fuzz: FUZZ_OFF,
+        mods: MODS_OFF,
+        order: USUAL_ORDER,
+    },
 ];
 
 /// A dial as printed, 0.0 to 10.0, as its parameter stores it
@@ -1357,7 +1392,7 @@ mod tests {
     const PRESET_LUFS: f32 = -13.0;
 
     /// The leads, heard over the rest
-    const LEADS: [&str; 5] = ["Flamme", "Lyn", "Sus", "Sværm", "Solo"];
+    const LEADS: [&str; 6] = ["Flamme", "Lyn", "Sus", "Sværm", "Solo", "Fløjl"];
 
     #[test]
     fn test_presets_are_about_as_loud_as_each_other() {
