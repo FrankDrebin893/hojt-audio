@@ -100,6 +100,12 @@ quiet_steps() {
     [[ "${CLAUDECODE:-}" == 1 && -z "${CI:-}" && "${CHECK_VERBOSE:-}" != 1 ]]
 }
 
+# The expected times of the long steps, in minutes, written once: the start line of a step (STEP_EXPECT) and the
+# cold-target message both read them. Measured in scripts/README.md, Testing; "about", since the suite grows.
+EXPECT_TEST_WARM_MIN=11
+EXPECT_OPT_WARM_MIN=8
+EXPECT_COLD_MIN=30
+
 step_number=0
 
 # The log of a quiet step: <log dir>/NN-<the command, as a slug>.log. The log dir is target/check-logs (not committed).
@@ -110,9 +116,14 @@ step_log() {
 }
 
 # Stops at the first failure itself: `set -e` does not hold inside the hook's `if`.
+# An optional STEP_EXPECT text (set on the line before the call, the step clears it) is the step's expected time: printed with the start line, which
+# a quiet step otherwise does not have.
 step() {
+    local expect=""
+    [[ -z "${STEP_EXPECT:-}" ]] || expect=" (expected ${STEP_EXPECT})"
+    STEP_EXPECT=
     if ! quiet_steps; then
-        echo "== $*"
+        echo "== $*$expect"
         "$@" || {
             echo "== Failed: $*" >&2
             exit 1
@@ -123,6 +134,7 @@ step() {
     step_number=$((step_number + 1))
     log="$(step_log "$@")"
     mkdir -p "$(dirname "$log")"
+    [[ -z "$expect" ]] || echo "== $*$expect"
     started=$SECONDS
     if "$@" > "$log" 2>&1; then
         echo "== $*: passed in $((SECONDS - started)) s, log $log"
@@ -279,7 +291,7 @@ check_cold_target() {
     if ! target_is_cold "$1"; then
         echo "== Target directory is warm"
     else
-        echo "== Target directory is cold: the test step compiles the whole workspace from scratch (about 30 minutes in a cloud session)."
+        echo "== Target directory is cold: the test step compiles the whole workspace from scratch (about ${EXPECT_COLD_MIN} minutes in a cloud session)."
         echo "   For a change confined to some crates: scripts/check.sh quick, then cargo test -p <touched crates>; CI's Test is the proof of the rest."
     fi
 }
@@ -321,9 +333,11 @@ full() {
     check_target_dir
     check_disk_space
     quick
+    STEP_EXPECT="about ${EXPECT_TEST_WARM_MIN} min warm, about ${EXPECT_COLD_MIN} min cold"
     step cargo test --workspace --locked
     # The clippers' two-at-a-time path is only compiled in optimised x86-64 builds, and the bass's
     # cost bound only means something optimised
+    STEP_EXPECT="about ${EXPECT_OPT_WARM_MIN} min warm, about ${EXPECT_COLD_MIN} min cold"
     step cargo test -p amp -p bass --profile optimised --locked
     [[ "$(uname -s)" == Linux ]] && step bash scripts/test-linux-install.sh
     step bash scripts/test-macos-pkg.sh

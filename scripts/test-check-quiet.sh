@@ -77,6 +77,30 @@ run -- step bash "$tmp/failing.sh"
 [[ "$code" == 1 ]] || fail "a failing terminal step exited $code: $out"
 grep -q "test t1 ... ok" <<< "$out" || fail "a failing terminal step does not print everything: $out"
 
+# A step with STEP_EXPECT prints a start line with the expected time, also under an agent; one without prints none
+run CLAUDECODE=1 STEP_EXPECT="about 3 min warm" -- step bash "$tmp/pass.sh"
+[[ "$code" == 0 ]] || fail "a step with an expectation exited $code: $out"
+[[ "$(wc -l <<< "$out")" == 2 ]] || fail "a quiet step with an expectation is not a start line and an end line: $out"
+head -n 1 <<< "$out" | grep -Eq "^== bash .*pass\.sh \(expected about 3 min warm\)$" || fail "the start line has no hint: $out"
+tail -n 1 <<< "$out" | grep -Eq "pass\.sh: passed in [0-9]+ s, log " || fail "the end line changed: $out"
+run STEP_EXPECT="about 3 min warm" -- step bash "$tmp/pass.sh"
+grep -q "^== bash .*pass\.sh (expected about 3 min warm)$" <<< "$out" || fail "the verbose start line has no hint: $out"
+run CLAUDECODE=1 STEP_EXPECT="about 3 min warm" -- step bash "$tmp/failing.sh"
+[[ "$code" == 1 ]] || fail "a failing step with an expectation exited $code: $out"
+grep -q "== Failed: bash .*failing\.sh (after" <<< "$out" || fail "the failure line changed: $out"
+
+# The constants of the long steps' hints are the ones of the cold-target message, so they cannot drift apart
+cold="$(grep -E '^EXPECT_COLD_MIN=' "$root/scripts/check.sh" | cut -d= -f2)"
+test_warm="$(grep -E '^EXPECT_TEST_WARM_MIN=' "$root/scripts/check.sh" | cut -d= -f2)"
+[[ -n "$cold" && -n "$test_warm" ]] || fail "check.sh names no EXPECT_COLD_MIN or EXPECT_TEST_WARM_MIN"
+# shellcheck disable=SC2016 # the text searched for holds literal ${...}
+grep -q 'STEP_EXPECT="about ${EXPECT_TEST_WARM_MIN} min warm, about ${EXPECT_COLD_MIN} min cold"' "$root/scripts/check.sh" || fail "the workspace test step does not use the constants"
+# shellcheck disable=SC2016
+grep -q 'about ${EXPECT_COLD_MIN} minutes in a cloud session' "$root/scripts/check.sh" || fail "the cold-target message does not use EXPECT_COLD_MIN"
+
+# The builder's rule names git -C as refused
+[[ "$(grep -c 'git -C' "$root/.claude/skills/next/SKILL.md")" -ge 1 ]] || fail "SKILL.md does not name git -C"
+
 # The numbers of the logs count up, one per step
 run CLAUDECODE=1 -- step bash "$tmp/pass.sh"
 grep -q "/01-" <<< "$out" || fail "a new run does not start at 01: $out"

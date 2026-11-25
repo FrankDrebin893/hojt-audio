@@ -115,7 +115,10 @@ failures on copies and is a step of `check.sh` and CI).
 Every tracked `scripts/*.sh` must be mode 100755 in git's index (`check.sh modes`, part of `quick` and a step of
 CI's lint job): make a new one so with `git update-index --chmod=+x scripts/<name>.sh`. `check.sh` prints
 `== <command>` as each step starts, so a session waiting on it reads the output file with one `tail` and does not
-poll; the long step is `cargo test --workspace`, which shows no progress of its own until it ends.
+poll; the long step is `cargo test --workspace`, which shows no progress of its own until it ends. The two long steps
+(`cargo test --workspace` and the optimised amp and bass tests) print their expected time when they start, also in quiet
+mode (`== cargo test --workspace --locked (expected about 11 min warm, about 30 min cold)`): plan one wait from it. The
+numbers are constants at the top of `check.sh`.
 Measured in a cloud session (`time` around the run): `check.sh quick` takes about 35 s on a cold build cache and
 about 1 s warm. A full run takes about 30 minutes or more cold (re-measured from builder runs, 2026-11-24: a worktree's own
 `target/` is cold on its first run) and about 20 minutes when it works warm-ish, with the amp's optimised tests (674 s for

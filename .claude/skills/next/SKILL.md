@@ -179,13 +179,14 @@ What every sub-session is asked to do, for issue `<n>`:
 **Commands in the worktree** (the brief names the worktree's path; the orchestrator fills it in, step 3):
 - The first call is `cd <worktree path>`. Start each later Bash call with `cd <worktree path> &&` and
   then one plain command: no further `&&` or `;` chain, pipes, subshells or heredocs with git or `gh`
-  in them (they are refused as "too complex to verify that it stays inside the worktree"). Read the
+  in them, and no `git -C <path>` or `git -C .` (all refused as "too complex to verify that it stays inside the worktree"). Read the
   output with a separate command
 - Write files with Write or Edit, never a `cat` or python heredoc or a script that also runs git (the
   guard refuses it)
 - Every Read, Edit and Write uses the worktree's path, never the shared checkout's
 - Wait for a long gate (`scripts/check.sh`) once, with Monitor and an until-loop on the log's last line,
-  never `sleep` and never polled (the tool refuses `sleep`)
+  never `sleep` and never polled (the tool refuses `sleep`); the expected time is in the step's start line
+  (`== cargo test --workspace --locked (expected ...)`): plan the one wait from it
 - The gate is chosen at the start, not found out at the limit. Run `scripts/check.sh target` (it prints whether `target/` is cold or warm; `scripts/check.sh space` is the disk check)
   or `ls target/debug/deps`. Cold target and the change confined to some crates:
   the gate is `scripts/check.sh quick` plus `cargo test -p <touched crates>` (and `-p suite_common` when it changed),
