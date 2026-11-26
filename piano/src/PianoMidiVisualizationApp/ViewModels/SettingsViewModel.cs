@@ -10,7 +10,11 @@ using PianoMidiVisualizationApp.Services;
 namespace PianoMidiVisualizationApp.ViewModels;
 
 /// <summary>One entry of the voicing dropdown.</summary>
-public sealed record VoicingOption(PianoVoicing Value, string Name);
+public sealed record VoicingOption(PianoVoicing Value, string Name)
+{
+    /// <summary>What a ComboBox with a custom template shows when it has no item template.</summary>
+    public override string ToString() => Name;
+}
 
 /// <summary>
 /// One entry in the key-root dropdown. The name depends on the selected scale (Ab Major

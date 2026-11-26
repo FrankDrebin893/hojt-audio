@@ -186,7 +186,7 @@
                 <TextBlock Grid.Row="8" Grid.Column="0" Text="Voicing" Style="{StaticResource Style.SettingsLabel}"/>
                 <ComboBox Grid.Row="8" Grid.Column="1" Width="190" Height="26" HorizontalAlignment="Left"
                           ItemsSource="{Binding Settings.VoicingOptions}"
-                          DisplayMemberPath="Name" SelectedValuePath="Value"
+                          SelectedValuePath="Value"
                           SelectedValue="{Binding Settings.Voicing}"
                           ToolTip="Natural plays the soundbank as it is. Stage grand makes it brighter and tighter, with less low-mid and a gentle compressor, like a stage piano in a mix."
                           AutomationProperties.Name="Voicing"/>
