@@ -169,8 +169,18 @@ download, controls.
 
 ## Voice
 
-From `/page`: what is heard and seen, short plain sentences, no internals, no real makers' names
-or trademarks.
+Plain and dry, leaning that way, with some personality: plain, factual sentences that carry the
+odd dry or warm remark where it fits, not a joke on every line. The rules, each checkable by
+reading the text:
+
+- What is heard and seen, no internals, no real makers' names or trademarks
+- Nobody speaks: the page addresses "you", and no quote or character talks
+- No taglines or punchlines (no "turned up"), no em-dashes, no list of three that is there only
+  for its rhythm
+- No vague claims ("beginner-friendly", "zero friction"): say the concrete thing instead, such
+  as thirteen pedals or what a knob does
+- At most one dry or warm remark in a section, and it goes no further than "Run two amps at once
+  if one feels lonely"
 
 - Right: "Four kits, each with its own room."
 - Wrong: "Zero-friction first run." (marketing), "Rendered directly from the WPF visual tree at

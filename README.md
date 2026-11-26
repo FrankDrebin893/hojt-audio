@@ -1,12 +1,11 @@
 # Højte Audio
 
-Two things are made here:
+Free plugins for your DAW, and a piano practice app. All open source, with no sign-up and no ads.
 
-- **Højte DSP**: free audio plugins for guitar, drums, bass and keys, each drawn as a
-  stompbox. VST3 and CLAP, for Windows, macOS and Linux. The rest of this page is about them.
-- **[Højte Piano](piano/)**: a free Windows app for practising piano with a MIDI
-  keyboard, which names the chords under your hands as you play
-  ([its page](https://hojte.net/hojt-audio/piano/)).
+- **Højte DSP**: six plugins for guitar, drums, bass and keys, each drawn as a stompbox. VST3 and
+  CLAP, for Windows, macOS and Linux. The rest of this page is about them.
+- **[Højte Piano](piano/)**: a Windows app that plays your MIDI keyboard through a SoundFont or
+  SFZ piano and names the chord you hold ([its page](https://hojte.net/hojt-audio/piano/)).
 
 **[The page, with sound examples and downloads](https://hojte.net/hojt-audio/)** ·
 **[Latest release](https://github.com/FrankDrebin893/hojt-audio/releases/latest)**
@@ -20,17 +19,18 @@ Two things are made here:
 
 ## The Højte DSP plugins
 
-**Guitar Amp** (`plugins/amp`). A whole rig: four amps of our own design, each with its own
-cabinet (Clear: clean, Roar: crunch, Thunder: high gain, Glow: warm, at the edge of breakup), and
-ten pedals that can be dragged into another order: gate, compressor, overdrive, phaser, chorus,
-flanger, tremolo, cabinet, delay and reverb. The cabinet is heard through a dynamic, ribbon or
-condenser microphone, or is your own impulse response. It has presets, a tuner and level
-meters, and adds 0.1 to 0.3 ms of latency.
+**Guitar Amp** (`plugins/amp`). A guitar amp and a pedal board in one plugin. Twelve amps of our
+own design, each with its own cabinet (Clear is clean, Roar is a crunch, Thunder is high gain, and
+there are nine more), and thirteen pedals that can be dragged into another order: gate, wah, fuzz,
+pitch, compressor, overdrive, phaser, chorus, flanger, tremolo, EQ, delay and reverb. Run two amps
+at once if one feels lonely. The cabinet is heard through one of five microphones, or is your own
+impulse response. It has presets, a looper, a tuner, a metronome and level meters, and adds 0.1 to
+0.3 ms of latency.
 
 **Drum Synth** (`plugins/drums`). A full drum kit with no samples: every sound is made in the
-plugin. Four kits (Rock, Jazz, Metal, Groove), General MIDI drum map, a hi-hat that follows an
-electronic kit's pedal, and velocity that changes the sound and not only the level. Besides the
-stereo mix it has six stereo outputs, one per group, for a host with multi-out.
+plugin. It has four kits (Rock, Jazz, Metal and Groove) and a General MIDI drum map, and the
+hi-hat follows an electronic kit's pedal. Playing harder changes the sound, not only the level.
+Besides the stereo mix it has six stereo outputs, one per group, for a host with multi-out.
 
 **Pitch Shifter** (`plugins/pitch_shifter`). Shifts a guitar by -12 to +12 semitones for live
 playing. The delay follows the note being played: about 12 ms on the low E string, under 3 ms
@@ -98,5 +98,5 @@ changed in each release.
 Copyright (c) 2026 Rasmus Højte. Free software under the
 [GNU General Public License](LICENSE), version 3 or later. The name Højte and its logo are not
 part of that licence, and third-party components keep their own: see [NOTICE.md](NOTICE.md).
-The piano viz in `piano/` is under the [MIT licence](piano/LICENSE), with its own
+Højte Piano, in `piano/`, is under the [MIT licence](piano/LICENSE), with its own
 [third-party notices](piano/THIRD-PARTY-NOTICES.txt).
