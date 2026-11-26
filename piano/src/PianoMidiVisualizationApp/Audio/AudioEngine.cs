@@ -84,9 +84,11 @@ public class AudioEngine : IAudioEngine
         Stop();
         DisposeOutput();
 
-        _sampleProvider = Path.GetExtension(soundFontPath).Equals(".sfz", StringComparison.OrdinalIgnoreCase)
-            ? new SfzSampleProvider(soundFontPath, SampleRate)
-            : new SoundFontSampleProvider(soundFontPath, SampleRate);
+        _sampleProvider = BuiltInPiano.IsBuiltIn(soundFontPath)
+            ? new SynthPianoSampleProvider(SampleRate)
+            : Path.GetExtension(soundFontPath).Equals(".sfz", StringComparison.OrdinalIgnoreCase)
+                ? new SfzSampleProvider(soundFontPath, SampleRate)
+                : new SoundFontSampleProvider(soundFontPath, SampleRate);
         _voicer = new VoicingSampleProvider(_sampleProvider) { Voicing = _voicing };
         _mixer = new MasterMixSampleProvider(_voicer, Metronome) { Volume = _volume };
 

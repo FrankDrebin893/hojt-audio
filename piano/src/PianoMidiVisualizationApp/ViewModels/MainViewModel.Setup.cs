@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PianoMidiVisualizationApp.Audio;
 using PianoMidiVisualizationApp.Models;
 
 namespace PianoMidiVisualizationApp.ViewModels;
@@ -141,8 +142,9 @@ public partial class MainViewModel
         var device = Settings.SelectedMidiDevice;
         string soundPath = Settings.SoundFontPath;
         bool soundChosen = !string.IsNullOrEmpty(soundPath);
-        string soundName = soundChosen ? Path.GetFileName(soundPath) : "";
-        bool soundFound = soundChosen && File.Exists(soundPath);
+        string soundName = !soundChosen ? ""
+            : BuiltInPiano.IsBuiltIn(soundPath) ? BuiltInPiano.Name : Path.GetFileName(soundPath);
+        bool soundFound = soundChosen && BuiltInPiano.Exists(soundPath);
         string? driver = Settings.SelectedAudioDriver;
         string output = string.IsNullOrEmpty(driver) ? "" : $"{driver} · {AudioMode}";
 
@@ -242,7 +244,7 @@ public partial class MainViewModel
             ChooseSound();
         else if (step == AudioStep)
         {
-            if (!File.Exists(Settings.SoundFontPath))
+            if (!BuiltInPiano.Exists(Settings.SoundFontPath))
             {
                 ChooseSound();   // starts audio too, once there is something to play
                 return;
@@ -335,7 +337,8 @@ public partial class MainViewModel
     private void TryStartAudio(string verb)
     {
         string driver = Settings.SelectedAudioDriver ?? "";
-        string soundName = Path.GetFileName(Settings.SoundFontPath);
+        string soundName = BuiltInPiano.IsBuiltIn(Settings.SoundFontPath)
+            ? BuiltInPiano.Name : Path.GetFileName(Settings.SoundFontPath);
         try
         {
             _audioEngine.Initialize(driver, Settings.UseAsio, Settings.SoundFontPath);

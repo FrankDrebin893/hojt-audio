@@ -16,6 +16,9 @@
     <!-- The voicing is plain DSP over NAudio's interfaces, so it is compiled in the same way. -->
     <Compile Include="..\..\src\PianoMidiVisualizationApp\Audio\PianoVoicing.cs" Link="PianoVoicing.cs" />
     <Compile Include="..\..\src\PianoMidiVisualizationApp\Audio\VoicingSampleProvider.cs" Link="VoicingSampleProvider.cs" />
+    <Compile Include="..\..\src\PianoMidiVisualizationApp\Audio\INotePlayer.cs" Link="INotePlayer.cs" />
+    <Compile Include="..\..\src\PianoMidiVisualizationApp\Audio\BuiltInPiano.cs" Link="BuiltInPiano.cs" />
+    <Compile Include="..\..\src\PianoMidiVisualizationApp\Audio\SynthPianoSampleProvider.cs" Link="SynthPianoSampleProvider.cs" />
   </ItemGroup>
 
   <ItemGroup>

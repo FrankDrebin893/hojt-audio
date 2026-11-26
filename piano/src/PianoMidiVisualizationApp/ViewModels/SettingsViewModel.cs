@@ -57,11 +57,15 @@ public partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelectedSoundBank))]
+    [NotifyPropertyChangedFor(nameof(CanRemoveSelectedSoundBank))]
     private SoundBankEntry? _selectedSoundBank;
 
     public bool HasSoundBanks => SoundBanks.Count > 0;
 
     public bool HasSelectedSoundBank => SelectedSoundBank is not null;
+
+    /// <summary>The built-in piano is part of the app, so only a soundbank file can be removed.</summary>
+    public bool CanRemoveSelectedSoundBank => SelectedSoundBank is { IsBuiltIn: false };
 
     [ObservableProperty]
     private float _volume = 0.8f;
@@ -186,6 +190,8 @@ public partial class SettingsViewModel : ObservableObject
         for (int pc = 0; pc < 12; pc++)
             KeyRoots.Add(new KeyRootOption { PitchClass = pc, Name = MusicKey.RootName(pc, KeyScale) });
 
+        // The built-in piano is always the first entry, ahead of any file.
+        AddOrFindSoundBank(BuiltInPiano.Path, BuiltInPiano.Name);
         ScanLocalSoundbanksDirectory();
     }
 
@@ -367,6 +373,7 @@ public partial class SettingsViewModel : ObservableObject
     private void RemoveSoundBank(SoundBankEntry? entry)
     {
         var target = entry ?? SelectedSoundBank;
+        if (target is { IsBuiltIn: true }) return;   // part of the app, not a file to take out
         if (target is null) return;
 
         int index = SoundBanks.IndexOf(target);
@@ -423,10 +430,9 @@ public partial class SettingsViewModel : ObservableObject
         ScanLocalSoundbanksDirectory();
 
         SoundFontPath = settings.SoundFontPath ?? "";
-        if (string.IsNullOrEmpty(SoundFontPath) && SoundBanks.Count > 0 && SelectedSoundBank is not null)
-        {
-            SoundFontPath = SelectedSoundBank.FilePath;
-        }
+        // Nothing chosen yet (a first launch): the built-in piano, so there is sound from the start.
+        if (string.IsNullOrEmpty(SoundFontPath))
+            SoundFontPath = BuiltInPiano.Path;
 
         Volume = settings.Volume;
         Voicing = PianoVoicingInfo.Parse(settings.Voicing);

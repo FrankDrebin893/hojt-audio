@@ -99,6 +99,12 @@ GitHub release.
   grand shapes it like a stage piano's grand (less low-mid, more attack and air, a gentle compressor to even out
   your playing). It sits on top of whichever `.sf2` or `.sfz` piano you have loaded, so no sound is added to the
   app, and it is kept between launches. The metronome click is not voiced.
+- A piano that is part of the app: **Højte Stage Piano**, synthesized, so there is no file to download and no
+  licence to think about. It is the first entry of the Soundbank Library, chosen on a first launch so the app
+  makes sound from the start, and it is the one entry that cannot be removed. It is a stage piano's voice, not a
+  sampled concert grand: two slightly detuned strings per note, slightly sharp partials, a hammer thump, and
+  harder playing is louder and brighter. The sustain pedal works. Your own `.sf2` and `.sfz` pianos are used
+  as before, and the Voicing can sit on top of either.
 
 ## 0.5.0
 
