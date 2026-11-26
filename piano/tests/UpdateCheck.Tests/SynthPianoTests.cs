@@ -44,6 +44,45 @@ public class SynthPianoTests
         return best;
     }
 
+    /// <summary>The level of the left channel between two times, in dB.</summary>
+    private static double Db(float[] buffer, double from, double to) =>
+        20 * Math.Log10(Rms(buffer, (int)(from * Rate), (int)(to * Rate)) + 1e-12);
+
+    /// <summary>The strongest frequency between lo and hi (in steps of step Hz) of the left channel.</summary>
+    private static double Strongest(float[] buffer, double lo, double hi, double step, int fromFrame, int frames)
+    {
+        double best = 0, bestMag = -1;
+        for (double f = lo; f < hi; f += step)
+        {
+            double mag = Magnitude(buffer, f, fromFrame, frames);
+            if (mag > bestMag) { bestMag = mag; best = f; }
+        }
+        return best;
+    }
+
+    private static double Magnitude(float[] buffer, double f, int fromFrame, int frames)
+    {
+        double re = 0, im = 0;
+        for (int i = 0; i < frames; i++)
+        {
+            double t = (fromFrame + i) / (double)Rate;
+            double x = buffer[2 * (fromFrame + i)];
+            re += x * Math.Cos(2 * Math.PI * f * t);
+            im += x * Math.Sin(2 * Math.PI * f * t);
+        }
+        return re * re + im * im;
+    }
+
+    /// <summary>The energy of the left channel between two times, summed over a band in 10 Hz steps.</summary>
+    private static double BandEnergy(float[] buffer, double lo, double hi, double from, double to)
+    {
+        int fromFrame = (int)(from * Rate), frames = (int)(to * Rate) - fromFrame;
+        double sum = 0;
+        for (double f = lo; f < hi; f += 10.0)
+            sum += Magnitude(buffer, f, fromFrame, frames);
+        return sum;
+    }
+
     [Fact]
     public void A_note_sounds_and_is_in_range()
     {
@@ -127,6 +166,97 @@ public class SynthPianoTests
 
         Assert.All(audio, s => Assert.True(float.IsFinite(s) && Math.Abs(s) <= 1f));
         Assert.True(Rms(audio, Rate / 10, Rate / 2) > 0.01);
+    }
+
+    [Fact]
+    public void A_held_note_falls_fast_first_and_then_rings_on_slowly()
+    {
+        // Two-stage decay: the strings' prompt sound dies quickly, their aftersound lingers.
+        var piano = new SynthPianoSampleProvider(Rate);
+        piano.NoteOn(0, 60, 100);
+        var audio = Render(piano, 5.0);
+
+        double early = (Db(audio, 0.05, 0.35) - Db(audio, 0.65, 0.95)) / 0.6;   // dB per second
+        double late = (Db(audio, 2.0, 3.0) - Db(audio, 4.0, 5.0)) / 2.0;
+        Assert.True(late > 0, $"the tail does not fall ({late:F1} dB/s)");
+        Assert.True(early > 1.8 * late, $"one even decay, like an organ: {early:F1} dB/s early, {late:F1} dB/s late");
+    }
+
+    [Fact]
+    public void Bass_partials_are_stretched_sharp_like_a_stiff_string()
+    {
+        var piano = new SynthPianoSampleProvider(Rate);
+        piano.NoteOn(0, 33, 80);   // A1, 55 Hz: a harmonic 10th partial would be at 550 Hz
+        var audio = Render(piano, 1.2);
+
+        double tenth = Strongest(audio, 540, 570, 0.1, Rate / 20, Rate);
+        Assert.InRange(tenth, 553.0, 565.0);
+    }
+
+    [Fact]
+    public void A_high_note_has_the_soundboards_knock_under_it()
+    {
+        // C7's partials are all above 2 kHz; what sounds between 80 and 700 Hz just after the
+        // strike is the hammer's knock ringing the body modes.
+        var piano = new SynthPianoSampleProvider(Rate);
+        piano.NoteOn(0, 96, 100);
+        var audio = Render(piano, 0.3);
+
+        double low = BandEnergy(audio, 80, 700, 0.015, 0.06);
+        double all = BandEnergy(audio, 50, 6000, 0.015, 0.06);
+        double shareDb = 10 * Math.Log10(low / all);
+        Assert.True(shareDb > -24, $"no knock: the body band is {shareDb:F1} dB of the sound");
+    }
+
+    [Fact]
+    public void The_top_strings_have_no_dampers()
+    {
+        double After(int note, bool release)
+        {
+            var piano = new SynthPianoSampleProvider(Rate);
+            piano.NoteOn(0, note, 100);
+            Render(piano, 0.1);
+            if (release) piano.NoteOff(0, note);
+            return Rms(Render(piano, 0.4), Rate / 10, (int)(0.3 * Rate));
+        }
+
+        Assert.True(After(100, true) > 0.6 * After(100, false), "a top note is cut short by a damper it does not have");
+        Assert.True(After(72, true) < 0.4 * After(72, false), "a note below them is not damped");
+    }
+
+    [Fact]
+    public void The_same_key_struck_twice_is_never_quite_the_same()
+    {
+        var piano = new SynthPianoSampleProvider(Rate);
+        piano.NoteOn(0, 60, 100);
+        var first = Render(piano, 0.4);
+        piano.NoteOff(0, 60);
+        Render(piano, 2.5);
+        piano.NoteOn(0, 60, 100);
+        var second = Render(piano, 0.4);
+
+        double diff = 0, size = 0;
+        for (int i = 0; i < first.Length; i++)
+        {
+            diff += Math.Abs(first[i] - second[i]);
+            size += Math.Abs(first[i]);
+        }
+        Assert.True(diff > 0.05 * size, "two strikes are identical copies");
+        Assert.InRange(Db(first, 0.05, 0.4) - Db(second, 0.05, 0.4), -1.5, 1.5);
+    }
+
+    [Fact]
+    public void Two_pianos_played_alike_sound_alike()
+    {
+        float[] Play()
+        {
+            var piano = new SynthPianoSampleProvider(Rate);
+            piano.NoteOn(0, 48, 90);
+            piano.NoteOn(0, 64, 70);
+            return Render(piano, 0.5);
+        }
+
+        Assert.Equal(Play(), Play());
     }
 
     [Fact]
