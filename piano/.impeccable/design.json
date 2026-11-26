@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-10-27T21:47:00Z",
-  "title": "Design System: Piano MIDI Visualization",
+  "title": "Design System: Højte Piano",
   "provenance": {
     "source": "src/PianoMidiVisualizationApp/Themes/Dark.xaml, Views/HojtBadge.xaml, and docs/styles.css",
     "directionContract": ".impeccable/surfaces/src-pianomidivisualizationapp-mainwindow-xaml.md",

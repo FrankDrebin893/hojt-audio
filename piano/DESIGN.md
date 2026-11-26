@@ -1,5 +1,5 @@
 ---
-name: Piano MIDI Visualization
+name: Højte Piano
 description: A Windows desktop piano companion whose window is an instrument's front panel — brushed scarlet aluminium, a black OLED window, real ivory keys.
 colors:
   panel-scarlet: "#A8131C"
@@ -166,7 +166,7 @@ components:
 
 <!-- Provenance: recorded from the shipped artifact on 2026-10-20 (commits 9c2f246, 27ff8be and the full-panel commit after them, branch feature/app-design-concepts-1467dc). Direction: concept K, "Scarlet anodised", picked by the user from three rounds of hardware-display concepts (docs/design-concepts/Scarlet.dc.html; the live canvas is linked from docs/design-concepts/README.md). It replaced a phosphor-scope trial (commits 7e386eb, eaf7d4b), which replaced "piano character" (shipped 2026-09-28). The Impeccable sidecar, .impeccable/design.json, still describes piano character and needs regenerating. Product truth lives in PRODUCT.md and is not repeated here. -->
 
-# Design System: Piano MIDI Visualization
+# Design System: Højte Piano
 
 Platform note: this is a native WPF (.NET 10) app. The normative source is `src/PianoMidiVisualizationApp/Themes/Dark.xaml`: `Color.*` primitives, `Brush.*` role brushes built only from them, `Size.Readout.*`, and the control templates. The code-behind renderers (`PianoKeyboardControl`, `FallingNotesControl`, `TakeTimeline`, `CircleOfFifthsControl`, `GrandStaffControl`, `HaloKnob`) resolve those brushes by key and must keep doing so.
 

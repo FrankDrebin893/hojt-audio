@@ -1,4 +1,4 @@
-# Piano MIDI Visualization
+# Højte Piano
 
 A Windows desktop app for practising piano with a MIDI keyboard. It plays your keyboard through
 any SoundFont (`.sf2`) or SFZ piano with low-latency audio. As you play, it shows the keys you're
@@ -145,7 +145,7 @@ right-hand hardware deck holds the rotary volume and click knobs and panel keys.
 
 ## Download
 
-Get the latest `win-x64.zip` from the [project website](https://hojte.net/hojt-audio/piano/) or [GitHub Releases](https://github.com/FrankDrebin893/hojt-audio/releases?q=piano-v&expanded=true) (the `piano-v…` ones; the others are the HØJT DSP plugins), unzip it and run `PianoMidiVisualizationApp.exe`. It's self-contained, so no .NET install is needed. The app isn't code-signed yet, so Windows may show "Windows protected your PC" — click **More info → Run anyway**.
+Get the latest `win-x64.zip` from the [project website](https://hojte.net/hojt-audio/piano/) or [GitHub Releases](https://github.com/FrankDrebin893/hojt-audio/releases?q=piano-v&expanded=true) (the `piano-v…` ones; the others are the Højte DSP plugins), unzip it and run `PianoMidiVisualizationApp.exe`. It's self-contained, so no .NET install is needed. The app isn't code-signed yet, so Windows may show "Windows protected your PC" — click **More info → Run anyway**.
 
 ## Requirements
 
