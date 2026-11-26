@@ -33,8 +33,19 @@ fn test_process_allocates_nothing_with_midi_events() {
             ));
         }
     }
+    // Nothing in the queue is made on first use (a std `Mutex` is, on macOS): the very first program
+    // change of a fresh inbox, in the first block, is as free as the rest, with no window open
+    // and with one that waits to be woken (the wake thread's `unpark` is then on the path)
     let mut plugin = GuitarAmpPlugin::default();
     host::assert_process_allocates_nothing("Guitar Amp with MIDI", &mut plugin, 60, &events);
+    let mut plugin = GuitarAmpPlugin::default();
+    plugin.midi.attach(nih_plug_egui::egui::Context::default());
+    host::assert_process_allocates_nothing(
+        "Guitar Amp with MIDI and a window to wake",
+        &mut plugin,
+        60,
+        &events,
+    );
 }
 
 /// The standalone program changes the sample rate and the buffer size while the amp plays: its

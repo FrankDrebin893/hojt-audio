@@ -12,7 +12,7 @@
 //! The player's choice counts channels from 1, with 0 for Omni (`standalone::Prefs::midi_channel`).
 
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Mutex, OnceLock, Weak};
 use std::thread::Thread;
 
 use nih_plug::prelude::NoteEvent;
@@ -65,7 +65,10 @@ pub struct Program {
 #[derive(Default)]
 struct Wake {
     context: Mutex<Option<Context>>,
-    thread: Mutex<Option<Thread>>,
+    /// Set once, by `attach`, before any program change can ask for it. The audio thread only
+    /// reads it: an atomic load, with no lock and no lazy set-up, which a `Mutex` would have on
+    /// platforms whose mutex is made on first use
+    thread: OnceLock<Thread>,
 }
 
 /// The program changes on their way from the audio thread to the editor
@@ -112,12 +115,8 @@ impl MidiInbox {
         let packed = u32::from(program.channel) << 8 | u32::from(program.number);
         self.slots[written % QUEUE].store(packed, Ordering::Relaxed);
         self.written.store(written.wrapping_add(1), Ordering::Release);
-        // `try_lock`, so the audio thread never waits for the editor opening: a change that
-        // arrives in that instant is painted with the next thing that does
-        if let Ok(thread) = self.wake.thread.try_lock() {
-            if let Some(thread) = thread.as_ref() {
-                thread.unpark();
-            }
+        if let Some(thread) = self.wake.thread.get() {
+            thread.unpark();
         }
         true
     }
@@ -153,9 +152,10 @@ impl MidiInbox {
     /// The window opened with `context`: from now on a program change asks it to paint. The
     /// first call starts the thread that does the asking; it ends with the queue
     pub fn attach(&self, context: Context) {
-        *self.wake.context.lock().unwrap_or_else(|e| e.into_inner()) = Some(context);
-        let mut thread = self.wake.thread.lock().unwrap_or_else(|e| e.into_inner());
-        if thread.is_some() {
+        // Held to the end: only one call starts the thread
+        let mut held = self.wake.context.lock().unwrap_or_else(|e| e.into_inner());
+        *held = Some(context);
+        if self.wake.thread.get().is_some() {
             return;
         }
         let wake: Weak<Wake> = Arc::downgrade(&self.wake);
@@ -173,7 +173,7 @@ impl MidiInbox {
             }
         });
         if let Ok(spawned) = spawned {
-            *thread = Some(spawned.thread().clone());
+            let _ = self.wake.thread.set(spawned.thread().clone());
         }
     }
 }
@@ -181,9 +181,9 @@ impl MidiInbox {
 impl Drop for MidiInbox {
     fn drop(&mut self) {
         // Let the thread find the queue gone
-        let thread = self.wake.thread.lock().unwrap_or_else(|e| e.into_inner()).take();
+        let thread = self.wake.thread.get().cloned();
+        drop(std::mem::take(&mut self.wake));
         if let Some(thread) = thread {
-            drop(std::mem::take(&mut self.wake));
             thread.unpark();
         }
     }
