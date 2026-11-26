@@ -76,21 +76,6 @@ jobs:
       - name: Check the screenshots
         run: dotnet run --project piano/tools/readme-screenshots/ReadmeScreenshots.csproj -c Release -- --check
 
-      # TEMPORARY (PR 500): commit the CI-rendered settings scene to the PR branch, because the
-      # reference must be rendered on this runner, not on a PC. Removed in the next commit.
-      - name: Commit the settings scene drawn here
-        if: failure() && github.event_name == 'pull_request' && github.head_ref == 'claude/project-thread-qkgks6'
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@users.noreply.github.com"
-          Copy-Item site/piano/screenshots/settings.new.png "$env:RUNNER_TEMP/settings.png"
-          git fetch origin "${{ github.head_ref }}"
-          git checkout -B tmp FETCH_HEAD
-          Copy-Item "$env:RUNNER_TEMP/settings.png" site/piano/screenshots/settings.png -Force
-          git add site/piano/screenshots/settings.png
-          git commit -m "Piano: settings screenshot as drawn on CI for the Voicing row"
-          git push origin "HEAD:${{ github.head_ref }}"
-
       - name: Keep what the screenshots drew
         if: failure()
         uses: actions/upload-artifact@v7
