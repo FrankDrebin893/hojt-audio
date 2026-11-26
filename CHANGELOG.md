@@ -25,7 +25,8 @@ GitHub release.
   | Træ | Wood |
   | Smæld | Snap |
 
-  The factory preset that carried an amp's name carries the new one, too.
+  The factory presets that carried an amp's name carry the new one, too: Glød and Gnist are Glow and Spark, and
+  Tung og Klar is Heavy & Clear.
 - Two metal presets at the end of the list: Hamre, a tight, thick chug (Thunder with the Drive pedal and the
   compressor on, the gate shut as the note ends), and Fløjl, a big singing lead (Song the same way, for the
   ribbon microphone, which a preset does not store: pick it on the cabinet). No amp, pedal or cabinet changed.

@@ -12,7 +12,7 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   it: the stack is still one place in the order
 - **Amp 1 is always in the signal** (it has no switch). Amp 2 has `amp2_on`. With it off its
   stages are not run, the output is bit-identical to the single amp it was, it costs nothing,
-  and every factory preset (except "Tung og Clear") and every project from before opens with it off
+  and every factory preset (except "Heavy & Clear") and every project from before opens with it off
 - **The second slot uses the same stages and the same `AmpModel` constants** as the first (no
   `match amp` in the DSP, `tests/rules.rs`). It has its own dial smoothing and its own
   amp-switch fade (4.5 ms, switching at silence), and its model and dials are read into

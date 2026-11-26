@@ -541,7 +541,7 @@ pub static PRESETS: [Preset; 41] = [
     // chords keep their edge and the notes get a clear body and a glassy top. The second amp
     // is set up as Glas, with the top end let down so the two do not both bite
     Preset {
-        name: "Tung og Clear",
+        name: "Heavy & Clear",
         amp: Amp::Thunder,
         second: SecondPreset {
             on: ON,
