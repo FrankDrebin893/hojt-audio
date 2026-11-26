@@ -1,10 +1,10 @@
 # Højte Piano
 
-A Windows desktop app for practising piano with a MIDI keyboard. It plays your keyboard through
-any SoundFont (`.sf2`) or SFZ piano with low-latency audio. As you play, it shows the keys you're
-holding, the chord's name and Roman numeral, the notes on a grand staff and where the chord sits
-on the circle of fifths. You can also practise MIDI songs with falling notes, record takes, and
-teach the pedals and pads on your keyboard to run the app so your hands can stay on the keys.
+A Windows app for practising piano with a MIDI keyboard. It plays your keyboard through any
+SoundFont (`.sf2`) or SFZ piano. While you play, it shows the keys you are holding, the chord's
+name and Roman numeral, the notes on a grand staff and where the chord sits on the circle of
+fifths. It also plays MIDI songs as falling notes and records takes. The pedals and pads on your
+keyboard can be taught to run the app, so your hands stay on the keys.
 
 ![The main window in C major. A G7 chord over B is held; the recessed OLED display spanning the 61-key keyboard names it G7/B, V65, first inversion, drop 2 voicing. The grand staff, circle of fifths and chord strip follow it, out-of-key keys are dimmed on the keyboard, and the right-hand hardware panel holds the volume and click knobs and twelve rubber panel keys.](../site/piano/screenshots/main-window.png)
 
@@ -37,11 +37,11 @@ right-hand hardware deck holds the rotary volume and click knobs and panel keys.
   inversion, voicing (close, open, shell or drop 2), each note, and its interval above the root.
 - **Keys and scales**: pick a key centre and one of 12 scales: major, natural, harmonic and
   melodic minor, the five other modes, major and minor pentatonic, and blues. When a key is
-  selected, out-of-key white and black keys become transparent, while in-key keys carry a crisp
-  edge marker and the tonic stands out with a thick border, so scale degrees are clear at a glance.
+  selected, out-of-key white and black keys become transparent, in-key keys carry an edge marker
+  and the tonic has a thick border.
   Note names switch between sharps and flats to suit the key.
 - **Mute out-of-key**: out-of-key notes go silent but still light up and still count toward the
-  chord name, so you can hear the scale and see your mistakes.
+  chord name. You hear only the notes that fit the scale and see the ones that do not.
 - **Roman numerals**: the held chord's function in the key, with figured-bass inversions (V65,
   IVmaj7, viiø7).
 - **Grand staff**: the held notes in standard notation, spelled correctly for the key and shown
@@ -145,14 +145,14 @@ right-hand hardware deck holds the rotary volume and click knobs and panel keys.
 
 ## Download
 
-Get the latest `win-x64.zip` from the [project website](https://hojte.net/hojt-audio/piano/) or [GitHub Releases](https://github.com/FrankDrebin893/hojt-audio/releases?q=piano-v&expanded=true) (the `piano-v…` ones; the others are the Højte DSP plugins), unzip it and run `PianoMidiVisualizationApp.exe`. It's self-contained, so no .NET install is needed. The app isn't code-signed yet, so Windows may show "Windows protected your PC" — click **More info → Run anyway**.
+Get the latest `win-x64.zip` from the [project website](https://hojte.net/hojt-audio/piano/) or [GitHub Releases](https://github.com/FrankDrebin893/hojt-audio/releases?q=piano-v&expanded=true) (the `piano-v…` ones; the others are the Højte DSP plugins), unzip it and run `PianoMidiVisualizationApp.exe`. It is self-contained, so no .NET install is needed. The app is not code-signed yet, so Windows may show "Windows protected your PC". Click **More info**, then **Run anyway**.
 
 ## Requirements
 
 - Windows 10/11 (64-bit)
 - A MIDI keyboard (connected via USB or MIDI interface)
-- A SoundFont (.sf2) or SFZ (.sfz) piano — none is bundled. Free options include [GeneralUser GS](https://schristiancollins.com/generaluser.php), [FluidR3](https://github.com/musescore/MuseScore/tree/master/share/sound) or [Salamander Grand Piano](https://sfzinstruments.github.io/pianos/salamander)
-- (Optional) An ASIO driver — [ASIO4ALL](https://asio4all.org/) works as a universal option
+- A SoundFont (.sf2) or SFZ (.sfz) piano. None is bundled. Free options include [GeneralUser GS](https://schristiancollins.com/generaluser.php), [FluidR3](https://github.com/musescore/MuseScore/tree/master/share/sound) or [Salamander Grand Piano](https://sfzinstruments.github.io/pianos/salamander)
+- (Optional) An ASIO driver. [ASIO4ALL](https://asio4all.org/) works with most audio hardware
 - (Optional) A [Google Gemini API key](https://aistudio.google.com/apikey), for the AI Music Assistant
 
 ## Getting started
