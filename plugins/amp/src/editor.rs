@@ -24,6 +24,7 @@ use crate::lamps::{LampReading, LampView};
 use crate::looks;
 use crate::looper::{CountIn, LoopBars, LoopClick, LooperControl, State as LoopState};
 use crate::metronome::{BeatReading, ClickOut, Sound, TapTempo, TimeSignature, BPM_MAX, BPM_MIN};
+use crate::midi::MidiInbox;
 use crate::order::Zone;
 use crate::presets::{self, PRESETS};
 use crate::slots::{Block, Chain, EffectKind, Live, SlotParams};
@@ -916,7 +917,8 @@ pub(crate) struct View {
 }
 
 /// A plate open under the strip: configuration is a plate that opens from an icon or a display,
-/// and one is open at a time
+/// and one is open at a time. Only one plate is ever held, so the audio panel's size costs nothing
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum Open {
     /// The list of banks and presets, with Save, under the preset display
     Presets(Menu),
@@ -1242,8 +1244,10 @@ pub fn create(
     beats: Arc<BeatReading>,
     looper: Arc<LooperControl>,
     cab_loader: Arc<CabLoader>,
+    midi: Arc<MidiInbox>,
     async_executor: AsyncExecutor<GuitarAmpPlugin>,
 ) -> Option<Box<dyn Editor>> {
+    let opened_midi = midi.clone();
     let (opened_loader, opened_executor) = (cab_loader.clone(), async_executor.clone());
     let opened_reading = lamp_reading.clone();
     let opened_beats = beats.clone();
@@ -1273,6 +1277,10 @@ pub fn create(
             // asked, so it asks
             let ctx = egui_ctx.clone();
             opened_update.on_result(move || ctx.request_repaint());
+            // Program changes that came while no window was open are stale; from now on one
+            // asks this window to paint (ADR 0006)
+            opened_midi.clear();
+            opened_midi.attach(egui_ctx.clone());
             // What was clipped while the window was closed is not news
             view.lamps = LampView::new(&opened_reading);
             // The player may have renamed, moved or added presets in the folder since
@@ -1296,6 +1304,7 @@ pub fn create(
                 beats: &beats,
                 looper: &looper,
                 cab_loader: &cab_loader,
+                midi: &midi,
                 load_cabinet: &load_cabinet,
                 audio_host: standalone::host(),
                 update: &update,
@@ -1341,6 +1350,8 @@ struct Shared<'a> {
     /// The looper's buttons and what it says of itself
     looper: &'a LooperControl,
     cab_loader: &'a CabLoader,
+    /// Program changes from a MIDI footcontroller, which pick a preset of the bank showing
+    midi: &'a MidiInbox,
     /// Has the chosen cabinet read in the background
     load_cabinet: &'a dyn Fn(),
     /// The machine's audio, in the standalone program; a plugin in a DAW has none
@@ -1405,6 +1416,14 @@ fn draw(
             cab_loader: shared.cab_loader,
             load_cabinet: shared.load_cabinet,
         };
+        // A footcontroller's program change loads preset n of the bank showing, as a click does
+        // (before anything is drawn, so this frame shows it)
+        if !shared.midi.is_empty() {
+            let channel = standalone::launch().midi_channel;
+            shared.midi.drain(channel, |number| {
+                presets.load_program(usize::from(number), view);
+            });
+        }
         let tuning = params.tuner_on.value();
         if tuning {
             // The tuner takes the place of the preset display, plate and all

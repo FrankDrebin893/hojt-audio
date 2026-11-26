@@ -19,8 +19,8 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   output device's own rate, the default 512. ASIO still restarts (its driver cannot be opened again in the same
   process, tried on a Focusrite; `Prefs::changes_live`), and so does a new driver
   (`Prefs::same_driver`): Apply saves and starts the program again, as `Host::restart`; no host is installed in a DAW and
-  the editor then shows no Audio button. Eight rows: Driver, Input, Input channels, Output,
-  Output channels, Buffer, Sample rate, Test tone. Channels are the amp's stereo pair (the first
+  the editor then shows no Audio button. Ten rows: Driver, Input, Input channels, Output,
+  Output channels, Buffer, Sample rate, MIDI input, MIDI channel, Test tone. Channels are the amp's stereo pair (the first
   layout) out of the device's, counted from 1 (`--input-channel`/`--output-channel` of the fork's
   host; a device that changes puts them back to 1; `Host::channels` says how many the device
   has). The test tone is live, not part of Apply: `Host::set_test_tone` ->
@@ -45,3 +45,15 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   small print dropped below 32 px), never scaled from the page's picture; `tests/icon.rs` holds its sizes,
   its transparent surround and its sharp edges. Explorer may show the old icon from its cache after an
   update: `ie4uinit.exe -ClearIconCache`
+- MIDI (#479, milestone 1 of the footcontroller issue): the amp declares `MidiConfig::MidiCCs`, `process` hands each
+  `MidiProgramChange` to `midi.rs`'s `MidiInbox` (64 slots, one writer and one reader, no lock, no allocation; `no_alloc`
+  has a MIDI case) and the editor drains it at the top of each frame and loads preset `n` of the bank showing through
+  `PresetDisplay::load_program` (the loads a click makes, one `set_together`; past the end is ignored). The inbox wakes
+  the editor with a thread of its own that holds the window's egui context (egui's repaint request locks and may
+  allocate, so never from `process`; ADR 0006). The fork's standalone host parses program changes whatever `MIDI_INPUT`
+  says and opens its one midir port at start (`--midi-input NAME`, an unknown name makes it quit, so
+  `standalone::resolve` drops a port that is not plugged in) and cannot open another while it plays: a new MIDI input
+  restarts the program as a new driver does (`Prefs::changes_live`), the channel (`midi_channel`, 0 Omni, 1 to 16) is
+  read by the editor at each program change and applies live. Both are new `Prefs` keys, `midi_input` and
+  `midi_channel`. `main.rs` lists ports with midir (a dependency of the `standalone` feature, the version nih-plug uses).
+  MIDI opens in the fork whatever the audio driver is, so the `asio` build keeps it (not tried on a machine).

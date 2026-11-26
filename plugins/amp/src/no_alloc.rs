@@ -13,6 +13,41 @@ fn test_process_allocates_nothing() {
     host::assert_process_allocates_nothing("Guitar Amp", &mut GuitarAmpPlugin::default(), 200, &[]);
 }
 
+/// A footcontroller's program changes and control changes arrive as events (#479): `process`
+/// queues the program changes for the editor and allocates nothing, with a stream of them in every
+/// block, more than the queue holds, on every channel
+#[test]
+fn test_process_allocates_nothing_with_midi_events() {
+    use nih_plug::prelude::NoteEvent;
+    let mut events: Vec<(usize, NoteEvent<()>)> = Vec::new();
+    for block in 0..60 {
+        for i in 0..40u8 {
+            let timing = u32::from(i) * 3;
+            events.push((
+                block,
+                if i % 3 == 0 {
+                    NoteEvent::MidiCC { timing, channel: i % 16, cc: i, value: f32::from(i) / 40.0 }
+                } else {
+                    NoteEvent::MidiProgramChange { timing, channel: i % 16, program: i }
+                },
+            ));
+        }
+    }
+    // Nothing in the queue is made on first use (a std `Mutex` is, on macOS): the very first program
+    // change of a fresh inbox, in the first block, is as free as the rest, with no window open
+    // and with one that waits to be woken (the wake thread's `unpark` is then on the path)
+    let mut plugin = GuitarAmpPlugin::default();
+    host::assert_process_allocates_nothing("Guitar Amp with MIDI", &mut plugin, 60, &events);
+    let mut plugin = GuitarAmpPlugin::default();
+    plugin.midi.attach(nih_plug_egui::egui::Context::default());
+    host::assert_process_allocates_nothing(
+        "Guitar Amp with MIDI and a window to wake",
+        &mut plugin,
+        60,
+        &events,
+    );
+}
+
 /// The standalone program changes the sample rate and the buffer size while the amp plays: its
 /// host initialises the plugin again in the gap with no stream running (the fork's `reinit`, which
 /// calls `Plugin::initialize` with the new `BufferConfig`), then processes on. The work of

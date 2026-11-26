@@ -5,7 +5,8 @@ use super::*;
 pub(super) const SETTINGS_PAD: f32 = 16.0;
 pub(super) const SETTINGS_CAPTION_WIDTH: f32 = 130.0;
 pub(super) const SETTINGS_TAPE_WIDTH: f32 = 330.0;
-pub(super) const SETTINGS_ROW_HEIGHT: f32 = 34.0;
+// 32 so the standalone's ten audio rows (two of them MIDI's) and the cabinet's still fit the window
+pub(super) const SETTINGS_ROW_HEIGHT: f32 = 32.0;
 pub(super) const SETTINGS_NOTE_HEIGHT: f32 = 26.0;
 /// How often the settings plate asks whether the new audio devices have opened
 pub(super) const OPENING_POLL: std::time::Duration = std::time::Duration::from_millis(50);
