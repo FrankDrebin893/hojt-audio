@@ -5,7 +5,7 @@ Steinberg's SDK 2.3.4 (`changes.txt`). `scripts/build-standalones.sh` points `CP
 Windows, so the standalone programs offer ASIO beside WASAPI and JACK (cpal's `asio-sys` builds these files).
 
 **Licence.** Steinberg licenses the SDK from 2.3.4 under its proprietary ASIO license or, alternatively,
-under the GNU General Public License version 3 (`LICENSE.txt`, `README.md` of the SDK). HØJT DSP takes
+under the GNU General Public License version 3 (`LICENSE.txt`, `README.md` of the SDK). Højte DSP takes
 the GPLv3 alternative, the licence of this repository (`LICENSE`), and passes the SDK on under it.
 The proprietary agreement is not used. "ASIO" is a trademark of Steinberg Media Technologies GmbH.
 

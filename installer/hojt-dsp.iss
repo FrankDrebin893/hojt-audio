@@ -1,4 +1,4 @@
-﻿; The HØJT DSP installer for Windows (Inno Setup 6): all six plugins in one setup, built in CI by
+﻿; The Højte DSP installer for Windows (Inno Setup 6): all six plugins in one setup, built in CI by
 ; scripts/build-installer.sh from the bundles in target/bundled. Run by hand:
 ;   iscc /DAppVersion=0.3.0 installer\hojt-dsp.iss
 ; It installs for the whole machine (admin): VST3 to Common Files\VST3, CLAP to Common Files\CLAP,
@@ -37,14 +37,14 @@
 [Setup]
 ; Never change: it is how a newer setup finds the install it upgrades
 AppId={{4DFF5B9E-7443-46F9-9E6B-18D7A4889F6E}
-AppName=HØJT DSP
+AppName=Højte DSP
 AppVersion={#AppVersion}
 AppPublisher=Hojt Audio
 AppPublisherURL=https://hojte.net/hojt-audio/dsp/
 AppSupportURL=https://github.com/FrankDrebin893/hojt-audio/issues
 DefaultDirName={autopf}\Hojt Audio\HOJT DSP
 ; The Start menu folder of the standalones; without a name Inno makes one called "(Default)"
-DefaultGroupName=HØJT DSP
+DefaultGroupName=Højte DSP
 UsePreviousGroup=no
 DisableProgramGroupPage=yes
 DisableDirPage=auto
@@ -58,10 +58,10 @@ InfoBeforeFile={#StageDir}\NOTICE.md
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-UninstallDisplayName=HØJT DSP
+UninstallDisplayName=Højte DSP
 VersionInfoVersion={#NumericVersion}
 VersionInfoCompany=Hojt Audio
-VersionInfoProductName=HØJT DSP
+VersionInfoProductName=Højte DSP
 ; A running DAW holds the plugins open: Restart Manager asks to close it, and only a file that
 ; stays locked leaves a restart to offer (restartreplace below)
 CloseApplications=yes
@@ -142,12 +142,16 @@ Source: "{#BundleDir}\HojtGlassBells.clap"; DestDir: "{code:PluginDir|CLAP}"; Co
 Source: "{#StandaloneDir}\HojtGlassBells.exe"; DestDir: "{app}"; Components: bells\standalone; Flags: ignoreversion restartreplace uninsrestartdelete
 
 [Icons]
-Name: "{group}\HØJT Pitch Shifter"; Filename: "{app}\HojtPitchShifter.exe"; Components: pitch_shifter\standalone
-Name: "{group}\HØJT Drum Synth"; Filename: "{app}\HojtDrumSynth.exe"; Components: drums\standalone
-Name: "{group}\HØJT Guitar Amp"; Filename: "{app}\HojtGuitarAmp.exe"; Components: amp\standalone
-Name: "{group}\HØJT Bass Synth"; Filename: "{app}\HojtBassSynth.exe"; Components: bass\standalone
-Name: "{group}\HØJT Shimmer Pad"; Filename: "{app}\HojtShimmerPad.exe"; Components: pad\standalone
-Name: "{group}\HØJT Glass Bells"; Filename: "{app}\HojtGlassBells.exe"; Components: bells\standalone
+Name: "{group}\Højte Pitch Shifter"; Filename: "{app}\HojtPitchShifter.exe"; Components: pitch_shifter\standalone
+Name: "{group}\Højte Drum Synth"; Filename: "{app}\HojtDrumSynth.exe"; Components: drums\standalone
+Name: "{group}\Højte Guitar Amp"; Filename: "{app}\HojtGuitarAmp.exe"; Components: amp\standalone
+Name: "{group}\Højte Bass Synth"; Filename: "{app}\HojtBassSynth.exe"; Components: bass\standalone
+Name: "{group}\Højte Shimmer Pad"; Filename: "{app}\HojtShimmerPad.exe"; Components: pad\standalone
+Name: "{group}\Højte Glass Bells"; Filename: "{app}\HojtGlassBells.exe"; Components: bells\standalone
+
+[InstallDelete]
+; Up to 0.5.0 the Start menu folder was called HØJT DSP: an upgrade removes it, so the shortcuts are not listed twice
+Type: filesandordirs; Name: "{commonprograms}\HØJT DSP"
 
 [Code]
 // Common Files\<Sub>, or <PLUGINROOT>\<Sub> when the tests give one

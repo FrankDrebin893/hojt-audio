@@ -43,7 +43,7 @@ Without an argument, run the **end of session** steps. With `release <version>`,
 3. **Edit** with the page as it is: the same markup per plugin section, the same classes, the
    same order of headings. Keep the counts in the header, `<title>` and the meta and Open
    Graph descriptions right ("Three plugins") when a section is added or removed, and the
-   landing page's (`site/index.html`: its description, the board of plugins in the HØJT DSP
+   landing page's (`site/index.html`: its description, the board of plugins in the Højte DSP
    unit, and the redirect list of old anchors in its `<script>`).
 4. Go to the checks.
 

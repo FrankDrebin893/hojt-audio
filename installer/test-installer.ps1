@@ -107,8 +107,8 @@ function Assert-Standalones([string]$app, [string[]]$only, [string]$tag) {
         if ((Hash (Join-Path $StandaloneDir "$name.exe")) -ne (Hash $installed)) { Fail "${tag}: $name.exe differs from the build" }
         $shortcuts = Start-MenuShortcuts $name
         if ($shortcuts.Count -eq 0) { Fail "${tag}: $name has no Start menu entry" }
-        # In the suite's own folder (HØJT DSP), not one Inno names "(Default)" when the script names none
-        elseif (-not ($shortcuts | Where-Object { $_.Directory.Name -like 'H?JT DSP' })) { Fail "${tag}: $name's Start menu entry is in $($shortcuts[0].Directory.Name), not the suite's own folder" }
+        # In the suite's own folder (Højte DSP), not one Inno names "(Default)" when the script names none
+        elseif (-not ($shortcuts | Where-Object { $_.Directory.Name -like 'H?jte DSP' })) { Fail "${tag}: $name's Start menu entry is in $($shortcuts[0].Directory.Name), not the suite's own folder" }
     }
 }
 function Assert-No-Standalones([string]$app, [string[]]$only, [string]$tag) {
@@ -141,7 +141,7 @@ try {
     if (-not $fileVersion -or -not $fileVersion.StartsWith($Version.Split('-')[0])) {
         Fail "the installer's file version is '$fileVersion', Cargo.toml says '$Version'"
     }
-    if (Test-Path $UninstallKey) { throw 'A HOJT DSP install is already registered on this machine: the test would replace it. Run it on a runner.' }
+    if (Test-Path $UninstallKey) { throw 'A Højte DSP install is already registered on this machine: the test would replace it. Run it on a runner.' }
 
     # 1 and 2. Clean install, then uninstall
     Write-Host '== Clean install'

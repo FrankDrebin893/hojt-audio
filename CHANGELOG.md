@@ -5,6 +5,13 @@ GitHub release.
 
 ## Unreleased
 
+### All plugins
+
+- Renamed from HØJT to Højte Audio: the plugins are Højte DSP in the installer, its Start menu folder and
+  shortcuts, the release notes, the README and the page. The name a DAW lists the plugins under (Hojt Audio), their
+  names inside it and the `.vst3` and `.clap` file names are unchanged, so saved projects open as before and an
+  update replaces the old install in place.
+
 ### Guitar Amp
 
 - The twelve amps have English names, so no name needs a Danish letter. Nothing else about them changed:

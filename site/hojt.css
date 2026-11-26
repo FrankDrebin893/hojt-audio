@@ -1,4 +1,4 @@
-/* HØJT: the look every page of the site shares. The colours and fonts are the plugins' own
+/* Højte: the look every page of the site shares. The colours and fonts are the plugins' own
    (crates/suite_common/src/ui/theme.rs): a dark bench, silk print, the orange of the Ø, and one
    paint per product. A page adds only what is its own, in its own stylesheet. */
 @font-face {

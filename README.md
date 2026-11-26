@@ -1,10 +1,10 @@
-# HØJT Audio
+# Højte Audio
 
-HØJT is Danish for loud, and for high. Two things are made here:
+Two things are made here:
 
-- **HØJT DSP**: free audio plugins for guitar, drums, bass and keys, each drawn as a
+- **Højte DSP**: free audio plugins for guitar, drums, bass and keys, each drawn as a
   stompbox. VST3 and CLAP, for Windows, macOS and Linux. The rest of this page is about them.
-- **[Piano MIDI Visualization](piano/)**: a free Windows app for practising piano with a MIDI
+- **[Højte Piano](piano/)**: a free Windows app for practising piano with a MIDI
   keyboard, which names the chords under your hands as you play
   ([its page](https://hojte.net/hojt-audio/piano/)).
 
@@ -18,7 +18,7 @@ HØJT is Danish for loud, and for high. Two things are made here:
 | [![The Drum Synth](site/img/drum-synth.png)](https://hojte.net/hojt-audio/dsp/#drum-synth) | [![The Pitch Shifter](site/img/pitch-shifter.png)](https://hojte.net/hojt-audio/dsp/#pitch-shifter) | [![The Bass Synth](site/img/bass-synth.png)](https://hojte.net/hojt-audio/dsp/#bass-synth) |
 | [![The Shimmer Pad](site/img/shimmer-pad.png)](https://hojte.net/hojt-audio/dsp/#shimmer-pad) | [![The Glass Bells](site/img/glass-bells.png)](https://hojte.net/hojt-audio/dsp/#glass-bells) | |
 
-## The HØJT DSP plugins
+## The Højte DSP plugins
 
 **Guitar Amp** (`plugins/amp`). A whole rig: four amps of our own design, each with its own
 cabinet (Clear: clean, Roar: crunch, Thunder: high gain, Glow: warm, at the edge of breakup), and
@@ -96,7 +96,7 @@ changed in each release.
 ## Licence
 
 Copyright (c) 2026 Rasmus Højte. Free software under the
-[GNU General Public License](LICENSE), version 3 or later. The name HØJT and its logo are not
+[GNU General Public License](LICENSE), version 3 or later. The name Højte and its logo are not
 part of that licence, and third-party components keep their own: see [NOTICE.md](NOTICE.md).
 The piano viz in `piano/` is under the [MIT licence](piano/LICENSE), with its own
 [third-party notices](piano/THIRD-PARTY-NOTICES.txt).

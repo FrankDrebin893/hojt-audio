@@ -1,6 +1,6 @@
 ---
-name: HØJT site
-description: The public page of HØJT (hojte.net/hojt-audio/), a dark workbench where the products are laid out under their own paint, printed like the plugins' pedals.
+name: Højte site
+description: The public page of Højte (hojte.net/hojt-audio/), a dark workbench where the products are laid out under their own paint, printed like the plugins' pedals.
 colors:
   bench: "#121110"
   panel: "#1C1A18"
@@ -40,7 +40,7 @@ layout:
   phone-break: "560px"
 ---
 
-# Design System: HØJT site
+# Design System: Højte site
 
 The site's source of truth for its look. `site/hojt.css` holds the tokens as CSS custom
 properties; this file holds why they are what they are, the rules a page is checked against and
@@ -60,7 +60,7 @@ The renders of the pedals and screenshots of the app are the best thing the site
 be the biggest thing on a page.
 
 The danger: near-black with a single bright accent is one of the looks AI tools now default to.
-What keeps HØJT clear of it is the six paints, the halftone renders and the printed labels. When
+What keeps Højte clear of it is the six paints, the halftone renders and the printed labels. When
 in doubt, add more of the product, not more of the chrome.
 
 ## Colors
