@@ -98,5 +98,5 @@ changed in each release.
 Copyright (c) 2026 Rasmus Højte. Free software under the
 [GNU General Public License](LICENSE), version 3 or later. The name Højte and its logo are not
 part of that licence, and third-party components keep their own: see [NOTICE.md](NOTICE.md).
-The piano viz in `piano/` is under the [MIT licence](piano/LICENSE), with its own
+Højte Piano, in `piano/`, is under the [MIT licence](piano/LICENSE), with its own
 [third-party notices](piano/THIRD-PARTY-NOTICES.txt).
