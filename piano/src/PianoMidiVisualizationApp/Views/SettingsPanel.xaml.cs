@@ -1,7 +1,7 @@
 using System.ComponentModel;
-using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using PianoMidiVisualizationApp.Audio;
 using PianoMidiVisualizationApp.ViewModels;
 
 namespace PianoMidiVisualizationApp.Views;
@@ -44,7 +44,7 @@ public partial class SettingsPanel : UserControl
             return;
 
         string path = _subscribedVm.Settings.SoundFontPath;
-        if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+        if (!string.IsNullOrWhiteSpace(path) && BuiltInPiano.Exists(path))
         {
             if (_subscribedVm.IsAudioRunning || !string.IsNullOrWhiteSpace(_subscribedVm.Settings.SelectedAudioDriver))
             {

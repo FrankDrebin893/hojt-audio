@@ -105,6 +105,7 @@ GitHub release.
   sampled concert grand: two slightly detuned strings per note, slightly sharp partials, a hammer thump, and
   harder playing is louder and brighter. The sustain pedal works. Your own `.sf2` and `.sfz` pianos are used
   as before, and the Voicing can sit on top of either.
+  Picking it in the list while audio is running switches to it at once, like picking a file does.
 
 ## 0.5.0
 
