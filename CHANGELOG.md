@@ -95,6 +95,10 @@ GitHub release.
 - The piano viz is now called Højte Piano (formerly Piano MIDI Visualization): in its window title and
   title bar, its README and its page. The downloads, the `piano-v` release names and the program's file name
   are unchanged.
+- A **Stage grand** voicing. Settings has a new **Voicing** row: Natural plays your soundbank as it is, Stage
+  grand shapes it like a stage piano's grand (less low-mid, more attack and air, a gentle compressor to even out
+  your playing). It sits on top of whichever `.sf2` or `.sfz` piano you have loaded, so no sound is added to the
+  app, and it is kept between launches. The metronome click is not voiced.
 
 ## 0.5.0
 

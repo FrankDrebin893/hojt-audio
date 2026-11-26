@@ -60,6 +60,8 @@
                     <RowDefinition Height="26"/>
                     <RowDefinition Height="8"/>
                     <RowDefinition Height="26"/>
+                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="26"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="88"/>
@@ -179,6 +181,15 @@
                                  AutomationProperties.Name="Google Gemini API key"
                                  ToolTip="Your Google Gemini API key, for the AI Music Assistant. Your messages, the chord you hold, the key and your progression are sent to Google."/>
                 </StackPanel>
+
+                <!-- Row 4: Voicing -->
+                <TextBlock Grid.Row="8" Grid.Column="0" Text="Voicing" Style="{StaticResource Style.SettingsLabel}"/>
+                <ComboBox Grid.Row="8" Grid.Column="1" Width="190" Height="26" HorizontalAlignment="Left"
+                          ItemsSource="{Binding Settings.VoicingOptions}"
+                          DisplayMemberPath="Name" SelectedValuePath="Value"
+                          SelectedValue="{Binding Settings.Voicing}"
+                          ToolTip="Natural plays the soundbank as it is. Stage grand makes it brighter and tighter, with less low-mid and a gentle compressor, like a stage piano in a mix."
+                          AutomationProperties.Name="Voicing"/>
             </Grid>
 
             <!-- ================= Column 1: Soundbank Library ================= -->
