@@ -222,5 +222,5 @@ jobs:
         run: |
           ls -l dist
           gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.exe dist/*.pkg dist/SHA256SUMS.txt \
-            --title "HØJT DSP ${GITHUB_REF_NAME#v}" \
+            --title "Højte DSP ${GITHUB_REF_NAME#v}" \
             --notes-file notes.md

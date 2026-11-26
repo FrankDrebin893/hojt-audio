@@ -1,6 +1,6 @@
 ---
 name: release
-description: Finish and ship a HØJT DSP release - take the draft release pull request through its readiness checklist yourself, then, on "ship it", merge and tag. Use when a release/<version> pull request exists, or when cutting a plugin version by hand (the piano viz has its own, /piano-release).
+description: Finish and ship a Højte DSP release - take the draft release pull request through its readiness checklist yourself, then, on "ship it", merge and tag. Use when a release/<version> pull request exists, or when cutting a plugin version by hand (the piano viz has its own, /piano-release).
 argument-hint: <version, e.g. 0.5.0> [finish | ship]
 ---
 

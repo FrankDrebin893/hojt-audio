@@ -68,7 +68,7 @@ for name in $names; do
 
   cat > "$stage/INSTALL.txt" <<EOF
 $name
-HOJT Audio - https://github.com/FrankDrebin893/hojt-audio
+Højte Audio - https://github.com/FrankDrebin893/hojt-audio
 
 Install
 -------
@@ -108,7 +108,7 @@ if [ "$system" = linux ]; then
   cp "$root/installer/linux/install.sh" "$suite/install.sh"
   chmod +x "$suite/install.sh"
   cat > "$suite/INSTALL.txt" <<EOF
-HOJT DSP - https://github.com/FrankDrebin893/hojt-audio
+Højte DSP - https://github.com/FrankDrebin893/hojt-audio
 
 Install
 -------

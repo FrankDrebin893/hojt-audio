@@ -26,7 +26,7 @@ title() {
 
 echo '<?xml version="1.0" encoding="utf-8"?>'
 echo '<installer-gui-script minSpecVersion="2">'
-echo '    <title>HØJT DSP</title>'
+echo '    <title>Højte DSP</title>'
 echo '    <welcome file="welcome.html" mime-type="text/html"/>'
 echo '    <license file="license.txt" mime-type="text/plain"/>'
 echo '    <options customize="always" require-scripts="false" hostArchitectures="x86_64,arm64"/>'
