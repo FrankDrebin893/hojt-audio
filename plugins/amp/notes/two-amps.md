@@ -12,7 +12,7 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   it: the stack is still one place in the order
 - **Amp 1 is always in the signal** (it has no switch). Amp 2 has `amp2_on`. With it off its
   stages are not run, the output is bit-identical to the single amp it was, it costs nothing,
-  and every factory preset (except "Tung og Klar") and every project from before opens with it off
+  and every factory preset (except "Tung og Clear") and every project from before opens with it off
 - **The second slot uses the same stages and the same `AmpModel` constants** as the first (no
   `match amp` in the DSP, `tests/rules.rs`). It has its own dial smoothing and its own
   amp-switch fade (4.5 ms, switching at silence), and its model and dials are read into
@@ -24,16 +24,16 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
 - **Blend law:** the first amp's share is `(1 - blend)^0.6` and the second's `blend^0.6`
   (`second::BLEND_LAW`), exactly 1 and 0 at the ends, so Blend 0 equals amp 1 alone and Blend 1
   amp 2 alone, to the bit (the other path still runs). Linear dipped 2.8 LU in the middle for
-  Torden + Klar (a heavy and a clean amp are largely not the same signal, so their powers add);
-  equal power (0.5) is flat for them but bulges 3 dB for two similar amps and put Brøl + Glød
+  Thunder + Clear (a heavy and a clean amp are largely not the same signal, so their powers add);
+  equal power (0.5) is flat for them but bulges 3 dB for two similar amps and put Roar + Glow
   over the safety clip's knee. Two identical amps therefore add up to +2.4 dB at the middle.
   `blend_report` (`cargo test -p amp --release blend_report -- --ignored --nocapture`) prints
   the loudness of five pairs at five Blends and holds the law to it: every pair at 0.5 within 2
-  LU of -13 LUFS, Torden + Klar within 1 LU across 0.2 to 0.8, every pair under the knee
+  LU of -13 LUFS, Thunder + Clear within 1 LU across 0.2 to 0.8, every pair under the knee
 - **Switching amp 2** (on or off, or its model) clicks no more than switching amp 1; tuner and
   bypass act on the whole rig. Dial memory: `amp2-dials` keeps amp 2's dials per amp, as
   `amp-dials` does for amp 1
-- **Cost** (`stage_report`, Torden Gain 10 and everything on, plus Klar at Gain 10 at Blend 0.5
+- **Cost** (`stage_report`, Thunder Gain 10 and everything on, plus Clear at Gain 10 at Blend 0.5
   as amp 2, measured in #203; `whole, 2` is both amps on): `whole` 3.0 to 3.5 % of a core at
   48 kHz, both amps on 4.0 to 5.1 % at 48 kHz, 6.2 to 6.5 % at 96 kHz and 14.2 % at 192 kHz,
   within the 8 % limit at 48 kHz. The spec's estimate for amp 2 alone was 2.8 % at 48 kHz; the

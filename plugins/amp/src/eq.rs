@@ -755,7 +755,7 @@ mod tests {
         }
     }
 
-    /// Renders for listening: a clean riff through Klar and a high-gain riff through Torden,
+    /// Renders for listening: a clean riff through Clear and a high-gain riff through Thunder,
     /// with the EQ off, Low cut, Mid pushed and High lifted, behind the cabinet and, for the
     /// high-gain riff, Low cut in front of the amp too, as 48 kHz stereo WAV files in
     /// target/renders (amp_eq_*.wav)
@@ -781,7 +781,7 @@ mod tests {
             jobs.push((
                 format!("clean_{name}"),
                 &clean,
-                crate::Amp::Klar,
+                crate::Amp::Clear,
                 0.35,
                 eq,
                 ChainOrder::default(),
@@ -789,7 +789,7 @@ mod tests {
             jobs.push((
                 format!("highgain_{name}"),
                 &riff,
-                crate::Amp::Torden,
+                crate::Amp::Thunder,
                 0.7,
                 eq,
                 ChainOrder::default(),
@@ -798,7 +798,7 @@ mod tests {
         jobs.push((
             "highgain_low_cut_in_front".to_string(),
             &riff,
-            crate::Amp::Torden,
+            crate::Amp::Thunder,
             0.7,
             variants[1].1,
             in_front,

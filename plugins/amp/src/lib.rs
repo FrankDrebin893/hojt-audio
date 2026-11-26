@@ -1316,7 +1316,7 @@ mod tests {
             (false, 5.0, 0.5)
         );
         assert!(!settings.delay.on && !settings.reverb.on && !settings.tuner_on);
-        assert_eq!(settings.amp, Amp::Brol);
+        assert_eq!(settings.amp, Amp::Roar);
         assert_eq!(
             (settings.in_gain_db, settings.gate_thresh_db, settings.gate_release_ms),
             (0.0, -60.0, 100.0)

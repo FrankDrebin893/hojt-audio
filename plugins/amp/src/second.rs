@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 /// to this power. 1.0 would be a linear blend, which dips 2.8 LU in the middle for a heavy amp
 /// and a clean one (they are largely not the same signal: their powers add, and each is
 /// half); 0.5 is equal power, which is flat for them but adds 3 dB at the middle for two
-/// amps that are largely the same, and lets the chords of Brøl and Glød over the safety
+/// amps that are largely the same, and lets the chords of Roar and Glow over the safety
 /// clip's knee. This is between the two, and `blend_report` holds it to both. Exactly 1 and
 /// 0 at the ends of the dial
 pub const BLEND_LAW: f32 = 0.6;
@@ -47,13 +47,13 @@ impl SecondSettings {
     }
 }
 
-/// What the parameters start with. Klar is the clean one, which is what the heavy amp is
+/// What the parameters start with. Clear is the clean one, which is what the heavy amp is
 /// paired with
 impl Default for SecondSettings {
     fn default() -> Self {
         Self {
             on: false,
-            amp: Amp::Klar,
+            amp: Amp::Clear,
             speaker: None,
             gain: 0.5,
             bass: 0.5,

@@ -360,7 +360,7 @@ mod tests {
         let dir = test_dir("loader");
         write_ir_wav(
             &dir.join("good.wav"),
-            &whole_response(Amp::Brol, 48000.0, 0.02, 0.5),
+            &whole_response(Amp::Roar, 48000.0, 0.02, 0.5),
             1,
             16,
             false,

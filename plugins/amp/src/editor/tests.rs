@@ -417,14 +417,14 @@ fn test_sixteen_blocks_scroll_in_the_smallest_window() {
     line_harness(width, height, &params, &setter, 1.0e6).0.snapshot("line_scrolled_end");
 }
 
-// The longest chain there is: sixteen blocks (and the gate in front of them) and both amps on (Torden and Klar), in the window
+// The longest chain there is: sixteen blocks (and the gate in front of them) and both amps on (Thunder and Clear), in the window
 // that shows them whole and in the smallest one scrolled to the amps. Both lanes stay readable
 // at the least zoom, and the line at rest still asks for no repaint
 #[test]
 #[cfg(target_os = "linux")]
 fn test_sixteen_blocks_and_both_amps_look_as_they_did() {
     let params = GuitarAmpParams {
-        amp: EnumParam::new("Amp", Amp::Torden),
+        amp: EnumParam::new("Amp", Amp::Thunder),
         amp2_on: BoolParam::new("Amp 2", true),
         ..GuitarAmpParams::default()
     };
@@ -596,13 +596,13 @@ fn test_a_line_at_rest_asks_for_no_repaint() {
     assert!(delays.iter().all(|delay| *delay == std::time::Duration::MAX), "{delays:?}");
 }
 
-// The second amp on beside the first: Torden and Klar, each through a cabinet of its own
-// (Torden's own, Klar through a 1x15), a Blend of 5.0 and the amps on their way
+// The second amp on beside the first: Thunder and Clear, each through a cabinet of its own
+// (Thunder's own, Clear through a 1x15), a Blend of 5.0 and the amps on their way
 #[test]
 #[cfg(target_os = "linux")]
 fn test_the_second_amp_looks_as_it_did() {
     let params = GuitarAmpParams {
-        amp: EnumParam::new("Amp", Amp::Torden),
+        amp: EnumParam::new("Amp", Amp::Thunder),
         amp2_on: BoolParam::new("Amp 2", true),
         ..GuitarAmpParams::default()
     };
@@ -3097,7 +3097,7 @@ fn test_a_click_on_each_card_picks_that_amp_for_that_lane_and_leaves_the_other_a
 #[test]
 fn test_the_cards_say_which_lane_plays_each_amp_and_outline_the_one_of_their_lane() {
     let params =
-        GuitarAmpParams { amp: EnumParam::new("Amp", Amp::Torden), ..GuitarAmpParams::default() };
+        GuitarAmpParams { amp: EnumParam::new("Amp", Amp::Thunder), ..GuitarAmpParams::default() };
     let (one, two) = (params.amp.value(), params.amp2.value());
     let cards = drawer::amp_cards(&params, 0);
     assert_eq!(cards.len(), Amp::ALL.len());
@@ -3250,7 +3250,7 @@ fn test_the_amp_drawer_looks_as_it_did() {
 #[cfg(target_os = "linux")]
 fn test_the_amp_drawer_for_the_second_lane_looks_as_it_did() {
     let params = GuitarAmpParams {
-        amp2: EnumParam::new("Amp 2", Amp::Torden),
+        amp2: EnumParam::new("Amp 2", Amp::Thunder),
         ..GuitarAmpParams::default()
     };
     let host = NoHost;
@@ -3668,7 +3668,7 @@ fn test_the_cabinet_drawer_looks_as_it_did() {
 #[cfg(target_os = "linux")]
 fn test_the_cabinet_drawer_for_the_second_lane_looks_as_it_did() {
     let params = GuitarAmpParams {
-        amp2: EnumParam::new("Amp 2", Amp::Torden),
+        amp2: EnumParam::new("Amp 2", Amp::Thunder),
         ..GuitarAmpParams::default()
     };
     params.cabinet_second.put(crate::amp::model::speaker_index("4x12-mid"));

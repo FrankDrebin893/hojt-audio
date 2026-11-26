@@ -40,7 +40,7 @@ pub struct SecondPreset {
 // The second amp off, with its choice, dials and Blend where the parameters start: what
 // every preset from before there were two amps holds (`SecondSettings::default`)
 const NO_SECOND: SecondPreset =
-    SecondPreset { on: OFF, amp: Amp::Klar, dials: [5.0; 6], blend: 5.0 };
+    SecondPreset { on: OFF, amp: Amp::Clear, dials: [5.0; 6], blend: 5.0 };
 
 pub struct Preset {
     pub name: &'static str,
@@ -99,7 +99,7 @@ const USUAL_ORDER: &[&str] = &[
 pub static PRESETS: [Preset; 41] = [
     Preset {
         name: "Init",
-        amp: Amp::Brol,
+        amp: Amp::Roar,
         second: NO_SECOND,
         dials: [5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
         gate: (ON, -60.0, 100.0),
@@ -112,11 +112,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Klar. Glassy clean: below the point where the stages bend, where the bright lift is
+    // Clear. Glassy clean: below the point where the stages bend, where the bright lift is
     // strongest, the top end up and a little off the amp's full low end. A short room
     Preset {
         name: "Glas",
-        amp: Amp::Klar,
+        amp: Amp::Clear,
         second: NO_SECOND,
         dials: [3.5, 4.5, 4.5, 6.0, 6.5, 5.0],
         gate: (ON, -66.0, 250.0),
@@ -129,11 +129,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Klar. Warm clean for the neck pickup: mids filled in against the amp's scoop, treble
+    // Clear. Warm clean for the neck pickup: mids filled in against the amp's scoop, treble
     // and presence down, a darker microphone
     Preset {
         name: "Varm",
-        amp: Amp::Klar,
+        amp: Amp::Clear,
         second: NO_SECOND,
         dials: [4.0, 5.0, 6.5, 3.5, 3.0, 5.5],
         gate: (ON, -66.0, 250.0),
@@ -146,11 +146,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Klar. Ambient: clean, long repeats into a long tail. The gate stays on so the effects
+    // Clear. Ambient: clean, long repeats into a long tail. The gate stays on so the effects
     // can fall idle, but low and slow so it does not cut a note that fades
     Preset {
         name: "Tåge",
-        amp: Amp::Klar,
+        amp: Amp::Clear,
         second: NO_SECOND,
         dials: [3.0, 4.5, 5.0, 5.5, 5.5, 4.6],
         gate: (ON, -72.0, 500.0),
@@ -163,11 +163,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Klar. Edge of breakup: the amp where its stages start to bend, and the drive pedal as
+    // Clear. Edge of breakup: the amp where its stages start to bend, and the drive pedal as
     // the overdrive in front, so picking harder is what distorts
     Preset {
-        name: "Glød",
-        amp: Amp::Klar,
+        name: "Glow",
+        amp: Amp::Clear,
         second: NO_SECOND,
         dials: [6.5, 4.5, 6.0, 5.5, 5.0, 5.0],
         gate: (ON, -62.0, 150.0),
@@ -180,11 +180,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Brøl. Cleaned up: the bottom of the Gain dial, where every stage is turned down, with
+    // Roar. Cleaned up: the bottom of the Gain dial, where every stage is turned down, with
     // Master at the centre so pick attacks do not push the power stage
     Preset {
         name: "Kobber",
-        amp: Amp::Brol,
+        amp: Amp::Roar,
         second: NO_SECOND,
         dials: [1.5, 5.5, 5.5, 6.0, 6.0, 4.3],
         gate: (ON, -64.0, 200.0),
@@ -197,10 +197,10 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Brøl. Rhythm crunch: a little past the centre of the Gain dial, mids forward, dry
+    // Roar. Rhythm crunch: a little past the centre of the Gain dial, mids forward, dry
     Preset {
         name: "Grus",
-        amp: Amp::Brol,
+        amp: Amp::Roar,
         second: NO_SECOND,
         dials: [6.0, 5.0, 6.5, 5.5, 5.5, 4.2],
         gate: (ON, -58.0, 120.0),
@@ -213,11 +213,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Brøl. Lead: high on the Gain dial with the pedal pushing it, less bass into it, mids
+    // Roar. Lead: high on the Gain dial with the pedal pushing it, less bass into it, mids
     // up to carry single notes, a darker microphone and one delay behind
     Preset {
         name: "Flamme",
-        amp: Amp::Brol,
+        amp: Amp::Roar,
         second: NO_SECOND,
         dials: [8.0, 4.5, 7.5, 5.5, 5.0, 4.0],
         gate: (ON, -56.0, 200.0),
@@ -230,12 +230,12 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Torden. Tight modern rhythm: the pedal as a boost (Drive low, Level high), which cuts
+    // Thunder. Tight modern rhythm: the pedal as a boost (Drive low, Level high), which cuts
     // the lows going into the amp. Gain no higher than it needs: the amp is fully squeezed
     // from the centre of the dial. A fast gate
     Preset {
         name: "Stram",
-        amp: Amp::Torden,
+        amp: Amp::Thunder,
         second: NO_SECOND,
         dials: [5.5, 4.5, 5.0, 6.0, 6.0, 4.5],
         gate: (ON, -56.0, 50.0),
@@ -248,11 +248,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Torden. Scooped and heavier: mids down, bass and treble up (which deepens the scoop),
+    // Thunder. Scooped and heavier: mids down, bass and treble up (which deepens the scoop),
     // more gain, more thump from the cabinet
     Preset {
         name: "Granit",
-        amp: Amp::Torden,
+        amp: Amp::Thunder,
         second: NO_SECOND,
         dials: [7.5, 6.5, 3.0, 6.5, 6.5, 5.3],
         gate: (ON, -57.0, 60.0),
@@ -265,11 +265,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Torden. Palm mutes in a drop tuning: the hardest boost and the brightest pedal, bass
+    // Thunder. Palm mutes in a drop tuning: the hardest boost and the brightest pedal, bass
     // down, the cabinet's resonance well down so the low roots do not smear, the fastest gate
     Preset {
         name: "Dyb",
-        amp: Amp::Torden,
+        amp: Amp::Thunder,
         second: NO_SECOND,
         dials: [6.0, 4.0, 5.5, 6.0, 6.5, 4.3],
         gate: (ON, -57.0, 40.0),
@@ -282,11 +282,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Torden. Lead: mids back up, a darker microphone, a slower gate that lets notes ring,
+    // Thunder. Lead: mids back up, a darker microphone, a slower gate that lets notes ring,
     // a delay and a little reverb
     Preset {
         name: "Lyn",
-        amp: Amp::Torden,
+        amp: Amp::Thunder,
         second: NO_SECOND,
         dials: [7.0, 5.0, 6.5, 5.5, 5.5, 4.6],
         gate: (ON, -57.0, 180.0),
@@ -302,11 +302,11 @@ pub static PRESETS: [Preset; 41] = [
     // The presets from here on use the pedals that came with the board that can be
     // rearranged. New ones go at the end: a project remembers its preset by its number.
     //
-    // Klar. Clean with the compressor in front and a slow chorus behind the cabinet, where
+    // Clear. Clean with the compressor in front and a slow chorus behind the cabinet, where
     // it is wide
     Preset {
         name: "Rav",
-        amp: Amp::Klar,
+        amp: Amp::Clear,
         second: NO_SECOND,
         dials: [3.5, 4.5, 5.0, 6.0, 6.0, 3.5],
         gate: (ON, -66.0, 250.0),
@@ -319,10 +319,10 @@ pub static PRESETS: [Preset; 41] = [
         mods: [(ON, 0.8, 55.0), (OFF, 0.5, 50.0), (OFF, 0.3, 50.0), (OFF, 5.0, 50.0)],
         order: USUAL_ORDER,
     },
-    // Klar. Warm clean with a tremolo and a longer room behind it
+    // Clear. Warm clean with a tremolo and a longer room behind it
     Preset {
         name: "Puls",
-        amp: Amp::Klar,
+        amp: Amp::Clear,
         second: NO_SECOND,
         dials: [4.5, 5.0, 5.5, 5.0, 4.5, 7.0],
         gate: (ON, -66.0, 250.0),
@@ -335,11 +335,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: [(OFF, 0.8, 50.0), (OFF, 0.5, 50.0), (OFF, 0.3, 50.0), (ON, 5.5, 60.0)],
         order: USUAL_ORDER,
     },
-    // Brøl. Crunch with the phaser in front of the amp, where its sweep is clipped with
+    // Roar. Crunch with the phaser in front of the amp, where its sweep is clipped with
     // the guitar and moves the grit
     Preset {
         name: "Hvirvel",
-        amp: Amp::Brol,
+        amp: Amp::Roar,
         second: NO_SECOND,
         dials: [5.5, 5.0, 6.0, 5.5, 5.5, 4.5],
         gate: (ON, -58.0, 150.0),
@@ -352,10 +352,10 @@ pub static PRESETS: [Preset; 41] = [
         mods: [(OFF, 0.8, 50.0), (ON, 0.5, 60.0), (OFF, 0.3, 50.0), (OFF, 5.0, 50.0)],
         order: USUAL_ORDER,
     },
-    // Torden. Lead with a slow flanger behind the cabinet and one delay
+    // Thunder. Lead with a slow flanger behind the cabinet and one delay
     Preset {
         name: "Sus",
-        amp: Amp::Torden,
+        amp: Amp::Thunder,
         second: NO_SECOND,
         dials: [6.5, 5.0, 5.5, 5.5, 5.5, 4.5],
         gate: (ON, -57.0, 120.0),
@@ -368,11 +368,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: [(OFF, 0.8, 50.0), (OFF, 0.5, 50.0), (ON, 0.25, 50.0), (OFF, 5.0, 50.0)],
         order: USUAL_ORDER,
     },
-    // Klar. Haze: the chorus in front of the amp, and the reverb in front of the delay, so
+    // Clear. Haze: the chorus in front of the amp, and the reverb in front of the delay, so
     // every repeat is the whole room again
     Preset {
         name: "Dis",
-        amp: Amp::Klar,
+        amp: Amp::Clear,
         second: NO_SECOND,
         dials: [3.0, 4.5, 5.0, 5.5, 5.5, 3.7],
         gate: (ON, -72.0, 500.0),
@@ -388,11 +388,11 @@ pub static PRESETS: [Preset; 41] = [
             "tremolo", "eq", "reverb", "delay",
         ],
     },
-    // Glød. Edge of breakup by the fire: the amp's own warmth at the middle of the Gain dial,
+    // Glow. Edge of breakup by the fire: the amp's own warmth at the middle of the Gain dial,
     // where a light touch stays clean and picking harder starts to grind. A short room
     Preset {
         name: "Pejs",
-        amp: Amp::Glod,
+        amp: Amp::Glow,
         second: NO_SECOND,
         dials: [5.0, 5.0, 5.5, 5.0, 5.0, 4.6],
         gate: (ON, -62.0, 150.0),
@@ -405,11 +405,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Glød. Chime: low on the Gain dial with the top and presence up, a brighter microphone
+    // Glow. Chime: low on the Gain dial with the top and presence up, a brighter microphone
     // and a short delay
     Preset {
-        name: "Gnist",
-        amp: Amp::Glod,
+        name: "Spark",
+        amp: Amp::Glow,
         second: NO_SECOND,
         dials: [3.5, 4.5, 5.0, 6.5, 6.5, 4.4],
         gate: (ON, -64.0, 200.0),
@@ -422,11 +422,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Glød. Bonfire: high on the Gain dial, where it squeezes into a round, singing grind,
+    // Glow. Bonfire: high on the Gain dial, where it squeezes into a round, singing grind,
     // with the mids up and a darker microphone
     Preset {
         name: "Bål",
-        amp: Amp::Glod,
+        amp: Amp::Glow,
         second: NO_SECOND,
         dials: [7.5, 4.5, 6.5, 5.0, 5.0, 4.5],
         gate: (ON, -58.0, 120.0),
@@ -439,11 +439,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Brøl. Doom: the fuzz high and dark in front of the amp low on its Gain dial, which only
+    // Roar. Doom: the fuzz high and dark in front of the amp low on its Gain dial, which only
     // thickens it, the lows and mids up and a darker microphone
     Preset {
         name: "Mose",
-        amp: Amp::Brol,
+        amp: Amp::Roar,
         second: NO_SECOND,
         dials: [3.5, 6.0, 6.0, 4.5, 4.5, 3.6],
         gate: (ON, -58.0, 150.0),
@@ -456,11 +456,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Glød. A singing fuzz lead: the fuzz bright into the amp just under where it breaks up,
+    // Glow. A singing fuzz lead: the fuzz bright into the amp just under where it breaks up,
     // a delay and a hall behind it
     Preset {
         name: "Sværm",
-        amp: Amp::Glod,
+        amp: Amp::Glow,
         second: NO_SECOND,
         dials: [4.0, 5.0, 6.0, 5.5, 5.5, 2.6],
         gate: (ON, -60.0, 200.0),
@@ -473,10 +473,10 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Sang. A singing lead: the gain where the notes sustain, the mids up, a delay and a hall
+    // Song. A singing lead: the gain where the notes sustain, the mids up, a delay and a hall
     Preset {
         name: "Solo",
-        amp: Amp::Sang,
+        amp: Amp::Song,
         second: NO_SECOND,
         dials: [6.0, 4.5, 6.5, 5.5, 5.0, 4.3],
         gate: (ON, -60.0, 200.0),
@@ -489,10 +489,10 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Sang. A smooth rhythm: less gain, so chords stay open and a single note still sings
+    // Song. A smooth rhythm: less gain, so chords stay open and a single note still sings
     Preset {
         name: "Kor",
-        amp: Amp::Sang,
+        amp: Amp::Song,
         second: NO_SECOND,
         dials: [4.5, 5.0, 6.0, 5.0, 4.5, 4.3],
         gate: (ON, -62.0, 200.0),
@@ -505,10 +505,10 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Drøn. A heavy riff: the lows up and loose, the mids back, a gate to stop it humming in the rests
+    // Rumble. A heavy riff: the lows up and loose, the mids back, a gate to stop it humming in the rests
     Preset {
         name: "Tung",
-        amp: Amp::Dron,
+        amp: Amp::Rumble,
         second: NO_SECOND,
         dials: [5.5, 6.5, 4.5, 4.0, 4.0, 4.8],
         gate: (ON, -58.0, 120.0),
@@ -521,10 +521,10 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Drøn. Slow and wide: less gain so the amp breathes and sags, a long delay and a hall
+    // Rumble. Slow and wide: less gain so the amp breathes and sags, a long delay and a hall
     Preset {
         name: "Ørken",
-        amp: Amp::Dron,
+        amp: Amp::Rumble,
         second: NO_SECOND,
         dials: [4.0, 6.0, 5.5, 4.5, 4.5, 4.5],
         gate: (ON, -60.0, 150.0),
@@ -537,15 +537,15 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Torden and Klar. The tight rhythm of Stram with a clean Klar under it, at 0.4: the
+    // Thunder and Clear. The tight rhythm of Stram with a clean Clear under it, at 0.4: the
     // chords keep their edge and the notes get a clear body and a glassy top. The second amp
     // is set up as Glas, with the top end let down so the two do not both bite
     Preset {
-        name: "Tung og Klar",
-        amp: Amp::Torden,
+        name: "Tung og Clear",
+        amp: Amp::Thunder,
         second: SecondPreset {
             on: ON,
-            amp: Amp::Klar,
+            amp: Amp::Clear,
             dials: [3.5, 4.5, 4.5, 5.5, 5.5, 5.5],
             blend: 4.0,
         },
@@ -560,10 +560,10 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Knald. Classic rock rhythm: thick and a little loose, the gain where it breaks up and a pick still cleans it, a short room
+    // Crack. Classic rock rhythm: thick and a little loose, the gain where it breaks up and a pick still cleans it, a short room
     Preset {
         name: "Bølle",
-        amp: Amp::Knald,
+        amp: Amp::Crack,
         second: NO_SECOND,
         dials: [5.5, 5.5, 6.0, 5.0, 4.0, 4.6],
         gate: (ON, -60.0, 120.0),
@@ -576,10 +576,10 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Knald. A woolly lead: more gain so the grind goes fuzzy-warm, the mids up, a delay and a hall
+    // Crack. A woolly lead: more gain so the grind goes fuzzy-warm, the mids up, a delay and a hall
     Preset {
         name: "Ulden",
-        amp: Amp::Knald,
+        amp: Amp::Crack,
         second: NO_SECOND,
         dials: [7.0, 5.0, 6.5, 4.5, 4.0, 4.5],
         gate: (ON, -60.0, 200.0),
@@ -592,10 +592,10 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Gnist. Bright rhythm: the sparkle of the bright lift, a little gain and the upper mids forward, a short room
+    // Spark. Bright rhythm: the sparkle of the bright lift, a little gain and the upper mids forward, a short room
     Preset {
         name: "Klang",
-        amp: Amp::Gnist,
+        amp: Amp::Spark,
         second: NO_SECOND,
         dials: [5.5, 4.5, 6.0, 5.5, 5.0, 4.0],
         gate: (ON, -60.0, 100.0),
@@ -608,10 +608,10 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Gnist. Rock and roll: more gain and a short slapback, so chords snap and the notes ring
+    // Spark. Rock and roll: more gain and a short slapback, so chords snap and the notes ring
     Preset {
         name: "Fest",
-        amp: Amp::Gnist,
+        amp: Amp::Spark,
         second: NO_SECOND,
         dials: [7.0, 5.0, 6.0, 5.0, 4.5, 4.0],
         gate: (ON, -60.0, 120.0),
@@ -624,10 +624,10 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Skarp. A tight rhythm: the gain where every pick attack stays clear, the lows kept firm, a gate for the rests
+    // Sharp. A tight rhythm: the gain where every pick attack stays clear, the lows kept firm, a gate for the rests
     Preset {
         name: "Kniv",
-        amp: Amp::Skarp,
+        amp: Amp::Sharp,
         second: NO_SECOND,
         dials: [6.5, 5.5, 5.0, 5.5, 5.5, 4.7],
         gate: (ON, -56.0, 60.0),
@@ -640,10 +640,10 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Skarp. A crisp lead: all the gain, the mids up, a delay and a hall behind it
+    // Sharp. A crisp lead: all the gain, the mids up, a delay and a hall behind it
     Preset {
         name: "Pil",
-        amp: Amp::Skarp,
+        amp: Amp::Sharp,
         second: NO_SECOND,
         dials: [8.0, 4.5, 6.0, 5.5, 5.0, 4.2],
         gate: (ON, -60.0, 200.0),
@@ -656,10 +656,10 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Hvas. A hot-rodded rhythm: dense and mid-heavy with the pick attack left in
+    // Edge. A hot-rodded rhythm: dense and mid-heavy with the pick attack left in
     Preset {
         name: "Bid",
-        amp: Amp::Hvas,
+        amp: Amp::Edge,
         second: NO_SECOND,
         dials: [6.0, 5.0, 5.5, 5.5, 5.5, 4.9],
         gate: (ON, -58.0, 80.0),
@@ -672,10 +672,10 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Hvas. A singing lead: the gain where the sustain blooms, the mids up, a delay and a hall
+    // Edge. A singing lead: the gain where the sustain blooms, the mids up, a delay and a hall
     Preset {
         name: "Strid",
-        amp: Amp::Hvas,
+        amp: Amp::Edge,
         second: NO_SECOND,
         dials: [7.5, 4.5, 6.5, 5.5, 5.0, 4.6],
         gate: (ON, -60.0, 200.0),
@@ -688,11 +688,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Træ. Strummed chords: the acoustic voice as it is, a little top added, the peaks of
+    // Wood. Strummed chords: the acoustic voice as it is, a little top added, the peaks of
     // the strum evened a little by the compressor, a short room
     Preset {
         name: "Gran",
-        amp: Amp::Trae,
+        amp: Amp::Wood,
         second: NO_SECOND,
         dials: [4.0, 5.0, 5.0, 5.5, 5.5, 4.7],
         gate: (ON, -66.0, 250.0),
@@ -705,11 +705,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Træ. Fingerpicking by the fire: fuller in the body, the top softer, the notes evened
+    // Wood. Fingerpicking by the fire: fuller in the body, the top softer, the notes evened
     // out by the compressor and a longer hall behind them
     Preset {
         name: "Lejr",
-        amp: Amp::Trae,
+        amp: Amp::Wood,
         second: NO_SECOND,
         dials: [5.0, 6.0, 5.5, 4.5, 4.5, 5.0],
         gate: (ON, -68.0, 300.0),
@@ -722,11 +722,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Smæld. The clean snap by itself: the top a little up, a short room and nothing else,
+    // Snap. The clean snap by itself: the top a little up, a short room and nothing else,
     // so every string of a chord and the pick on it are heard
     Preset {
         name: "Knips",
-        amp: Amp::Smaeld,
+        amp: Amp::Snap,
         second: NO_SECOND,
         dials: [4.5, 4.5, 4.5, 5.5, 4.5, 5.0],
         gate: (ON, -60.0, 100.0),
@@ -739,11 +739,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Smæld. Quick picking: a compressor that evens the notes out, one short slap behind
+    // Snap. Quick picking: a compressor that evens the notes out, one short slap behind
     // each of them and a small room
     Preset {
         name: "Kvik",
-        amp: Amp::Smaeld,
+        amp: Amp::Snap,
         second: NO_SECOND,
         dials: [5.0, 5.0, 5.0, 5.5, 5.0, 5.0],
         gate: (ON, -60.0, 100.0),
@@ -756,11 +756,11 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Torden (#472). A tight, thick chug: the Drive pedal pushing the amp a little, the
+    // Thunder (#472). A tight, thick chug: the Drive pedal pushing the amp a little, the
     // compressor holding the sustain, the gate shut as the note ends, no room behind it
     Preset {
         name: "Hamre",
-        amp: Amp::Torden,
+        amp: Amp::Thunder,
         second: NO_SECOND,
         dials: [7.5, 6.0, 6.0, 4.5, 3.5, 4.6],
         gate: (ON, -57.0, 100.0),
@@ -773,12 +773,12 @@ pub static PRESETS: [Preset; 41] = [
         mods: MODS_OFF,
         order: USUAL_ORDER,
     },
-    // Sang (#472). A big singing lead: the same pedals as the chug with the Drive pedal
+    // Song (#472). A big singing lead: the same pedals as the chug with the Drive pedal
     // lower and the middle forward. Meant for the ribbon microphone, which a preset does
     // not store (the Mic dial is where the listening round left it)
     Preset {
         name: "Fløjl",
-        amp: Amp::Sang,
+        amp: Amp::Song,
         second: NO_SECOND,
         dials: [7.5, 4.5, 6.0, 5.0, 4.0, 4.3],
         gate: (ON, -57.0, 100.0),
@@ -1335,8 +1335,11 @@ mod tests {
         for amp in Amp::ALL {
             let count = PRESETS[1..].iter().filter(|preset| preset.amp == amp).count();
             // The four first amps have three or more; the rest came with two each
-            let least =
-                if matches!(amp, Amp::Klar | Amp::Brol | Amp::Torden | Amp::Glod) { 3 } else { 2 };
+            let least = if matches!(amp, Amp::Clear | Amp::Roar | Amp::Thunder | Amp::Glow) {
+                3
+            } else {
+                2
+            };
             assert!(count >= least, "{amp:?} has {count}");
         }
     }
@@ -1508,7 +1511,7 @@ mod tests {
             // And in the rest behind the bar it shuts: the rhythm presets of the high gain
             // amp within an eighth of a second of the last mute
             let shut = trace[bar - lead..].iter().position(|&gain| gain == 0.0);
-            if preset.amp == Amp::Torden && preset.gate.2 <= 60.0 {
+            if preset.amp == Amp::Thunder && preset.gate.2 <= 60.0 {
                 let limit = (0.125 * SAMPLE_RATE) as usize;
                 assert!(
                     shut.is_some_and(|samples| samples <= limit),

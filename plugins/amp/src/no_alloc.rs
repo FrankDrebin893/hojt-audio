@@ -78,14 +78,14 @@ fn test_the_second_amp_allocates_nothing() {
     let mut left = vec![0.0f32; host::BLOCKS[0]];
     let mut right = vec![0.0f32; host::BLOCKS[0]];
     let second = |on: bool, amp: Amp| AmpSettings {
-        amp: Amp::Torden,
+        amp: Amp::Thunder,
         second: SecondSettings { on, amp, ..SecondSettings::default() },
         blend: 0.4,
         ..AmpSettings::default()
     };
     // The same with a built-in cabinet for the second amp, switched while it plays
     let second_through = |on: bool, speaker: usize| AmpSettings {
-        amp: Amp::Torden,
+        amp: Amp::Thunder,
         second: SecondSettings {
             on,
             speaker: Some(speaker % crate::amp::model::SPEAKERS.len()),
@@ -104,10 +104,10 @@ fn test_the_second_amp_allocates_nothing() {
             // Off for a stretch, on, switched on and off again every few blocks, and its
             // amp (and the first one's) switched while it plays
             let settings = match block / 25 % 4 {
-                0 => second(false, Amp::Klar),
+                0 => second(false, Amp::Clear),
                 1 => second(true, Amp::ALL[block / 5 % Amp::ALL.len()]),
                 2 if block % 2 == 0 => second_through(true, block / 3),
-                2 => second(block % 3 != 0, Amp::Klar),
+                2 => second(block % 3 != 0, Amp::Clear),
                 _ => AmpSettings {
                     amp: Amp::ALL[block % Amp::ALL.len()],
                     ..second(true, Amp::ALL[(block + 2) % Amp::ALL.len()])

@@ -21,7 +21,7 @@ HØJT is Danish for loud, and for high. Two things are made here:
 ## The HØJT DSP plugins
 
 **Guitar Amp** (`plugins/amp`). A whole rig: four amps of our own design, each with its own
-cabinet (Klar: clean, Brøl: crunch, Torden: high gain, Glød: warm, at the edge of breakup), and
+cabinet (Clear: clean, Roar: crunch, Thunder: high gain, Glow: warm, at the edge of breakup), and
 ten pedals that can be dragged into another order: gate, compressor, overdrive, phaser, chorus,
 flanger, tremolo, cabinet, delay and reverb. The cabinet is heard through a dynamic, ribbon or
 condenser microphone, or is your own impulse response. It has presets, a tuner and level

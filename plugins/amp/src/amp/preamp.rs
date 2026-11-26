@@ -341,37 +341,37 @@ mod tests {
 
         // Each amp has its own share of the range: clean, clean to crunch, crunch to flat out
         assert!(
-            distortion(Amp::Klar, 0.5) < -40.0,
-            "Klar at gain 5: {:.1} dB",
-            distortion(Amp::Klar, 0.5)
+            distortion(Amp::Clear, 0.5) < -40.0,
+            "Clear at gain 5: {:.1} dB",
+            distortion(Amp::Clear, 0.5)
         );
         assert!(
-            distortion(Amp::Brol, 0.0) < -30.0,
-            "Brøl at gain 0: {:.1} dB",
-            distortion(Amp::Brol, 0.0)
+            distortion(Amp::Roar, 0.0) < -30.0,
+            "Roar at gain 0: {:.1} dB",
+            distortion(Amp::Roar, 0.0)
         );
-        assert!(distortion(Amp::Brol, 0.5) > distortion(Amp::Brol, 0.0) + 10.0);
+        assert!(distortion(Amp::Roar, 0.5) > distortion(Amp::Roar, 0.0) + 10.0);
         assert!(
-            distortion(Amp::Torden, 0.0) > -20.0,
-            "Torden at gain 0: {:.1} dB",
-            distortion(Amp::Torden, 0.0)
+            distortion(Amp::Thunder, 0.0) > -20.0,
+            "Thunder at gain 0: {:.1} dB",
+            distortion(Amp::Thunder, 0.0)
         );
     }
 
     #[test]
-    fn test_torden_is_not_squeezed_flat_at_gain_5() {
+    fn test_thunder_is_not_squeezed_flat_at_gain_5() {
         // A soft and a hard note, 24 dB apart going in: how much of that is left coming out.
-        // Torden used to clip so early that Gain 5 was as squeezed as Gain 10
+        // Thunder used to clip so early that Gain 5 was as squeezed as Gain 10
         let soft = sine(440.0, 0.0094, SAMPLE_RATE, LEN);
         let hard = sine(440.0, 0.15, SAMPLE_RATE, LEN);
         let kept = |gain: f32| {
-            let level = |input: &[f32]| to_db(rms(&run(Amp::Torden, gain, input)[LEN / 2..]));
+            let level = |input: &[f32]| to_db(rms(&run(Amp::Thunder, gain, input)[LEN / 2..]));
             level(&hard) - level(&soft)
         };
         let (five, ten) = (kept(0.5), kept(1.0));
         assert!(
             five > 3.0 && five > ten + 2.0,
-            "Torden keeps {five:.1} dB at Gain 5 and {ten:.1} dB at Gain 10"
+            "Thunder keeps {five:.1} dB at Gain 5 and {ten:.1} dB at Gain 10"
         );
     }
 
@@ -410,13 +410,13 @@ mod tests {
         let distortion = |amp: Amp, level: f32| {
             harmonics_db(&run(amp, 0.5, &sine(440.0, level, SAMPLE_RATE, LEN)), 440.0)
         };
-        for amp in [Amp::Klar, Amp::Brol] {
+        for amp in [Amp::Clear, Amp::Roar] {
             let (soft, hard) = (distortion(amp, 0.02), distortion(amp, 0.3));
             assert!(soft < hard - 12.0, "{:?}: soft {:.1} dB, hard {:.1} dB", amp, soft, hard);
         }
         // The high gain amp does not let go: that is what it is for
-        let soft = distortion(Amp::Torden, 0.02);
-        assert!(soft > -20.0, "Torden played softly: {:.1} dB", soft);
+        let soft = distortion(Amp::Thunder, 0.02);
+        assert!(soft > -20.0, "Thunder played softly: {:.1} dB", soft);
     }
 
     #[test]
@@ -485,7 +485,7 @@ mod tests {
                 .fold(0.0, f32::max);
             assert!(off < 1e-3 * peak(&plain), "{amp:?}: off by {off}");
         }
-        assert!(Amp::Torden.model().stages[1].finer_when_driven);
+        assert!(Amp::Thunder.model().stages[1].finer_when_driven);
     }
 
     #[test]

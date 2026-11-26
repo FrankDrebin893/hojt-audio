@@ -53,7 +53,7 @@ One amp's path in the stack (preamp, tone stack, power amp, cabinet). Amp 1 is a
 _Avoid_: channel, second amp slot
 
 **Amp model**:
-One of the amp sounds a lane can be set to (Klar, Brøl, Torden...), defined by a set of constants.
+One of the amp sounds a lane can be set to (Clear, Roar, Thunder...), defined by a set of constants.
 _Avoid_: amp type, preamp
 
 **Head**:

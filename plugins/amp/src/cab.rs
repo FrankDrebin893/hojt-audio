@@ -1424,8 +1424,8 @@ pub mod tests {
     /// one is no guitar speaker and keeps it all
     fn top_cut_db(name: &str) -> Option<f32> {
         match name {
-            // Træ's own is the body of an acoustic guitar: held to its own shape instead
-            FULL_RANGE_ID | "Træ" => None,
+            // Wood's own is the body of an acoustic guitar: held to its own shape instead
+            FULL_RANGE_ID | "Wood" => None,
             "1x12-clear" | "2x12-chime" => Some(12.0),
             _ => Some(20.0),
         }
@@ -1442,7 +1442,7 @@ pub mod tests {
             assert!(level(30.0) < mids - lows_cut, "{} keeps sub bass", name);
             if let Some(least) = top_cut_db(name) {
                 assert!(level(10000.0) < mids - least, "{} keeps fizz", name);
-            } else if name == "Træ" {
+            } else if name == "Wood" {
                 // Not a speaker but the body of an acoustic guitar: the strings' own top is
                 // what makes it one, so it is open up to 7 kHz, and only the hiss is gone
                 assert!(level(7000.0) > mids - 3.0, "{} loses its top", name);
@@ -1589,7 +1589,7 @@ pub mod tests {
     #[test]
     fn test_swap_to_and_from_a_long_response_waits_for_its_tail_and_does_not_click() {
         let sample_rate = 48000.0;
-        let short = design(&Amp::Klar.model().cab, sample_rate);
+        let short = design(&Amp::Clear.model().cab, sample_rate);
         let long = long_response_taps(40.0, sample_rate, 3);
         let other = long_response_taps(30.0, sample_rate, 5);
         let spectra_of = |taps: &[f32]| {
@@ -1741,9 +1741,9 @@ pub mod tests {
 
         // Also after a dial has been somewhere else
         let mut voicing = CabVoicing::new();
-        voicing.set(&Amp::Brol.model().cab, 0.9, 0.1, 48000.0, 0);
+        voicing.set(&Amp::Roar.model().cab, 0.9, 0.1, 48000.0, 0);
         voicing.process(&mut input.clone());
-        voicing.set(&Amp::Brol.model().cab, 0.5, 0.5, 48000.0, 0);
+        voicing.set(&Amp::Roar.model().cab, 0.5, 0.5, 48000.0, 0);
         let mut output = input.clone();
         voicing.process(&mut output);
         assert_eq!(output, input);
@@ -1754,13 +1754,13 @@ pub mod tests {
             samples.windows(2).map(|pair| (pair[1] - pair[0]).abs()).fold(0.0, f32::max)
         };
         let tone = sine(300.0, 0.5, 48000.0, 4800);
-        voicing.set(&Amp::Brol.model().cab, 0.9, 0.1, 48000.0, 0);
+        voicing.set(&Amp::Roar.model().cab, 0.9, 0.1, 48000.0, 0);
         let mut output = tone.clone();
         voicing.process(&mut output[..2400]);
-        voicing.set(&Amp::Brol.model().cab, 0.5, 0.5, 48000.0, 32);
+        voicing.set(&Amp::Roar.model().cab, 0.5, 0.5, 48000.0, 32);
         voicing.process(&mut output[2400..3600]);
         assert_eq!(output[2432..3600], tone[2432..3600]);
-        voicing.set(&Amp::Brol.model().cab, 0.6, 0.6, 48000.0, 32);
+        voicing.set(&Amp::Roar.model().cab, 0.6, 0.6, 48000.0, 32);
         voicing.process(&mut output[3600..]);
         assert!(largest_step(&output[1200..]) < 1.3 * largest_step(&output[1200..2400]));
         assert!(output[3700..] != tone[3700..]);
@@ -1908,12 +1908,12 @@ pub mod tests {
 
     #[test]
     fn test_voicing_filters_do_what_their_response_says() {
-        let cab = &Amp::Brol.model().cab;
+        let cab = &Amp::Roar.model().cab;
         for (mic, resonance, freq) in
             [(0.0, 0.5, 4000.0), (1.0, 0.5, 4000.0), (0.5, 1.0, 95.0), (0.2, 0.1, 300.0)]
         {
             let input = sine(freq, 0.5, 48000.0, 24_000);
-            let output = voiced(Amp::Brol, mic, resonance, &input);
+            let output = voiced(Amp::Roar, mic, resonance, &input);
             let measured = to_db(rms(&output[12_000..]) / rms(&input[12_000..]));
             let expected = CabVoicing::response_db(cab, mic, resonance, freq, 48000.0);
             assert!(

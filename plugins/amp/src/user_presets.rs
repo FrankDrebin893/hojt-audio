@@ -842,7 +842,7 @@ pub(crate) mod tests {
     fn test_a_saved_sound_reads_back_as_it_was_written() {
         let params = GuitarAmpParams::default();
         let saved = UserPreset::parse(&params, SAVED);
-        assert_eq!(saved.value(&params, "amp"), Amp::Torden.to_index() as f32);
+        assert_eq!(saved.value(&params, "amp"), Amp::Thunder.to_index() as f32);
         assert_eq!(saved.value(&params, "gain"), 0.73);
         assert_eq!(saved.value(&params, "delay_on"), 1.0);
         assert_eq!(saved.value(&params, "cab_mic_type"), MicType::Ribbon.to_index() as f32);
@@ -866,7 +866,7 @@ pub(crate) mod tests {
         let params = GuitarAmpParams::default();
         let saved = UserPreset::parse(&params, SAVED);
         assert_eq!(saved.value(&params, "amp2_on"), 0.0);
-        assert_eq!(saved.value(&params, "amp2"), Amp::Klar.to_index() as f32);
+        assert_eq!(saved.value(&params, "amp2"), Amp::Clear.to_index() as f32);
         assert_eq!(saved.value(&params, "amp_blend"), 0.5);
         // Loading it switches the second amp off
         let host = Host::default();
@@ -886,7 +886,7 @@ pub(crate) mod tests {
              amp_blend = 0.4\ncabinet2 = speaker:4x12-heavy\n",
         );
         assert_eq!(saved.value(&params, "amp2_on"), 1.0);
-        assert_eq!(saved.value(&params, "amp2"), Amp::Sang.to_index() as f32);
+        assert_eq!(saved.value(&params, "amp2"), Amp::Song.to_index() as f32);
         let text = saved.to_text(&params);
         for line in [
             "amp2_on = on",
@@ -904,9 +904,9 @@ pub(crate) mod tests {
         let host = Host::default();
         saved.load(&params, &ParamSetter::new(&host));
         assert!(as_one_edit(&host.told.lock().unwrap()));
-        assert_eq!(params.dial_memory_second.enter(Amp::Sang)[0], 0.31);
-        assert_eq!(params.dial_memory_second.enter(Amp::Sang)[5], 0.62);
-        assert_eq!(params.dial_memory.enter(Amp::Sang)[0], 0.5);
+        assert_eq!(params.dial_memory_second.enter(Amp::Song)[0], 0.31);
+        assert_eq!(params.dial_memory_second.enter(Amp::Song)[5], 0.62);
+        assert_eq!(params.dial_memory.enter(Amp::Song)[0], 0.5);
         // and its cabinet: a built-in one, and never a file
         assert_eq!(params.cabinet_second.choice(), "speaker:4x12-heavy");
         let file = UserPreset::parse(&params, "cabinet2 = Alpha.wav\n");
@@ -942,7 +942,7 @@ pub(crate) mod tests {
         // All of it as one edit, so a host that groups gestures undoes it in one step
         assert!(as_one_edit(&host.told.lock().unwrap()));
         // The amp it picks remembers its dials
-        assert_eq!(params.dial_memory.enter(Amp::Torden)[0], 0.73);
+        assert_eq!(params.dial_memory.enter(Amp::Thunder)[0], 0.73);
         // Loading it again has no cabinet to read
         assert!(!saved.load(&params, &ParamSetter::new(&Host::default())));
     }
