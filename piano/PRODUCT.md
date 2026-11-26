@@ -93,7 +93,7 @@ piano rolls show which notes to play. This app tells you what they are.
 
 ## Brand Commitments
 
-Nothing is fixed (confirmed 2026-09-27). The name "Piano MIDI Visualization", the `app.png`
+Nothing is fixed (confirmed 2026-09-27). The name "Højte Piano" (formerly "Piano MIDI Visualization"), the `app.png`
 icon, the voice and dark-only theming may all change.
 
 The user chose the visual direction on 2026-09-27: **"piano character"**. That means

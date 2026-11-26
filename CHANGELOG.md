@@ -57,6 +57,12 @@ GitHub release.
   1 dB of the same notes played on the guitar. The pitch pedal in the Guitar Amp is the same. Shifting up no
   longer turns thin and fizzy for the same reason.
 
+### Piano viz
+
+- The piano viz is now called Højte Piano (formerly Piano MIDI Visualization): in its window title and
+  title bar, its README and its page. The downloads, the `piano-v` release names and the program's file name
+  are unchanged.
+
 ## 0.5.0
 
 ### Installer

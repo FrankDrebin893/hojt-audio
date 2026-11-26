@@ -111,4 +111,4 @@ jobs:
         run: |
           $previous = git tag -l 'piano-v*' --sort=-v:refname | Where-Object { $_ -ne $env:GITHUB_REF_NAME } | Select-Object -First 1
           $notes = if ($previous) { @('--generate-notes', '--notes-start-tag', $previous) } else { @() }
-          gh release create $env:GITHUB_REF_NAME $env:ZIP --title "Piano MIDI Visualization $env:VERSION" --latest=false @notes --notes-file piano/release-notes.md
+          gh release create $env:GITHUB_REF_NAME $env:ZIP --title "Højte Piano $env:VERSION" --latest=false @notes --notes-file piano/release-notes.md
