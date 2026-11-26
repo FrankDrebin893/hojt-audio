@@ -210,6 +210,9 @@ What every sub-session is asked to do, for issue `<n>`:
   the proof"; the orchestrator's review reads that line
 - Run `scripts/check.sh quick` after every edit batch and before any `cargo test` that takes minutes: a clippy error
   found after a 300 s test run costs the run
+- A change that alters text or shapes an editor draws (a name, a label, a plate) fails that editor's snapshot tests in
+  the full gate. After `check.sh quick` passes, run `UPDATE_SNAPSHOTS=1 cargo test -p <plugin> --lib` once, look at the
+  changed images that show the new text, and only then start the full gate, so the gate runs once
 - Edit with `Edit` and a string match, never `sed -i` on line numbers (a later edit shifts the lines) and never a
   python heredoc. A chain such as `cargo test ...; UPDATE_IDS=1 cargo test ...; git diff` is one command per Bash call
 - An editor change: view every new or changed snapshot render before the commit (list them with
