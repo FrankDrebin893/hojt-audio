@@ -5,8 +5,8 @@ The reasons behind choices that the code alone does not explain. What it does is
 
 ## Targets (set with Rasmus)
 
-- Torden: modern tight metal, tight low end, fast attack, clear in drop tunings, meant to be
-  boosted by the drive. Klar: glassy, lots of headroom, slightly scooped. Brøl: mid-forward
+- Thunder: modern tight metal, tight low end, fast attack, clear in drop tunings, meant to be
+  boosted by the drive. Clear: glassy, lots of headroom, slightly scooped. Roar: mid-forward
   stack crunch that cleans up with picking dynamics
 - Presets: good defaults first, a browser later. Cabinets: our own at first, a loader later
 - The window is one rig: a strip over one line in signal order, the half stack (head on cabinet)
@@ -28,7 +28,7 @@ The reasons behind choices that the code alone does not explain. What it does is
 - Amp and cabinet are mono (a stereo input is averaged); delay and reverb make stereo
 - Clippers are antialiased (first-order antiderivative, f64) on top of oversampling; plain 4x
   measured about -40 dB aliasing at full gain, this gives -87 dB or better. Second order only
-  where it pays (Torden's second and third stages, the drive); everywhere cost twice as much
+  where it pays (Thunder's second and third stages, the drive); everywhere cost twice as much
   for the same figures. With the drive on, a stage that would be hit by square waves clips at
   twice the rate instead (`finer_when_driven`)
 - Oversampling is minimum-phase IIR half-bands: 4x at 44.1 and 48 kHz, 2x from 88.2 kHz
@@ -50,12 +50,12 @@ The reasons behind choices that the code alone does not explain. What it does is
 
 - Amps are matched by loudness (LUFS) for a guitar at -24 dBFS RMS, not by RMS: a clean amp
   follows the guitar dB for dB and a clipping one hardly does, so they can only meet at one
-  level. Brøl and Torden are themselves 3.3 LU apart at -30, so "within 3 LU from -30 to -18"
+  level. Roar and Thunder are themselves 3.3 LU apart at -30, so "within 3 LU from -30 to -18"
   cannot be met; held is 3 LU at the reference and 5 LU 6 dB either side
-- Klar's power stage holds peaks with its own curve (`clean_to`: straight up to a knee, then
+- Clear's power stage holds peaks with its own curve (`clean_to`: straight up to a knee, then
   bending), because the old curve bent from the start and gave -36 dB of distortion on a held
   note at the reference level (now -61)
-- Brøl below Gain 5 is made up in front of its power stage so Gain 0 is clean on pick attacks
+- Roar below Gain 5 is made up in front of its power stage so Gain 0 is clean on pick attacks
   and the safety clip is not what holds the peaks
 - Switching amp fades out over 4.5 ms in front of the cabinet, switches at the silent sample,
   fades in; the cabinet crossfades over 10 ms. Two amps never run side by side
@@ -84,9 +84,9 @@ The reasons behind choices that the code alone does not explain. What it does is
   are at least 3 dB apart in some octave band of a guitar (a test holds it;
   `speaker_report` prints how far), and the amps' own stay as they were
 - Where the blur comes from (measured for the four clear cabinets, `clarity_report`): two held
-  notes a major third apart at the reference level come out of Klar with what lies between
+  notes a major third apart at the reference level come out of Clear with what lies between
   their harmonics at -86 dB at Master 3 and -20 dB at Master 5, cabinet off, and -25 to -27 dB
-  out of Brøl and Glød at Gain 0, Master 5: the power stage's knee is under the peaks of a
+  out of Roar and Glow at Gain 0, Master 5: the power stage's knee is under the peaks of a
   chord. A cabinet cannot take that out, only weigh it: across the built-in ones the figure
   moves by about 4 dB, and a bright cabinet shows more of it, a dark one less. So the clear
   cabinets (`1X12 CLEAR`, `1X10 SNAP`, `2X12 CHIME`) are for the top and the lean low mids the

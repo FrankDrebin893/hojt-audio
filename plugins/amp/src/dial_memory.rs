@@ -159,8 +159,8 @@ mod tests {
     use super::*;
 
     const DEFAULTS: AmpDials = [0.5; 6];
-    const KLAR: AmpDials = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6];
-    const TORDEN: AmpDials = [0.9, 0.35, 0.7, 0.65, 0.8, 0.45];
+    const CLEAR: AmpDials = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6];
+    const THUNDER: AmpDials = [0.9, 0.35, 0.7, 0.65, 0.8, 0.45];
 
     #[test]
     fn test_an_amp_switch_is_one_edit_of_the_amp_and_its_six_dials() {
@@ -191,47 +191,47 @@ mod tests {
     #[test]
     fn test_each_amp_gets_back_what_it_was_left_with() {
         let memory = DialMemory::new(DEFAULTS);
-        // Klar is set up and left for Torden, Torden is set up and left for Klar
-        memory.leave(Amp::Klar, KLAR);
-        assert_eq!(memory.enter(Amp::Torden), DEFAULTS);
-        memory.leave(Amp::Torden, TORDEN);
-        assert_eq!(memory.enter(Amp::Klar), KLAR);
+        // Clear is set up and left for Thunder, Thunder is set up and left for Clear
+        memory.leave(Amp::Clear, CLEAR);
+        assert_eq!(memory.enter(Amp::Thunder), DEFAULTS);
+        memory.leave(Amp::Thunder, THUNDER);
+        assert_eq!(memory.enter(Amp::Clear), CLEAR);
 
         // Changed and left again: the newer positions are the ones kept, to the bit
         let changed = [0.15, 0.2, 0.3, 0.4, 0.5, 0.6000001];
-        memory.leave(Amp::Klar, changed);
-        assert_eq!(memory.enter(Amp::Torden), TORDEN);
-        assert_eq!(memory.enter(Amp::Klar), changed);
-        assert_eq!(memory.enter(Amp::Brol), DEFAULTS);
+        memory.leave(Amp::Clear, changed);
+        assert_eq!(memory.enter(Amp::Thunder), THUNDER);
+        assert_eq!(memory.enter(Amp::Clear), changed);
+        assert_eq!(memory.enter(Amp::Roar), DEFAULTS);
     }
 
     #[test]
     fn test_entering_does_not_change_the_memory() {
         let memory = DialMemory::new(DEFAULTS);
-        memory.leave(Amp::Brol, KLAR);
+        memory.leave(Amp::Roar, CLEAR);
         for _ in 0..3 {
-            assert_eq!(memory.enter(Amp::Brol), KLAR);
+            assert_eq!(memory.enter(Amp::Roar), CLEAR);
         }
     }
 
     #[test]
     fn test_values_no_dial_can_stand_at_give_the_default() {
         let memory = DialMemory::new(DEFAULTS);
-        memory.leave(Amp::Klar, [f32::NAN, -0.1, 1.5, f32::INFINITY, 0.0, 1.0]);
-        assert_eq!(memory.enter(Amp::Klar), [0.5, 0.5, 0.5, 0.5, 0.0, 1.0]);
+        memory.leave(Amp::Clear, [f32::NAN, -0.1, 1.5, f32::INFINITY, 0.0, 1.0]);
+        assert_eq!(memory.enter(Amp::Clear), [0.5, 0.5, 0.5, 0.5, 0.0, 1.0]);
     }
 
     #[test]
     fn test_a_project_saved_with_six_amps_gives_the_new_ones_their_defaults() {
         // What a build from before the four of #263 saved: six lists of six values
         let mut six = vec![DEFAULTS; 6];
-        six[Amp::Klar.index()] = KLAR;
-        six[Amp::Dron.index()] = TORDEN;
+        six[Amp::Clear.index()] = CLEAR;
+        six[Amp::Rumble.index()] = THUNDER;
         let memory = DialMemory::new(DEFAULTS);
         memory.set(six);
-        assert_eq!(memory.enter(Amp::Klar), KLAR);
-        assert_eq!(memory.enter(Amp::Dron), TORDEN);
-        for amp in [Amp::Knald, Amp::Gnist, Amp::Skarp, Amp::Hvas] {
+        assert_eq!(memory.enter(Amp::Clear), CLEAR);
+        assert_eq!(memory.enter(Amp::Rumble), THUNDER);
+        for amp in [Amp::Crack, Amp::Spark, Amp::Sharp, Amp::Edge] {
             assert_eq!(memory.enter(amp), DEFAULTS, "{amp:?}");
         }
     }
@@ -239,13 +239,13 @@ mod tests {
     #[test]
     fn test_saved_and_restored_it_is_the_same() {
         let memory = DialMemory::new(DEFAULTS);
-        memory.leave(Amp::Klar, KLAR);
-        memory.leave(Amp::Torden, TORDEN);
+        memory.leave(Amp::Clear, CLEAR);
+        memory.leave(Amp::Thunder, THUNDER);
         let saved = memory.map(|stored| stored.clone());
         assert_eq!(saved.len(), Amp::ALL.len());
         let mut expected = vec![DEFAULTS; Amp::ALL.len()];
-        expected[Amp::Klar.index()] = KLAR;
-        expected[Amp::Torden.index()] = TORDEN;
+        expected[Amp::Clear.index()] = CLEAR;
+        expected[Amp::Thunder.index()] = THUNDER;
         assert_eq!(saved, expected);
 
         let restored = DialMemory::new(DEFAULTS);
@@ -258,16 +258,16 @@ mod tests {
     #[test]
     fn test_state_with_fewer_or_more_amps_is_taken_as_far_as_it_goes() {
         let memory = DialMemory::new(DEFAULTS);
-        memory.leave(Amp::Torden, TORDEN);
-        memory.set(vec![KLAR]);
-        assert_eq!(memory.enter(Amp::Klar), KLAR);
-        assert_eq!(memory.enter(Amp::Brol), DEFAULTS);
-        assert_eq!(memory.enter(Amp::Torden), TORDEN);
+        memory.leave(Amp::Thunder, THUNDER);
+        memory.set(vec![CLEAR]);
+        assert_eq!(memory.enter(Amp::Clear), CLEAR);
+        assert_eq!(memory.enter(Amp::Roar), DEFAULTS);
+        assert_eq!(memory.enter(Amp::Thunder), THUNDER);
 
-        memory.set(vec![DEFAULTS, KLAR, DEFAULTS, TORDEN, TORDEN]);
-        assert_eq!(memory.enter(Amp::Klar), DEFAULTS);
-        assert_eq!(memory.enter(Amp::Brol), KLAR);
-        assert_eq!(memory.enter(Amp::Torden), DEFAULTS);
+        memory.set(vec![DEFAULTS, CLEAR, DEFAULTS, THUNDER, THUNDER]);
+        assert_eq!(memory.enter(Amp::Clear), DEFAULTS);
+        assert_eq!(memory.enter(Amp::Roar), CLEAR);
+        assert_eq!(memory.enter(Amp::Thunder), DEFAULTS);
     }
 
     #[test]
@@ -281,38 +281,38 @@ mod tests {
 
     #[test]
     fn test_loading_a_preset_remembers_the_amp_left_and_the_presets_dials() {
-        // The parameters stand at their defaults, on Brøl. A Torden preset comes in
+        // The parameters stand at their defaults, on Roar. A Thunder preset comes in
         let params = GuitarAmpParams::default();
-        params.dial_memory.leave(Amp::Brol, KLAR);
-        preset_loaded(&params, Amp::Torden, TORDEN);
-        assert_eq!(params.dial_memory.enter(Amp::Torden), TORDEN);
-        // Brøl is remembered as it stood (the defaults), not as it was left some time before
-        assert_eq!(params.dial_memory.enter(Amp::Brol), DEFAULTS);
+        params.dial_memory.leave(Amp::Roar, CLEAR);
+        preset_loaded(&params, Amp::Thunder, THUNDER);
+        assert_eq!(params.dial_memory.enter(Amp::Thunder), THUNDER);
+        // Roar is remembered as it stood (the defaults), not as it was left some time before
+        assert_eq!(params.dial_memory.enter(Amp::Roar), DEFAULTS);
 
         // A preset for the amp that is selected replaces its memory
-        preset_loaded(&params, Amp::Brol, KLAR);
-        assert_eq!(params.dial_memory.enter(Amp::Brol), KLAR);
-        assert_eq!(params.dial_memory.enter(Amp::Torden), TORDEN);
+        preset_loaded(&params, Amp::Roar, CLEAR);
+        assert_eq!(params.dial_memory.enter(Amp::Roar), CLEAR);
+        assert_eq!(params.dial_memory.enter(Amp::Thunder), THUNDER);
     }
 
     #[test]
     fn test_the_second_amp_keeps_a_memory_of_its_own() {
         let params = GuitarAmpParams::default();
         // The first amp's memory is not touched by the second's
-        params.dial_memory.leave(Amp::Torden, TORDEN);
-        assert_eq!(params.dial_memory_second.enter(Amp::Torden), DEFAULTS);
-        params.dial_memory_second.leave(Amp::Torden, KLAR);
-        assert_eq!(params.dial_memory.enter(Amp::Torden), TORDEN);
-        assert_eq!(params.dial_memory_second.enter(Amp::Torden), KLAR);
+        params.dial_memory.leave(Amp::Thunder, THUNDER);
+        assert_eq!(params.dial_memory_second.enter(Amp::Thunder), DEFAULTS);
+        params.dial_memory_second.leave(Amp::Thunder, CLEAR);
+        assert_eq!(params.dial_memory.enter(Amp::Thunder), THUNDER);
+        assert_eq!(params.dial_memory_second.enter(Amp::Thunder), CLEAR);
     }
 
     #[test]
     fn test_switching_the_second_amp_is_one_edit_and_moves_only_its_dials() {
         use crate::user_presets::tests::{as_one_edit, Host};
         let params = GuitarAmpParams::default();
-        params.dial_memory_second.leave(Amp::Torden, TORDEN);
+        params.dial_memory_second.leave(Amp::Thunder, THUNDER);
         let host = Host::default();
-        switch_second_amp(&params, &ParamSetter::new(&host), Amp::Torden);
+        switch_second_amp(&params, &ParamSetter::new(&host), Amp::Thunder);
         let told = host.told.lock().unwrap();
         assert!(as_one_edit(&told), "{told:?}");
         assert_eq!(told.len(), 3 * 7);
@@ -328,10 +328,10 @@ mod tests {
     #[test]
     fn test_loading_a_preset_remembers_the_second_amp_left_and_the_presets_dials() {
         let params = GuitarAmpParams::default();
-        params.dial_memory_second.leave(Amp::Klar, TORDEN);
-        second_preset_loaded(&params, Amp::Torden, KLAR);
-        assert_eq!(params.dial_memory_second.enter(Amp::Torden), KLAR);
-        // Klar is remembered as it stood (the defaults)
-        assert_eq!(params.dial_memory_second.enter(Amp::Klar), DEFAULTS);
+        params.dial_memory_second.leave(Amp::Clear, THUNDER);
+        second_preset_loaded(&params, Amp::Thunder, CLEAR);
+        assert_eq!(params.dial_memory_second.enter(Amp::Thunder), CLEAR);
+        // Clear is remembered as it stood (the defaults)
+        assert_eq!(params.dial_memory_second.enter(Amp::Clear), DEFAULTS);
     }
 }

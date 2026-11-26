@@ -19,9 +19,9 @@ cargo test -p amp --release amp_report -- --ignored --nocapture
 # -36 to -12 dBFS RMS, and the distortion of a held note at those levels.
 cargo test -p amp --release loudness_report -- --ignored --nocapture
 
-# Træ, the acoustic amp (#400), against Klar: loudness, peaks and crest per Gain, what it adds
+# Wood, the acoustic amp (#400), against Clear: loudness, peaks and crest per Gain, what it adds
 # between two held notes per level (the blur of a chord), its response to a quiet sine, aliasing
-cargo test -p amp --release trae_report -- --ignored --nocapture
+cargo test -p amp --release wood_report -- --ignored --nocapture
 
 # The four amps of #263 against the others: total preamp gain, loudness, octave bands, the bite
 # at 3 to 5 kHz, the fizz above 7 kHz, aliasing, palm mutes. render_voices writes each next to its
@@ -77,15 +77,15 @@ cargo test -p amp --release user_cab_report -- --ignored --nocapture
 # Long cabinets: direct FIR against the tail, per length and rate; error, evenness, swaps.
 cargo test -p amp --release convolver_report -- --ignored --nocapture
 
-# How far apart the built-in cabinets are: octave bands of a guitar through Klar and
-# Torden and each one, and the difference of every pair. render_speakers writes the same
+# How far apart the built-in cabinets are: octave bands of a guitar through Clear and
+# Thunder and each one, and the difference of every pair. render_speakers writes the same
 # as WAV files in target/renders (amp_cab_*.wav), to hear them side by side.
 cargo test -p amp --release speaker_report -- --ignored --nocapture
 cargo test -p amp --release render_speakers -- --ignored
 
 # What makes a sound clear or blurred: octave bands of a guitar, and how much of two notes a
 # major third apart lies between their harmonics (what a clipper adds to a chord), for each amp
-# at Gain 3, 5 and 7 with and without its cabinet, and for Klar, Brøl and Torden through each
+# at Gain 3, 5 and 7 with and without its cabinet, and for Clear, Roar and Thunder through each
 # built-in cabinet. A cabinet only re-weights what the amp made: it moves the figure by a few dB.
 cargo test -p amp --release clarity_report -- --ignored --nocapture
 

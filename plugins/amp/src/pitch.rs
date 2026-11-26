@@ -286,7 +286,7 @@ pub mod tests {
     fn report_amp(pitch: PitchSettings) -> crate::chain::AmpSettings {
         crate::chain::AmpSettings {
             gate_on: false,
-            amp: crate::Amp::Klar,
+            amp: crate::Amp::Clear,
             gain: 0.2,
             pitch,
             ..crate::chain::AmpSettings::default()
@@ -319,7 +319,7 @@ pub mod tests {
         use crate::test_util::{pluck, Pluck};
         pin_thread();
         const FS: f32 = 48_000.0;
-        println!("Pitch shifter pedal in front of Klar (Gain 2, gate off) at {FS} Hz.");
+        println!("Pitch shifter pedal in front of Clear (Gain 2, gate off) at {FS} Hz.");
         println!();
         println!("Response: level of the note that comes out, in dB against the amp playing that");
         println!("note itself with the pedal off, for a sine going in at the left. Blend 100 %.");
@@ -378,7 +378,7 @@ pub mod tests {
 
         println!();
         println!(
-            "Cost: Torden playing power chords in blocks of 64, median and 99th-percentile block as a share"
+            "Cost: Thunder playing power chords in blocks of 64, median and 99th-percentile block as a share"
         );
         println!(
             "of the time the block lasts, per sample rate (the pedal runs at 4x and 2x those)"
@@ -395,7 +395,7 @@ pub mod tests {
             print!("{rate:>10.0}");
             for settings in [PitchSettings::default(), on(-12), on(0), on(12)] {
                 let amp = crate::chain::AmpSettings {
-                    amp: crate::Amp::Torden,
+                    amp: crate::Amp::Thunder,
                     pitch: settings,
                     ..crate::chain::AmpSettings::default()
                 };

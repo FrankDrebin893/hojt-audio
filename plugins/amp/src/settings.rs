@@ -114,7 +114,7 @@ impl Default for AmpSettings {
             drive_gain: 0.3,
             drive_tone: 0.5,
             drive_level: 0.5,
-            amp: Amp::Brol,
+            amp: Amp::Roar,
             gain: 0.5,
             bass: 0.5,
             mid: 0.5,

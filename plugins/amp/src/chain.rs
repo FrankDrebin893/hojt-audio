@@ -249,8 +249,8 @@ impl AmpChain {
         let mut chain = Self {
             sample_rate: 44100.0,
             factor: MAX_FACTOR,
-            amp: Amp::Brol,
-            wanted_amp: Amp::Brol,
+            amp: Amp::Roar,
+            wanted_amp: Amp::Roar,
             in_gain: Ramp::new(1.0),
             gate: Gate::new(),
             oversampler: Oversampler::new(),

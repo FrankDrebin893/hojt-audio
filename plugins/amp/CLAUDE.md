@@ -6,14 +6,14 @@ reasons behind the amp's design are in `DESIGN.md` next to this file; open work 
 
 A guitar amp with a full signal chain, all our own designs: own names, no real makers' names,
 trademarks or circuit names anywhere (code, comments, docs, commit messages). Twelve amps, each
-with its own cabinet: Klar (clean, glassy), Brøl (mid-forward crunch), Torden (modern tight high
-gain), Glød (warm edge of breakup, between Klar and Brøl), Sang (a smooth, compressed singing
-lead), Drøn (a big, loose, dark amp with the low end let through), and, from #263, Knald (thick,
-warm, slightly woolly mid-gain), Gnist (its bright, chimey cousin), Skarp (crisp, tight modern high
-gain with a bite at 3 kHz and deep sag) and Hvas (dense, hot-rodded high gain, looser low end),
-Træ (#400: an electric guitar made to sound acoustic, its "cabinet" the body of a guitar open to
-9 kHz, nothing clipping at the reference level up to Gain 7.5; `trae_report` and
-`chain/tests/acoustic.rs`) and Smæld (#413: clean with a snap, bright, tight and quick, whose power
+with its own cabinet: Clear (clean, glassy), Roar (mid-forward crunch), Thunder (modern tight high
+gain), Glow (warm edge of breakup, between Clear and Roar), Song (a smooth, compressed singing
+lead), Rumble (a big, loose, dark amp with the low end let through), and, from #263, Crack (thick,
+warm, slightly woolly mid-gain), Spark (its bright, chimey cousin), Sharp (crisp, tight modern high
+gain with a bite at 3 kHz and deep sag) and Edge (dense, hot-rodded high gain, looser low end),
+Wood (#400: an electric guitar made to sound acoustic, its "cabinet" the body of a guitar open to
+9 kHz, nothing clipping at the reference level up to Gain 7.5; `wood_report` and
+`chain/tests/acoustic.rs`) and Snap (#413: clean with a snap, bright, tight and quick, whose power
 stage keeps two notes played together apart; `clean_report` holds it against the others). They
 share the six dials. New amps go at the end of `Amp`: ids are frozen (`test_amp_ids_are_frozen`).
 

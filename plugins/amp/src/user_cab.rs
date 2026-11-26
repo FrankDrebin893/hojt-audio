@@ -661,7 +661,7 @@ pub mod tests {
     #[test]
     fn test_every_accepted_format_reads_the_same() {
         let dir = test_dir("formats");
-        let response = whole_response(Amp::Brol, 48000.0, 0.02, 0.8);
+        let response = whole_response(Amp::Roar, 48000.0, 0.02, 0.8);
         let reference = trim_and_level(&response, 48000.0).unwrap();
         for (bits, float) in
             [(8, false), (16, false), (24, false), (32, false), (32, true), (64, true)]
@@ -716,7 +716,7 @@ pub mod tests {
         std::fs::write(&text, b"").unwrap();
         assert_eq!(load(&text, 48000.0).err(), Some(LoadError::Bad));
 
-        let response = whole_response(Amp::Brol, 48000.0, 0.01, 0.8);
+        let response = whole_response(Amp::Roar, 48000.0, 0.01, 0.8);
         // Three channels, a rate nothing records at, silence, no samples at all
         let cases: [(&str, &[f32], u16, u16, u32); 4] = [
             ("three", &response, 3, 16, 48000),
@@ -740,7 +740,7 @@ pub mod tests {
     #[test]
     fn test_a_file_cut_short_gives_what_it_has() {
         let dir = test_dir("cut_short");
-        let response = whole_response(Amp::Klar, 48000.0, 0.02, 0.8);
+        let response = whole_response(Amp::Clear, 48000.0, 0.02, 0.8);
         let path = dir.join("whole.wav");
         write_ir_wav(&path, &response, 1, 16, false, 48000);
         let bytes = std::fs::read(&path).unwrap();
@@ -845,7 +845,7 @@ pub mod tests {
         for from_rate in [44100, 48000, 96000] {
             // 30 ms of nothing, then the cabinet
             let mut response = vec![0.0; (0.03 * from_rate as f32) as usize];
-            response.extend(whole_response(Amp::Torden, from_rate as f32, 0.03, 0.7));
+            response.extend(whole_response(Amp::Thunder, from_rate as f32, 0.03, 0.7));
             let path = dir.join(format!("late_{from_rate}.wav"));
             write_ir_wav(&path, &response, 1, 24, false, from_rate);
             for sample_rate in [44100.0, 48000.0, 192000.0] {
@@ -883,7 +883,7 @@ pub mod tests {
         assert!(taps[0].abs() < 0.1 * peak(&taps), "First tap: {} of {}", taps[0], peak(&taps));
 
         // A response that starts at once is left as it is, to the sample
-        let direct = design_ir(&Amp::Brol.model().cab, sample_rate).taps;
+        let direct = design_ir(&Amp::Roar.model().cab, sample_rate).taps;
         let taps = trim_and_level(&direct, sample_rate).unwrap();
         let gain = taps[0] / direct[0];
         let kept = &direct[..taps.len()];
@@ -919,7 +919,7 @@ pub mod tests {
         }
 
         // A short one keeps its length, but not the silence behind it
-        let mut short = design_ir(&Amp::Klar.model().cab, 48000.0).taps;
+        let mut short = design_ir(&Amp::Clear.model().cab, 48000.0).taps;
         let len = short.len();
         short.extend([0.0; 5000]);
         let taps = trim_and_level(&short, 48000.0).unwrap();
@@ -1040,7 +1040,7 @@ pub mod tests {
         assert_eq!(display_name("Big box edge of cone 3.wav", 10), "BIG B~NE 3");
         assert_eq!(display_name("Big box edge of cone 3.wav", 9), "BIG ~NE 3");
         // Letters the font has stay, others do not turn into empty boxes
-        assert_eq!(display_name("Brøl_æå.wav", 10), "BRØL_ÆÅ");
+        assert_eq!(display_name("Roar_æå.wav", 10), "ROAR_ÆÅ");
         assert_eq!(display_name("箱 one;two*.wav", 10), "- ONE-TWO-");
         assert_eq!(display_name("no extension", 20), "NO EXTENSION");
         for name in ["a.wav", "Big box edge of cone 2.wav", "ß-ß-ß-ß-ß-ß-ß.wav"] {

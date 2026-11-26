@@ -7,8 +7,28 @@ GitHub release.
 
 ### Guitar Amp
 
-- Two metal presets at the end of the list: Hamre, a tight, thick chug (Torden with the Drive pedal and the
-  compressor on, the gate shut as the note ends), and Fløjl, a big singing lead (Sang the same way, for the
+- The twelve amps have English names, so no name needs a Danish letter. Nothing else about them changed:
+  a project, a preset or a saved setting from before opens with the same amp, and the sound is the same.
+
+  | Before | Now |
+  |--------|-----|
+  | Klar | Clear |
+  | Brøl | Roar |
+  | Torden | Thunder |
+  | Glød | Glow |
+  | Sang | Song |
+  | Drøn | Rumble |
+  | Knald | Crack |
+  | Gnist | Spark |
+  | Skarp | Sharp |
+  | Hvas | Edge |
+  | Træ | Wood |
+  | Smæld | Snap |
+
+  The factory presets that carried an amp's name carry the new one, too: Glød and Gnist are Glow and Spark, and
+  Tung og Klar is Heavy & Clear.
+- Two metal presets at the end of the list: Hamre, a tight, thick chug (Thunder with the Drive pedal and the
+  compressor on, the gate shut as the note ends), and Fløjl, a big singing lead (Song the same way, for the
   ribbon microphone, which a preset does not store: pick it on the cabinet). No amp, pedal or cabinet changed.
 - The tuner no longer throws the metronome and the looper out of step: it hushed the click by switching it off, so
   the click began again on beat one afterwards while the loop had gone on. Its clock now runs on, silent.

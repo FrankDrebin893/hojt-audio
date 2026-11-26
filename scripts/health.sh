@@ -167,7 +167,7 @@ pad pad_report
 bells bells_report
 pitch_shifter quality_report'
 
-    # The amp prints its cost per amp model instead: "Klar       48000 Hz  playing   21.3 us   1.6 %   silent ..."
+    # The amp prints its cost per amp model instead: "Clear       48000 Hz  playing   21.3 us   1.6 %   silent ..."
     while read -r name pct; do
         [[ -n "$name" ]] || continue
         cpu="$(jq -c --arg w "$name playing at # kHz" --argjson v "$pct" \

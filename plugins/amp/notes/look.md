@@ -42,12 +42,12 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
 
   | Amp | Covering | Grille | Panel, print | Knobs | Piping |
   |-----|----------|--------|--------------|-------|--------|
-  | Klar | ivory, smooth | wheat cloth with a fine gold thread | brushed chrome, ink | chrome skirt | none |
-  | Glød | lacquered tweed | oxblood-brown cloth, a gold stripe across it | dark wood, cream | cream chicken-head | none |
-  | Brøl | black levant | salt-and-pepper basketweave | brushed brass, ink | gold top | white |
-  | Torden | black bronco | perforated steel | black anodised, cream, one red line | black fluted | red |
-  | Sang | deep blue smooth | salt-and-pepper cloth | brushed brass, ink | black chicken-head | silver |
-  | Drøn | dark green bronco | black felt | dark wood, cream | gold top | none |
+  | Clear | ivory, smooth | wheat cloth with a fine gold thread | brushed chrome, ink | chrome skirt | none |
+  | Glow | lacquered tweed | oxblood-brown cloth, a gold stripe across it | dark wood, cream | cream chicken-head | none |
+  | Roar | black levant | salt-and-pepper basketweave | brushed brass, ink | gold top | white |
+  | Thunder | black bronco | perforated steel | black anodised, cream, one red line | black fluted | red |
+  | Song | deep blue smooth | salt-and-pepper cloth | brushed brass, ink | black chicken-head | silver |
+  | Rumble | dark green bronco | black felt | dark wood, cream | gold top | none |
 
   The amp is picked from a drawer (#447, below): a double-click on the head opens it, and the
   `nameplate_opener` in the middle of the grille, its name on a plate of the panel's metal with one
@@ -63,12 +63,12 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
 
   | What plays | Covering | Grille | Speakers | Piping, corners |
   |------------|----------|--------|----------|-----------------|
-  | `OWN`, Klar | ivory, smooth | wheat cloth | one 12" | none |
-  | `OWN`, Glød | lacquered tweed | oxblood-brown cloth | two 12" | none |
-  | `OWN`, Brøl | black levant | basketweave | four 12" | white piping, chrome corners |
-  | `OWN`, Torden | black bronco | perforated steel | four 12" | steel corners |
-  | `OWN`, Sang | deep blue smooth | salt-and-pepper cloth | two 12" | silver piping |
-  | `OWN`, Drøn | dark green bronco | black felt | four 12" | none |
+  | `OWN`, Clear | ivory, smooth | wheat cloth | one 12" | none |
+  | `OWN`, Glow | lacquered tweed | oxblood-brown cloth | two 12" | none |
+  | `OWN`, Roar | black levant | basketweave | four 12" | white piping, chrome corners |
+  | `OWN`, Thunder | black bronco | perforated steel | four 12" | steel corners |
+  | `OWN`, Song | deep blue smooth | salt-and-pepper cloth | two 12" | silver piping |
+  | `OWN`, Rumble | dark green bronco | black felt | four 12" | none |
   | `1X10 SMALL` | tan, smooth | wheat cloth | one 10", set high | none |
   | `1X12 OPEN` | cream levant | silver cloth | one 12" | none |
   | `2X12 OPEN` | grey levant | silver cloth | two 12" | none |

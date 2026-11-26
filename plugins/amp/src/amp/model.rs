@@ -7,73 +7,73 @@ pub const MAX_STAGES: usize = 4;
 #[derive(Enum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Amp {
     #[id = "klar"]
-    #[name = "Klar"]
-    Klar,
+    #[name = "Clear"]
+    Clear,
     #[id = "brol"]
-    #[name = "Brøl"]
-    Brol,
+    #[name = "Roar"]
+    Roar,
     #[id = "torden"]
-    #[name = "Torden"]
-    Torden,
+    #[name = "Thunder"]
+    Thunder,
     #[id = "glod"]
-    #[name = "Glød"]
-    Glod,
+    #[name = "Glow"]
+    Glow,
     #[id = "sang"]
-    #[name = "Sang"]
-    Sang,
+    #[name = "Song"]
+    Song,
     #[id = "dron"]
-    #[name = "Drøn"]
-    Dron,
+    #[name = "Rumble"]
+    Rumble,
     #[id = "knald"]
-    #[name = "Knald"]
-    Knald,
+    #[name = "Crack"]
+    Crack,
     #[id = "gnist"]
-    #[name = "Gnist"]
-    Gnist,
+    #[name = "Spark"]
+    Spark,
     #[id = "skarp"]
-    #[name = "Skarp"]
-    Skarp,
+    #[name = "Sharp"]
+    Sharp,
     #[id = "hvas"]
-    #[name = "Hvas"]
-    Hvas,
+    #[name = "Edge"]
+    Edge,
     #[id = "trae"]
-    #[name = "Træ"]
-    Trae,
+    #[name = "Wood"]
+    Wood,
     #[id = "smaeld"]
-    #[name = "Smæld"]
-    Smaeld,
+    #[name = "Snap"]
+    Snap,
 }
 
 impl Amp {
     pub const ALL: [Amp; 12] = [
-        Amp::Klar,
-        Amp::Brol,
-        Amp::Torden,
-        Amp::Glod,
-        Amp::Sang,
-        Amp::Dron,
-        Amp::Knald,
-        Amp::Gnist,
-        Amp::Skarp,
-        Amp::Hvas,
-        Amp::Trae,
-        Amp::Smaeld,
+        Amp::Clear,
+        Amp::Roar,
+        Amp::Thunder,
+        Amp::Glow,
+        Amp::Song,
+        Amp::Rumble,
+        Amp::Crack,
+        Amp::Spark,
+        Amp::Sharp,
+        Amp::Edge,
+        Amp::Wood,
+        Amp::Snap,
     ];
 
     pub fn model(self) -> &'static AmpModel {
         match self {
-            Amp::Klar => &KLAR,
-            Amp::Brol => &BROL,
-            Amp::Torden => &TORDEN,
-            Amp::Glod => &GLOD,
-            Amp::Sang => &SANG,
-            Amp::Dron => &DRON,
-            Amp::Knald => &KNALD,
-            Amp::Gnist => &GNIST,
-            Amp::Skarp => &SKARP,
-            Amp::Hvas => &HVAS,
-            Amp::Trae => &TRAE,
-            Amp::Smaeld => &SMAELD,
+            Amp::Clear => &CLEAR,
+            Amp::Roar => &ROAR,
+            Amp::Thunder => &THUNDER,
+            Amp::Glow => &GLOW,
+            Amp::Song => &SONG,
+            Amp::Rumble => &RUMBLE,
+            Amp::Crack => &CRACK,
+            Amp::Spark => &SPARK,
+            Amp::Sharp => &SHARP,
+            Amp::Edge => &EDGE,
+            Amp::Wood => &WOOD,
+            Amp::Snap => &SNAP,
         }
     }
 
@@ -488,8 +488,8 @@ const FULL_RANGE_CAB: CabModel = CabModel {
     ir_ms: 10.0,
 };
 
-/// Klar's own: one 12" speaker in an open back. Light low end, a clear top
-const KLAR_CAB: CabModel = CabModel {
+/// Clear's own: one 12" speaker in an open back. Light low end, a clear top
+const CLEAR_AMP_CAB: CabModel = CabModel {
     resonance_hz: 78.0,
     resonance_q: 1.2,
     body: [130.0, 0.8, 1.5],
@@ -504,8 +504,8 @@ const KLAR_CAB: CabModel = CabModel {
     ir_ms: 5.0,
 };
 
-/// Glød's own: two 12" speakers in an open back. Fuller than one, still open
-const GLOD_CAB: CabModel = CabModel {
+/// Glow's own: two 12" speakers in an open back. Fuller than one, still open
+const GLOW_CAB: CabModel = CabModel {
     resonance_hz: 88.0,
     resonance_q: 1.2,
     body: [180.0, 0.8, 2.0],
@@ -520,8 +520,8 @@ const GLOD_CAB: CabModel = CabModel {
     ir_ms: 8.0,
 };
 
-/// Brøl's own: four 12" speakers in a closed box. Mids forward, a strong bite
-const BROL_CAB: CabModel = CabModel {
+/// Roar's own: four 12" speakers in a closed box. Mids forward, a strong bite
+const ROAR_CAB: CabModel = CabModel {
     resonance_hz: 95.0,
     resonance_q: 1.3,
     body: [240.0, 0.8, 2.0],
@@ -536,9 +536,9 @@ const BROL_CAB: CabModel = CabModel {
     ir_ms: 10.0,
 };
 
-/// Torden's own: four 12" speakers in a closed box, tight and heavy in the lows, a
+/// Thunder's own: four 12" speakers in a closed box, tight and heavy in the lows, a
 /// steep top for a lot of gain
-const TORDEN_CAB: CabModel = CabModel {
+const THUNDER_CAB: CabModel = CabModel {
     resonance_hz: 125.0,
     resonance_q: 1.15,
     body: [220.0, 0.7, 4.0],
@@ -553,9 +553,9 @@ const TORDEN_CAB: CabModel = CabModel {
     ir_ms: 6.0,
 };
 
-/// Sang's own: two 12" speakers in a closed box, a firm low end, the upper mids pushed
+/// Song's own: two 12" speakers in a closed box, a firm low end, the upper mids pushed
 /// forward and a smooth top that stops early
-const SANG_CAB: CabModel = CabModel {
+const SONG_CAB: CabModel = CabModel {
     resonance_hz: 100.0,
     resonance_q: 1.3,
     body: [260.0, 0.8, 3.0],
@@ -570,9 +570,9 @@ const SANG_CAB: CabModel = CabModel {
     ir_ms: 8.0,
 };
 
-/// Drøn's own: four 12" speakers in a big box with a loose, deep low end, a dark top and
+/// Rumble's own: four 12" speakers in a big box with a loose, deep low end, a dark top and
 /// the bite down at 2 kHz
-const DRON_CAB: CabModel = CabModel {
+const RUMBLE_CAB: CabModel = CabModel {
     resonance_hz: 75.0,
     resonance_q: 1.3,
     body: [140.0, 0.8, 4.5],
@@ -587,9 +587,9 @@ const DRON_CAB: CabModel = CabModel {
     ir_ms: 10.0,
 };
 
-/// Knald's own: four 12" speakers in a closed box, old and thick: fat low mids, a soft low
+/// Crack's own: four 12" speakers in a closed box, old and thick: fat low mids, a soft low
 /// end that does not snap, a modest bite at 2 kHz and a top that rounds off early
-const KNALD_CAB: CabModel = CabModel {
+const CRACK_CAB: CabModel = CabModel {
     resonance_hz: 88.0,
     resonance_q: 1.2,
     body: [210.0, 0.8, 3.5],
@@ -604,9 +604,9 @@ const KNALD_CAB: CabModel = CabModel {
     ir_ms: 10.0,
 };
 
-/// Gnist's own: two 12" speakers in a lightly closed box: a quick low end, the honk up at
+/// Spark's own: two 12" speakers in a lightly closed box: a quick low end, the honk up at
 /// 1.2 kHz, a ringing bite at 2.8 kHz and a top that reaches
-const GNIST_CAB: CabModel = CabModel {
+const SPARK_CAB: CabModel = CabModel {
     resonance_hz: 102.0,
     resonance_q: 1.3,
     body: [240.0, 0.8, 2.0],
@@ -621,9 +621,9 @@ const GNIST_CAB: CabModel = CabModel {
     ir_ms: 8.0,
 };
 
-/// Skarp's own: four 12" speakers in a closed box, tight and firm in the lows, a dip around
+/// Sharp's own: four 12" speakers in a closed box, tight and firm in the lows, a dip around
 /// 500 to 800 Hz, a focused bite at 3.1 kHz and a steep top
-const SKARP_CAB: CabModel = CabModel {
+const SHARP_CAB: CabModel = CabModel {
     resonance_hz: 112.0,
     resonance_q: 1.35,
     body: [200.0, 0.8, 4.0],
@@ -638,9 +638,9 @@ const SKARP_CAB: CabModel = CabModel {
     ir_ms: 8.0,
 };
 
-/// Hvas's own: two 12" speakers in a closed box, a looser low end than Skarp's, the mids
+/// Edge's own: two 12" speakers in a closed box, a looser low end than Sharp's, the mids
 /// left in and a hard bite at 2.4 kHz with the top let through
-const HVAS_CAB: CabModel = CabModel {
+const EDGE_CAB: CabModel = CabModel {
     resonance_hz: 95.0,
     resonance_q: 1.2,
     body: [260.0, 0.8, 3.0],
@@ -655,11 +655,11 @@ const HVAS_CAB: CabModel = CabModel {
     ir_ms: 8.0,
 };
 
-/// Træ's own, and not a speaker: the body of an acoustic guitar as a microphone in front of
+/// Wood's own, and not a speaker: the body of an acoustic guitar as a microphone in front of
 /// it hears it. The air in the box at 100 Hz and the top at 200 Hz, the mids of a magnetic
 /// pickup taken out, the strings' own top let through all the way up, and the wood: narrow
 /// peaks and notches from 1 to 7 kHz, which ring twice as long as a cone's
-const TRAE_CAB: CabModel = CabModel {
+const WOOD_CAB: CabModel = CabModel {
     resonance_hz: 85.0,
     resonance_q: 0.8,
     body: [205.0, 1.4, 1.5],
@@ -674,11 +674,11 @@ const TRAE_CAB: CabModel = CabModel {
     ir_ms: 10.0,
 };
 
-/// Smæld's own: one 12" speaker in an open back, voiced for a clear picture of the string: a
+/// Snap's own: one 12" speaker in an open back, voiced for a clear picture of the string: a
 /// short, light low end, the low mids thinned out, a wide bite at 3.6 kHz, a top that
 /// reaches further than any of the others and a smooth cone (few and small breakup peaks),
 /// so nothing rings on behind the note
-const SMAELD_CAB: CabModel = CabModel {
+const SNAP_AMP_CAB: CabModel = CabModel {
     resonance_hz: 98.0,
     resonance_q: 0.9,
     body: [170.0, 0.8, 0.5],
@@ -748,8 +748,8 @@ const UNUSED_STAGE: StageModel = StageModel {
 /// not reach the output's safety clip, which runs at the host's rate and aliases. With the
 /// drive pedal on, the stage is handed square waves at the pedal's Level: under that load
 /// it turns itself down and does not clip them again
-static KLAR: AmpModel = AmpModel {
-    name: "Klar",
+static CLEAR: AmpModel = AmpModel {
+    name: "Clear",
     model_number: "KL-30",
     tight_hz: 60.0,
     focus: [800.0, 0.7, 0.0],
@@ -812,17 +812,17 @@ static KLAR: AmpModel = AmpModel {
         presence_hz: 5000.0,
         presence_db: 8.0,
     },
-    cab: KLAR_CAB,
+    cab: CLEAR_AMP_CAB,
 };
 
 /// Crunch: a mid-forward stack. Little low end goes into the clipping, so chords stay
 /// defined; the first stage has headroom to spare, so picking softly cleans it up. At the
 /// bottom of the Gain dial every stage is turned down and the level is made up after the
 /// power stage, so that hard pick attacks stay clean there. With the drive pedal's Level
-/// or Drive up the first stage hands the second one square waves, as in Torden: that one
+/// or Drive up the first stage hands the second one square waves, as in Thunder: that one
 /// then clips at twice the rate
-static BROL: AmpModel = AmpModel {
-    name: "Brøl",
+static ROAR: AmpModel = AmpModel {
+    name: "Roar",
     model_number: "BR-50",
     tight_hz: 110.0,
     focus: [800.0, 0.7, 0.0],
@@ -893,16 +893,16 @@ static BROL: AmpModel = AmpModel {
         presence_hz: 4000.0,
         presence_db: 8.0,
     },
-    cab: BROL_CAB,
+    cab: ROAR_CAB,
 };
 
-/// Edge of breakup: warm and chiming, between Klar's headroom and Brøl's crunch. Two stages
+/// Edge of breakup: warm and chiming, between Clear's headroom and Roar's crunch. Two stages
 /// that bend early but softly, so a light touch stays clean and a hard pick or the Gain dial
 /// turned up leans into a round, compressed grind with a lot of even harmonics. A gentle
 /// bright lift that goes away as the gain comes up, mids a little forward, and a power stage
 /// that sags: playing harder squeezes and warms it, as it does a small old amp
-static GLOD: AmpModel = AmpModel {
-    name: "Glød",
+static GLOW: AmpModel = AmpModel {
+    name: "Glow",
     model_number: "GL-40",
     tight_hz: 70.0,
     focus: [900.0, 0.7, 1.0],
@@ -964,7 +964,7 @@ static GLOD: AmpModel = AmpModel {
         presence_hz: 4500.0,
         presence_db: 8.0,
     },
-    cab: GLOD_CAB,
+    cab: GLOW_CAB,
 };
 
 /// High gain: tight and modern. The low end is cut before the clipping and put back after
@@ -973,8 +973,8 @@ static GLOD: AmpModel = AmpModel {
 /// The second and third stages do most of the clipping, and are antialiased to match. With
 /// the drive pedal's Level up the first stage clips as well and hands the second one square
 /// waves: that one then clips at twice the rate
-static TORDEN: AmpModel = AmpModel {
-    name: "Torden",
+static THUNDER: AmpModel = AmpModel {
+    name: "Thunder",
     model_number: "TD-100",
     tight_hz: 160.0,
     focus: [1000.0, 0.5, 4.0],
@@ -1054,15 +1054,15 @@ static TORDEN: AmpModel = AmpModel {
         presence_hz: 3800.0,
         presence_db: 10.0,
     },
-    cab: TORDEN_CAB,
+    cab: THUNDER_CAB,
 };
 
 /// Singing lead: smooth and compressed. Three stages that bend early and softly, the mids
 /// pushed up around 1 kHz so a note sings above the band, the top rounded off before it can
 /// fizz, and a power stage that holds its level. Plenty of sustain without the tightness
-/// of Torden or the chords-first crunch of Brøl
-static SANG: AmpModel = AmpModel {
-    name: "Sang",
+/// of Thunder or the chords-first crunch of Roar
+static SONG: AmpModel = AmpModel {
+    name: "Song",
     model_number: "SG-60",
     tight_hz: 90.0,
     focus: [1200.0, 0.8, 3.0],
@@ -1133,15 +1133,15 @@ static SANG: AmpModel = AmpModel {
         presence_hz: 4000.0,
         presence_db: 8.0,
     },
-    cab: SANG_CAB,
+    cab: SONG_CAB,
 };
 
 /// Heavy and loose: a big, dark amp that lets the low end through. Little is cut in front of
 /// the clipping, so the bass pushes the stages and the note blooms and sags, the mids sit
 /// back, the top is rolled off and the fizz filtered. A soft power stage that sags a lot
 /// and a deep resonance, for riffs that move air rather than cut
-static DRON: AmpModel = AmpModel {
-    name: "Drøn",
+static RUMBLE: AmpModel = AmpModel {
+    name: "Rumble",
     model_number: "DR-80",
     tight_hz: 70.0,
     focus: [350.0, 0.7, 2.0],
@@ -1212,7 +1212,7 @@ static DRON: AmpModel = AmpModel {
         presence_hz: 3500.0,
         presence_db: 6.0,
     },
-    cab: DRON_CAB,
+    cab: RUMBLE_CAB,
 };
 
 /// Mid-gain, thick and warm: a slightly woolly classic rock amp. The low end is let into the
@@ -1220,8 +1220,8 @@ static DRON: AmpModel = AmpModel {
 /// absent, and the power stage compresses and sags a lot. Three stages: the first two bend
 /// early and softly, so it breaks up from Gain 4 and cleans up with the guitar's volume; the
 /// last clips unevenly, so the grind goes fuzzy-warm as the gain passes 6
-static KNALD: AmpModel = AmpModel {
-    name: "Knald",
+static CRACK: AmpModel = AmpModel {
+    name: "Crack",
     model_number: "KN-45",
     tight_hz: 75.0,
     focus: [800.0, 0.7, 2.0],
@@ -1292,15 +1292,15 @@ static KNALD: AmpModel = AmpModel {
         presence_hz: 3500.0,
         presence_db: 5.0,
     },
-    cab: KNALD_CAB,
+    cab: CRACK_CAB,
 };
 
 /// Mid-gain, bright and chimey: rock-and-roll rhythm with sparkle. A bright lift that works
-/// at low Gain, honky upper mids and a quick, tight low end; it takes some of Knald's
+/// at low Gain, honky upper mids and a quick, tight low end; it takes some of Crack's
 /// thickness and sag, so the two are takes on one family. Three stages with a lot of
 /// headroom, so a light touch stays clear and a hard pick leans into a compressed edge
-static GNIST: AmpModel = AmpModel {
-    name: "Gnist",
+static SPARK: AmpModel = AmpModel {
+    name: "Spark",
     model_number: "GN-45",
     tight_hz: 90.0,
     focus: [1200.0, 0.7, 2.0],
@@ -1371,17 +1371,17 @@ static GNIST: AmpModel = AmpModel {
         presence_hz: 4500.0,
         presence_db: 8.0,
     },
-    cab: GNIST_CAB,
+    cab: SPARK_CAB,
 };
 
 /// Crisp modern high gain: tight, thick and compressed. The low end is cut before the
 /// clipping and put back after it, so the thump is firm and chords stay clear; four stages
 /// clip a signal with its upper mids pushed forward, so every pick attack and note reads
 /// under the gain; a steep filter after the last stage takes the fizz off, which is what
-/// makes it crisp and not thin. The power stage works hard and sags (deeper than Torden's),
-/// which is where the thick saturation comes from. Antialiased as Torden is
-static SKARP: AmpModel = AmpModel {
-    name: "Skarp",
+/// makes it crisp and not thin. The power stage works hard and sags (deeper than Thunder's),
+/// which is where the thick saturation comes from. Antialiased as Thunder is
+static SHARP: AmpModel = AmpModel {
+    name: "Sharp",
     model_number: "SK-100",
     tight_hz: 150.0,
     focus: [2400.0, 0.6, 4.0],
@@ -1461,15 +1461,15 @@ static SKARP: AmpModel = AmpModel {
         presence_hz: 4200.0,
         presence_db: 14.0,
     },
-    cab: SKARP_CAB,
+    cab: SHARP_CAB,
 };
 
 /// Crisp, hot-rodded high gain: dense, mid-heavy and singing, with the pick attack left in.
-/// Four stages, a looser low end than Skarp's (less is cut before the clipping, so the
+/// Four stages, a looser low end than Sharp's (less is cut before the clipping, so the
 /// bass pushes it a little), the mids up around 1 kHz and a top that is let through further
-/// than Sang's. A power stage that holds its level, so the sustain is the preamp's
-static HVAS: AmpModel = AmpModel {
-    name: "Hvas",
+/// than Song's. A power stage that holds its level, so the sustain is the preamp's
+static EDGE: AmpModel = AmpModel {
+    name: "Edge",
     model_number: "HV-100",
     tight_hz: 100.0,
     focus: [1300.0, 0.7, 3.0],
@@ -1549,17 +1549,17 @@ static HVAS: AmpModel = AmpModel {
         presence_hz: 4200.0,
         presence_db: 9.0,
     },
-    cab: HVAS_CAB,
+    cab: EDGE_CAB,
 };
 
 /// Acoustic: an electric guitar made to sound like an acoustic one, and the clearest of the
-/// amps. Nothing in it clips: two stages with ceilings higher than Klar's, which only round
+/// amps. Nothing in it clips: two stages with ceilings higher than Clear's, which only round
 /// off a string struck hard at the top of the Gain dial, and a power stage that is straight
 /// up to its knee. What makes the sound is the frequency response: a treble lift in front
 /// that gives back what a magnetic pickup loses, the mids scooped at the dials' centre, and a
 /// "cabinet" that is the body of a guitar, open to 9 kHz
-static TRAE: AmpModel = AmpModel {
-    name: "Træ",
+static WOOD: AmpModel = AmpModel {
+    name: "Wood",
     model_number: "TR-15",
     tight_hz: 80.0,
     focus: [750.0, 0.5, 0.0],
@@ -1621,19 +1621,19 @@ static TRAE: AmpModel = AmpModel {
         presence_hz: 5000.0,
         presence_db: 13.0,
     },
-    cab: TRAE_CAB,
+    cab: WOOD_CAB,
 };
 
 /// Clean with a snap: bright, tight and quick, for single-coil playing where every string
-/// of a chord and the pick on it should read. Two stages with more headroom than Klar's, so
+/// of a chord and the pick on it should read. Two stages with more headroom than Clear's, so
 /// the Gain dial adds level far more than grit: a held note is barely bent even at 10. Less
 /// low end goes in (nothing woolly under a chord), a bell at 2.4 kHz in front puts the twang
-/// forward and the bright lift starts lower. The power stage holds its peaks as Klar's does,
+/// forward and the bright lift starts lower. The power stage holds its peaks as Clear's does,
 /// from a lower knee: straight up to it, so a chord at the reference level is left alone, and
 /// rounding off the pick attacks that go over. Its sag is small and fast, so an attack is not
-/// squeezed. Under the drive pedal it gives way as Klar's does
-static SMAELD: AmpModel = AmpModel {
-    name: "Smæld",
+/// squeezed. Under the drive pedal it gives way as Clear's does
+static SNAP: AmpModel = AmpModel {
+    name: "Snap",
     model_number: "SM-20",
     tight_hz: 95.0,
     focus: [2400.0, 0.8, 2.0],
@@ -1695,7 +1695,7 @@ static SMAELD: AmpModel = AmpModel {
         presence_hz: 5500.0,
         presence_db: 8.0,
     },
-    cab: SMAELD_CAB,
+    cab: SNAP_AMP_CAB,
 };
 
 #[cfg(test)]

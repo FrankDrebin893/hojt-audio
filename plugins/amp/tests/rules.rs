@@ -209,19 +209,19 @@ fn test_what_counts_as_a_branch_on_the_amp() {
     for branch in [
         "match self.amp {",
         "match settings.wanted_amp {",
-        "Amp::Klar => 1.0,",
-        "Amp::Brol | Amp::Glod => 2.0,",
-        "if amp == Amp::Brol {",
-        "if amp != Amp::Torden {",
-        "if settings.amp == amp::model::Amp::Klar {}",
-        "if let Amp::Klar = amp {",
-        "let tight = matches!(amp, Amp::Torden);",
+        "Amp::Clear => 1.0,",
+        "Amp::Roar | Amp::Glow => 2.0,",
+        "if amp == Amp::Roar {",
+        "if amp != Amp::Thunder {",
+        "if settings.amp == amp::model::Amp::Clear {}",
+        "if let Amp::Clear = amp {",
+        "let tight = matches!(amp, Amp::Thunder);",
     ] {
         assert!(branches_on_the_amp(branch), "not seen: {branch}");
     }
     for fine in [
         "for amp in Amp::ALL {",
-        "amp: Amp::Brol,",
+        "amp: Amp::Roar,",
         "let amp = Amp::default();",
         "let model = settings.amp.model();",
         "match self.mic_type {",
@@ -244,7 +244,7 @@ fn helper() {
                 fn b() {}
                 #[cfg(test)]
 mod tests {
-    fn c() { if amp == Amp::Klar {} }
+    fn c() { if amp == Amp::Clear {} }
 }
                 fn d() {} // match amp
 ";
@@ -475,7 +475,7 @@ fn branches_on_the_amp(line: &str) -> bool {
         let variant: String = after.chars().take_while(|c| c.is_alphanumeric()).collect();
         let is_variant = variant.chars().next().is_some_and(char::is_uppercase) && variant != "ALL";
         let rest = after[variant.len()..].trim_start();
-        // What comes before the path the variant is named by, as in `model::Amp::Klar`
+        // What comes before the path the variant is named by, as in `model::Amp::Clear`
         let before = line[..at]
             .trim_end_matches(|c: char| c.is_alphanumeric() || c == '_' || c == ':')
             .trim_end();

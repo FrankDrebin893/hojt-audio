@@ -245,7 +245,7 @@ mod tests {
 
     #[test]
     fn test_drive_pedal_makes_a_clean_power_stage_give_way_only_under_a_heavy_load() {
-        let model = &Amp::Klar.model().power;
+        let model = &Amp::Clear.model().power;
         assert!(model.driven_sag > 0.0);
         let run_driven = |changes: &[(usize, bool)], input: &[f32]| {
             let mut power = PowerAmp::new();
@@ -291,7 +291,7 @@ mod tests {
         assert!((back - 1.0).abs() < 0.01, "Back at {back} of the level");
 
         // The amps that clip before their power stage are left alone
-        for amp in [Amp::Brol, Amp::Torden] {
+        for amp in [Amp::Roar, Amp::Thunder] {
             assert_eq!(amp.model().power.driven_sag, 0.0);
         }
     }

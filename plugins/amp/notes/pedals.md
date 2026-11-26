@@ -71,6 +71,6 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   44.1 kHz flat out), and flat out in front of any amp at full gain at most -72 dB, as with
   the drive. It costs about 0.6 % of a core at 48 kHz in front of the amp and 1.2 % behind
   the cabinet, where it runs two channels and its own oversampling
-- Cost with everything on but the fuzz (Torden; the fuzz is the line above): about 2.0 % of
+- Cost with everything on but the fuzz (Thunder; the fuzz is the line above): about 2.0 % of
   a core at 48 kHz, 2.6 % at 96 kHz, 5.5 % at 192 kHz, on a fast core. The cores of a machine differ (1.33 times on the development
   machine): the reports pin their thread (`test_util::pin_thread`)
