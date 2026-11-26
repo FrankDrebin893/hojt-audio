@@ -9,4 +9,4 @@ pub mod update;
 pub const VENDOR: &str = "Hojt Audio";
 
 /// The brand as it is written
-pub const BRAND: &str = "HØJT";
+pub const BRAND: &str = "Højte Audio";

@@ -1,6 +1,6 @@
 ---
 name: release-prep
-description: Decide whether a release of the HØJT DSP plugins is due and, if it is, prepare it as a pull request for somebody to merge and tag. Use for the weekly Release Manager run, or when asked whether it is time to release.
+description: Decide whether a release of the Højte DSP plugins is due and, if it is, prepare it as a pull request for somebody to merge and tag. Use for the weekly Release Manager run, or when asked whether it is time to release.
 argument-hint: [force, to prepare a release that is not due]
 ---
 

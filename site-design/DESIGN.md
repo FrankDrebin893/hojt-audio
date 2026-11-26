@@ -1,6 +1,6 @@
 ---
-name: HØJT site
-description: The public page of HØJT (hojte.net/hojt-audio/), a dark workbench where the products are laid out under their own paint, printed like the plugins' pedals.
+name: Højte site
+description: The public page of Højte (hojte.net/hojt-audio/), a dark workbench where the products are laid out under their own paint, printed like the plugins' pedals.
 colors:
   bench: "#121110"
   panel: "#1C1A18"
@@ -40,7 +40,7 @@ layout:
   phone-break: "560px"
 ---
 
-# Design System: HØJT site
+# Design System: Højte site
 
 The site's source of truth for its look. `site/hojt.css` holds the tokens as CSS custom
 properties; this file holds why they are what they are, the rules a page is checked against and
@@ -60,7 +60,7 @@ The renders of the pedals and screenshots of the app are the best thing the site
 be the biggest thing on a page.
 
 The danger: near-black with a single bright accent is one of the looks AI tools now default to.
-What keeps HØJT clear of it is the six paints, the halftone renders and the printed labels. When
+What keeps Højte clear of it is the six paints, the halftone renders and the printed labels. When
 in doubt, add more of the product, not more of the chrome.
 
 ## Colors
@@ -169,8 +169,18 @@ download, controls.
 
 ## Voice
 
-From `/page`: what is heard and seen, short plain sentences, no internals, no real makers' names
-or trademarks.
+Plain and dry, leaning that way, with some personality: plain, factual sentences that carry the
+odd dry or warm remark where it fits, not a joke on every line. The rules, each checkable by
+reading the text:
+
+- What is heard and seen, no internals, no real makers' names or trademarks
+- Nobody speaks: the page addresses "you", and no quote or character talks
+- No taglines or punchlines (no "turned up"), no em-dashes, no list of three that is there only
+  for its rhythm
+- No vague claims ("beginner-friendly", "zero friction"): say the concrete thing instead, such
+  as thirteen pedals or what a knob does
+- At most one dry or warm remark in a section, and it goes no further than "Run two amps at once
+  if one feels lonely"
 
 - Right: "Four kits, each with its own room."
 - Wrong: "Zero-friction first run." (marketing), "Rendered directly from the WPF visual tree at

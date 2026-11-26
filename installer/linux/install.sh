@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installs HOJT DSP for the current user: the .vst3 bundles to ~/.vst3 and the .clap files to
+# Installs Højte DSP for the current user: the .vst3 bundles to ~/.vst3 and the .clap files to
 # ~/.clap, creating the folders. Run it from the unpacked HojtDSP-linux folder.
 #
 #   ./install.sh                 install every plugin, VST3 and CLAP, over an older build

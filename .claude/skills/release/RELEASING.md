@@ -2,7 +2,7 @@
 
 The rules `/release` and `/page` follow. The page is https://hojte.net/hojt-audio/ and the downloads are GitHub releases.
 The code is GPL-3.0-or-later, which the VST3 bindings require of a VST3 binary that is handed
-out; the HØJT name and logo are kept out of it (`NOTICE.md`).
+out; the Højte name and logo are kept out of it (`NOTICE.md`).
 
 Run by `/release`. In short: the version is set in `Cargo.toml`, the changelog gets a `## <version>` section, the
 page is brought up to the release with `/page release <version>`, and the release goes in through a

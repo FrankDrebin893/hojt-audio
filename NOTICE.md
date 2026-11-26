@@ -1,4 +1,4 @@
-# HØJT DSP
+# Højte DSP
 
 The plugins. (The piano app in `piano/` of the source is not one of them: it has its own licence and notices there.)
 
@@ -14,8 +14,8 @@ General Public License in [LICENSE](LICENSE) for more details.
 
 ## Name and logo
 
-The licence covers the code. It does not give a right to the name HØJT, the name Hojt Audio or the
-HØJT logo. A modified version that is passed on must carry another name and another logo, so
+The licence covers the code. It does not give a right to the name Højte, the name Hojt Audio or the
+Højte logo. A modified version that is passed on must carry another name and another logo, so
 nobody takes it for the original.
 
 ## Third-party components

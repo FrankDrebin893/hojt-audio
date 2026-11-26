@@ -1,6 +1,6 @@
 ---
 name: release-review
-description: Review how each HØJT DSP release did, 7 and 28 days after it was published, from what can be read without tracking anyone, and file what it learns as state:idea issues. Use for the weekly Release Analyst run.
+description: Review how each Højte DSP release did, 7 and 28 days after it was published, from what can be read without tracking anyone, and file what it learns as state:idea issues. Use for the weekly Release Analyst run.
 argument-hint: [tag, to review one release now]
 ---
 
@@ -10,7 +10,7 @@ The weekly Release Analyst (Mondays 07:15 UTC, after `health.yml`). It looks at 
 release at two ages, 7 and 28 days after it was published, writes one comment per release and
 age on the long-lived issue "Release reviews", and files at most 3 ideas from what it finds.
 
-The goal every direction is judged against: HØJT DSP is a free, beginner-friendly plugin set
+The goal every direction is judged against: Højte DSP is a free, beginner-friendly plugin set
 that lets someone start playing guitar without paying for expensive plugins first.
 
 It reads only what exists without tracking visitors: release downloads, issues, comments,

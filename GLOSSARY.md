@@ -5,7 +5,7 @@ A free, beginner-friendly set of guitar and band tools (plugins, a practice app 
 ## Brand and products
 
 **Højte Audio**:
-The brand: Højte is the author's surname, written with the Ø wherever a person reads it (the logo, the page, the README, window titles). In URLs and file names it is the ASCII `hojte-audio`. Until the rename is done (ADR 0010) the page still says HØJT.
+The brand: Højte is the author's surname, written with the Ø wherever a person reads it (the logo, the page, the README, window titles). In URLs and file names it is the ASCII `hojte-audio`.
 _Avoid_: HØJT, Hojt (both are the old name, except as the vendor string below)
 
 **Højte DSP**:
@@ -20,7 +20,7 @@ One VST3 / CLAP product of Højte DSP, with one window: Pitch Shifter, Drum Synt
 _Avoid_: pedal (see below), effect (when meaning the whole product)
 
 **Piano viz**:
-The Windows app for practising piano with a MIDI keyboard. Not part of Højte DSP. Called Højte Piano on the page and in its window once the rename is done; "piano viz" stays the word in code, docs and issues.
+The Windows app for practising piano with a MIDI keyboard. Not part of Højte DSP. Called Højte Piano on the page and in its window; "piano viz" stays the word in code, docs and issues.
 _Avoid_: piano app, PMVA
 
 **Resources**:

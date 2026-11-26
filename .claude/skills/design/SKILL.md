@@ -6,7 +6,7 @@ argument-hint: explore|build|review <surface> [what]
 
 # /design
 
-How the look of HØJT is changed. Claude builds well and follows written rules, but judges its own
+How the look of Højte is changed. Claude builds well and follows written rules, but judges its own
 taste badly and sees nothing without a render, and a critique-and-polish loop run again and again
 drifts back to the average. So this skill puts taste where it belongs, with Rasmus picking between
 real alternatives at the start, makes every round compare against a render, and leaves the verdict
