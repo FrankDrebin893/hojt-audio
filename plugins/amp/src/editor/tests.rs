@@ -24,6 +24,18 @@ thread_local! {
     static LOOPER: Arc<LooperControl> = Arc::new(LooperControl::default());
 }
 
+#[cfg(target_os = "linux")]
+thread_local! {
+    /// The MIDI inbox the window of this test drains: empty until a test puts a program change in
+    static MIDI: Arc<MidiInbox> = Arc::new(MidiInbox::default());
+}
+
+/// The MIDI inbox the window of this test is drawn with
+#[cfg(target_os = "linux")]
+fn test_midi() -> Arc<MidiInbox> {
+    MIDI.with(Arc::clone)
+}
+
 /// The looper the window of this test is drawn with
 #[cfg(target_os = "linux")]
 fn test_looper() -> Arc<LooperControl> {
@@ -144,6 +156,7 @@ fn harness_at_size<'a>(
             lamp_reading: &lamp_reading,
             beats: &BeatReading::default(),
             looper: &test_looper(),
+            midi: &test_midi(),
             cab_loader: &cab_loader,
             load_cabinet: &|| {},
             audio_host,
@@ -202,6 +215,7 @@ fn test_the_window_keeps_each_widget_on_one_layer() {
                 lamp_reading: &lamp_reading,
                 beats: &BeatReading::default(),
                 looper: &test_looper(),
+                midi: &test_midi(),
                 cab_loader: &cab_loader,
                 load_cabinet: &|| {},
                 audio_host: None,
@@ -688,6 +702,9 @@ impl standalone::Host for TwoInterfaces {
     fn restart(&self, _: &Prefs) -> std::io::Result<()> {
         Ok(())
     }
+    fn midi_inputs(&self) -> Vec<String> {
+        vec!["FCB1010 USB MIDI".into()]
+    }
     fn channels(&self, _: &str, _: bool, device: Option<&str>) -> u32 {
         // The interface has four of each, the machine's own devices a pair
         if device == Some("Scarlett 2i2 USB") {
@@ -721,6 +738,8 @@ fn test_the_standalone_audio_settings_look_as_they_did() {
         backend: "alsa".into(),
         input_device: Some("Scarlett 2i2 USB".into()),
         input_channel: 3,
+        midi_input: Some("FCB1010 USB MIDI".into()),
+        midi_channel: 3,
         ..Prefs::default()
     };
     harness_with(&params, &setter, None, Some(&machine), |view| {
@@ -1592,7 +1611,7 @@ fn plate_rects() -> [(&'static str, Rect, Rect); 4] {
             below(
                 SETTINGS_X + ui::icons::ICON_REACH - SETTINGS_WIDTH,
                 SETTINGS_WIDTH,
-                settings_height(true, 9),
+                settings_height(true, 11),
             ),
             Rect::from_center_size(
                 Pos2::new(SETTINGS_X, STRIP_Y),
@@ -1710,10 +1729,10 @@ fn test_the_settings_plate_holds_every_row_the_note_and_the_buttons() {
         + SETTINGS_TAPE_WIDTH
         + SETTINGS_OVERHANG;
     assert!(row + SETTINGS_PAD <= SETTINGS_WIDTH + 0.01);
-    // The audio's eight rows and the cabinet's, the note and the buttons grow the plate
-    let (plugin, standalone) = (settings_height(false, 1), settings_height(true, 9));
+    // The audio's ten rows and the cabinet's, the note and the buttons grow the plate
+    let (plugin, standalone) = (settings_height(false, 1), settings_height(true, 11));
     assert!(plugin < standalone);
-    assert_eq!(standalone - plugin, 8.0 * SETTINGS_ROW_HEIGHT + SETTINGS_FOOT_HEIGHT,);
+    assert_eq!(standalone - plugin, 10.0 * SETTINGS_ROW_HEIGHT + SETTINGS_FOOT_HEIGHT,);
     // The longest cabinet name fits the tape
     assert!(SETTINGS_CAB_CHARS as f32 * 8.5 < SETTINGS_TAPE_WIDTH);
     // The plate is on the window under the icon, with room under it for the pedals' titles
@@ -3707,4 +3726,92 @@ fn test_the_cabinet_drawer_at_the_default_window_looks_as_it_did() {
         open_cabinet_drawer(&view, &mut harness, 0);
         harness.snapshot("cabinet_drawer_default_window");
     });
+}
+
+/// A `PresetDisplay` on `params`, loading through `host`, for the tests of a MIDI program change
+fn with_display<R>(
+    params: &GuitarAmpParams,
+    host: &crate::user_presets::tests::Host,
+    body: impl FnOnce(&PresetDisplay, &mut View) -> R,
+) -> R {
+    let setter = ParamSetter::new(host);
+    let cab_loader = CabLoader::new(Arc::new(crate::cab_stage::CabStage::new()), 48_000.0);
+    let display =
+        PresetDisplay { params, setter: &setter, cab_loader: &cab_loader, load_cabinet: &|| {} };
+    body(&display, &mut fresh_view(params, &LampReading::new()))
+}
+
+// #479: a program change n loads factory preset n of the bank showing as one edit, with the very
+// edits a click on its row makes, and a number past the end of the bank loads nothing
+#[test]
+fn test_a_program_change_loads_the_preset_a_click_loads_as_one_edit() {
+    use crate::user_presets::tests::{as_one_edit, Host};
+    for number in 0..PRESETS.len() {
+        let params = GuitarAmpParams::default();
+        let (by_midi, by_click) = (Host::default(), Host::default());
+        assert!(with_display(&params, &by_midi, |display, view| display.load_program(number, view)));
+        assert_eq!(params.preset.load(Ordering::Relaxed), number as u32);
+        with_display(&params, &by_click, |display, _| display.load_factory(number));
+        let (told, clicked) = (by_midi.told.lock().unwrap(), by_click.told.lock().unwrap());
+        assert!(as_one_edit(&told), "{number}: one undo gesture");
+        assert_eq!(*told, *clicked, "{number}: the same edits as a click");
+    }
+}
+
+#[test]
+fn test_a_program_change_past_the_end_of_the_bank_is_ignored() {
+    use crate::user_presets::tests::Host;
+    let params = GuitarAmpParams::default();
+    let host = Host::default();
+    params.preset.store(3, Ordering::Relaxed);
+    for number in [PRESETS.len(), PRESETS.len() + 1, 127] {
+        assert!(!with_display(&params, &host, |display, view| display.load_program(number, view)));
+    }
+    assert!(host.told.lock().unwrap().is_empty(), "nothing was set");
+    assert_eq!(params.preset.load(Ordering::Relaxed), 3);
+}
+
+// The bank showing is the player's own: program n is the nth file of the plate's list
+#[test]
+#[cfg(target_os = "linux")]
+fn test_a_program_change_picks_from_the_bank_showing() {
+    use crate::user_presets::tests::{as_one_edit, Host};
+    with_presets_in("editor-program-change-bank", |dir| {
+        let params = GuitarAmpParams::default();
+        for file in ["B.preset", "A.preset"] {
+            user_presets::save(&params, dir, file).unwrap();
+        }
+        "/".clone_into(&mut params.preset_bank.lock().unwrap());
+        let host = Host::default();
+        // In the plate's order A comes first, then B; a third does not exist
+        assert!(with_display(&params, &host, |display, view| display.load_program(1, view)));
+        assert_eq!(*params.user_preset.lock().unwrap(), "B.preset");
+        assert!(as_one_edit(&host.told.lock().unwrap()));
+        assert!(with_display(&params, &host, |display, view| display.load_program(0, view)));
+        assert_eq!(*params.user_preset.lock().unwrap(), "A.preset");
+        host.told.lock().unwrap().clear();
+        assert!(!with_display(&params, &host, |display, view| display.load_program(2, view)));
+        assert!(host.told.lock().unwrap().is_empty());
+        assert_eq!(*params.user_preset.lock().unwrap(), "A.preset");
+        // The factory presets are not what program 0 means while this bank shows
+        assert_eq!(params.preset.load(Ordering::Relaxed), 0);
+    });
+}
+
+// The window drains the queue in the frame it is painted in, and that loads the preset
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_window_loads_a_program_change_that_waits_in_its_inbox() {
+    use crate::midi::Program;
+    let params = GuitarAmpParams::default();
+    let host = crate::user_presets::tests::Host::default();
+    let setter = ParamSetter::new(&host);
+    let (mut harness, _view) = harness_shared(&params, &setter, None, None, |_| {});
+    harness.run_ok();
+    assert!(host.told.lock().unwrap().is_empty());
+    assert!(test_midi().put(Program { channel: 5, number: 2 }));
+    harness.run_ok();
+    assert_eq!(params.preset.load(Ordering::Relaxed), 2);
+    assert!(!host.told.lock().unwrap().is_empty());
+    assert!(test_midi().is_empty());
 }

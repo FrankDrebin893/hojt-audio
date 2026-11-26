@@ -111,6 +111,7 @@ dependencies = [
  "cpal",
  "embed-resource",
  "hound",
+ "midir",
  "nih_plug",
  "nih_plug_egui",
  "png 0.17.16",

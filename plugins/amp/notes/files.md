@@ -93,6 +93,7 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   chain tells the editor, and how long the editor shows it
 - `src/tuner.rs` - Tuner: pitch detector on the mono input, `TunerReading` (one atomic shared
   with the editor), `Note`
+- `src/midi.rs` - `MidiInbox`: program changes from `process` to the editor (#479), the channel choice (Omni, 1 to 16) and the thread that wakes the editor
 - `src/metronome.rs` - Metronome: the click on a clock of its own or the host's (`Metronome`,
   `MetronomeSettings`), its three sounds, `BeatReading` (what the editor's lamp reads) and `TapTempo`
 - `src/looper.rs` - Looper (#280): records the finished sound, plays it back and overdubs (`Looper`,

@@ -37,6 +37,11 @@ pub struct Prefs {
     pub input_channel: u32,
     /// The first channel (counted from 1) of the output device the amp's pair is written to
     pub output_channel: u32,
+    /// The MIDI input a footcontroller's program changes come in on, as the host's
+    /// `--midi-input` names it; `None` opens none
+    pub midi_input: Option<String>,
+    /// The MIDI channel the amp listens to: 0 is Omni, 1 to 16 a channel
+    pub midi_channel: u8,
 }
 
 impl Default for Prefs {
@@ -49,6 +54,8 @@ impl Default for Prefs {
             sample_rate: None,
             input_channel: 1,
             output_channel: 1,
+            midi_input: None,
+            midi_channel: crate::midi::OMNI,
         }
     }
 }
@@ -64,9 +71,21 @@ impl Prefs {
     /// with the same driver, and not with ASIO: its driver cannot be opened again in the same
     /// process (the Focusrite's would not), so ASIO always starts the program again. A new
     /// buffer size or sample rate is the same change as a new device: the streams are closed
-    /// and opened again, and the amp is initialised again for them
+    /// and opened again, and the amp is initialised again for them. The fork's host opens its
+    /// MIDI input once, when it starts and cannot open another while it plays, so a new MIDI
+    /// input starts the program again too, as a new driver does
     pub fn changes_live(&self, running: &Prefs) -> bool {
-        self.same_driver(running) && self.backend != "asio" && running.backend != "asio"
+        self.same_driver(running)
+            && self.backend != "asio"
+            && running.backend != "asio"
+            && self.midi_input == running.midi_input
+    }
+
+    /// Is the MIDI channel all that differs from `running`: that is read by the editor at
+    /// each program change, so it needs no new streams
+    pub fn only_midi_channel_differs(&self, running: &Prefs) -> bool {
+        self.midi_channel != running.midi_channel
+            && (Prefs { midi_channel: running.midi_channel, ..self.clone() }) == *running
     }
 
     /// The saved choices, or the defaults for a missing or unreadable file. Values the
@@ -92,14 +111,16 @@ impl Prefs {
     fn to_json(&self) -> String {
         let text = |value: &Option<String>| value.as_deref().map_or("null".into(), quoted);
         format!(
-            "{{\n  \"backend\": {},\n  \"input_device\": {},\n  \"output_device\": {},\n  \"period_size\": {},\n  \"sample_rate\": {},\n  \"input_channel\": {},\n  \"output_channel\": {}\n}}\n",
+            "{{\n  \"backend\": {},\n  \"input_device\": {},\n  \"output_device\": {},\n  \"period_size\": {},\n  \"sample_rate\": {},\n  \"input_channel\": {},\n  \"output_channel\": {},\n  \"midi_input\": {},\n  \"midi_channel\": {}\n}}\n",
             quoted(&self.backend),
             text(&self.input_device),
             text(&self.output_device),
             number(self.period_size),
             number(self.sample_rate),
             self.input_channel,
-            self.output_channel
+            self.output_channel,
+            text(&self.midi_input),
+            self.midi_channel
         )
     }
 
@@ -137,6 +158,14 @@ impl Prefs {
                 // A channel counts from 1; anything else is the first
                 ("input_channel", value) => prefs.input_channel = channel_of(value)?,
                 ("output_channel", value) => prefs.output_channel = channel_of(value)?,
+                // An empty name is no input; a channel past 16 is Omni
+                ("midi_input", value) => prefs.midi_input = value.filter(|name| !name.is_empty()),
+                ("midi_channel", value) => {
+                    prefs.midi_channel = number_of(value)?.map_or(crate::midi::OMNI, |n| match n {
+                        1..=16 => n as u8,
+                        _ => crate::midi::OMNI,
+                    })
+                }
                 _ => {}
             }
         }
@@ -165,6 +194,7 @@ impl Prefs {
                     | "-r"
                     | "--input-channel"
                     | "--output-channel"
+                    | "--midi-input"
             );
             if !known {
                 continue;
@@ -179,6 +209,7 @@ impl Prefs {
                 "--period-size" | "-p" => prefs.period_size = value.parse().ok(),
                 "--input-channel" => prefs.input_channel = value.parse().unwrap_or(1).max(1),
                 "--output-channel" => prefs.output_channel = value.parse().unwrap_or(1).max(1),
+                "--midi-input" => prefs.midi_input = Some(value).filter(|name| !name.is_empty()),
                 _ => prefs.sample_rate = value.parse().ok(),
             }
         }
@@ -204,9 +235,11 @@ impl Prefs {
                 args.push(channel.to_string());
             }
         }
-        for (flag, device) in
-            [("--input-device", &self.input_device), ("--output-device", &self.output_device)]
-        {
+        for (flag, device) in [
+            ("--input-device", &self.input_device),
+            ("--output-device", &self.output_device),
+            ("--midi-input", &self.midi_input),
+        ] {
             if let Some(device) = device {
                 // One argument, so a name that starts with a dash is not read as a flag
                 args.push(format!("{flag}={device}"));
@@ -302,6 +335,7 @@ pub fn resolve(
     inputs: &[String],
     outputs: &[String],
     default_input: Option<String>,
+    midi_inputs: &[String],
 ) -> Prefs {
     // A driver this machine does not have (a file from another system) would make the host
     // quit on its command line, so it is `auto` instead
@@ -320,6 +354,8 @@ pub fn resolve(
             prefs.input_device.filter(|name| inputs.contains(name)).or(default_input);
         prefs.output_device = prefs.output_device.filter(|name| outputs.contains(name));
     }
+    // A MIDI port that is unplugged would make the host quit on its command line
+    prefs.midi_input = prefs.midi_input.filter(|name| midi_inputs.contains(name));
     prefs
 }
 
@@ -414,6 +450,10 @@ pub trait Host: Send + Sync {
     fn channels(&self, _driver: &str, _input: bool, _device: Option<&str>) -> u32 {
         2
     }
+    /// The MIDI inputs plugged in, by the name `--midi-input` takes
+    fn midi_inputs(&self) -> Vec<String> {
+        Vec::new()
+    }
     /// Turns the test tone on the chosen outputs on or off, at once and without a restart
     fn set_test_tone(&self, _on: bool) {}
 }
@@ -435,6 +475,8 @@ pub fn host() -> Option<&'static dyn Host> {
 pub struct AudioChoice {
     drivers: Vec<String>,
     devices: DriverDevices,
+    /// The MIDI inputs plugged in
+    midi_inputs: Vec<String>,
     pub prefs: Prefs,
     /// The channels of the chosen input and output device
     input_channels: u32,
@@ -483,6 +525,9 @@ impl AudioChoice {
             drivers.insert(0, prefs.backend.clone());
         }
         let devices = host.devices(&prefs.backend);
+        // A MIDI input that is not plugged in is none
+        let midi_inputs = host.midi_inputs();
+        prefs.midi_input = prefs.midi_input.filter(|name| midi_inputs.contains(name));
         // A device that is not plugged in plays on the default, and the panel says so
         if prefs.backend != "jack" {
             prefs.input_device = prefs.input_device.filter(|name| devices.inputs.contains(name));
@@ -491,6 +536,7 @@ impl AudioChoice {
         let mut choice = Self {
             drivers,
             devices,
+            midi_inputs,
             prefs,
             input_channels: PAIR,
             output_channels: PAIR,
@@ -514,8 +560,8 @@ impl AudioChoice {
         self.output_channels = host.channels(backend, false, prefs.output_device.as_deref());
     }
 
-    /// The eight rows of the panel: caption and what shows
-    pub fn rows(&self) -> [(&'static str, String); 8] {
+    /// The ten rows of the panel: caption and what shows
+    pub fn rows(&self) -> [(&'static str, String); 10] {
         [
             ("Driver", self.prefs.backend.to_uppercase()),
             ("Input", shown(self.prefs.input_device.as_deref(), &self.devices.inputs)),
@@ -530,6 +576,8 @@ impl AudioChoice {
                 "Sample rate",
                 self.prefs.sample_rate.map_or(DEFAULT_DEVICE.into(), |n| format!("{n} Hz")),
             ),
+            ("MIDI input", shown_midi(self.prefs.midi_input.as_deref(), &self.midi_inputs)),
+            ("MIDI channel", crate::midi::channel_name(self.prefs.midi_channel)),
             ("Test tone", if self.test_tone { "On, 440 Hz" } else { "Off" }.into()),
         ]
     }
@@ -567,6 +615,11 @@ impl AudioChoice {
             }
             5 => self.prefs.period_size = step_list(&PERIODS, self.prefs.period_size, forward),
             6 => self.prefs.sample_rate = step_list(&RATES, self.prefs.sample_rate, forward),
+            7 => step_device(&mut self.prefs.midi_input, &self.midi_inputs, forward),
+            8 => {
+                self.prefs.midi_channel =
+                    crate::midi::step_channel(self.prefs.midi_channel, forward)
+            }
             _ => {
                 self.test_tone = !self.test_tone;
                 host.set_test_tone(self.test_tone);
@@ -673,6 +726,15 @@ fn shown(chosen: Option<&str>, listed: &[String]) -> String {
         Some(name) => name.to_owned(),
         None if listed.is_empty() => NO_DEVICE.into(),
         None => DEFAULT_DEVICE.into(),
+    }
+}
+
+/// The MIDI input row: none (nothing is listened to) or a port's name
+fn shown_midi(chosen: Option<&str>, listed: &[String]) -> String {
+    match chosen {
+        Some(name) => name.to_owned(),
+        None if listed.is_empty() => NO_DEVICE.into(),
+        None => "Off".into(),
     }
 }
 
@@ -799,7 +861,7 @@ mod tests {
             ..Prefs::default()
         };
         let drivers = list(&["auto", "wasapi", "jack"]);
-        let resolved = resolve(saved, &drivers, &inputs, &outputs, Some("Mic".into()));
+        let resolved = resolve(saved, &drivers, &inputs, &outputs, Some("Mic".into()), &[]);
         assert_eq!(resolved.input_device.as_deref(), Some("Mic"));
         assert_eq!(resolved.output_device, None);
         // A device that is there is kept, and with none chosen the default input is used
@@ -808,17 +870,20 @@ mod tests {
             output_device: Some("Speakers".into()),
             ..Prefs::default()
         };
-        let resolved = resolve(kept.clone(), &drivers, &inputs, &outputs, Some("Mic".into()));
+        let resolved = resolve(kept.clone(), &drivers, &inputs, &outputs, Some("Mic".into()), &[]);
         assert_eq!(resolved, kept);
-        let none = resolve(Prefs::default(), &drivers, &inputs, &outputs, Some("Mic".into()));
+        let none = resolve(Prefs::default(), &drivers, &inputs, &outputs, Some("Mic".into()), &[]);
         assert_eq!(none.input_device.as_deref(), Some("Mic"));
         // JACK is left alone
         let jack = Prefs { backend: "jack".into(), ..Prefs::default() };
-        assert_eq!(resolve(jack.clone(), &drivers, &inputs, &outputs, Some("Mic".into())), jack);
+        assert_eq!(
+            resolve(jack.clone(), &drivers, &inputs, &outputs, Some("Mic".into()), &[]),
+            jack
+        );
         // A driver the machine lacks, or a made-up one, is `auto`
         for backend in ["alsa", "foo"] {
             let odd = Prefs { backend: backend.into(), ..Prefs::default() };
-            let fixed = resolve(odd, &drivers, &inputs, &outputs, None);
+            let fixed = resolve(odd, &drivers, &inputs, &outputs, None, &[]);
             assert_eq!(fixed.backend, "auto");
         }
     }
@@ -834,6 +899,8 @@ mod tests {
             sample_rate: Some(96_000),
             input_channel: 3,
             output_channel: 5,
+            midi_input: Some("FCB1010 \"USB\" 1".into()),
+            midi_channel: 3,
         };
         prefs.save(&path).unwrap();
         assert_eq!(Prefs::load(&path), prefs);
@@ -856,6 +923,40 @@ mod tests {
     }
 
     #[test]
+    fn test_the_midi_choices_are_new_keys_an_old_file_lacks_and_go_to_the_command_line() {
+        // A file from before MIDI has neither key: no input, Omni
+        let old = Prefs::from_json("{\"backend\": \"alsa\"}").unwrap();
+        assert_eq!((old.midi_input.clone(), old.midi_channel), (None, crate::midi::OMNI));
+        // A channel that is none of Omni, 1 to 16 is Omni
+        let odd = Prefs::from_json("{\"midi_channel\": 40, \"midi_input\": \"\"}").unwrap();
+        assert_eq!((odd.midi_input, odd.midi_channel), (None, crate::midi::OMNI));
+        // The port is one argument for the host's `--midi-input`, and read back from one
+        let prefs = Prefs { midi_input: Some("-USB MIDI".into()), ..Prefs::default() };
+        let args = prefs.args("amp");
+        assert!(args.contains(&"--midi-input=-USB MIDI".to_string()), "{args:?}");
+        assert_eq!(Prefs::from_args(&args).midi_input.as_deref(), Some("-USB MIDI"));
+        let spaced: Vec<String> = ["amp", "--midi-input", "FCB 1"].map(String::from).to_vec();
+        assert_eq!(Prefs::from_args(&spaced).midi_input.as_deref(), Some("FCB 1"));
+        // No input chosen, no flag
+        assert!(!Prefs::default().args("amp").iter().any(|arg| arg.contains("midi")));
+    }
+
+    #[test]
+    fn test_a_new_midi_input_restarts_and_a_new_channel_alone_needs_no_new_streams() {
+        let running = Prefs { midi_input: Some("A".into()), ..Prefs::default() };
+        let other_input = Prefs { midi_input: Some("B".into()), ..running.clone() };
+        let other_channel = Prefs { midi_channel: 4, ..running.clone() };
+        assert!(running.changes_live(&running));
+        assert!(!other_input.changes_live(&running));
+        assert!(other_channel.changes_live(&running));
+        assert!(other_channel.only_midi_channel_differs(&running));
+        assert!(!other_input.only_midi_channel_differs(&running));
+        let both = Prefs { midi_channel: 4, ..other_input };
+        assert!(!both.only_midi_channel_differs(&running));
+        assert!(!running.only_midi_channel_differs(&running));
+    }
+
+    #[test]
     fn test_the_choices_become_the_hosts_command_line() {
         let prefs = Prefs {
             backend: "wasapi".into(),
@@ -865,6 +966,8 @@ mod tests {
             sample_rate: Some(44_100),
             input_channel: 3,
             output_channel: 1,
+            midi_input: None,
+            midi_channel: 0,
         };
         assert_eq!(
             prefs.args("amp"),
@@ -966,10 +1069,10 @@ mod tests {
     fn test_the_test_tone_is_on_until_the_panel_closes() {
         let host = Fake;
         let mut choice = AudioChoice::open(&host, Prefs::default());
-        assert_eq!(choice.rows()[7], ("Test tone", "Off".to_string()));
-        choice.step(&host, 7, true);
+        assert_eq!(choice.rows()[9], ("Test tone", "Off".to_string()));
+        choice.step(&host, 9, true);
         assert!(choice.test_tone && TONE.load(std::sync::atomic::Ordering::SeqCst));
-        assert_eq!(choice.rows()[7].1, "On, 440 Hz");
+        assert_eq!(choice.rows()[9].1, "On, 440 Hz");
         choice.close(&host);
         assert!(!choice.test_tone && !TONE.load(std::sync::atomic::Ordering::SeqCst));
         // Closing with the tone off asks for nothing
@@ -1000,7 +1103,7 @@ mod tests {
             output_channel: 5,
             ..Prefs::default()
         };
-        let resolved = resolve(saved, &drivers, &list(&["Mic"]), &list(&["Scarlett"]), None);
+        let resolved = resolve(saved, &drivers, &list(&["Mic"]), &list(&["Scarlett"]), None, &[]);
         assert_eq!((resolved.input_channel, resolved.output_channel), (1, 5));
     }
 
@@ -1242,6 +1345,7 @@ mod tests {
             &["Mic".into()],
             &["Speakers".into()],
             Some("Mic".into()),
+            &[],
         );
         assert!(launch.same_driver(&saved));
         let host = Live::new(true, Ok(()));
@@ -1253,7 +1357,7 @@ mod tests {
         // Only another driver on this machine is changed by resolving, and then it is the
         // resolved one that plays and that the panel starts from
         let other = Prefs { backend: "alsa".into(), ..saved };
-        let launch = resolve(other, &drivers, &[], &[], None);
+        let launch = resolve(other, &drivers, &[], &[], None, &[]);
         assert_eq!(launch.backend, "auto");
         assert!(AudioChoice::open(&host, launch.clone()).prefs.same_driver(&launch));
     }

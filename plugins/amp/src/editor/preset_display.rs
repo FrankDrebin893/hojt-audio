@@ -383,7 +383,7 @@ impl PresetDisplay<'_> {
     }
 
     /// Loads the factory preset `index`
-    fn load_factory(&self, index: usize) {
+    pub(super) fn load_factory(&self, index: usize) {
         let index = index.min(PRESETS.len() - 1);
         PRESETS[index].load(self.params, self.setter);
         self.params.preset.store(index as u32, Ordering::Relaxed);
@@ -400,6 +400,30 @@ impl PresetDisplay<'_> {
             (self.load_cabinet)();
         }
         self.set_user_preset(file);
+    }
+
+    /// A MIDI program change: loads preset `number` (counted from 0) of the bank showing, in the
+    /// order the preset plate lists it, through the same loads a click on its row makes (one edit
+    /// for the host, `presets::set_together`). A number past the end of the bank is ignored.
+    /// Returns whether a preset was loaded
+    pub(super) fn load_program(&self, number: usize, view: &mut View) -> bool {
+        let bank = self.bank();
+        let dir = user_presets::bank_dir(&bank);
+        if dir.is_none() {
+            if number >= PRESETS.len() {
+                return false;
+            }
+            self.load_factory(number);
+        } else {
+            // The folder may have changed since the window read it
+            view.bank = Bank::read(self.params, dir.as_deref());
+            if view.bank.get(number).is_none() {
+                return false;
+            }
+            self.load_user(number, view);
+        }
+        view.note = None;
+        true
     }
 
     /// Writes the sound as it stands: over the player's preset loaded last, or, as a

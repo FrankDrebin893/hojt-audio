@@ -25,6 +25,7 @@ mod layout;
 mod looks;
 mod looper;
 mod metronome;
+mod midi;
 mod mods;
 #[cfg(test)]
 mod no_alloc;
@@ -97,6 +98,8 @@ pub struct GuitarAmpPlugin {
     metronome: Metronome,
     /// Records the finished sound and plays it back, before the click (#280)
     looper: Looper,
+    /// Program changes from a MIDI footcontroller, on their way to the editor (#479)
+    midi: Arc<midi::MidiInbox>,
 }
 
 /// What is done away from the audio thread
@@ -522,6 +525,7 @@ impl Default for GuitarAmpPlugin {
             cab_load_due: false,
             metronome: Metronome::new(),
             looper: Looper::new(),
+            midi: midi::MidiInbox::new(),
         }
     }
 }
@@ -1006,7 +1010,9 @@ impl Plugin for GuitarAmpPlugin {
         },
     ];
 
-    const MIDI_INPUT: MidiConfig = MidiConfig::None;
+    // Program changes pick a preset in the standalone (#479). A DAW only gives them where its
+    // format has them, and the editor loads them, so a closed window ignores them
+    const MIDI_INPUT: MidiConfig = MidiConfig::MidiCCs;
     const MIDI_OUTPUT: MidiConfig = MidiConfig::None;
 
     // The chain smooths its settings itself, once per chunk
@@ -1036,6 +1042,7 @@ impl Plugin for GuitarAmpPlugin {
             self.metronome.reading(),
             self.looper.control(),
             self.cab_loader.clone(),
+            self.midi.clone(),
             async_executor,
         )
     }
@@ -1079,6 +1086,10 @@ impl Plugin for GuitarAmpPlugin {
     ) -> ProcessStatus {
         if std::mem::take(&mut self.cab_load_due) {
             context.execute_background(Task::LoadCabinet);
+        }
+        // A program change is the editor's to load: only queued here, with no lock and no allocation
+        while let Some(event) = context.next_event() {
+            self.midi.take(&event);
         }
         // The song's tempo is only asked for while the delay follows it
         let tempo_bpm =

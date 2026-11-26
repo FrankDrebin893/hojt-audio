@@ -63,12 +63,30 @@ impl standalone::Host for Machine {
         live_channels(driver, input, device)
     }
 
+    fn midi_inputs(&self) -> Vec<String> {
+        live_midi_inputs()
+    }
+
     fn set_test_tone(&self, on: bool) {
         nih_standalone_set_test_tone(on);
     }
 
     fn reconfigure(&self, prefs: &Prefs) -> Reconfigure {
         let launch = standalone::launch();
+        // The channel is read by the editor at each program change: nothing is reopened for it
+        if prefs.only_midi_channel_differs(&launch) {
+            let Some(path) = standalone::prefs_path() else {
+                return Reconfigure::Unsupported;
+            };
+            let (sender, answer) = std::sync::mpsc::channel();
+            let _ = sender.send(Ok(()));
+            let chosen = prefs.clone();
+            let kept = Prefs { midi_channel: chosen.midi_channel, ..launch };
+            return Reconfigure::Opening(standalone::after_ok(answer, move || {
+                let _ = chosen.save(&path);
+                standalone::set_launch(kept);
+            }));
+        }
         // Everything but the driver can change while the amp plays, and not with ASIO
         if !prefs.changes_live(&launch) {
             return Reconfigure::Unsupported;
@@ -129,6 +147,15 @@ impl standalone::Host for Machine {
         close_the_window();
         Ok(())
     }
+}
+
+/// The MIDI inputs plugged in, by the name the host's `--midi-input` takes (midir's, as the
+/// host itself lists them)
+fn live_midi_inputs() -> Vec<String> {
+    let Ok(input) = midir::MidiInput::new("Hojt Guitar Amp ports") else {
+        return Vec::new();
+    };
+    input.ports().iter().filter_map(|port| input.port_name(port).ok()).collect()
 }
 
 /// What a driver offers right now
@@ -221,7 +248,7 @@ fn asio_snapshot() -> &'static AsioSnapshot {
 fn resolved(prefs: Prefs) -> Prefs {
     let drivers = standalone::Host::drivers(&Machine);
     let Some(host) = Machine::host(&prefs.backend) else {
-        return standalone::resolve(prefs, &drivers, &[], &[], None);
+        return standalone::resolve(prefs, &drivers, &[], &[], None, &live_midi_inputs());
     };
     standalone::resolve(
         prefs,
@@ -229,6 +256,7 @@ fn resolved(prefs: Prefs) -> Prefs {
         &host.input_devices().map(names).unwrap_or_default(),
         &host.output_devices().map(names).unwrap_or_default(),
         host.default_input_device().and_then(|device| device.name().ok()),
+        &live_midi_inputs(),
     )
 }
 
