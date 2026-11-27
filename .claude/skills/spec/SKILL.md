@@ -24,6 +24,11 @@ in CLAUDE.md.
    unchanged tests already name. Say so in **What changes** ("`presets` is taken by `crate::presets`, so
    `preset_display`") and list the names used. Where the spec gives line counts, write them from `wc -l` of the
    commit read ("2,686 lines at `<short sha>`") or as "about", never from memory.
+   When the spec renames things (constants, types, files, display names), grep the code base for each new word before
+   writing it (`grep -rnw "<NEW_NAME>"` over `plugins/`, `crates/` and their tests, in every case the code uses:
+   `CLEAR`, `Clear`, `clear`). List every collision under **What changes** with the name chosen for it ("`CLEAR_CAB` is
+   taken by the speaker constant, so the amp's is `CLEAR_AMP_CAB`"), so the builder chooses nothing. With none, say
+   "no collisions found, searched: <words>".
 3. Post one comment headed `## Spec`, short, in the house voice of CLAUDE.md:
    - **What changes** for the player, then in the code (modules, not line by line)
    - **Ids**: parameters added with their `#[id]`, range and default; persisted fields. Never
