@@ -137,6 +137,23 @@ if grep -E '^(scope|modes|notes|space|target|deps|hook|step)\)' <<< "$branches" 
 [[ "$(grep -c 'CHECK DONE' "$root/.claude/skills/next/SKILL.md")" -ge 2 ]] || fail "SKILL.md does not name CHECK DONE in both places"
 grep -q "wait for its \`CHECK DONE\` line" "$root/.claude/skills/next/SKILL.md" || fail "the gates step of SKILL.md does not name CHECK DONE"
 
+# A step that fails on the lock file prints one hint line, in quiet and in verbose mode; another failure prints none
+cat > "$tmp/locked.sh" << 'EOF'
+echo "error: the lock file /x/Cargo.lock needs to be updated but --locked was passed to prevent this"
+exit 101
+EOF
+hint="Cargo.lock is out of date: run cargo update -p <package> --offline (the package you changed), then run the gate again"
+run CLAUDECODE=1 -- step bash "$tmp/locked.sh"
+[[ "$code" == 1 ]] || fail "a lock-file failure exited $code, not 1: $out"
+[[ "$(grep -cF "$hint" <<< "$out")" == 1 ]] || fail "quiet mode does not print the lock hint exactly once: $out"
+run -- step bash "$tmp/locked.sh"
+[[ "$code" == 1 ]] || fail "a verbose lock-file failure exited $code, not 1: $out"
+[[ "$(grep -cF "$hint" <<< "$out")" == 1 ]] || fail "verbose mode does not print the lock hint exactly once: $out"
+run CLAUDECODE=1 -- step bash "$tmp/failing.sh"
+if grep -qF "Cargo.lock is out of date" <<< "$out"; then fail "a failure without the lock error prints the hint: $out"; fi
+run -- step bash "$tmp/failing.sh"
+if grep -qF "Cargo.lock is out of date" <<< "$out"; then fail "a verbose failure without the lock error prints the hint: $out"; fi
+
 # The commit hook stays verbose inside (it reports a failure's last 60 lines itself)
 awk '/^hook\(\) \{/,/^}/' "$root/scripts/check.sh" | grep -q 'CHECK_VERBOSE=1' || fail "hook() does not force the full output"
 

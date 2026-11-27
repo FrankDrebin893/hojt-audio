@@ -117,6 +117,13 @@ step_log() {
     printf '%s/%02d-%s.log' "${CHECK_LOG_DIR:-target/check-logs}" "$step_number" "${slug#-}"
 }
 
+# One extra line when a failed step's log holds cargo's lock-file error (a dependency changed without `cargo update`).
+lock_hint() {
+    if grep -q 'needs to be updated but --locked was passed' "$1"; then
+        echo "Cargo.lock is out of date: run cargo update -p <package> --offline (the package you changed), then run the gate again" >&2
+    fi
+}
+
 # Stops at the first failure itself: `set -e` does not hold inside the hook's `if`.
 # An optional STEP_EXPECT text (set on the line before the call, the step clears it) is the step's expected time: printed with the start line, which
 # a quiet step otherwise does not have.
@@ -126,10 +133,15 @@ step() {
     STEP_EXPECT=
     if ! quiet_steps; then
         echo "== $*$expect"
-        "$@" || {
+        local vlog
+        vlog="$(mktemp)"
+        if ! "$@" 2>&1 | tee "$vlog"; then
             echo "== Failed: $*" >&2
+            lock_hint "$vlog"
+            rm -f "$vlog"
             exit 1
-        }
+        fi
+        rm -f "$vlog"
         return 0
     fi
     local log started
@@ -146,6 +158,7 @@ step() {
         { grep -E 'FAILED|panicked|error' "$log" || true; } | head -n 40 >&2
         echo "-- Last 60 lines of the log:" >&2
         tail -n 60 "$log" >&2
+        lock_hint "$log"
         exit 1
     fi
 }
