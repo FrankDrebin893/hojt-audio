@@ -29,7 +29,9 @@ goes on to the next issue, with no further prompt, until the list is done. Words
    where the board cannot be read, oldest first). The approval is the label's *event*, not only
    the label (a milestone's pull request must never need the label back, see "The builder", 5):
    - **Active** means an open pull request that names the issue (`Closes` or `Part of`), or a
-     branch `<kind>/<n>-*` with a commit in the last 24 hours. The builder uses the same test
+     branch `<kind>/<n>-*` with a commit in the last 24 hours. The builder uses the same test.
+     A render branch (`design/<n>-explore`, `look/<n>-*-explore`, `scratch/*`) is never a build:
+     it holds the explore's renders, not the code, so it does not make an issue active
    - **Buildable:** an open issue that is not active and is `state:approved`; or `state:building`
      or `state:review` (left over: an earlier session ended, or a milestone merged and more are
      left); or a sub-issue with no state label whose body says `Parent: #<p>` and whose parent has
@@ -180,6 +182,9 @@ goes on to the next issue, with no further prompt, until the list is done. Words
      is reached, or when the engineer says stop. Then report in a few lines: what was merged or
      is merging, what waits on which question, and what was left because of its approval or
      the cap
+   - **Name every skip.** The report and the status checklist list each open issue that is `state:approved`,
+     `state:building` or `state:review` and was not built, with the one rule that left it out (active, `needs:engineer`,
+     `Waits for`, approval not on record, cap). An issue left out with no reason is a stall the next Stall check has to dig for
 
 ## The builder
 
