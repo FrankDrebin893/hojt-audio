@@ -14,6 +14,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::sync::{Arc, Mutex, OnceLock};
 
+pub use crate::midi_map::Bindings;
+
 /// The buffer sizes the panel offers, in samples
 pub const PERIODS: [u32; 4] = [64, 128, 256, 512];
 /// The sample rates the panel offers, in Hz
@@ -42,6 +44,9 @@ pub struct Prefs {
     pub midi_input: Option<String>,
     /// The MIDI channel the amp listens to: 0 is Omni, 1 to 16 a channel
     pub midi_channel: u8,
+    /// Which MIDI controller moves which knob, learned in the window (#479): the player's rig,
+    /// so it is kept here and not in the project
+    pub midi_bindings: Bindings,
 }
 
 impl Default for Prefs {
@@ -56,6 +61,7 @@ impl Default for Prefs {
             output_channel: 1,
             midi_input: None,
             midi_channel: crate::midi::OMNI,
+            midi_bindings: Bindings::default(),
         }
     }
 }
@@ -111,7 +117,7 @@ impl Prefs {
     fn to_json(&self) -> String {
         let text = |value: &Option<String>| value.as_deref().map_or("null".into(), quoted);
         format!(
-            "{{\n  \"backend\": {},\n  \"input_device\": {},\n  \"output_device\": {},\n  \"period_size\": {},\n  \"sample_rate\": {},\n  \"input_channel\": {},\n  \"output_channel\": {},\n  \"midi_input\": {},\n  \"midi_channel\": {}\n}}\n",
+            "{{\n  \"backend\": {},\n  \"input_device\": {},\n  \"output_device\": {},\n  \"period_size\": {},\n  \"sample_rate\": {},\n  \"input_channel\": {},\n  \"output_channel\": {},\n  \"midi_input\": {},\n  \"midi_channel\": {},\n  \"midi_bindings\": {}\n}}\n",
             quoted(&self.backend),
             text(&self.input_device),
             text(&self.output_device),
@@ -120,7 +126,8 @@ impl Prefs {
             self.input_channel,
             self.output_channel,
             text(&self.midi_input),
-            self.midi_channel
+            self.midi_channel,
+            quoted(&self.midi_bindings.encode())
         )
     }
 
@@ -165,6 +172,11 @@ impl Prefs {
                         1..=16 => n as u8,
                         _ => crate::midi::OMNI,
                     })
+                }
+                // New in #479: a file from before has none
+                ("midi_bindings", value) => {
+                    prefs.midi_bindings =
+                        value.map(|text| Bindings::decode(&text)).unwrap_or_default()
                 }
                 _ => {}
             }
@@ -389,6 +401,17 @@ pub fn config_dir() -> Option<PathBuf> {
     Some(base.join("Hojt Audio"))
 }
 
+/// Writes `bindings` into the settings file at `path` and leaves the rest of it as it was (a
+/// file that is not there yet starts from the defaults)
+pub fn store_bindings(path: &Path, bindings: &Bindings) -> std::io::Result<()> {
+    let mut prefs = std::fs::read_to_string(path)
+        .ok()
+        .and_then(|text| Prefs::from_json(&text))
+        .unwrap_or_default();
+    prefs.midi_bindings = bindings.clone();
+    prefs.save(path)
+}
+
 /// The settings file
 pub fn prefs_path() -> Option<PathBuf> {
     config_dir().map(|dir| dir.join(FILE))
@@ -456,6 +479,9 @@ pub trait Host: Send + Sync {
     }
     /// Turns the test tone on the chosen outputs on or off, at once and without a restart
     fn set_test_tone(&self, _on: bool) {}
+    /// Keeps the controllers the player bound to knobs (MIDI learn), as what the program plays
+    /// on and in the settings file. Nothing is reopened for them
+    fn save_bindings(&self, _bindings: &Bindings) {}
 }
 
 static HOST: OnceLock<Box<dyn Host>> = OnceLock::new();
@@ -901,9 +927,35 @@ mod tests {
             output_channel: 5,
             midi_input: Some("FCB1010 \"USB\" 1".into()),
             midi_channel: 3,
+            midi_bindings: Bindings::decode("7:in_gain;64:delay_on"),
         };
         prefs.save(&path).unwrap();
         assert_eq!(Prefs::load(&path), prefs);
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    // #479: the controllers bound to knobs are new keys: a file from before has none, and keeping
+    // them leaves the audio choices in the file as they were
+    #[test]
+    fn test_the_midi_bindings_are_a_new_key_kept_without_touching_the_rest() {
+        let path = dir("bindings").join(FILE);
+        assert!(Prefs::from_json("{\"backend\": \"auto\"}").unwrap().midi_bindings.is_empty());
+        let saved = Prefs {
+            backend: "wasapi".into(),
+            input_device: Some("Scarlett".into()),
+            midi_channel: 4,
+            ..Prefs::default()
+        };
+        saved.save(&path).unwrap();
+        let bindings = Bindings::decode("11:out_level;12:in_gain");
+        store_bindings(&path, &bindings).unwrap();
+        assert_eq!(Prefs::load(&path), Prefs { midi_bindings: bindings.clone(), ..saved });
+        // No file yet: the defaults and the bindings
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+        store_bindings(&path, &bindings).unwrap();
+        assert_eq!(Prefs::load(&path), Prefs { midi_bindings: bindings, ..Prefs::default() });
+        // They are not on the command line: the host knows nothing of them
+        assert!(!Prefs::load(&path).args("amp").iter().any(|arg| arg.contains("out_level")));
         let _ = std::fs::remove_dir_all(path.parent().unwrap());
     }
 
@@ -968,6 +1020,7 @@ mod tests {
             output_channel: 1,
             midi_input: None,
             midi_channel: 0,
+            midi_bindings: Bindings::default(),
         };
         assert_eq!(
             prefs.args("amp"),

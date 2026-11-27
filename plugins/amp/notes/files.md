@@ -93,7 +93,8 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   chain tells the editor, and how long the editor shows it
 - `src/tuner.rs` - Tuner: pitch detector on the mono input, `TunerReading` (one atomic shared
   with the editor), `Note`
-- `src/midi.rs` - `MidiInbox`: program changes from `process` to the editor (#479), the channel choice (Omni, 1 to 16) and the thread that wakes the editor
+- `src/midi.rs` - `MidiInbox`: program changes from `process` to the editor (#479), the latest value of each of the 128 controllers (`drain_controllers`: a pedal swept faster than the window paints loses no end point), the channel choice (Omni, 1 to 16) and the thread that wakes the editor
+- `src/midi_map.rs` - MIDI learn (#479, milestone 2): `Bindings` (controller number to parameter id, the text in `Prefs::midi_bindings`), `Learn` (off, waiting for a click on a knob, a knob armed) and `MidiMap`, which binds the next control change to the knob picked and moves what a control change is bound to as one gesture (a switch toggles on a press)
 - `src/metronome.rs` - Metronome: the click on a clock of its own or the host's (`Metronome`,
   `MetronomeSettings`), its three sounds, `BeatReading` (what the editor's lamp reads) and `TapTempo`
 - `src/looper.rs` - Looper (#280): records the finished sound, plays it back and overdubs (`Looper`,

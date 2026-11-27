@@ -65,6 +65,7 @@ fn fresh_view(params: &GuitarAmpParams, lamp_reading: &LampReading) -> View {
         scroll: 0.0,
         effects: None,
         drawer: None,
+        midi_map: MidiMap::default(),
     }
 }
 
@@ -3814,4 +3815,163 @@ fn test_the_window_loads_a_program_change_that_waits_in_its_inbox() {
     assert_eq!(params.preset.load(Ordering::Relaxed), 2);
     assert!(!host.told.lock().unwrap().is_empty());
     assert!(test_midi().is_empty());
+}
+
+/// Where the MIDI learn button of the standalone's settings plate is, in the window
+#[cfg(target_os = "linux")]
+fn learn_button() -> Pos2 {
+    let plate = Pos2::new(SETTINGS_X + ui::icons::ICON_REACH - SETTINGS_WIDTH, PLATE_TOP);
+    Pos2::new(
+        plate.x + SETTINGS_WIDTH / 2.0,
+        plate.y
+            + SETTINGS_PAD
+            + ui::plate::PLATE_TITLE_HEIGHT
+            + 11.0 * SETTINGS_ROW_HEIGHT
+            + SETTINGS_NOTE_HEIGHT
+            + 16.0,
+    )
+}
+
+/// A click of the secondary button at `at`
+#[cfg(target_os = "linux")]
+fn right_click(harness: &mut Harness, at: Pos2) {
+    use nih_plug_egui::egui::{Event, Modifiers, PointerButton};
+    let button = |pressed| Event::PointerButton {
+        pos: at,
+        button: PointerButton::Secondary,
+        pressed,
+        modifiers: Modifiers::NONE,
+    };
+    for event in [Event::PointerMoved(at), button(true), button(false)] {
+        harness.input_mut().events.push(event);
+        harness.run_ok();
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn control_change(cc: u8, value: f32) {
+    use nih_plug::prelude::NoteEvent;
+    test_midi().take(&NoteEvent::MidiCC { timing: 0, channel: 0, cc, value });
+}
+
+// #479: Learn on the settings plate closes it, a click on a knob picks the knob, the next control
+// change binds to it and moves it from then on, and a right-click on the knob forgets it
+#[test]
+#[cfg(target_os = "linux")]
+fn test_learn_binds_a_knob_to_the_next_control_change_and_a_right_click_forgets_it() {
+    let params = GuitarAmpParams::default();
+    let host = RecordHost::default();
+    let setter = ParamSetter::new(&host);
+    let machine = TwoInterfaces;
+    let (mut harness, view) = harness_shared(&params, &setter, None, Some(&machine), |view| {
+        view.plate = Some(Open::Settings(Some(AudioChoice::open(&machine, Prefs::default()))));
+    });
+    harness.run_ok();
+    click(&mut harness, learn_button());
+    assert!(view.borrow().plate.is_none(), "the plate closes so the knobs can be reached");
+    assert_eq!(view.borrow().midi_map.learn, crate::midi_map::Learn::Waiting);
+    assert_eq!(view.borrow().note.map(|(note, _)| note), Some("LEARN: CLICK A KNOB"));
+    // A control change with no knob picked binds nothing
+    control_change(20, 0.5);
+    harness.run_ok();
+    assert!(view.borrow().midi_map.bindings.is_empty());
+    assert!(host.sets.lock().unwrap().is_empty());
+    let knob = Pos2::new(INPUT_KNOB.x, INPUT_KNOB.y);
+    click(&mut harness, knob);
+    assert_eq!(view.borrow().midi_map.learn, crate::midi_map::Learn::Armed("in_gain".into()));
+    assert_eq!(view.borrow().note.map(|(note, _)| note), Some("MOVE THE PEDAL"));
+    // (a press on a knob sets it to where it stands, as it always did)
+    host.sets.lock().unwrap().clear();
+    control_change(20, 0.5);
+    harness.run_ok();
+    assert_eq!(view.borrow().midi_map.bindings.param_of(20), Some("in_gain"));
+    assert_eq!(view.borrow().midi_map.learn, crate::midi_map::Learn::Off);
+    assert_eq!(view.borrow().note.map(|(note, _)| note), Some("LEARNED"));
+    // From then on the pedal sweeps the knob from one end to the other
+    for value in [0.0, 1.0] {
+        control_change(20, value);
+        harness.run_ok();
+    }
+    let sets = host.sets.lock().unwrap().clone();
+    assert!(sets.iter().all(|(param, _)| *param == params.in_gain.as_ptr()));
+    let values: Vec<f32> = sets.iter().map(|(_, value)| *value).collect();
+    assert_eq!(values.len(), 3);
+    assert!((values[0] - 0.5).abs() < 1e-4 && values[1] == 0.0 && values[2] == 1.0, "{values:?}");
+    // A right-click forgets it
+    right_click(&mut harness, knob);
+    assert!(view.borrow().midi_map.bindings.is_empty());
+    assert_eq!(view.borrow().note.map(|(note, _)| note), Some("FORGOTTEN"));
+    let before = host.sets.lock().unwrap().len();
+    control_change(20, 0.25);
+    harness.run_ok();
+    assert_eq!(host.sets.lock().unwrap().len(), before);
+}
+
+// The Learn button a second time ends learn, and so does Escape; the display stops saying so
+#[test]
+#[cfg(target_os = "linux")]
+fn test_learn_ends_with_the_button_or_escape() {
+    use nih_plug_egui::egui::{Event, Key, Modifiers};
+    let params = GuitarAmpParams::default();
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let (mut harness, view) = harness_shared(&params, &setter, None, None, |view| {
+        view.midi_map.toggle_learn();
+    });
+    harness.run_ok();
+    assert_eq!(view.borrow().note.map(|(note, _)| note), Some("LEARN: CLICK A KNOB"));
+    harness.input_mut().events.push(Event::Key {
+        key: Key::Escape,
+        physical_key: None,
+        pressed: true,
+        repeat: false,
+        modifiers: Modifiers::NONE,
+    });
+    harness.run_ok();
+    harness.run_ok();
+    assert!(!view.borrow().midi_map.is_learning());
+    assert!(view.borrow().note.is_none());
+}
+
+// A knob bound to a controller follows it with no learn on, in the standalone
+#[test]
+#[cfg(target_os = "linux")]
+fn test_a_bound_knob_follows_its_controller_and_a_footswitch_toggles_its_pedal() {
+    let params = GuitarAmpParams::default();
+    let host = RecordHost::default();
+    let setter = ParamSetter::new(&host);
+    let (mut harness, _view) = harness_shared(&params, &setter, None, None, |view| {
+        let bindings = crate::midi_map::Bindings::decode("7:out_level;64:delay_on");
+        view.midi_map = MidiMap::new(bindings, &params);
+    });
+    harness.run_ok();
+    control_change(7, 0.75);
+    control_change(64, 1.0);
+    harness.run_ok();
+    let sets = host.sets.lock().unwrap().clone();
+    let of = |ptr| sets.iter().find(|(set, _)| *set == ptr).map(|(_, value)| *value);
+    assert!((of(params.out_level.as_ptr()).unwrap() - 0.75).abs() < 1e-4, "{sets:?}");
+    assert_eq!(of(params.delay_on.as_ptr()), Some(1.0));
+    assert_eq!(sets.len(), 2);
+}
+
+// #479: the settings plate with its three buttons, the knob that waits for a controller ringed
+// bright and the one that has one ringed dim, and what the display says
+#[test]
+#[cfg(target_os = "linux")]
+fn test_a_knob_waiting_for_a_controller_looks_as_it_did() {
+    let params = GuitarAmpParams::default();
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    harness_of(&params, &setter, None, |view| {
+        view.midi_map =
+            MidiMap::new(crate::midi_map::Bindings::decode("7:out_level;11:delay_mix"), &params);
+        view.midi_map.learn = crate::midi_map::Learn::Armed("in_gain".into());
+        assert_eq!(view.midi_map.bound().len(), 2);
+        assert!(view
+            .midi_map
+            .bound()
+            .contains(&suite_common::ui::learn::address(params.out_level.as_ptr())));
+    })
+    .snapshot("learn_waiting");
 }

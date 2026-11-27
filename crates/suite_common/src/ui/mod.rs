@@ -17,6 +17,8 @@
 //! - `ring`: a ring of lamps round a control, for a loop (`lamp_ring`)
 //! - `sheet`: the sheet that rises from below, with the plus, the cross and the dashed place of a
 //!   rig's chain
+//! - `learn`: the hook of MIDI learn on the knobs and switches (a click picks one, a right-click
+//!   forgets its controller, a ring shows what waits), asked for by the editor once a frame
 //! - `update_line`: the line of label tape that says a newer version is out, with its download
 //!   link, its off switch and its cross
 //! - `audio_lamp`: the red lamp with NO AUDIO under it, for a standalone whose audio is the dummy
@@ -30,6 +32,7 @@ pub mod frame;
 pub mod hardware;
 pub mod host_keys;
 pub mod icons;
+pub mod learn;
 pub mod led;
 pub mod plate;
 pub mod raster;

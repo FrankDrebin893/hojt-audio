@@ -71,6 +71,14 @@ impl standalone::Host for Machine {
         nih_standalone_set_test_tone(on);
     }
 
+    fn save_bindings(&self, bindings: &standalone::Bindings) {
+        // What plays is noted, so a window opened again starts from them
+        standalone::set_launch(Prefs { midi_bindings: bindings.clone(), ..standalone::launch() });
+        if let Some(path) = standalone::prefs_path() {
+            let _ = standalone::store_bindings(&path, bindings);
+        }
+    }
+
     fn reconfigure(&self, prefs: &Prefs) -> Reconfigure {
         let launch = standalone::launch();
         // The channel is read by the editor at each program change: nothing is reopened for it
