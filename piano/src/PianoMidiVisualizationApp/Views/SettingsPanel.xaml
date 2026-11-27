@@ -216,7 +216,7 @@
                             <Button Content="Remove" Height="24" Padding="10,0" Margin="6,0,0,0"
                                     Command="{Binding RemoveSoundBankCommand}"
                                     CommandParameter="{Binding SelectedSoundBank}"
-                                    IsEnabled="{Binding CanRemoveSelectedSoundBank}"
+                                    IsEnabled="{Binding HasSelectedSoundBank}"
                                     ToolTip="Remove the selected soundbank from your library"/>
                         </StackPanel>
                     </DockPanel>
@@ -314,21 +314,11 @@
                                         </Border>
 
                                         <Button Grid.Column="3" Width="20" Height="20" MinWidth="20" MinHeight="20"
+                                                Style="{StaticResource Style.RemoveGlyphButton}"
                                                 Focusable="False"
                                                 Command="{Binding DataContext.RemoveSoundBankCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
                                                 CommandParameter="{Binding}"
-                                                ToolTip="Remove soundbank from library">
-                                            <Button.Style>
-                                                <Style TargetType="Button" BasedOn="{StaticResource Style.RemoveGlyphButton}">
-                                                    <Style.Triggers>
-                                                        <!-- The built-in piano is part of the app: nothing to remove. -->
-                                                        <DataTrigger Binding="{Binding IsBuiltIn}" Value="True">
-                                                            <Setter Property="Visibility" Value="Hidden"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Button.Style>
-                                        </Button>
+                                                ToolTip="Remove soundbank from library"/>
                                     </Grid>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>

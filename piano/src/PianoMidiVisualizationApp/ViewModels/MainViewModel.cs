@@ -741,7 +741,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         // Auto-start audio if we have a SoundFont and audio driver
         if (!string.IsNullOrEmpty(Settings.SoundFontPath)
-            && BuiltInPiano.Exists(Settings.SoundFontPath)
+            && System.IO.File.Exists(Settings.SoundFontPath)
             && !string.IsNullOrEmpty(Settings.SelectedAudioDriver)
             && !IsAudioRunning)
             TryStartAudio("Audio auto-started");

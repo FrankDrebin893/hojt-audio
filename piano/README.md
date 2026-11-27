@@ -27,8 +27,6 @@ right-hand hardware deck holds the rotary volume and click knobs and panel keys.
   [Salamander Grand Piano](https://sfzinstruments.github.io/pianos/salamander), played through a
   built-in multi-velocity sample player) pianos into your library and switch instruments with one
   click.
-- **Built-in piano**: **Højte Stage Piano** is part of the app, a synthesized stage piano with no file to
-  download, and it is what plays on a first launch. Your own soundbanks sit beside it in the library.
 - **Voicing**: **Natural** plays your soundbank as it is. **Stage grand** (Settings → **Voicing**) gives it the
   bright, tight, forward character of a stage piano: less low-mid, more attack and air, and a gentle
   compressor that evens out your playing. It works on top of whichever piano you have loaded.
@@ -156,7 +154,7 @@ Get the latest `win-x64.zip` from the [project website](https://hojte.net/hojt-a
 
 - Windows 10/11 (64-bit)
 - A MIDI keyboard (connected via USB or MIDI interface)
-- A SoundFont (.sf2) or SFZ (.sfz) piano if you want a sampled one: the built-in stage piano plays without one. Free options include [GeneralUser GS](https://schristiancollins.com/generaluser.php), [FluidR3](https://github.com/musescore/MuseScore/tree/master/share/sound) or [Salamander Grand Piano](https://sfzinstruments.github.io/pianos/salamander)
+- A SoundFont (.sf2) or SFZ (.sfz) piano. None is bundled. Free options include [GeneralUser GS](https://schristiancollins.com/generaluser.php), [FluidR3](https://github.com/musescore/MuseScore/tree/master/share/sound) or [Salamander Grand Piano](https://sfzinstruments.github.io/pianos/salamander)
 - (Optional) An ASIO driver. [ASIO4ALL](https://asio4all.org/) works with most audio hardware
 - (Optional) A [Google Gemini API key](https://aistudio.google.com/apikey), for the AI Music Assistant
 

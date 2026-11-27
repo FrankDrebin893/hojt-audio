@@ -40,10 +40,9 @@ piano rolls show which notes to play. This app tells you what they are.
 
 - Windows 10/11 desktop, at a digital piano or MIDI controller connected by USB or a MIDI
   interface.
-- Audio goes out through ASIO (around 5 ms with a good driver) or WASAPI. The built-in
-  Højte Stage Piano (synthesized, no samples) plays without any file and is the first launch's
-  sound. No sampled piano is bundled: the user may download an `.sf2` or `.sfz` (e.g. Salamander
-  Grand Piano) and pick it in Settings.
+- Audio goes out through ASIO (around 5 ms with a good driver) or WASAPI. No piano sound is
+  bundled: the user downloads an `.sf2` or `.sfz` (e.g. Salamander Grand Piano) and picks it in
+  Settings.
 - Sessions are long and repetitive: a phrase is played, the screen is glanced at, it is played
   again. Every panel can be shown or hidden, and zen mode (F11) cuts the screen down to the
   readout and the keyboard.
