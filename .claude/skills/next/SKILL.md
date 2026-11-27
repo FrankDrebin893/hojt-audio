@@ -272,6 +272,15 @@ What every sub-session is asked to do, for issue `<n>`:
    session", read `mcp__claude-code-remote__read_documentation` topic `environment.network` once, and
    ask for `add_repo` once if a repo is the need; do not probe hosts with curl or repeated searches. If it
    stays blocked, take the spec's fallback if it has one, or stop with a question on the issue.
+   **Sibling issues.** When the issue has a parent with other sub-issues, or its spec names a sibling issue, change only
+   the lines the spec names. A line a sibling owns (a suite name, a nav, a footer, a licence wording) stays as it is and
+   is listed in the pull request under "Left to <sibling issue>", with its title and link. The first Progress comment
+   says which sibling owns which kind of line, so the reviewer can check it.
+   **A render only Windows makes.** When an acceptance line needs a picture only the Windows job produces (the README and
+   `site/piano/screenshots/`), first run `piano.yml` by `workflow_dispatch` on the branch (GitHub `actions_run_trigger`),
+   or read the `piano-snapshot-diffs` artifact of the pull request's run (`*.new.png`), and commit the images. Only when
+   that fails does the line become one checkbox on the standing issue "Checks on a real machine" (the pull request still
+   says `Closes`). `piano.yml` keeps `*.new.png` only when `--check` fails, so the run on a drifting scene yields them.
    A pure code move (a split, files renamed, a module moved): apply the move first, then run
    `cargo check -p <plugin> --tests` before touching the tests, the notes or the docs (`--tests` is the point: a
    path clash shows in code the unchanged tests name, and a plain `cargo check` skips `#[cfg(test)]`). If it fails
@@ -383,7 +392,8 @@ thinks of its work, nor why it did what it did. Its brief:
 > 3. **Tests prove the change**: a test fails without the change and passes with it, or the
 >    spec says how else it is checked (a report, a listen, a look)
 > 4. **Stays in scope**: nothing the spec did not ask for, and no doc left stale that names a changed
->    value (a finding, not a fifth score)
+>    value (a finding, not a fifth score). A line a sibling issue owns that the builder changed is a finding; a
+>    stale doc is not, if the spec's "Left to others" gives it to a sibling
 >
 > Then list each finding as file, line and what is wrong, and end with one line:
 > `Verdict: accept` if all four pass, otherwise `Verdict: revise`.
