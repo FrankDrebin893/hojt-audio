@@ -57,3 +57,16 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   read by the editor at each program change and applies live. Both are new `Prefs` keys, `midi_input` and
   `midi_channel`. `main.rs` lists ports with midir (a dependency of the `standalone` feature, the version nih-plug uses).
   MIDI opens in the fork whatever the audio driver is, so the `asio` build keeps it (not tried on a machine).
+- MIDI learn (#479, milestone 2): the plate's third button, MIDI learn (between Apply and Cancel), closes the plate and
+  starts learn (`editor/learn.rs`, `midi_map.rs`); the preset display says `LEARN: CLICK A KNOB`, a click on a knob or on
+  a pedal's footswitch arms it (`MOVE THE PEDAL`, a bright amber ring: every knob and `param_switch` reports to
+  `suite_common::ui::learn`, which the editor asks once a frame with `begin` and `finish`), and the next control
+  change is bound to it (`LEARNED`). Escape or the button again ends learn. A right-click on a bound knob forgets it
+  (`FORGOTTEN`), with learn on or off; with learn on the bound knobs have a dim ring. A control change moves its bound
+  knob as one gesture (`presets::set_together` of one edit), a switch toggles on a value of 64 and up and does nothing
+  on the release. The audio thread keeps the latest value of each controller (`MidiInbox::put_controller`, 128 atomics,
+  no queue); the editor reads them in the frame it paints (the same wake as a program change). Bindings are controller
+  number and parameter id in the new `Prefs` key `midi_bindings` (`"7:in_gain;64:delay_on"`), kept at once, not at Apply:
+  `Host::save_bindings` (`main.rs`: `set_launch` and `standalone::store_bindings`, which changes only that key of the
+  file), and the settings plate opens on the window's bindings (`settings_choices`) so Apply never saves older ones.
+  In a DAW there is no Learn button yet (milestone 3).

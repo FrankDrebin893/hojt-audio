@@ -753,7 +753,7 @@ pub(crate) mod tests {
     /// Stands in for the host: writes down what it is asked to set, and sets nothing
     #[derive(Default)]
     pub(crate) struct Host {
-        set: Mutex<Vec<(ParamPtr, f32)>>,
+        pub(crate) set: Mutex<Vec<(ParamPtr, f32)>>,
         /// Everything it was told, in turn: `b`egin, `s`et or `e`nd, and of which parameter
         pub(crate) told: Mutex<Vec<(char, ParamPtr)>>,
     }

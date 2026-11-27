@@ -1,8 +1,10 @@
-//! MIDI into the amp (#479): a footcontroller's program change picks a preset.
+//! MIDI into the amp (#479): a footcontroller's program change picks a preset, and its control
+//! changes (an expression pedal, a footswitch) move the knobs they are bound to (`midi_map`).
 //!
 //! The audio thread (`process`) only reads the events the host gives it and puts each program
 //! change in `MidiInbox`, a fixed-size queue of one writer and one reader that takes no lock and
-//! allocates nothing. Presets are loaded by the editor (`presets::set_together`, one gesture, as
+//! allocates nothing. A control change is not queued: the inbox keeps the latest value of each of
+//! the 128 controllers, so a pedal swept faster than the window paints loses no end point. Presets are loaded by the editor (`presets::set_together`, one gesture, as
 //! a click does), never by the audio thread, so the editor drains the queue. The editor paints
 //! only when something asks (ADR 0006), so a program change also asks it to: not from `process`
 //! (egui's own repaint request locks and may allocate) but by unparking a thread of the queue's
@@ -11,7 +13,7 @@
 //! A program change is the wire's number, counted from 0, and the channel is the wire's 0 to 15.
 //! The player's choice counts channels from 1, with 0 for Omni (`standalone::Prefs::midi_channel`).
 
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, Weak};
 use std::thread::Thread;
 
@@ -21,6 +23,9 @@ use nih_plug_egui::egui::Context;
 /// How many program changes wait for the editor. A footcontroller sends a few a second at the
 /// most; a change that finds the queue full is dropped
 pub const QUEUE: usize = 64;
+
+/// How many controllers there are on the wire
+pub const CONTROLLERS: usize = 128;
 
 /// The channel choice that takes every channel
 pub const OMNI: u8 = 0;
@@ -61,6 +66,9 @@ pub struct Program {
     pub number: u8,
 }
 
+/// Set in a controller's slot while it holds a value nobody has read
+const PENDING: u32 = 1 << 31;
+
 /// What wakes the editor: its context and the thread that asks it to paint
 #[derive(Default)]
 struct Wake {
@@ -74,6 +82,11 @@ struct Wake {
 /// The program changes on their way from the audio thread to the editor
 pub struct MidiInbox {
     slots: [AtomicU32; QUEUE],
+    /// The latest value each controller was set to and not yet read: `PENDING` and the wire's
+    /// channel and the value in sixteen bits, or 0 for nothing waiting
+    controllers: [AtomicU32; CONTROLLERS],
+    /// Some controller has a value waiting
+    controllers_waiting: AtomicBool,
     /// How many were ever put in, and how many were taken out: the writer moves the first and
     /// the reader the second
     written: AtomicUsize,
@@ -85,6 +98,8 @@ impl Default for MidiInbox {
     fn default() -> Self {
         Self {
             slots: std::array::from_fn(|_| AtomicU32::new(0)),
+            controllers: std::array::from_fn(|_| AtomicU32::new(0)),
+            controllers_waiting: AtomicBool::new(false),
             written: AtomicUsize::new(0),
             read: AtomicUsize::new(0),
             wake: Arc::default(),
@@ -97,11 +112,31 @@ impl MidiInbox {
         Arc::default()
     }
 
-    /// The audio thread's side: keeps the event if it is a program change and ignores the
-    /// rest (Control changes are milestone 2's)
+    /// The audio thread's side: keeps the event if it is a program change or a control change
+    /// and ignores the rest
     pub fn take(&self, event: &NoteEvent<()>) {
-        if let NoteEvent::MidiProgramChange { channel, program, .. } = *event {
-            self.put(Program { channel, number: program });
+        match *event {
+            NoteEvent::MidiProgramChange { channel, program, .. } => {
+                self.put(Program { channel, number: program });
+            }
+            NoteEvent::MidiCC { channel, cc, value, .. } => self.put_controller(channel, cc, value),
+            _ => {}
+        }
+    }
+
+    /// Sets controller `cc` (0 to 127) of the wire's `channel` to `value` (0 to 1) for the editor
+    /// to read, over a value it has not read yet, and wakes it. Never blocks, never allocates
+    pub fn put_controller(&self, channel: u8, cc: u8, value: f32) {
+        let value = (value.clamp(0.0, 1.0) * f32::from(u16::MAX)).round() as u32;
+        let entry = PENDING | u32::from(channel & 15) << 16 | value;
+        self.controllers[usize::from(cc) % CONTROLLERS].store(entry, Ordering::Release);
+        self.controllers_waiting.store(true, Ordering::Release);
+        self.wake();
+    }
+
+    fn wake(&self) {
+        if let Some(thread) = self.wake.thread.get() {
+            thread.unpark();
         }
     }
 
@@ -115,15 +150,14 @@ impl MidiInbox {
         let packed = u32::from(program.channel) << 8 | u32::from(program.number);
         self.slots[written % QUEUE].store(packed, Ordering::Relaxed);
         self.written.store(written.wrapping_add(1), Ordering::Release);
-        if let Some(thread) = self.wake.thread.get() {
-            thread.unpark();
-        }
+        self.wake();
         true
     }
 
     /// Is nothing waiting
     pub fn is_empty(&self) -> bool {
         self.written.load(Ordering::Acquire) == self.read.load(Ordering::Relaxed)
+            && !self.controllers_waiting.load(Ordering::Acquire)
     }
 
     /// The editor's side: hands each waiting program change that passes the channel `choice`
@@ -143,10 +177,29 @@ impl MidiInbox {
         }
     }
 
+    /// The editor's side: hands each controller that was set since it last looked, and passes the
+    /// channel `choice`, to `each` as its number and its value from 0 to 1, in the order of the
+    /// numbers. A controller set twice since gives its last value only
+    pub fn drain_controllers(&self, choice: u8, mut each: impl FnMut(u8, f32)) {
+        if !self.controllers_waiting.swap(false, Ordering::AcqRel) {
+            return;
+        }
+        for (cc, slot) in self.controllers.iter().enumerate() {
+            let entry = slot.swap(0, Ordering::AcqRel);
+            if entry & PENDING != 0 && passes(choice, (entry >> 16) as u8 & 15) {
+                each(cc as u8, f32::from(entry as u16) / f32::from(u16::MAX));
+            }
+        }
+    }
+
     /// Throws away what is waiting: program changes that arrived while no window was open are
     /// stale by the time one opens
     pub fn clear(&self) {
         self.read.store(self.written.load(Ordering::Acquire), Ordering::Release);
+        self.controllers_waiting.store(false, Ordering::Release);
+        for slot in &self.controllers {
+            slot.store(0, Ordering::Release);
+        }
     }
 
     /// The window opened with `context`: from now on a program change asks it to paint. The
@@ -226,8 +279,56 @@ mod tests {
             note: 60,
             velocity: 0.5,
         });
-        inbox.take(&NoteEvent::MidiCC { timing: 0, channel: 0, cc: 7, value: 0.5 });
+        inbox.take(&NoteEvent::MidiChannelPressure { timing: 0, channel: 0, pressure: 0.5 });
         assert!(inbox.is_empty());
+    }
+
+    fn cc(channel: u8, cc: u8, value: f32) -> NoteEvent<()> {
+        NoteEvent::MidiCC { timing: 0, channel, cc, value }
+    }
+
+    fn controllers(inbox: &MidiInbox, choice: u8) -> Vec<(u8, f32)> {
+        let mut seen = Vec::new();
+        inbox.drain_controllers(choice, |cc, value| seen.push((cc, value)));
+        seen
+    }
+
+    #[test]
+    fn test_a_controller_keeps_its_last_value_and_each_comes_out_once_in_order() {
+        let inbox = MidiInbox::default();
+        for value in [0.0, 0.25, 1.0, 0.5] {
+            inbox.take(&cc(0, 11, value));
+        }
+        inbox.take(&cc(0, 7, 1.0));
+        assert!(!inbox.is_empty());
+        let seen = controllers(&inbox, OMNI);
+        assert_eq!(seen.len(), 2);
+        assert_eq!(seen[0], (7, 1.0));
+        assert_eq!(seen[1].0, 11);
+        assert!((seen[1].1 - 0.5).abs() < 1.0 / 60_000.0);
+        assert!(inbox.is_empty());
+        assert!(controllers(&inbox, OMNI).is_empty());
+    }
+
+    #[test]
+    fn test_a_controller_value_keeps_its_ends_exactly() {
+        let inbox = MidiInbox::default();
+        inbox.take(&cc(0, 1, 0.0));
+        inbox.take(&cc(0, 2, 1.0));
+        assert_eq!(controllers(&inbox, OMNI), [(1, 0.0), (2, 1.0)]);
+    }
+
+    #[test]
+    fn test_controllers_pass_the_channel_choice_and_clear_drops_them() {
+        let inbox = MidiInbox::default();
+        inbox.take(&cc(0, 1, 0.5));
+        inbox.take(&cc(4, 2, 0.5));
+        assert_eq!(controllers(&inbox, 5).iter().map(|c| c.0).collect::<Vec<_>>(), [2]);
+        assert!(inbox.is_empty());
+        inbox.take(&cc(4, 2, 0.5));
+        inbox.clear();
+        assert!(inbox.is_empty());
+        assert!(controllers(&inbox, OMNI).is_empty());
     }
 
     #[test]

@@ -257,6 +257,7 @@ fn turn_param<P: Param>(
     let id = Id::new(("param_knob", param.name()));
     let rect = Rect::from_center_size(center, Vec2::splat((radius + 6.0) * 2.0));
     let response = ui.interact(rect, id, Sense::click_and_drag());
+    super::learn::touch(ui, super::learn::address(param.as_ptr()), &response, center, radius);
 
     let normalized = param.unmodulated_normalized_value();
 
@@ -1443,7 +1444,15 @@ pub fn param_switch(
 ) {
     let on = param.value();
     rig_led(ui.painter(), led_center, on);
-    if small_footswitch(ui, switch_center, param.name()).clicked() {
+    let response = small_footswitch(ui, switch_center, param.name());
+    super::learn::touch(
+        ui,
+        super::learn::address(param.as_ptr()),
+        &response,
+        switch_center,
+        SMALL_FOOTSWITCH_SIZE / 2.0,
+    );
+    if response.clicked() {
         setter.begin_set_parameter(param);
         setter.set_parameter(param, !on);
         setter.end_set_parameter(param);

@@ -196,8 +196,8 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   that show seven rows at a time with a chrome bar and the wheel), the metronome's (tempo, tap,
   sound, meter, click out, volume, Sync; its switch with a lamp that flashes on the beat is on
   the strip beside the icon), the looper's (a footswitch in a ring of lamps, Stop, Clear, Level; see DESIGN.md, Looper) and the settings' (the cabinet files, picked as on the head, and in
-  the standalone program the machine's audio with Apply and Cancel: the audio's choice opens with
-  the plate and is let go when it closes). Icons are `ui::icon_switch`: a drawing, and where the
+  the standalone program the machine's audio with Apply, MIDI learn and Cancel, three chrome buttons 110 points apart: the audio's choice opens with
+  the plate and is let go when it closes; MIDI learn closes it and rings the knob that waits for a controller, #479). Icons are `ui::icon_switch`: a drawing, and where the
   thing can be on or off a lamp and a chrome switch; the tuner's is its switch
 - **The effects bank's cards are miniature pedals** (#445): one row of twelve, each card a plate
   round the real pedal at half size (`editor::paint_miniature` in `ui::miniature`: paint, art, title,

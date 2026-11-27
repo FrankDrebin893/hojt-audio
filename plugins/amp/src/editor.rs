@@ -11,10 +11,10 @@ use std::sync::{Arc, PoisonError};
 use suite_common::ui::{
     self, chrome_button, drop_panel_with, led_display, led_stepper, led_width, nameplate_opener,
     panel_knob, param_knob, param_switch, print_label, rig_led, signal_lamp, silk_frame,
-    silk_label, small_footswitch, stepper, theme, tuner_display, type_into, type_on_tape, Beat,
-    Column, MiniStyle, Motif, Ornament, PedalStyle, Pick, Plate, Row, Step, Typed, BENCH_MARGIN,
-    LED_HEIGHT, SLIM_JACK_X, SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED, SLIM_PRINT_REACH,
-    SLIM_STRIP_HEIGHT, SLIM_SWITCH,
+    silk_label, stepper, theme, tuner_display, type_into, type_on_tape, Beat, Column, MiniStyle,
+    Motif, Ornament, PedalStyle, Pick, Plate, Row, Step, Typed, BENCH_MARGIN, LED_HEIGHT,
+    SLIM_JACK_X, SLIM_KNOBS, SLIM_KNOB_RADIUS, SLIM_LED, SLIM_PRINT_REACH, SLIM_STRIP_HEIGHT,
+    SLIM_SWITCH,
 };
 
 use crate::board::{Line, STACK_WIDTH};
@@ -25,6 +25,7 @@ use crate::looks;
 use crate::looper::{CountIn, LoopBars, LoopClick, LooperControl, State as LoopState};
 use crate::metronome::{BeatReading, ClickOut, Sound, TapTempo, TimeSignature, BPM_MAX, BPM_MIN};
 use crate::midi::MidiInbox;
+use crate::midi_map::MidiMap;
 use crate::order::Zone;
 use crate::presets::{self, PRESETS};
 use crate::slots::{Block, Chain, EffectKind, Live, SlotParams};
@@ -775,14 +776,13 @@ impl Pedals<'_> {
                 15.0,
                 print,
             );
-            rig_led(ui.painter(), Pos2::new(right + LANE_ON_LED_DX, line), params.amp2_on.value());
-            if small_footswitch(ui, Pos2::new(right + LANE_ON_SWITCH_DX, line), "amp2_on").clicked()
-            {
-                let now = params.amp2_on.value();
-                setter.begin_set_parameter(&params.amp2_on);
-                setter.set_parameter(&params.amp2_on, !now);
-                setter.end_set_parameter(&params.amp2_on);
-            }
+            param_switch(
+                ui,
+                setter,
+                &params.amp2_on,
+                Pos2::new(right + LANE_ON_SWITCH_DX, line),
+                Pos2::new(right + LANE_ON_LED_DX, line),
+            );
         }
 
         // The cabinet it plays through
@@ -914,6 +914,8 @@ pub(crate) struct View {
     /// The amp's (or the cabinet's) drawer, rising from below the line while it is open: the
     /// third surface beside the plates and the bank, of which one is open at a time
     drawer: Option<drawer::Drawer>,
+    /// Which MIDI controller moves which knob, and where learn stands (#479)
+    midi_map: MidiMap,
 }
 
 /// A plate open under the strip: configuration is a plate that opens from an icon or a display,
@@ -1270,6 +1272,7 @@ pub fn create(
             scroll: 0.0,
             effects: None,
             drawer: None,
+            midi_map: MidiMap::default(),
         },
         move |egui_ctx, view| {
             ui::install(egui_ctx);
@@ -1281,6 +1284,8 @@ pub fn create(
             // asks this window to paint (ADR 0006)
             opened_midi.clear();
             opened_midi.attach(egui_ctx.clone());
+            // The controllers the player bound to knobs are the standalone's settings
+            view.midi_map = MidiMap::new(standalone::launch().midi_bindings, &opened_params);
             // What was clipped while the window was closed is not news
             view.lamps = LampView::new(&opened_reading);
             // The player may have renamed, moved or added presets in the folder since
@@ -1423,7 +1428,10 @@ fn draw(
             shared.midi.drain(channel, |number| {
                 presets.load_program(usize::from(number), view);
             });
+            // The controllers move the knobs they are bound to, or bind to the one learn picked
+            learn::follow_controllers(ctx, setter, params, view, shared, now);
         }
+        learn::begin(ctx, params, view);
         let tuning = params.tuner_on.value();
         if tuning {
             // The tuner takes the place of the preset display, plate and all
@@ -1533,8 +1541,9 @@ fn draw(
             "settings",
         );
         if settings.icon.clicked() {
+            let launch = settings_choices(view);
             view.toggle_plate(Plates::Settings, host, || {
-                Open::Settings(host.map(|host| AudioChoice::open(host, standalone::launch())))
+                Open::Settings(host.map(|host| AudioChoice::open(host, launch)))
             });
         }
         // No audio device could be opened: the lamp says so, and a click on it opens the Audio
@@ -1552,8 +1561,9 @@ fn draw(
         if let Some(lamp) = lamp {
             settings_anchor = settings_anchor.union(lamp.rect);
             if lamp.clicked() && host.is_some() && !view.is_open(Plates::Settings) {
+                let launch = settings_choices(view);
                 view.toggle_plate(Plates::Settings, host, || {
-                    Open::Settings(host.map(|host| AudioChoice::open(host, standalone::launch())))
+                    Open::Settings(host.map(|host| AudioChoice::open(host, launch)))
                 });
             }
         }
@@ -1641,7 +1651,14 @@ fn draw(
         );
         looper_plate(ui, setter, params, origin + middle, view, shared, looper.icon.rect);
         settings_plate(ui, setter, params, origin + middle, view, shared, settings_anchor);
+        learn::finish(ctx, params, view, shared, now);
     });
+}
+
+/// What the settings plate opens on: what the program plays on, with the controllers bound to knobs
+/// since (which Apply saves with the rest, so it must not save older ones)
+fn settings_choices(view: &View) -> standalone::Prefs {
+    standalone::Prefs { midi_bindings: view.midi_map.bindings.clone(), ..standalone::launch() }
 }
 
 /// The enum value a step of its stepper arrives at, round the list
@@ -1661,6 +1678,7 @@ fn set<P: Param>(setter: &ParamSetter, param: &P, value: P::Plain) {
 }
 
 mod drawer;
+mod learn;
 mod looper;
 mod metronome;
 mod mix;

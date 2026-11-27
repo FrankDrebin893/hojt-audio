@@ -18,8 +18,14 @@ GitHub release.
   MIDI input row, and MIDI channel, Omni to start with; also `--midi-input`), press Apply and the amp starts again
   listening to it. A program change `n` then loads preset `n` (counted from 0) of the bank showing, in the order the
   preset plate lists it, as a click on it does (one undo step in a host); a number past the end of the bank is
-  ignored. The choices are kept with the other standalone settings. Knob control from the controller's pedals comes
-  next. The Settings plate's rows stand a little closer to make room for the two new ones.
+  ignored. The choices are kept with the other standalone settings. The Settings plate's rows stand a little closer to
+  make room for the two new ones.
+- A MIDI footcontroller's pedals turn the amp's knobs and its footswitches switch pedals on and off, in the standalone.
+  Press MIDI learn on the Settings plate (the plate closes), click a knob (or a pedal's footswitch), then move the
+  pedal or press the switch: that controller is bound to it, and a knob follows it from one end to the other as one
+  undo step per move. A footswitch toggles its pedal on a press. Right-click a bound knob to forget it; Escape or
+  MIDI learn again ends learning. The bindings are kept with the other standalone settings and come back after a
+  restart; nothing is assumed of the controller's numbers, so any pedal and any switch can be learned.
 - The twelve amps have English names, so no name needs a Danish letter. Nothing else about them changed:
   a project, a preset or a saved setting from before opens with the same amp, and the sound is the same.
 

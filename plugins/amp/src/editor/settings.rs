@@ -124,6 +124,7 @@ pub(super) fn settings_plate(
             let buttons = y + 16.0;
             for (side, caption, id, wanted) in [
                 (-1.0, "Apply", "apply", SettingsEvent::Apply),
+                (0.0, "MIDI learn", "learn", SettingsEvent::Learn),
                 (1.0, "Cancel", "cancel", SettingsEvent::Cancel),
             ] {
                 let at = Pos2::new(rect.center().x + side * SETTINGS_BUTTON_SPREAD, buttons);
@@ -151,6 +152,11 @@ pub(super) fn settings_plate(
             }
         }
         Some(SettingsEvent::Cancel) => cancelled = true,
+        // The plate closes so that the knobs can be reached
+        Some(SettingsEvent::Learn) => {
+            learn::press(ui.ctx(), view);
+            cancelled = true;
+        }
         None => {}
     }
     if close.asked() || cancelled {
@@ -167,6 +173,9 @@ pub(super) enum SettingsEvent {
     Apply,
     /// Leave them as they were
     Cancel,
+    /// Start MIDI learn (#479), or end it: the plate closes, a click on a knob picks it and the
+    /// next control change of the footcontroller is bound to it
+    Learn,
 }
 
 /// How high the settings plate is: its title, a row for the cabinet and for each of the audio's

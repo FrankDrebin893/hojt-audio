@@ -26,6 +26,7 @@ mod looks;
 mod looper;
 mod metronome;
 mod midi;
+mod midi_map;
 mod mods;
 #[cfg(test)]
 mod no_alloc;

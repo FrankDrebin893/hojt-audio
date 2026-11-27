@@ -983,7 +983,6 @@ pub(crate) struct Edit {
 
 impl Edit {
     /// A parameter that is only known by its pointer, to a normalized value
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn raw(param: ParamPtr, normalized: f32) -> Self {
         Self { param, normalized }
     }
