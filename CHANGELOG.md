@@ -26,6 +26,13 @@ GitHub release.
   undo step per move. A footswitch toggles its pedal on a press. Right-click a bound knob to forget it; Escape or
   MIDI learn again ends learning. The bindings are kept with the other standalone settings and come back after a
   restart; nothing is assumed of the controller's numbers, so any pedal and any switch can be learned.
+- MIDI learn works in a DAW too. The Settings plate of the plugin has a MIDI learn button of its own under the cabinet
+  row (it grows a little to hold it); learn there as in the standalone, and the amp's knobs follow the pedals the host
+  sends it, in CLAP and in the VST3 hosts that route MIDI to an effect (the amp opens a MIDI port for it). The
+  bindings are kept in the same settings file as the standalone's, so a controller learned in one works in the other.
+  Limits: the window must be open for a pedal to move a knob (the window paints only when asked), a program change
+  needs a host that sends one (VST3 has none; CLAP rarely does), and the MIDI channel is always Omni in a DAW. A DAW
+  can also map any CC to a knob without this, with its own parameter mapping.
 - The twelve amps have English names, so no name needs a Danish letter. Nothing else about them changed:
   a project, a preset or a saved setting from before opens with the same amp, and the sound is the same.
 

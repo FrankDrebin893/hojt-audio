@@ -417,6 +417,36 @@ pub fn prefs_path() -> Option<PathBuf> {
     config_dir().map(|dir| dir.join(FILE))
 }
 
+#[cfg(test)]
+thread_local! {
+    /// The file the plugin's tests keep the DAW's bindings in; none unless a test names one, so
+    /// no test writes the player's own settings
+    pub static DAW_FILE: std::cell::RefCell<Option<PathBuf>> = const { std::cell::RefCell::new(None) };
+}
+
+/// The file the plugin in a DAW keeps its MIDI bindings in: the standalone's settings file, so
+/// one controller rig is learned once for both (#479)
+fn daw_file() -> Option<PathBuf> {
+    #[cfg(test)]
+    return DAW_FILE.with(|file| file.borrow().clone());
+    #[cfg(not(test))]
+    prefs_path()
+}
+
+/// The bindings the plugin in a DAW opens with: the ones saved in the settings file, none for a
+/// file that is not there
+pub fn daw_bindings() -> Bindings {
+    daw_file().map(|path| Prefs::load(&path).midi_bindings).unwrap_or_default()
+}
+
+/// Keeps the bindings learned in a DAW's window in the settings file, leaving the rest of it as it
+/// was. A file that cannot be written is not an error the window can do anything about
+pub fn keep_daw_bindings(bindings: &Bindings) {
+    if let Some(path) = daw_file() {
+        let _ = store_bindings(&path, bindings);
+    }
+}
+
 /// What the machine offers for one driver
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DriverDevices {

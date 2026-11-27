@@ -69,4 +69,10 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   number and parameter id in the new `Prefs` key `midi_bindings` (`"7:in_gain;64:delay_on"`), kept at once, not at Apply:
   `Host::save_bindings` (`main.rs`: `set_launch` and `standalone::store_bindings`, which changes only that key of the
   file), and the settings plate opens on the window's bindings (`settings_choices`) so Apply never saves older ones.
-  In a DAW there is no Learn button yet (milestone 3).
+  In a DAW (milestone 3) the plate has the Learn button alone, centred (the foot is always there, so
+  `settings_height(rows)` takes no `with_audio`); bindings are read when the window opens (`standalone::daw_bindings`)
+  and kept at once (`keep_daw_bindings`) in the same `amp-standalone.json`, changing only that key; two plugin
+  windows share the file, the last write wins. The channel is Omni (`launch()` is the default there). The host must route
+  MIDI to the effect (`MidiConfig::MidiCCs`: CLAP does, VST3 hosts that offer an event bus do); events reach `process`
+  whether the window is open or not, but only an open window drains them, and a program change that came while it was
+  closed is dropped when it opens. Not tried in a real host (the standing checks issue has the lines).

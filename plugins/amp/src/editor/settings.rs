@@ -40,7 +40,7 @@ pub(super) fn settings_plate(
     }
     let audio_rows = audio.as_ref().map(AudioChoice::rows);
     let rows = 1 + audio_rows.as_ref().map_or(0, |rows| rows.len());
-    let height = settings_height(audio_rows.is_some(), rows);
+    let height = settings_height(rows);
     let rect = Rect::from_min_size(
         origin + vec2(SETTINGS_X + ui::icons::ICON_REACH - SETTINGS_WIDTH, PLATE_TOP),
         vec2(SETTINGS_WIDTH, height),
@@ -120,18 +120,23 @@ pub(super) fn settings_plate(
             12.0,
         );
         y += SETTINGS_NOTE_HEIGHT;
-        if audio.is_some() {
-            let buttons = y + 16.0;
-            for (side, caption, id, wanted) in [
+        // In a DAW MIDI learn stands alone: the host has no audio to apply
+        let learn = (0.0, "MIDI learn", "learn", SettingsEvent::Learn);
+        let buttons = y + 16.0;
+        let foot = if audio.is_some() {
+            vec![
                 (-1.0, "Apply", "apply", SettingsEvent::Apply),
-                (0.0, "MIDI learn", "learn", SettingsEvent::Learn),
+                learn,
                 (1.0, "Cancel", "cancel", SettingsEvent::Cancel),
-            ] {
-                let at = Pos2::new(rect.center().x + side * SETTINGS_BUTTON_SPREAD, buttons);
-                silk_label(&painter, at + vec2(0.0, 25.0), caption, 12.0);
-                if chrome_button(ui, at, &format!("settings-{id}")).clicked() {
-                    event = Some(wanted);
-                }
+            ]
+        } else {
+            vec![learn]
+        };
+        for (side, caption, id, wanted) in foot {
+            let at = Pos2::new(rect.center().x + side * SETTINGS_BUTTON_SPREAD, buttons);
+            silk_label(&painter, at + vec2(0.0, 25.0), caption, 12.0);
+            if chrome_button(ui, at, &format!("settings-{id}")).clicked() {
+                event = Some(wanted);
             }
         }
     });
@@ -179,11 +184,11 @@ pub(super) enum SettingsEvent {
 }
 
 /// How high the settings plate is: its title, a row for the cabinet and for each of the audio's
-/// choices, the note, and the buttons of the audio
-pub(super) fn settings_height(with_audio: bool, rows: usize) -> f32 {
+/// choices, the note, and the buttons (MIDI learn alone in a DAW)
+pub(super) fn settings_height(rows: usize) -> f32 {
     2.0 * SETTINGS_PAD
         + ui::plate::PLATE_TITLE_HEIGHT
         + rows as f32 * SETTINGS_ROW_HEIGHT
         + SETTINGS_NOTE_HEIGHT
-        + if with_audio { SETTINGS_FOOT_HEIGHT } else { 0.0 }
+        + SETTINGS_FOOT_HEIGHT
 }

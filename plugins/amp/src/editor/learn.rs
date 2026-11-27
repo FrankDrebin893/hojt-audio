@@ -79,8 +79,10 @@ pub(super) fn press(ctx: &Context, view: &mut View) {
 
 /// The bindings changed: kept with the standalone's settings, and the display says `note` for a moment
 fn kept(ctx: &Context, view: &mut View, shared: &Shared, note: &'static str, now: f64) {
-    if let Some(host) = shared.audio_host {
-        host.save_bindings(&view.midi_map.bindings);
+    match shared.audio_host {
+        Some(host) => host.save_bindings(&view.midi_map.bindings),
+        // In a DAW the settings file is the same one, so a rig learned there is learned once
+        None => standalone::keep_daw_bindings(&view.midi_map.bindings),
     }
     view.note = Some((note, now + SAVE_NOTE_S));
     ctx.request_repaint();
