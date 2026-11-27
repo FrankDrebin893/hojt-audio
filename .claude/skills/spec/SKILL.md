@@ -35,6 +35,9 @@ in CLAUDE.md.
      design reviewer's accept
    - **Proof**: the tests to add and the reports to compare before and after. A cloud session cannot open a standalone editor, so a spec whose reproduction is "run the standalone" names the editor's `egui_kittest` harness test (`suite_common::ui::snapshot`) instead
    - **Done when**: acceptance criteria somebody can check, including a listen for a sound change
+   - **Left to others**: for a rename (a brand word, a path, a title), per sibling or parent issue, what that issue
+     owns (its title and link) and what is frozen (tags, ids, the vendor string). "Brand words only" is never the whole
+     scope statement
    - **Risks and size**: S (an hour), M (a session), L (several: say how it splits into sub-issues)
    - **Questions**: decisions for the owner of the project, each with your recommendation
 4. `scripts/move-issue.sh $ARGUMENTS spec` (label and board). Add the `plugin:*` / `kind:*`

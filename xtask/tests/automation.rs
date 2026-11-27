@@ -101,3 +101,13 @@ fn test_waiting_on_the_owner_is_a_label_only_his_own_words_clear() {
         assert!(next.contains(rule), "`/next` lost its rule `{rule}`");
     }
 }
+
+#[test]
+fn test_next_keeps_the_scope_and_windows_render_rules() {
+    let next = read(".claude/skills/next/SKILL.md");
+    for rule in ["Left to", "workflow_dispatch", "piano-snapshot-diffs"] {
+        assert!(next.contains(rule), "`/next` lost its rule `{rule}`");
+    }
+    let spec = read(".claude/skills/spec/SKILL.md");
+    assert!(spec.contains("Left to others"), "`/spec` lost its `Left to others` line");
+}
