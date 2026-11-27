@@ -1285,7 +1285,12 @@ pub fn create(
             opened_midi.clear();
             opened_midi.attach(egui_ctx.clone());
             // The controllers the player bound to knobs are the standalone's settings
-            view.midi_map = MidiMap::new(standalone::launch().midi_bindings, &opened_params);
+            // (in a DAW the same file, read when the window opens)
+            let bindings = match standalone::host() {
+                Some(_) => standalone::launch().midi_bindings,
+                None => standalone::daw_bindings(),
+            };
+            view.midi_map = MidiMap::new(bindings, &opened_params);
             // What was clipped while the window was closed is not news
             view.lamps = LampView::new(&opened_reading);
             // The player may have renamed, moved or added presets in the folder since

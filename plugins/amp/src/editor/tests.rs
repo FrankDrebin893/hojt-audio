@@ -1612,7 +1612,7 @@ fn plate_rects() -> [(&'static str, Rect, Rect); 4] {
             below(
                 SETTINGS_X + ui::icons::ICON_REACH - SETTINGS_WIDTH,
                 SETTINGS_WIDTH,
-                settings_height(true, 11),
+                settings_height(11),
             ),
             Rect::from_center_size(
                 Pos2::new(SETTINGS_X, STRIP_Y),
@@ -1731,9 +1731,9 @@ fn test_the_settings_plate_holds_every_row_the_note_and_the_buttons() {
         + SETTINGS_OVERHANG;
     assert!(row + SETTINGS_PAD <= SETTINGS_WIDTH + 0.01);
     // The audio's ten rows and the cabinet's, the note and the buttons grow the plate
-    let (plugin, standalone) = (settings_height(false, 1), settings_height(true, 11));
+    let (plugin, standalone) = (settings_height(1), settings_height(11));
     assert!(plugin < standalone);
-    assert_eq!(standalone - plugin, 10.0 * SETTINGS_ROW_HEIGHT + SETTINGS_FOOT_HEIGHT,);
+    assert_eq!(standalone - plugin, 10.0 * SETTINGS_ROW_HEIGHT);
     // The longest cabinet name fits the tape
     assert!(SETTINGS_CAB_CHARS as f32 * 8.5 < SETTINGS_TAPE_WIDTH);
     // The plate is on the window under the icon, with room under it for the pedals' titles
@@ -3649,7 +3649,7 @@ fn test_the_drawer_the_bank_and_a_plate_are_never_open_together_for_cabinets_too
     assert!(view.borrow().drawer.is_none());
     assert!(view.borrow().is_open(Plates::Settings));
     // The plate stands over the cabinet's upper part: the lower part is clear of it
-    double_click(&mut harness, Pos2::new(cab.center().x, cab.bottom() - 90.0));
+    double_click(&mut harness, Pos2::new(cab.center().x, cab.bottom() - 20.0));
     assert!(view.borrow().drawer.is_some());
     assert!(view.borrow().plate.is_none());
 }
@@ -3820,13 +3820,19 @@ fn test_the_window_loads_a_program_change_that_waits_in_its_inbox() {
 /// Where the MIDI learn button of the standalone's settings plate is, in the window
 #[cfg(target_os = "linux")]
 fn learn_button() -> Pos2 {
+    learn_button_below(11)
+}
+
+/// Where it is under `rows` rows: 11 in the standalone, 1 (the cabinet's) in a DAW
+#[cfg(target_os = "linux")]
+fn learn_button_below(rows: usize) -> Pos2 {
     let plate = Pos2::new(SETTINGS_X + ui::icons::ICON_REACH - SETTINGS_WIDTH, PLATE_TOP);
     Pos2::new(
         plate.x + SETTINGS_WIDTH / 2.0,
         plate.y
             + SETTINGS_PAD
             + ui::plate::PLATE_TITLE_HEIGHT
-            + 11.0 * SETTINGS_ROW_HEIGHT
+            + rows as f32 * SETTINGS_ROW_HEIGHT
             + SETTINGS_NOTE_HEIGHT
             + 16.0,
     )
@@ -3905,6 +3911,43 @@ fn test_learn_binds_a_knob_to_the_next_control_change_and_a_right_click_forgets_
     control_change(20, 0.25);
     harness.run_ok();
     assert_eq!(host.sets.lock().unwrap().len(), before);
+}
+
+// #479, in a DAW: the settings plate has MIDI learn alone, a bound pedal is kept in the settings
+// file and the next window opens on it
+#[test]
+#[cfg(target_os = "linux")]
+fn test_learn_works_in_a_daw_and_keeps_its_bindings_in_the_settings_file() {
+    let dir = std::env::temp_dir().join(format!("hojt-daw-learn-{}", std::process::id()));
+    let file = dir.join(standalone::FILE);
+    let _ = std::fs::remove_dir_all(&dir);
+    standalone::DAW_FILE.with(|slot| *slot.borrow_mut() = Some(file.clone()));
+    assert!(standalone::daw_bindings().is_empty(), "no file yet");
+    let params = GuitarAmpParams::default();
+    let host = RecordHost::default();
+    let setter = ParamSetter::new(&host);
+    let (mut harness, view) = harness_shared(&params, &setter, None, None, |view| {
+        view.plate = Some(Open::Settings(None));
+    });
+    harness.run_ok();
+    click(&mut harness, learn_button_below(1));
+    assert!(view.borrow().plate.is_none(), "the plate closes so the knobs can be reached");
+    assert_eq!(view.borrow().midi_map.learn, crate::midi_map::Learn::Waiting);
+    click(&mut harness, Pos2::new(INPUT_KNOB.x, INPUT_KNOB.y));
+    control_change(20, 0.5);
+    harness.run_ok();
+    assert_eq!(view.borrow().midi_map.bindings.param_of(20), Some("in_gain"));
+    assert_eq!(standalone::daw_bindings().param_of(20), Some("in_gain"));
+    // Only the bindings are written: the file is the standalone's, with its other choices
+    assert_eq!(
+        standalone::Prefs::load(&file),
+        standalone::Prefs {
+            midi_bindings: standalone::daw_bindings(),
+            ..standalone::Prefs::default()
+        }
+    );
+    standalone::DAW_FILE.with(|slot| *slot.borrow_mut() = None);
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 // The Learn button a second time ends learn, and so does Escape; the display stops saying so
