@@ -341,6 +341,7 @@ public partial class MainViewModel
             _audioEngine.Initialize(driver, Settings.UseAsio, Settings.SoundFontPath);
             ResetSustainPedals();   // the new engine starts with every pedal up
             _audioEngine.Volume = Settings.Volume;
+            _audioEngine.Voicing = Settings.Voicing;
             _audioEngine.Start();
             SetAudioProblem(null);
             IsAudioRunning = true;

@@ -55,7 +55,8 @@ piano rolls show which notes to play. This app tells you what they are.
   velocity layers. The Managed Soundbank Library lets you import multiple `.sf2` and `.sfz`
   pianos into `%LOCALAPPDATA%\PianoMidiVisualizationApp\Soundbanks` and switch instruments with
   one click. The CC64 sustain pedal holds the sound in both. There is a master volume and a
-  metronome click volume.
+  metronome click volume. A voicing (Natural, or Stage grand: EQ and a gentle compressor) is
+  laid over whichever soundbank is loaded; it is a tone shaping, not a sample set.
 - **See:** a 61-key keyboard (C2–C7) that scales with the window, beneath a recessed OLED
   display that spans the full width of the keys, with a right-hand hardware panel housing the
   volume and click halo knobs, twelve shortcut panel keys, and the vector `HØJT` hardware badge.

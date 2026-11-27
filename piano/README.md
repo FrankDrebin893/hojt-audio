@@ -27,6 +27,9 @@ right-hand hardware deck holds the rotary volume and click knobs and panel keys.
   [Salamander Grand Piano](https://sfzinstruments.github.io/pianos/salamander), played through a
   built-in multi-velocity sample player) pianos into your library and switch instruments with one
   click.
+- **Voicing**: **Natural** plays your soundbank as it is. **Stage grand** (Settings → **Voicing**) gives it the
+  bright, tight, forward character of a stage piano: less low-mid, more attack and air, and a gentle
+  compressor that evens out your playing. It works on top of whichever piano you have loaded.
 - **Low-latency audio**: ASIO output (around 5 ms with a good driver), with WASAPI as a
   fallback that needs no extra drivers.
 
@@ -174,7 +177,7 @@ Then play. You'll hear sound and see the keys light up. Pick a **Key** in the to
 the Roman numerals, chord strip and key highlighting.
 
 The dot next to **Connect** turns green once the keyboard is connected and flashes when MIDI
-data arrives. **Volume** sets the master volume and **Click** the metronome. To use the AI
+data arrives. **Volume** sets the master volume and **Click** the metronome; **Voicing** switches between Natural and Stage grand. To use the AI
 assistant, paste your Gemini API key into **Gemini key**.
 
 ## Building

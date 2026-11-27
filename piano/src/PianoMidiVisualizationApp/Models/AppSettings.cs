@@ -13,6 +13,9 @@ public class AppSettings
     public string? SoundFontPath { get; set; }
     public List<SoundBankEntry> SoundBanks { get; set; } = new();
     public float Volume { get; set; } = 0.8f;
+
+    /// <summary>The tone over the soundbank, as a <c>PianoVoicing</c> name; read it through PianoVoicingInfo.Parse.</summary>
+    public string? Voicing { get; set; }
     public string? AnthropicApiKey { get; set; }
 
     // Key highlighted on the keyboard. The scale is stored as its enum name so the file stays

@@ -9,6 +9,13 @@ using PianoMidiVisualizationApp.Services;
 
 namespace PianoMidiVisualizationApp.ViewModels;
 
+/// <summary>One entry of the voicing dropdown.</summary>
+public sealed record VoicingOption(PianoVoicing Value, string Name)
+{
+    /// <summary>What a ComboBox with a custom template shows when it has no item template.</summary>
+    public override string ToString() => Name;
+}
+
 /// <summary>
 /// One entry in the key-root dropdown. The name depends on the selected scale (Ab Major
 /// but G# Minor), so it is observable and re-spelled in place: swapping the collection's
@@ -58,6 +65,13 @@ public partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private float _volume = 0.8f;
+
+    /// <summary>The tone laid over the soundbank (Natural or Stage grand).</summary>
+    [ObservableProperty]
+    private PianoVoicing _voicing = PianoVoicing.Natural;
+
+    public IReadOnlyList<VoicingOption> VoicingOptions { get; } =
+        PianoVoicingInfo.All.Select(v => new VoicingOption(v, PianoVoicingInfo.DisplayName(v))).ToList();
 
     [ObservableProperty]
     private string _anthropicApiKey = "";
@@ -415,6 +429,7 @@ public partial class SettingsViewModel : ObservableObject
         }
 
         Volume = settings.Volume;
+        Voicing = PianoVoicingInfo.Parse(settings.Voicing);
         AnthropicApiKey = settings.AnthropicApiKey ?? "";
 
         KeyScale = settings.ResolveKeyScale();
@@ -447,6 +462,7 @@ public partial class SettingsViewModel : ObservableObject
             SoundFontPath = SoundFontPath,
             SoundBanks = SoundBanks.ToList(),
             Volume = Volume,
+            Voicing = Voicing.ToString(),
             AnthropicApiKey = AnthropicApiKey,
             KeyHighlightEnabled = KeyTonicPitchClass.HasValue,
             KeyTonicPitchClass = KeyTonicPitchClass ?? 0,

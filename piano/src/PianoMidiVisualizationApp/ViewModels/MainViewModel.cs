@@ -299,6 +299,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             if (e.PropertyName == nameof(Settings.Volume))
                 _audioEngine.Volume = Settings.Volume;
+            else if (e.PropertyName == nameof(Settings.Voicing))
+                _audioEngine.Voicing = Settings.Voicing;
             else if (e.PropertyName == nameof(Settings.AnthropicApiKey))
                 Chat.Configure(Settings.AnthropicApiKey);
             else if (e.PropertyName is nameof(Settings.KeyTonicPitchClass)

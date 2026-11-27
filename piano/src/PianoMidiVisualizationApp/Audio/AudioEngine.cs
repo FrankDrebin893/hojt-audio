@@ -13,6 +13,8 @@ public class AudioEngine : IAudioEngine
     private INotePlayer? _sampleProvider;
     private MasterMixSampleProvider? _mixer;
     private float _volume = 1.0f;
+    private PianoVoicing _voicing = PianoVoicing.Natural;
+    private VoicingSampleProvider? _voicer;
 
     public bool IsRunning { get; private set; }
 
@@ -31,6 +33,21 @@ public class AudioEngine : IAudioEngine
             _volume = value;
             if (_mixer != null)
                 _mixer.Volume = value;
+        }
+    }
+
+    /// <summary>
+    /// The tone laid over the soundbank. Applies to the synth only, never the metronome, and
+    /// survives a change of soundbank or output device like the volume does.
+    /// </summary>
+    public PianoVoicing Voicing
+    {
+        get => _voicing;
+        set
+        {
+            _voicing = value;
+            if (_voicer != null)
+                _voicer.Voicing = value;
         }
     }
 
@@ -70,7 +87,8 @@ public class AudioEngine : IAudioEngine
         _sampleProvider = Path.GetExtension(soundFontPath).Equals(".sfz", StringComparison.OrdinalIgnoreCase)
             ? new SfzSampleProvider(soundFontPath, SampleRate)
             : new SoundFontSampleProvider(soundFontPath, SampleRate);
-        _mixer = new MasterMixSampleProvider(_sampleProvider, Metronome) { Volume = _volume };
+        _voicer = new VoicingSampleProvider(_sampleProvider) { Voicing = _voicing };
+        _mixer = new MasterMixSampleProvider(_voicer, Metronome) { Volume = _volume };
 
         if (useAsio)
         {
@@ -130,6 +148,7 @@ public class AudioEngine : IAudioEngine
         _outputDevice?.Dispose();
         _outputDevice = null;
         _sampleProvider = null;
+        _voicer = null;
         _mixer = null;
     }
 

@@ -17,6 +17,12 @@ public interface IAudioEngine : IDisposable
     void SetSustainPedal(int channel, bool isDown) { }
 
     float Volume { get; set; }
+
+    /// <summary>
+    /// The tone laid over the soundbank. The default ignores it, so test doubles that predate
+    /// voicings compile unchanged.
+    /// </summary>
+    PianoVoicing Voicing { get => PianoVoicing.Natural; set { } }
     bool IsRunning { get; }
 
     /// <summary>
