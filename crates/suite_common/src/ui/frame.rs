@@ -174,7 +174,7 @@ pub const SLIM_JACK_Y: f32 = 24.0;
 /// Where the caption of a jack of a `slim_strip` is, down from the jack
 const SLIM_JACK_CAPTION_DY: f32 = 20.0;
 const SLIM_LOGO_SIZE: f32 = 28.0;
-const SLIM_LOGO_WIDTH: f32 = SLIM_LOGO_SIZE * 2.87;
+const SLIM_LOGO_WIDTH: f32 = SLIM_LOGO_SIZE * super::widgets::BADGE_WIDTH;
 const SLIM_MODEL_WIDTH: f32 = 56.0;
 const SLIM_MODEL_GAP: f32 = 14.0;
 /// The gap between the logo of a `slim_strip` and the jack at the right end, and the model
@@ -538,7 +538,8 @@ fn print(painter: &Painter, top: Rect, band: Option<(f32, Band)>, flow: Flow, st
         SILK,
         0.16,
     );
-    badge(painter, Pos2::new(top.right() - PRINT_INSET, print_bottom), 22.0);
+    // 20, not 22: the badge has a letter more, and at 22 it would run into a caption beside it
+    badge(painter, Pos2::new(top.right() - PRINT_INSET, print_bottom), 20.0);
 }
 
 /// Jack caption with an arrow for the signal direction, which `flow` says. The arrow sits

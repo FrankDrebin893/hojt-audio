@@ -1598,22 +1598,21 @@ pub fn silk_frame(painter: &Painter, rect: Rect, title: &str, paint: Color32) {
     painter.galley(title_rect.min, galley, SILK);
 }
 
-/// The HØJT logo on its black plate. The Ø is a knob and its slash the pointer.
+/// How wide the badge's plate is, in sizes (`badge`'s `size`): 65.5 on the 22 px of letter that
+/// `site/hojt.svg` is drawn at
+pub const BADGE_WIDTH: f32 = 65.5 / 22.0;
+
+/// The Højte logo on its black plate. The Ø is a knob and its slash the pointer. The letters
+/// stand where `scripts/make_badge.py` puts them for `site/hojt.svg` (the origin of each, and the
+/// ring's centre, in sizes from the plate's left edge), so the plate and the page show one badge.
 /// `right_bottom` is the plate's lower right corner. Returns the plate.
 pub fn badge(painter: &Painter, right_bottom: Pos2, size: f32) -> Rect {
-    let spacing = 0.1;
-    let h = layout(painter, "H", display(size), SILK, spacing);
-    let jt = layout(painter, "JT", display(size), SILK, spacing);
-    let o_width = size * 0.62;
-    let gap = size * 0.13;
+    // From make_badge.py: the origin of each letter and the Ø's centre, in sizes
+    const LETTERS: [(&str, f32); 4] = [("H", 0.3506), ("J", 1.6186), ("T", 1.8836), ("E", 2.2446)];
+    const RING_X: f32 = 1.1821;
 
-    let text_width = h.size().x + gap + o_width + gap + jt.size().x;
-    let padding = vec2(size * 0.42, size * 0.2);
     let plate = Rect::from_min_max(
-        Pos2::new(
-            right_bottom.x - text_width - padding.x * 2.0,
-            right_bottom.y - size - padding.y * 2.0,
-        ),
+        Pos2::new(right_bottom.x - size * BADGE_WIDTH, right_bottom.y - size * 1.4),
         right_bottom,
     );
     painter.rect_filled(plate.translate(vec2(0.0, 3.0)), 6.0, SHADOW);
@@ -1622,13 +1621,13 @@ pub fn badge(painter: &Painter, right_bottom: Pos2, size: f32) -> Rect {
 
     // Bebas Neue's capitals sit a little above the middle of the line
     let mid_y = plate.center().y;
-    let text_y = mid_y - h.size().y / 2.0 + size * 0.07;
-    let mut x = plate.left() + padding.x;
-    let h_width = h.size().x;
-    painter.galley(Pos2::new(x, text_y), h, SILK);
-    x += h_width + gap;
+    for (letter, origin) in LETTERS {
+        let galley = layout(painter, letter, display(size), SILK, 0.0);
+        let text_y = mid_y - galley.size().y / 2.0 + size * 0.07;
+        painter.galley(Pos2::new(plate.left() + origin * size, text_y), galley, SILK);
+    }
 
-    let o_center = Pos2::new(x + o_width / 2.0, mid_y);
+    let o_center = Pos2::new(plate.left() + RING_X * size, mid_y);
     painter.circle_stroke(o_center, size * 0.3, Stroke::new(size * 0.105, SILK));
     let slash_angle = -55.0_f32.to_radians();
     painter.line_segment(
@@ -1638,9 +1637,6 @@ pub fn badge(painter: &Painter, right_bottom: Pos2, size: f32) -> Rect {
         ],
         Stroke::new(size * 0.085, BRAND_ORANGE),
     );
-    x += o_width + gap;
-
-    painter.galley(Pos2::new(x, text_y), jt, SILK);
     plate
 }
 

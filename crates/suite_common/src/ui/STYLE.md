@@ -29,7 +29,7 @@ software renderer, `raster.rs`, and cached as textures; there are no image files
   lowest lit from -45 dBFS, the top one at full scale), `value_knob` and `value_switch` (a knob
   and a rig switch for a plain value that is not a parameter),
   `signal_lamp` (a small lamp with no switch, for what the sound is doing),
-  `silk_frame`, `silk_label` (`print_label` for a caption in `INK` on metal), and `badge` (the HØJT logo: the Ø is a knob, its slash the pointer)
+  `silk_frame`, `silk_label` (`print_label` for a caption in `INK` on metal), and `badge` (the Højte logo, H Ø J T E on a black plate: the Ø is a knob, its slash the pointer; its letters stand where `scripts/make_badge.py` puts them for `site/hojt.svg`)
 - `frame.rs` - `pedal`: enclosure, screws, jack captions, tilted name band, model number, logo.
   A plugin describes itself with a `PedalStyle`. For a window with several enclosures: `rig`
   (the bare bench), `strip` (shallow enclosure with the jack captions, model number and logo of a pedal,
@@ -122,6 +122,14 @@ controls, portrait) or `plugins/drums/src/editor.rs` (many controls, landscape) 
   cabinet that plays, all from `plugins/amp/src/looks.rs`
   The one other thing on paint is the second coat of a mini pedal's art, in `shade`s of its own paint.
   `BRAND_ORANGE` is only the pointer in the logo
+- **The badge** spells Højte in one row, H Ø J T E, on a black plate (65.5 by 30.8 at 22 px of letter, so
+  `BADGE_WIDTH` sizes wide and 1.4 high) with a cream silk frame and a 3 px shadow. The letters are Bebas Neue's
+  own; the Ø is a ring as high as the capitals with the orange pointer slash across it at -55 degrees. Spacing is
+  by rule, not by eye: H, J, T and E stand 1.1 px (at 22 px) apart ink to ink, the ring twice that from H's stem
+  and from J's hook, the whole line centred. `scripts/make_badge.py` holds the rules and writes
+  `site/hojt.svg`, the favicon and the social and touch images (`--png`); `badge` in `widgets.rs` prints the same
+  positions, and `scripts/make-icon.py` draws the installer icons from them. Change the rules in the script,
+  run it, copy the new letter origins into `badge`
 - **Fonts, by role:** `display` (Bebas Neue) for every caption, in capitals; `model` (Bowlby One SC)
   only for the name on the band; `mono` (IBM Plex Mono) only for values on label tape
 - **Top to bottom:** jack captions, knobs, name band, footswitches. Model number bottom left and

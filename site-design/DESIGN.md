@@ -148,8 +148,12 @@ download, controls.
 
 ## Components
 
-- **Top bar**: the same on every page, the home page too. It carries the HØJT badge, so no page
+- **Top bar**: the same on every page, the home page too. It carries the Højte badge, so no page
   shows the logo again under it; the home page opens on its headline and the two products.
+- **Badge**: `site/hojt.svg`, Højte in Bebas Neue, H Ø J T E in one row on the dark plate with the cream frame, the Ø a
+  knob with the orange pointer. Drawn by `scripts/make_badge.py`, which also makes the favicon (the whole badge on a
+  square), `favicon-32.png`, `apple-touch-icon.png` and the social image `og-hojt.png`; the plugins print the same
+  badge (`ui/STYLE.md`, "The badge"). Under about 32 px the installer icon keeps only the H
 - **Label**: the product's name in Bowlby One SC on a tilted cream label over its paint band.
 - **Chips**: mono, small, for facts only.
 - **Download matrix**: said once, at Install: a table of the six plugins by the three systems,
@@ -237,7 +241,7 @@ The public page (`site/`, plain HTML and CSS, no build step) is published by Git
 - The piano viz's page in `site/piano/` (https://hojte.net/hojt-audio/piano/)
 - Resources in `site/resources/` (https://hojte.net/hojt-audio/resources/): free tools for learning to play, a
   folder each (the Guitar and Piano Chord Atlas so far) on the shelf of its `index.html`
-- One look for all: `site/hojt.css`, with the plugins' colours and fonts; the favicon is the whole HØJT badge
+- One look for all: `site/hojt.css`, with the plugins' colours and fonts; the favicon is the whole Højte badge
   (`site/favicon.svg`). Fonts, screenshots (`site/img/`) and sounds (`site/audio/`) stay at the root
 - The old address, https://hojte.net/hojt-audio-piano-viz/, is served by the old repository
 - `site-sources/` is what is played in a sound example when it is our own playing; not published
