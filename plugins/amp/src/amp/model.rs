@@ -89,6 +89,7 @@ pub fn speaker_index(id: &str) -> Option<usize> {
 }
 
 /// One gain stage of the preamp
+#[derive(Clone, Copy)]
 pub struct StageModel {
     /// High-pass in front of the stage: how much low end reaches the clipping
     pub coupling_hz: f32,
@@ -112,6 +113,7 @@ pub struct StageModel {
 }
 
 /// Bass, Mid and Treble. They share one network, so each dial moves the others' ranges
+#[derive(Clone, Copy)]
 pub struct ToneModel {
     pub bass_hz: f32,
     /// Shelf gain in dB from dial centre to either end
@@ -131,6 +133,7 @@ pub struct ToneModel {
     pub mid_level_db: f32,
 }
 
+#[derive(Clone, Copy)]
 pub struct PowerModel {
     /// Drive into the power stage in dB with Master at 0, 5 and 10
     pub drive_db: [f32; 3],
@@ -490,18 +493,18 @@ const FULL_RANGE_CAB: CabModel = CabModel {
 
 /// Clear's own: one 12" speaker in an open back. Light low end, a clear top
 const CLEAR_AMP_CAB: CabModel = CabModel {
-    resonance_hz: 78.0,
-    resonance_q: 1.2,
-    body: [130.0, 0.8, 1.5],
-    dip: [400.0, 0.9, -2.5],
-    bite: [3200.0, 0.6, 5.0],
-    rolloff_hz: 6600.0,
-    air_ratio: 1.5,
+    resonance_hz: 91.6,
+    resonance_q: 1.29,
+    body: [176.0, 0.96, 8.0],
+    dip: [633.0, 0.62, -8.0],
+    bite: [4954.0, 0.88, 5.02],
+    rolloff_hz: 13257.0,
+    air_ratio: 2.0,
     breakup_hz: [1200.0, 7000.0],
     breakup_count: 24,
-    breakup_db: 1.8,
+    breakup_db: 0.08,
     breakup_seed: 30,
-    ir_ms: 5.0,
+    ir_ms: 10.0,
 };
 
 /// Glow's own: two 12" speakers in an open back. Fuller than one, still open
@@ -522,16 +525,16 @@ const GLOW_CAB: CabModel = CabModel {
 
 /// Roar's own: four 12" speakers in a closed box. Mids forward, a strong bite
 const ROAR_CAB: CabModel = CabModel {
-    resonance_hz: 95.0,
-    resonance_q: 1.3,
-    body: [240.0, 0.8, 2.0],
-    dip: [450.0, 1.0, -4.0],
-    bite: [3000.0, 1.0, 7.0],
-    rolloff_hz: 5200.0,
-    air_ratio: 1.7,
+    resonance_hz: 115.4,
+    resonance_q: 1.89,
+    body: [195.0, 0.50, 1.78],
+    dip: [935.0, 1.12, 0.07],
+    bite: [4056.0, 0.90, 0.85],
+    rolloff_hz: 4235.0,
+    air_ratio: 1.67,
     breakup_hz: [1000.0, 6000.0],
     breakup_count: 28,
-    breakup_db: 3.5,
+    breakup_db: 3.41,
     breakup_seed: 50,
     ir_ms: 10.0,
 };
@@ -539,16 +542,16 @@ const ROAR_CAB: CabModel = CabModel {
 /// Thunder's own: four 12" speakers in a closed box, tight and heavy in the lows, a
 /// steep top for a lot of gain
 const THUNDER_CAB: CabModel = CabModel {
-    resonance_hz: 125.0,
-    resonance_q: 1.15,
-    body: [220.0, 0.7, 4.0],
-    dip: [550.0, 1.2, -4.0],
-    bite: [2800.0, 0.9, 6.5],
-    rolloff_hz: 4700.0,
-    air_ratio: 1.2,
+    resonance_hz: 128.0,
+    resonance_q: 1.68,
+    body: [102.0, 0.96, 5.16],
+    dip: [957.0, 1.04, -0.86],
+    bite: [5000.0, 1.34, -2.0],
+    rolloff_hz: 4413.0,
+    air_ratio: 1.13,
     breakup_hz: [1000.0, 5500.0],
     breakup_count: 26,
-    breakup_db: 3.0,
+    breakup_db: 3.13,
     breakup_seed: 100,
     ir_ms: 6.0,
 };
@@ -693,7 +696,16 @@ const SNAP_AMP_CAB: CabModel = CabModel {
     ir_ms: 5.0,
 };
 
+/// The circuit archetype an amp runs (`amp/mod.rs` and `preamp.rs` dispatch on this)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AmpTopology {
+    CleanAcoustic,
+    VintageCrunch,
+    ModernHighGain,
+}
+
 /// Everything that makes one amp differ from another
+#[derive(Clone, Copy)]
 pub struct AmpModel {
     // Only the report prints it until the editor names the amps
     #[allow(dead_code)]
@@ -701,6 +713,7 @@ pub struct AmpModel {
     /// The model number printed on the amp
     #[allow(dead_code)]
     pub model_number: &'static str,
+    pub topology: AmpTopology,
     /// High-pass at the input: keeps the low end tight when the gain is up
     pub tight_hz: f32,
     /// Bell in front of the first stage, so the clipping works on this band most:
@@ -717,6 +730,10 @@ pub struct AmpModel {
     /// High-pass after the last stage, 12 dB per octave: takes away the lows that the
     /// clipping itself makes out of a chord. `None` leaves them in
     pub lowcut_hz: Option<f32>,
+    /// Post-preamp peaking EQ `[hz, q, db]` to tame low-mid mud (`db == 0.0` is identity)
+    pub mud_cut: [f32; 3],
+    /// Post-preamp high shelf `[hz, db]` for upper-end air/sheen (`db == 0.0` is identity)
+    pub air_shelf: [f32; 2],
     /// Level after the preamp in dB across the Gain dial (0, 2.5, 5, 7.5, 10), set so the
     /// loudness stays about the same while the distortion changes
     pub level_db: [f32; 5],
@@ -751,29 +768,30 @@ const UNUSED_STAGE: StageModel = StageModel {
 static CLEAR: AmpModel = AmpModel {
     name: "Clear",
     model_number: "KL-30",
-    tight_hz: 60.0,
-    focus: [800.0, 0.7, 0.0],
+    topology: AmpTopology::CleanAcoustic,
+    tight_hz: 112.3,
+    focus: [2200.0, 0.90, 8.35],
     bright_hz: 1500.0,
-    bright_db: 7.0,
+    bright_db: 10.18,
     stage_count: 2,
     stages: [
         StageModel {
-            coupling_hz: 20.0,
-            gain_db: [-4.0, 3.5, 11.0],
-            headroom: [4.0, 5.0],
+            coupling_hz: 97.0,
+            gain_db: [-5.33, 5.62, 11.66],
+            headroom: [18.94, 8.16],
             bias: 0.0,
-            bias_shift: 0.3,
-            lowpass_hz: 16000.0,
+            bias_shift: 0.25,
+            lowpass_hz: 9996.0,
             second_order: false,
             finer_when_driven: false,
         },
         StageModel {
-            coupling_hz: 40.0,
-            gain_db: [-6.0, 5.5, 17.0],
-            headroom: [3.0, 3.8],
+            coupling_hz: 117.7,
+            gain_db: [-14.09, -7.52, 2.84],
+            headroom: [2.34, 6.12],
             bias: 0.05,
-            bias_shift: 0.3,
-            lowpass_hz: 12000.0,
+            bias_shift: 0.20,
+            lowpass_hz: 6569.0,
             second_order: false,
             finer_when_driven: false,
         },
@@ -782,35 +800,37 @@ static CLEAR: AmpModel = AmpModel {
     ],
     fizz_hz: None,
     lowcut_hz: None,
+    mud_cut: [180.0, 2.14, -9.34],
+    air_shelf: [4116.0, 9.46],
     level_db: [32.5, 25.5, 16.5, 8.5, 0.0],
     // The power stage holds the peaks, so nothing is made up or taken back behind it
     makeup_db: [0.0, 0.0, 0.0, 0.0, 0.0],
     tone: ToneModel {
-        bass_hz: 120.0,
+        bass_hz: 86.3,
         bass_db: 10.0,
-        mid_hz: 500.0,
+        mid_hz: 420.6,
         mid_q: 0.7,
         mid_db: 8.0,
-        mid_centre_db: -3.5,
+        mid_centre_db: -0.24,
         scoop_db: 4.0,
         mid_shift_octaves: 0.4,
-        treble_hz: 3200.0,
+        treble_hz: 4026.0,
         treble_db: 10.0,
         mid_level_db: 2.0,
     },
     power: PowerModel {
-        drive_db: [-18.5, 1.5, 12.0],
+        drive_db: [-18.5, -2.93, 12.0],
         volume_db: [-9.7, -9.7, -10.7],
         clean_to: 0.9,
-        sag: 0.12,
+        sag: 0.02,
         sag_attack_ms: 20.0,
         sag_release_ms: 100.0,
         driven_sag: 40.0,
         driven_sag_from: 0.45,
-        resonance_hz: 85.0,
-        resonance_db: 2.0,
+        resonance_hz: 103.2,
+        resonance_db: 1.80,
         presence_hz: 5000.0,
-        presence_db: 8.0,
+        presence_db: 6.35,
     },
     cab: CLEAR_AMP_CAB,
 };
@@ -824,39 +844,40 @@ static CLEAR: AmpModel = AmpModel {
 static ROAR: AmpModel = AmpModel {
     name: "Roar",
     model_number: "BR-50",
-    tight_hz: 110.0,
-    focus: [800.0, 0.7, 0.0],
+    topology: AmpTopology::VintageCrunch,
+    tight_hz: 116.7,
+    focus: [2200.0, 1.25, 8.86],
     bright_hz: 1800.0,
-    bright_db: 6.0,
+    bright_db: 0.54,
     stage_count: 3,
     stages: [
         StageModel {
-            coupling_hz: 30.0,
-            gain_db: [0.0, 8.0, 14.0],
-            headroom: [2.0, 2.8],
+            coupling_hz: 131.5,
+            gain_db: [-12.18, 12.58, 19.91],
+            headroom: [7.65, 3.61],
             bias: 0.0,
-            bias_shift: 0.5,
-            lowpass_hz: 12000.0,
+            bias_shift: 0.72,
+            lowpass_hz: 6807.0,
             second_order: false,
             finer_when_driven: false,
         },
         StageModel {
-            coupling_hz: 180.0,
-            gain_db: [-5.0, 10.5, 22.0],
-            headroom: [1.0, 1.5],
+            coupling_hz: 120.1,
+            gain_db: [-7.19, 26.82, 28.0],
+            headroom: [0.56, 1.95],
             bias: 0.1,
-            bias_shift: 0.4,
-            lowpass_hz: 9000.0,
+            bias_shift: 0.20,
+            lowpass_hz: 7241.0,
             second_order: false,
             finer_when_driven: true,
         },
         StageModel {
-            coupling_hz: 70.0,
-            gain_db: [-4.0, 6.5, 14.0],
-            headroom: [1.2, 0.9],
+            coupling_hz: 83.2,
+            gain_db: [-3.34, 6.54, 26.62],
+            headroom: [0.63, 1.13],
             bias: -0.1,
-            bias_shift: 0.3,
-            lowpass_hz: 7500.0,
+            bias_shift: 0.31,
+            lowpass_hz: 11862.0,
             second_order: false,
             finer_when_driven: false,
         },
@@ -864,34 +885,36 @@ static ROAR: AmpModel = AmpModel {
     ],
     fizz_hz: None,
     lowcut_hz: None,
+    mud_cut: [450.3, 1.40, -1.37],
+    air_shelf: [4319.0, 6.16],
     level_db: [34.0, 18.7, 7.0, 3.0, 0.0],
     makeup_db: [1.5, 1.0, 0.0, 0.0, 0.0],
     tone: ToneModel {
-        bass_hz: 140.0,
+        bass_hz: 60.0,
         bass_db: 10.0,
-        mid_hz: 650.0,
+        mid_hz: 656.6,
         mid_q: 0.7,
         mid_db: 8.0,
-        mid_centre_db: 2.5,
+        mid_centre_db: -1.0,
         scoop_db: 4.0,
         mid_shift_octaves: 0.4,
-        treble_hz: 2800.0,
+        treble_hz: 4992.0,
         treble_db: 10.0,
         mid_level_db: 2.0,
     },
     power: PowerModel {
-        drive_db: [-26.0, -6.0, 14.0],
+        drive_db: [-26.0, -10.92, 14.0],
         volume_db: [-7.7, -6.7, -7.2],
         clean_to: 0.0,
-        sag: 0.15,
+        sag: 0.095,
         sag_attack_ms: 15.0,
         sag_release_ms: 100.0,
         driven_sag: 0.0,
         driven_sag_from: 0.0,
-        resonance_hz: 100.0,
-        resonance_db: 4.0,
+        resonance_hz: 111.6,
+        resonance_db: 3.50,
         presence_hz: 4000.0,
-        presence_db: 8.0,
+        presence_db: 7.33,
     },
     cab: ROAR_CAB,
 };
@@ -904,6 +927,7 @@ static ROAR: AmpModel = AmpModel {
 static GLOW: AmpModel = AmpModel {
     name: "Glow",
     model_number: "GL-40",
+    topology: AmpTopology::VintageCrunch,
     tight_hz: 70.0,
     focus: [900.0, 0.7, 1.0],
     bright_hz: 2200.0,
@@ -935,6 +959,8 @@ static GLOW: AmpModel = AmpModel {
     ],
     fizz_hz: None,
     lowcut_hz: None,
+    mud_cut: [300.0, 0.8, 0.0],
+    air_shelf: [5000.0, 0.0],
     level_db: [28.0, 20.0, 8.5, 5.5, 1.0],
     makeup_db: [0.0, 0.0, 0.0, 0.0, 0.0],
     tone: ToneModel {
@@ -976,67 +1002,70 @@ static GLOW: AmpModel = AmpModel {
 static THUNDER: AmpModel = AmpModel {
     name: "Thunder",
     model_number: "TD-100",
-    tight_hz: 160.0,
-    focus: [1000.0, 0.5, 4.0],
+    topology: AmpTopology::ModernHighGain,
+    tight_hz: 145.0,
+    focus: [682.0, 0.78, 12.0],
     bright_hz: 2000.0,
-    bright_db: 3.0,
+    bright_db: 2.82,
     stage_count: 4,
     stages: [
         StageModel {
-            coupling_hz: 30.0,
-            gain_db: [10.0, 12.0, 19.0],
-            headroom: [2.5, 3.0],
+            coupling_hz: 61.5,
+            gain_db: [0.0, 6.0, 21.30],
+            headroom: [1.76, 5.89],
             bias: 0.0,
             bias_shift: 0.2,
-            lowpass_hz: 12000.0,
+            lowpass_hz: 7960.0,
             second_order: false,
             finer_when_driven: false,
         },
         StageModel {
-            coupling_hz: 250.0,
-            gain_db: [8.0, 14.0, 20.0],
-            headroom: [1.0, 1.4],
+            coupling_hz: 194.0,
+            gain_db: [9.86, 20.04, 21.5],
+            headroom: [1.65, 1.48],
             bias: 0.1,
             bias_shift: 0.2,
-            lowpass_hz: 8000.0,
+            lowpass_hz: 8220.0,
             second_order: true,
             finer_when_driven: true,
         },
         StageModel {
-            coupling_hz: 150.0,
-            gain_db: [6.0, 9.0, 18.0],
-            headroom: [1.2, 0.9],
+            coupling_hz: 76.0,
+            gain_db: [6.12, 9.5, 14.61],
+            headroom: [2.92, 0.36],
             bias: -0.1,
             bias_shift: 0.15,
-            lowpass_hz: 7000.0,
+            lowpass_hz: 6899.0,
             second_order: true,
             finer_when_driven: false,
         },
         StageModel {
-            coupling_hz: 140.0,
-            gain_db: [6.0, 8.0, 15.0],
-            headroom: [1.0, 1.3],
+            coupling_hz: 100.0,
+            gain_db: [3.32, 14.92, 27.0],
+            headroom: [0.40, 1.45],
             bias: 0.05,
             bias_shift: 0.1,
-            lowpass_hz: 6000.0,
+            lowpass_hz: 10387.0,
             second_order: false,
             finer_when_driven: false,
         },
     ],
-    fizz_hz: Some(7500.0),
-    lowcut_hz: Some(100.0),
+    fizz_hz: Some(12267.0),
+    lowcut_hz: Some(70.0),
+    mud_cut: [306.0, 0.5, -0.09],
+    air_shelf: [4173.0, 3.24],
     level_db: [5.0, 3.2, 2.3, 1.0, 0.5],
     makeup_db: [0.0; 5],
     tone: ToneModel {
-        bass_hz: 110.0,
+        bass_hz: 117.0,
         bass_db: 10.0,
-        mid_hz: 700.0,
+        mid_hz: 384.0,
         mid_q: 0.6,
         mid_db: 12.0,
-        mid_centre_db: -2.0,
+        mid_centre_db: -5.19,
         scoop_db: 3.0,
         mid_shift_octaves: 0.3,
-        treble_hz: 3000.0,
+        treble_hz: 3199.0,
         treble_db: 10.0,
         mid_level_db: 2.0,
     },
@@ -1049,8 +1078,8 @@ static THUNDER: AmpModel = AmpModel {
         sag_release_ms: 60.0,
         driven_sag: 0.0,
         driven_sag_from: 0.0,
-        resonance_hz: 125.0,
-        resonance_db: 3.0,
+        resonance_hz: 77.0,
+        resonance_db: 1.16,
         presence_hz: 3800.0,
         presence_db: 10.0,
     },
@@ -1064,6 +1093,7 @@ static THUNDER: AmpModel = AmpModel {
 static SONG: AmpModel = AmpModel {
     name: "Song",
     model_number: "SG-60",
+    topology: AmpTopology::VintageCrunch,
     tight_hz: 90.0,
     focus: [1200.0, 0.8, 3.0],
     bright_hz: 2500.0,
@@ -1104,6 +1134,8 @@ static SONG: AmpModel = AmpModel {
     ],
     fizz_hz: Some(8500.0),
     lowcut_hz: None,
+    mud_cut: [300.0, 0.8, 0.0],
+    air_shelf: [5000.0, 0.0],
     level_db: [24.0, 14.0, 4.0, 1.0, -1.5],
     makeup_db: [1.0, 0.5, 0.0, 0.0, 0.0],
     tone: ToneModel {
@@ -1143,6 +1175,7 @@ static SONG: AmpModel = AmpModel {
 static RUMBLE: AmpModel = AmpModel {
     name: "Rumble",
     model_number: "DR-80",
+    topology: AmpTopology::VintageCrunch,
     tight_hz: 70.0,
     focus: [350.0, 0.7, 2.0],
     bright_hz: 1200.0,
@@ -1183,6 +1216,8 @@ static RUMBLE: AmpModel = AmpModel {
     ],
     fizz_hz: Some(8000.0),
     lowcut_hz: None,
+    mud_cut: [300.0, 0.8, 0.0],
+    air_shelf: [5000.0, 0.0],
     level_db: [21.0, 13.0, 7.0, 3.5, 1.0],
     makeup_db: [1.5, 1.0, 0.0, 0.0, 0.0],
     tone: ToneModel {
@@ -1223,6 +1258,7 @@ static RUMBLE: AmpModel = AmpModel {
 static CRACK: AmpModel = AmpModel {
     name: "Crack",
     model_number: "KN-45",
+    topology: AmpTopology::VintageCrunch,
     tight_hz: 75.0,
     focus: [800.0, 0.7, 2.0],
     bright_hz: 1500.0,
@@ -1263,6 +1299,8 @@ static CRACK: AmpModel = AmpModel {
     ],
     fizz_hz: Some(8000.0),
     lowcut_hz: None,
+    mud_cut: [300.0, 0.8, 0.0],
+    air_shelf: [5000.0, 0.0],
     level_db: [30.0, 19.0, 8.0, 4.0, 1.0],
     makeup_db: [1.0, 0.5, 0.0, 0.0, 0.0],
     tone: ToneModel {
@@ -1302,6 +1340,7 @@ static CRACK: AmpModel = AmpModel {
 static SPARK: AmpModel = AmpModel {
     name: "Spark",
     model_number: "GN-45",
+    topology: AmpTopology::VintageCrunch,
     tight_hz: 90.0,
     focus: [1200.0, 0.7, 2.0],
     bright_hz: 2500.0,
@@ -1342,6 +1381,8 @@ static SPARK: AmpModel = AmpModel {
     ],
     fizz_hz: None,
     lowcut_hz: None,
+    mud_cut: [300.0, 0.8, 0.0],
+    air_shelf: [5000.0, 0.0],
     level_db: [30.0, 19.0, 8.0, 4.0, 1.0],
     makeup_db: [1.0, 0.5, 0.0, 0.0, 0.0],
     tone: ToneModel {
@@ -1383,6 +1424,7 @@ static SPARK: AmpModel = AmpModel {
 static SHARP: AmpModel = AmpModel {
     name: "Sharp",
     model_number: "SK-100",
+    topology: AmpTopology::VintageCrunch,
     tight_hz: 150.0,
     focus: [2400.0, 0.6, 4.0],
     bright_hz: 2200.0,
@@ -1432,6 +1474,8 @@ static SHARP: AmpModel = AmpModel {
     ],
     fizz_hz: Some(5800.0),
     lowcut_hz: Some(90.0),
+    mud_cut: [300.0, 0.8, 0.0],
+    air_shelf: [5000.0, 0.0],
     level_db: [4.0, 2.2, 1.3, 0.0, -0.5],
     makeup_db: [0.0; 5],
     tone: ToneModel {
@@ -1471,6 +1515,7 @@ static SHARP: AmpModel = AmpModel {
 static EDGE: AmpModel = AmpModel {
     name: "Edge",
     model_number: "HV-100",
+    topology: AmpTopology::VintageCrunch,
     tight_hz: 100.0,
     focus: [1300.0, 0.7, 3.0],
     bright_hz: 2500.0,
@@ -1520,6 +1565,8 @@ static EDGE: AmpModel = AmpModel {
     ],
     fizz_hz: Some(7800.0),
     lowcut_hz: Some(70.0),
+    mud_cut: [300.0, 0.8, 0.0],
+    air_shelf: [5000.0, 0.0],
     level_db: [7.3, 2.3, -0.7, -2.7, -3.7],
     makeup_db: [0.0; 5],
     tone: ToneModel {
@@ -1561,6 +1608,7 @@ static EDGE: AmpModel = AmpModel {
 static WOOD: AmpModel = AmpModel {
     name: "Wood",
     model_number: "TR-15",
+    topology: AmpTopology::VintageCrunch,
     tight_hz: 80.0,
     focus: [750.0, 0.5, 0.0],
     bright_hz: 2500.0,
@@ -1592,6 +1640,8 @@ static WOOD: AmpModel = AmpModel {
     ],
     fizz_hz: None,
     lowcut_hz: None,
+    mud_cut: [300.0, 0.8, 0.0],
+    air_shelf: [5000.0, 0.0],
     level_db: [35.5, 29.5, 25.0, 12.0, -1.5],
     makeup_db: [0.0, 0.0, 0.0, 0.0, 0.0],
     tone: ToneModel {
@@ -1635,6 +1685,7 @@ static WOOD: AmpModel = AmpModel {
 static SNAP: AmpModel = AmpModel {
     name: "Snap",
     model_number: "SM-20",
+    topology: AmpTopology::VintageCrunch,
     tight_hz: 95.0,
     focus: [2400.0, 0.8, 2.0],
     bright_hz: 1200.0,
@@ -1666,6 +1717,8 @@ static SNAP: AmpModel = AmpModel {
     ],
     fizz_hz: None,
     lowcut_hz: None,
+    mud_cut: [300.0, 0.8, 0.0],
+    air_shelf: [5000.0, 0.0],
     level_db: [31.5, 26.0, 18.0, 9.5, 0.0],
     makeup_db: [0.0, 0.0, 0.0, 0.0, 0.0],
     tone: ToneModel {

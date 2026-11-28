@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 mod amp;
 mod bank;
+pub mod bench;
 mod board;
 mod cab;
 mod cab_stage;

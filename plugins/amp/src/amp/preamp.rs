@@ -1,16 +1,19 @@
-use super::model::{AmpModel, StageModel, MAX_STAGES};
+use super::model::{AmpModel, AmpTopology, StageModel, MAX_STAGES};
 use crate::dsp::filters::{Biquad, BiquadCoeffs, OnePoleHp, OnePoleLp, ANTI_DENORMAL};
 use crate::dsp::pair::Pair;
-use crate::dsp::shaper::{asym_clip, asym_clip_pair, AsymClipper, FineClipper};
+use crate::dsp::shaper::{asym_clip, asym_clip_pair, kneed_clip, AsymClipper, FineClipper};
 use crate::dsp::{curve, db_to_gain, smoothing_coeff, Ramp};
 
 // Flat up to the corner
 const FIZZ_Q: f32 = 0.707;
 const LOWCUT_Q: f32 = 0.707;
+const TIGHT_Q: f32 = 0.707;
+const AIR_Q: f32 = 0.707;
 
 // How fast hard playing moves a stage's operating point, and how slowly it comes back
 const BIAS_ATTACK_MS: f32 = 4.0;
 const BIAS_RELEASE_MS: f32 = 120.0;
+const CLEAN_LINEAR_KNEE: f32 = 0.75;
 
 /// One gain stage: coupling high-pass, gain, asymmetric clip around a moving operating
 /// point, low-pass
@@ -28,6 +31,7 @@ struct Stage {
     headroom: [f32; 2],
     bias: f32,
     bias_shift: f32,
+    clean_linear: bool,
     // Follows how far the signal is driven past the top of the curve
     overdrive: f32,
     attack: f32,
@@ -47,13 +51,14 @@ impl Stage {
             headroom: [1.0, 1.0],
             bias: 0.0,
             bias_shift: 0.0,
+            clean_linear: false,
             overdrive: 0.0,
             attack: 1.0,
             release: 1.0,
         }
     }
 
-    fn configure(&mut self, model: &StageModel, sample_rate: f32) {
+    fn configure(&mut self, model: &StageModel, sample_rate: f32, clean_linear: bool) {
         self.coupling.set(model.coupling_hz, sample_rate);
         self.lowpass.set(model.lowpass_hz, sample_rate);
         self.clipper.set_limits(model.headroom[0], model.headroom[1]);
@@ -63,6 +68,7 @@ impl Stage {
         self.headroom = model.headroom;
         self.bias = model.bias;
         self.bias_shift = model.bias_shift;
+        self.clean_linear = clean_linear;
         self.attack = smoothing_coeff(BIAS_ATTACK_MS, sample_rate);
         self.release = smoothing_coeff(BIAS_RELEASE_MS, sample_rate);
     }
@@ -126,6 +132,12 @@ impl Stage {
 
     /// One sample. `process` does two at a time
     fn process_sample(&mut self, input: f32) -> f32 {
+        if self.clean_linear {
+            let driven = self.coupling.process(input) * self.gain.next();
+            let limit = self.headroom[0];
+            let clipped = limit * kneed_clip(driven / limit, CLEAN_LINEAR_KNEE);
+            return -self.lowpass.process(clipped);
+        }
         let (driven, bias) = self.drive(input);
         let clipped =
             self.clip(driven + bias) - asym_clip(bias, self.headroom[0], self.headroom[1]);
@@ -137,6 +149,12 @@ impl Stage {
     /// bit, in less time. Two samples are worked on at once, so that their divisions and
     /// square roots, which is much of what a stage costs, go to the processor in pairs
     fn process(&mut self, block: &mut [f32]) {
+        if self.clean_linear {
+            for sample in block.iter_mut() {
+                *sample = self.process_sample(*sample);
+            }
+            return;
+        }
         let (pairs, remainder) = block.as_chunks_mut::<2>();
         for pair in pairs {
             let share = (self.fine_share.value(), self.fine_share.target());
@@ -172,6 +190,8 @@ impl Stage {
 /// The gain stages of an amp in series
 pub struct Preamp {
     tight: OnePoleHp,
+    tight_biquad: Biquad,
+    use_steep_tight: bool,
     focus: Biquad,
     bright: OnePoleHp,
     bright_gain: Ramp,
@@ -179,6 +199,8 @@ pub struct Preamp {
     stage_count: usize,
     fizz: Biquad,
     lowcut: Biquad,
+    mud_cut: Biquad,
+    air_shelf: Biquad,
     level: Ramp,
     // Whether the drive pedal is on in front of the amp
     driven: bool,
@@ -188,6 +210,8 @@ impl Preamp {
     pub fn new() -> Self {
         Self {
             tight: OnePoleHp::new(),
+            tight_biquad: Biquad::new(),
+            use_steep_tight: false,
             focus: Biquad::new(),
             bright: OnePoleHp::new(),
             bright_gain: Ramp::new(0.0),
@@ -195,6 +219,8 @@ impl Preamp {
             stage_count: 1,
             fizz: Biquad::new(),
             lowcut: Biquad::new(),
+            mud_cut: Biquad::new(),
+            air_shelf: Biquad::new(),
             level: Ramp::new(1.0),
             driven: false,
         }
@@ -202,7 +228,12 @@ impl Preamp {
 
     /// `sample_rate` is the rate the preamp runs at (the oversampled one)
     pub fn configure(&mut self, model: &AmpModel, sample_rate: f32) {
-        self.tight.set(model.tight_hz, sample_rate);
+        self.use_steep_tight = model.topology == AmpTopology::ModernHighGain;
+        if self.use_steep_tight {
+            self.tight_biquad.set(BiquadCoeffs::highpass(model.tight_hz, TIGHT_Q, sample_rate));
+        } else {
+            self.tight.set(model.tight_hz, sample_rate);
+        }
         self.focus.set(BiquadCoeffs::peak(
             model.focus[0],
             model.focus[1],
@@ -218,9 +249,20 @@ impl Preamp {
             Some(lowcut_hz) => BiquadCoeffs::highpass(lowcut_hz, LOWCUT_Q, sample_rate),
             None => BiquadCoeffs::IDENTITY,
         });
+        self.mud_cut.set(if model.mud_cut[2].abs() < 1e-4 {
+            BiquadCoeffs::IDENTITY
+        } else {
+            BiquadCoeffs::peak(model.mud_cut[0], model.mud_cut[1], model.mud_cut[2], sample_rate)
+        });
+        self.air_shelf.set(if model.air_shelf[1].abs() < 1e-4 {
+            BiquadCoeffs::IDENTITY
+        } else {
+            BiquadCoeffs::high_shelf(model.air_shelf[0], AIR_Q, model.air_shelf[1], sample_rate)
+        });
+        let clean_linear = model.topology == AmpTopology::CleanAcoustic;
         self.stage_count = model.stage_count.clamp(1, MAX_STAGES);
         for (stage, stage_model) in self.stages.iter_mut().zip(&model.stages) {
-            stage.configure(stage_model, sample_rate);
+            stage.configure(stage_model, sample_rate, clean_linear);
             stage.set_driven(self.driven, 0);
         }
     }
@@ -243,10 +285,13 @@ impl Preamp {
 
     pub fn reset(&mut self) {
         self.tight.reset();
+        self.tight_biquad.reset();
         self.focus.reset();
         self.bright.reset();
         self.fizz.reset();
         self.lowcut.reset();
+        self.mud_cut.reset();
+        self.air_shelf.reset();
         for stage in &mut self.stages {
             stage.reset();
         }
@@ -283,15 +328,22 @@ impl Preamp {
     /// is the same to the bit
     pub fn process(&mut self, block: &mut [f32]) {
         for sample in block.iter_mut() {
-            let tight = self.focus.process(self.tight.process(*sample) as f64) as f32;
+            let hp = if self.use_steep_tight {
+                self.tight_biquad.process(*sample as f64)
+            } else {
+                self.tight.process(*sample) as f64
+            };
+            let tight = self.focus.process(hp) as f32;
             *sample = tight + self.bright.process(tight) * self.bright_gain.next();
         }
         for stage in &mut self.stages[..self.stage_count] {
             stage.process(block);
         }
         for sample in block.iter_mut() {
-            *sample =
-                self.lowcut.process(self.fizz.process(*sample as f64)) as f32 * self.level.next();
+            let shaped = self.air_shelf.process(
+                self.mud_cut.process(self.lowcut.process(self.fizz.process(*sample as f64))),
+            );
+            *sample = shaped as f32 * self.level.next();
         }
     }
 }
