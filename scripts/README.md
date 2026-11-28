@@ -5,6 +5,9 @@ What each script in this folder does, and the detail behind the rules in `CLAUDE
 - `install.ps1` - Builds the VST3 bundles from this checkout and installs them on Windows (see Install)
 - `check.sh` - What CI runs, run before a push (see Testing); `quick` is the script modes, format and clippy
 - `make-art.py` - Makes the pedals' artwork in `crates/suite_common/assets/art/`
+- `make_badge.py` - Draws the Højte badge: `site/hojt.svg`, `site/favicon.svg` and, with `--png`, the social image,
+  the apple touch icon and `favicon-32.png` (headless Chrome), from Bebas Neue's outlines and the spacing rules
+  written at its top (needs fontTools); `make-icon.py` takes its geometry
 - `make-icon.py` - Makes the standalone amp's icon, `plugins/amp/assets/amp.ico`, from the badge's geometry, one
   drawing per size (16 to 256); `make-icon.py <out.ico>` also writes a PNG per size beside it, for looking
 - `screenshots.ps1` - Takes the page's screenshots (`site/img/`) of the standalone windows, on Windows

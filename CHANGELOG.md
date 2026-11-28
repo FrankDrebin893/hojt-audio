@@ -11,6 +11,8 @@ GitHub release.
   shortcuts, the release notes, the README and the page. The name a DAW lists the plugins under (Hojt Audio), their
   names inside it and the `.vst3` and `.clap` file names are unchanged, so saved projects open as before and an
   update replaces the old install in place.
+- The badge spells Højte now: H Ø J T E in one row on the black plate, the Ø still a knob with its orange pointer. It is
+  printed in every plugin window, on the page's top bar and favicon, the social image and the programs' icons.
 
 ### Guitar Amp
 

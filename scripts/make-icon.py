@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Makes plugins/<name>/assets/<name>.ico for the six standalone programs: the HØJT badge, drawn once per size from the geometry of
-site/hojt.svg (the badge) and site/favicon.svg (the badge centred on a square), not scaled from
+"""Makes plugins/<name>/assets/<name>.ico for the six standalone programs: the Højte badge, drawn once per size from the geometry of
+scripts/make_badge.py (which writes site/hojt.svg and site/favicon.svg), not scaled from
 one picture. Run it again after the badge changes; the .ico files are committed. Every plugin's is the
 same badge, so the six files are the same bytes (xtask/tests/standalones.rs holds it).
 
 Each size is drawn on a canvas 4x as large and reduced, so the edges are clean, and is RGBA with a
 transparent surround. At 32 px and up it is the whole badge with its drop shadow. Below that (16
-and 24) the small print is dropped, the frame widened and the H made larger, since four letters
+and 24) the small print is dropped, the frame widened and the H made larger, since five letters
 and a hairline frame turn to mud in so few pixels: a dark plate, a cream frame and the H.
 
 The file is written by hand (a header and PNG images), so that running the script twice gives the
@@ -19,6 +19,10 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.dont_write_bytecode = True
+import make_badge as mb  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 PLUGINS = ["pitch_shifter", "drums", "amp", "bass", "pad", "bells"]
 SIZES = [16, 24, 32, 48, 64, 128, 256]
@@ -29,19 +33,11 @@ SILK = (0xEA, 0xDF, 0xC8, 255)
 ORANGE = (0xE2, 0x58, 0x1E, 255)
 SHADOW = (0, 0, 0, round(0.314 * 255))
 
-# From site/hojt.svg. The plate is 63 x 30.8 in a viewBox of 63 x 33.8 (the shadow is 3 below).
-W, H_PLATE, DROP = 63.0, 30.8, 3.0
-GLYPH_H = "M10.142,7.7L12.562,7.7 12.562,13.97 15.158,13.97 15.158,7.7 17.578,7.7 17.578,23.1 15.158,23.1 15.158,16.17 12.562,16.17 12.562,23.1 10.142,23.1 10.142,7.7z"
-GLYPH_J = "M38.774,23.188L38.163,23.166 37.652,23.1 37.652,20.9 38.026,20.966 38.444,20.988 38.784,20.965 39.076,20.897 39.323,20.784 39.522,20.625 39.676,20.419 39.786,20.166 39.852,19.864 39.874,19.514 39.874,7.7 42.294,7.7 42.294,19.448 42.28,19.906 42.24,20.333 42.172,20.731 42.077,21.098 41.955,21.435 41.805,21.742 41.629,22.018 41.425,22.264 40.933,22.668 40.328,22.957 39.608,23.13 38.774,23.188z"
-GLYPH_T = "M48.794,9.9L46.264,9.9 46.264,7.7 53.744,7.7 53.744,9.9 51.214,9.9 51.214,23.1 48.794,23.1 48.794,9.9z"
-
-
-def polygon(d):
-    """The points of a path made only of M, L and z with absolute coordinates"""
-    pts = []
-    for tok in d.replace("M", " ").replace("L", " ").replace("z", " ").replace(",", " ").split():
-        pts.append(float(tok))
-    return list(zip(pts[0::2], pts[1::2]))
+# The badge's geometry is scripts/make_badge.py's: the same letters, the same ring, the same pointer
+W, H_PLATE, DROP = mb.PLATE_W, mb.PLATE_H, mb.DROP
+PLACED, RING_CX, _MARGIN = mb.geometry()
+RING_CY = (mb.CAP_TOP + mb.CAP_BOTTOM) / 2
+SLASH = mb.slash(RING_CX)
 
 
 def draw_size(px):
@@ -95,28 +91,29 @@ def draw_size(px):
 
     if small:
         # The H alone, larger, in the middle of the plate
-        pts = polygon(GLYPH_H)
-        cx = (10.142 + 17.578) / 2
-        cy = (7.7 + 23.1) / 2
+        pts = PLACED["H"][0]
+        cx = (min(x for x, _ in pts) + max(x for x, _ in pts)) / 2
+        cy = (mb.CAP_TOP + mb.CAP_BOTTOM) / 2
         sx, sy = W / px * 1.0, 1.15  # stems about 2.4 px wide, whatever the size
         pts = [((x - cx) * sx + W / 2, (y - cy) * sy + H_PLATE / 2) for x, y in pts]
         layer(lambda lay, d: d.polygon([pt(p, oy) for p in pts], fill=SILK))
     else:
-        for g in (GLYPH_H, GLYPH_J, GLYPH_T):
-            layer(lambda lay, d, g=g: d.polygon([pt(p, oy) for p in polygon(g)], fill=SILK))
+        for ch in "HJTE":
+            for contour in PLACED[ch]:
+                layer(lambda lay, d, c=contour: d.polygon([pt(p, oy) for p in c], fill=SILK))
 
-        # The O: a ring at (27.6, 15.4), radius 6.6, stroke 2.31
+        # The Ø: a ring at the ring centre, radius 6.6, stroke 2.31
         def ring(lay, d):
-            cx, cy, r, w = 27.6, 15.4, 6.6, 2.31
+            cx, cy, r, w = RING_CX, RING_CY, mb.RING_R, mb.RING_STROKE
             ro, ri = r + w / 2, r - w / 2
             d.ellipse([(cx - ro) * k, (cy - ro + oy) * k, (cx + ro) * k, (cy + ro + oy) * k], fill=SILK)
             d.ellipse([(cx - ri) * k, (cy - ri + oy) * k, (cx + ri) * k, (cy + ri + oy) * k], fill=(0, 0, 0, 0))
 
         layer(lambda lay, d: ring(lay, d))
 
-        # The pointer: (21.29, 24.41) to (33.91, 6.39), stroke 1.87, butt caps
+        # The pointer: a butt-capped line across the ring
         def pointer(lay, d):
-            x1, y1, x2, y2, w = 21.29, 24.41, 33.91, 6.39, 1.87
+            (x1, y1, x2, y2), w = SLASH, mb.SLASH_STROKE
             dx, dy = x2 - x1, y2 - y1
             ln = (dx * dx + dy * dy) ** 0.5
             nx, ny = -dy / ln * w / 2, dx / ln * w / 2

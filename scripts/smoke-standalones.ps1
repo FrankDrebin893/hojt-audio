@@ -1,6 +1,6 @@
 # Starts each standalone program of target/standalone with the dummy audio backend (no sound
 # card needed), waits a few seconds, and checks that it is still running, so that its window
-# opened rather than the program dying at start, and that its exe has an icon resource (the HØJT badge). Then it asks the window to close and expects the program to exit. Windows only
+# opened rather than the program dying at start, and that its exe has an icon resource (the Højte badge). Then it asks the window to close and expects the program to exit. Windows only
 # (release.yml, the Windows job):
 #
 #   scripts\smoke-standalones.ps1 [-Dir target\standalone] [-Seconds 3] [-MesaDir target\mesa]
