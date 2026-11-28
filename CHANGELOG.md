@@ -39,6 +39,9 @@ GitHub release.
   Limits: the window must be open for a pedal to move a knob (the window paints only when asked), a program change
   needs a host that sends one (VST3 has none; CLAP rarely does), and the MIDI channel is always Omni in a DAW. A DAW
   can also map any CC to a knob without this, with its own parameter mapping.
+- Learning or forgetting a MIDI binding no longer costs the standalone settings. A settings file that cannot be read
+  (cut off, edited by hand) is left as it is and the bindings last until the window closes; saving the settings now
+  goes through a temporary file and a rename, so a write that is cut off cannot leave half a file.
 - The twelve amps have English names, so no name needs a Danish letter. Nothing else about them changed:
   a project, a preset or a saved setting from before opens with the same amp, and the sound is the same.
 
