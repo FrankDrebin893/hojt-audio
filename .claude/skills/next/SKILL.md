@@ -202,7 +202,7 @@ What every sub-session is asked to do, for issue `<n>`:
   redirected to a file outside `target/` (the scratchpad, so `cargo clean` does not delete it), wait with Monitor and
   `until grep -q 'CHECK DONE' <that file>; do sleep 10; done`, then read the result in one call, `tail -n 12 <that file>`:
   `CHECK DONE rc=0` after `== All of CI's steps pass` is a pass, anything else shows its failing lines printed above
-  the last line. Never `pgrep`, never a loop on the task's own output, never a poll per few minutes. The expected time is
+  the last line. One Monitor per gate; a second only after its 30 minute expiry. Never `pgrep`, never a loop on the task's own output, never a poll per few minutes. The expected time is
   in the step's start line (`== cargo test --workspace --locked (expected ...)`): plan the one wait from it
 - The gate is chosen at the start, not found out at the limit. Run `scripts/check.sh target` (it prints whether `target/` is cold or warm; `scripts/check.sh space` is the disk check)
   or `ls target/debug/deps`. Cold target and the change confined to some crates:
@@ -230,7 +230,11 @@ What every sub-session is asked to do, for issue `<n>`:
   test run, work out the values that follow from it (sums, heights, window width minus the margins: old and new), `grep -nE
   '<old>|<old derived>' <plugin>/src` over the plugin's tests and code, and change every hit in one pass with `Edit`; then
   run the tests once. One failing run proves one assert. Compute a plate's new positions from the constants (heights and
-  radii) before the first run, never by trial
+  radii) before the first run, never by trial. Also `grep` the plugin's tests for click and drag positions taken from a plate's
+  or cabinet's `bottom()`/`top()` with a literal offset (`bottom() - 20.0`): they are not the old number, so a grep for it
+  misses them; change them in the same pass, or make them follow the constant. After `check.sh quick`, the first test run is
+  `UPDATE_SNAPSHOTS=1 cargo test -p <plugin> --lib`, which is also the first run of the click tests: read every failure of
+  it, not only the snapshot ones
 - A build uses the worktree's own `target/` (the default). Never set `CARGO_TARGET_DIR` to a path another
   session can also name: two builders on one directory fight over cargo's build lock, and a full
   `scripts/check.sh` refuses such a path at once (`unset CARGO_TARGET_DIR`). The cold build this costs
