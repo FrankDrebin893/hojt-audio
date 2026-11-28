@@ -3168,8 +3168,13 @@ fn test_the_jacks_and_the_cables_stand_where_the_layout_says_in_both_modes() {
         if two {
             assert!(nut(input(1)), "the second head's input jack");
         } else {
-            let (_, bow) = (input(0), input(0) + vec2(-70.0, 50.0));
-            assert!(!nut(bow), "no link cable's jack with one amp");
+            // Where the second head's jack stands with two amps is empty: no nut, no cable
+            let empty = Pos2::new(
+                input(0).x,
+                STACK_TOP + lane_top(true, 1) + (input(0).y - STACK_TOP - lane_top(false, 0)),
+            );
+            assert!(!nut(empty), "no second jack with one amp at {empty:?}");
+            assert_ne!(pixel_at(&image, empty), CABLE);
         }
         // The plate's output jack, in both
         let out = Pos2::new(stack + MIX_X + MIX_WIDTH / 2.0 + MIX_JACK_DX, STACK_TOP + MIX_JACK_Y);

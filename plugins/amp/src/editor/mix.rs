@@ -1,7 +1,7 @@
 use super::*;
 
 // On the plate, from its top, in four zones: the Amps frame (the icon that says one amp or two,
-// in view in both modes), the Blend frame (only with two amps) (the fader with its end captions
+// in view in both modes), the Blend frame (only with two amps: the fader with its end captions
 // and its value beside the slot, to the left of the middle), the Cabinets frame (Mic and Res,
 // Mic Type, and the Cab switch with its LED, all of them for both cabinets), and under them the
 // output jack. Across, from the plate's middle

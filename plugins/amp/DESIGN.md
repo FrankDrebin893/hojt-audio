@@ -292,9 +292,11 @@ The reasons behind choices that the code alone does not explain. What it does is
   cabinet's Speaker and Mic Type, which stood on its plate, moved: the cabinet's choice to its
   lane's line under the dials, the microphone to the shared plate. The second amp's cabinet is
   its own or a built-in one: a file is the first amp's only
-- The plate has three zones, ruled apart. Blend leads: a silk frame of its own, the longest
-  slot and the biggest cap in the rig, large Amp 1 and Amp 2 at its ends and its value on a tape
-  beside the slot, so it cannot be read as Amp 2's. Under it a frame, Cabinets, for what both
+- The plate has four zones, ruled apart (#474 added the first). Amps leads: the icon that says
+  one amp or two (below). Blend, with two amps only: a silk frame of its own, a fader with the
+  biggest cap in the rig (the slot is 38 long since #474 made room for the icon, it was 80),
+  large Amp 1 and Amp 2 at its ends and its value on a tape beside the slot, so it cannot be
+  read as Amp 2's. Under it a frame, Cabinets, for what both
   cabinets share: Mic, Res, Mic Type and the Cab switch, whose LED says whether both cabinets
   are in the signal. Last, under a rule, the plate's one output jack, its own zone, so the
   cable that leaves is the plate's. Mic and Res are radius 15, the lane dials' size, not the 19 of a
@@ -308,7 +310,7 @@ The reasons behind choices that the code alone does not explain. What it does is
   short-window layout: the first, with the amp centred); adding the second moves the first up. The
   window, the cables' ends and the output jack stay where they were, so a flip never resizes the
   window. In two-amp mode the Blend frame is 120 high and its fader 38 long, to make room for the icon
-- The plate has an `Amps` zone on top in both modes, then Blend (two amps only). With one amp the Amps frame is tall (Blend's place too, no bare stretch): the two drawings one over the other, the second unlit, and "Add Amp 2" under them
+- The Amps zone is on top in both modes. With two amps it is a low frame with the two drawings side by side. With one it is tall and takes Blend's place too, so the plate has no bare stretch: the drawings one over the other at twice the size, the second unlit, and "Add Amp 2" under them
 - A lane's captions (Cabinet, In) are 15 px, as large as the head's panel lets them be
 
 - The strip has 50 px small footswitches with the LED beside the switch; its band tilts -1.5
