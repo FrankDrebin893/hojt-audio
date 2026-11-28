@@ -72,7 +72,9 @@ Moved unchanged from `plugins/amp/CLAUDE.md` (issue 370); the router there says 
   In a DAW (milestone 3) the plate has the Learn button alone, centred (the foot is always there, so
   `settings_height(rows)` takes no `with_audio`); bindings are read when the window opens (`standalone::daw_bindings`)
   and kept at once (`keep_daw_bindings`) in the same `amp-standalone.json`, changing only that key; two plugin
-  windows share the file, the last write wins. The channel is Omni (`launch()` is the default there). The host must route
+  windows share the file, the last write wins. A file that is there but cannot be read as settings is never overwritten by
+  a binding (`store_bindings` returns `InvalidData` and the bindings live in the window only), and every save goes
+  through a temporary file and a rename (`write_atomic`). The channel is Omni (`launch()` is the default there). The host must route
   MIDI to the effect (`MidiConfig::MidiCCs`: CLAP does, VST3 hosts that offer an event bus do); events reach `process`
   whether the window is open or not, but only an open window drains them, and a program change that came while it was
   closed is dropped when it opens. Not tried in a real host (the standing checks issue has the lines).

@@ -111,7 +111,7 @@ impl Prefs {
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir)?;
         }
-        std::fs::write(path, self.to_json())
+        write_atomic(path, &self.to_json())
     }
 
     fn to_json(&self) -> String {
@@ -401,13 +401,31 @@ pub fn config_dir() -> Option<PathBuf> {
     Some(base.join("Hojt Audio"))
 }
 
+/// Writes `text` to a temporary file next to `path` and renames it over `path`, so the file is
+/// the old one or the new one, never half of either. The name carries the process id so two
+/// windows of one DAW do not share it; a failed write or rename removes it
+fn write_atomic(path: &Path, text: &str) -> std::io::Result<()> {
+    let mut name = path.file_name().unwrap_or_default().to_os_string();
+    name.push(format!(".{}.tmp", std::process::id()));
+    let temp = path.with_file_name(name);
+    let result = std::fs::write(&temp, text).and_then(|()| std::fs::rename(&temp, path));
+    if result.is_err() {
+        let _ = std::fs::remove_file(&temp);
+    }
+    result
+}
+
 /// Writes `bindings` into the settings file at `path` and leaves the rest of it as it was (a
-/// file that is not there yet starts from the defaults)
+/// file that is not there yet starts from the defaults). A file that is there but cannot be read
+/// as settings is never replaced: `Err` of kind `InvalidData`, nothing written
 pub fn store_bindings(path: &Path, bindings: &Bindings) -> std::io::Result<()> {
-    let mut prefs = std::fs::read_to_string(path)
-        .ok()
-        .and_then(|text| Prefs::from_json(&text))
-        .unwrap_or_default();
+    let mut prefs = match std::fs::read_to_string(path) {
+        Ok(text) => Prefs::from_json(&text).ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "settings file cannot be read")
+        })?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Prefs::default(),
+        Err(error) => return Err(error),
+    };
     prefs.midi_bindings = bindings.clone();
     prefs.save(path)
 }
@@ -986,6 +1004,38 @@ mod tests {
         assert_eq!(Prefs::load(&path), Prefs { midi_bindings: bindings, ..Prefs::default() });
         // They are not on the command line: the host knows nothing of them
         assert!(!Prefs::load(&path).args("amp").iter().any(|arg| arg.contains("out_level")));
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    // #508: a file that cannot be read as settings is never replaced by a binding
+    #[test]
+    fn test_bindings_never_overwrite_a_file_that_cannot_be_read() {
+        let path = dir("unreadable").join(FILE);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let bindings = Bindings::decode("11:out_level");
+        for text in ["not json {", "{\"backend\": \"auto\"", "{\"period_size\": \"x\"}"] {
+            std::fs::write(&path, text).unwrap();
+            let error = store_bindings(&path, &bindings).unwrap_err();
+            assert_eq!(error.kind(), std::io::ErrorKind::InvalidData, "{text}");
+            assert_eq!(std::fs::read_to_string(&path).unwrap(), text);
+        }
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    // #508: a save goes through a temporary file that is gone afterwards, and replaces the file
+    #[test]
+    fn test_a_save_leaves_no_temporary_file_and_replaces_the_old_one() {
+        let path = dir("atomic").join(FILE);
+        let first = Prefs { midi_channel: 2, ..Prefs::default() };
+        first.save(&path).unwrap();
+        let second = Prefs { midi_channel: 5, ..Prefs::default() };
+        second.save(&path).unwrap();
+        assert_eq!(Prefs::load(&path), second);
+        let names: Vec<_> = std::fs::read_dir(path.parent().unwrap())
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect();
+        assert_eq!(names, [std::ffi::OsString::from(FILE)]);
         let _ = std::fs::remove_dir_all(path.parent().unwrap());
     }
 

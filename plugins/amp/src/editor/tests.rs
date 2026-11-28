@@ -4097,6 +4097,38 @@ fn test_learn_works_in_a_daw_and_keeps_its_bindings_in_the_settings_file() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+// #508: a settings file that cannot be read is left as it is; the binding lives in the window
+#[test]
+#[cfg(target_os = "linux")]
+fn test_learn_in_a_daw_leaves_a_corrupt_settings_file_alone() {
+    let dir = std::env::temp_dir().join(format!("hojt-daw-corrupt-{}", std::process::id()));
+    let file = dir.join(standalone::FILE);
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(&file, "not json {").unwrap();
+    standalone::DAW_FILE.with(|slot| *slot.borrow_mut() = Some(file.clone()));
+    let params = GuitarAmpParams::default();
+    let host = RecordHost::default();
+    let setter = ParamSetter::new(&host);
+    let (mut harness, view) = harness_shared(&params, &setter, None, None, |view| {
+        view.plate = Some(Open::Settings(None));
+    });
+    harness.run_ok();
+    click(&mut harness, learn_button_below(1));
+    click(&mut harness, Pos2::new(INPUT_KNOB.x, INPUT_KNOB.y));
+    control_change(20, 0.5);
+    harness.run_ok();
+    assert_eq!(view.borrow().midi_map.bindings.param_of(20), Some("in_gain"));
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), "not json {");
+    // The bound knob still moves for the rest of the window's life
+    let before = host.sets.lock().unwrap().len();
+    control_change(20, 0.75);
+    harness.run_ok();
+    assert!(host.sets.lock().unwrap().len() > before);
+    standalone::DAW_FILE.with(|slot| *slot.borrow_mut() = None);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 // The Learn button a second time ends learn, and so does Escape; the display stops saying so
 #[test]
 #[cfg(target_os = "linux")]
