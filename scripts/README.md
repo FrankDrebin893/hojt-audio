@@ -137,7 +137,10 @@ nih-plug fork"). `scripts/test-pin-nih-plug.sh` tests it on a copy and is a step
 A branch that changes only light paths (the page, markdown, `.claude/`, the licences and the issue forms, listed once in
 `scripts/light-paths.txt`, which the `changes` job of `ci.yml` reads too) gets from `scripts/check.sh` what CI gives it:
 `quick`, `scripts/page-check.sh links`, and `cargo test -p xtask` when a skill changed. `scripts/check.sh full` forces every
-step; `scripts/check.sh scope` prints `light`, `skills` or `full`. `scripts/test-check-light.sh` tests the choice on a
+step; `scripts/check.sh scope` prints `light`, `skills` or `full`. Rust files under `xtask/tests/` also give `skills`
+(listed in `scripts/xtask-test-paths.txt`, which only `check.sh` reads: CI's `Test` still runs in full for any `.rs` file,
+and `xtask/src/**` stays `full`). Every run's first line is `== Scope: <scope>`, and for `full` `because <first file that is
+neither light nor an xtask test>` (`scripts/check.sh scope-line` prints it). `scripts/test-check-light.sh` tests the choice on a
 temporary repo and checks that neither `ci.yml` nor `check.sh` holds a list of its own; it is a step of `check.sh` and CI.
 **The seed** (`scripts/seed-target.sh`, issue 466): a worktree's own `target/` is cold on a builder's first run. A cloud
 session's start hook therefore starts one detached build of the workspace in the main checkout (`target/`, which no

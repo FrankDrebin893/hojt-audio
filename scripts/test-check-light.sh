@@ -31,8 +31,8 @@ grep -q 'site-sources/' "$root/scripts/check.sh" && fail "check.sh holds a list 
 
 # A repo with the script and the list, and a base commit that stands for origin/main
 repo="$tmp/repo"
-mkdir -p "$repo/scripts" "$repo/.github/workflows" "$repo/site" "$repo/src" "$repo/.claude/skills/x"
-cp "$root/scripts/check.sh" "$root/scripts/light-paths.txt" "$repo/scripts/"
+mkdir -p "$repo/scripts" "$repo/.github/workflows" "$repo/site" "$repo/src" "$repo/.claude/skills/x" "$repo/xtask/tests" "$repo/xtask/src"
+cp "$root/scripts/check.sh" "$root/scripts/light-paths.txt" "$root/scripts/xtask-test-paths.txt" "$repo/scripts/"
 cp "$ci" "$repo/.github/workflows/ci.yml"
 git -C "$repo" init -q -b main
 git -C "$repo" config user.email t@example.com
@@ -93,6 +93,36 @@ mkdir -p "$repo/piano"
 echo b > "$repo/piano/x.cs"
 expect full "a C# file beside markdown"
 reset
+
+# xtask's own test files count as skills scope (only the local gate shrinks), xtask's source and other .rs files do not
+mkdir -p "$repo/.claude/skills/x" "$repo/xtask/tests" "$repo/xtask/src"
+echo b > "$repo/.claude/skills/x/SKILL.md"
+echo b > "$repo/xtask/tests/x.rs"
+expect skills "a skill and an xtask test file"
+echo b > "$repo/src/lib.rs"
+expect full "an xtask test file beside a .rs file elsewhere"
+reset
+
+mkdir -p "$repo/xtask/tests"
+echo b > "$repo/xtask/tests/x.rs"
+expect skills "an xtask test file alone"
+reset
+
+mkdir -p "$repo/xtask/src"
+echo b > "$repo/xtask/src/lib.rs"
+expect full "xtask/src alone"
+reset
+
+# The first line of a run names the scope, and for full the first file that is neither light nor an xtask test
+mkdir -p "$repo/xtask/tests" "$repo/xtask/src"
+echo b > "$repo/xtask/tests/x.rs"
+[[ "$(bash "$repo/scripts/check.sh" scope-line)" == "== Scope: skills" ]] || fail "scope line of a skills run"
+echo b > "$repo/xtask/src/lib.rs"
+[[ "$(bash "$repo/scripts/check.sh" scope-line)" == "== Scope: full because xtask/src/lib.rs" ]] || fail "scope line of a full run"
+reset
+[[ "$(bash "$repo/scripts/check.sh" scope-line)" == "== Scope: full because no diff" ]] || fail "scope line without a diff"
+[[ "$(CHECK_BASE=refs/nothing bash "$repo/scripts/check.sh" scope-line)" == "== Scope: full because no base to compare with" ]] || fail "scope line without a base"
+grep -A2 '^full() {' "$root/scripts/check.sh" | grep -q 'scope_line' || fail "a run does not start with the scope line"
 
 # A base that does not exist is a full run, never a skipped one
 [[ "$(CHECK_BASE=refs/nothing bash "$repo/scripts/check.sh" scope)" == full ]] || fail "a missing base is not full"
