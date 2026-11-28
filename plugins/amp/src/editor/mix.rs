@@ -52,7 +52,9 @@ impl Pedals<'_> {
 
         // The mode: one amp or two, the second amp's switch
         let two = params.amp2_on.value();
-        let icon = ui::amps_icon(ui, frame(AMPS_FRAME_TOP, AMPS_FRAME_BOTTOM), paint, two, "amps");
+        // With one amp the frame takes the Blend's place too, so the plate has no bare stretch
+        let bottom = if two { AMPS_FRAME_BOTTOM } else { BLEND_FRAME_BOTTOM };
+        let icon = ui::amps_icon(ui, frame(AMPS_FRAME_TOP, bottom), paint, two, "amps");
         if icon.clicked() {
             setter.begin_set_parameter(&params.amp2_on);
             setter.set_parameter(&params.amp2_on, !two);

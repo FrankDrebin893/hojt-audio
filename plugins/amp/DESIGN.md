@@ -308,7 +308,7 @@ The reasons behind choices that the code alone does not explain. What it does is
   short-window layout: the first, with the amp centred); adding the second moves the first up. The
   window, the cables' ends and the output jack stay where they were, so a flip never resizes the
   window. In two-amp mode the Blend frame is 120 high and its fader 38 long, to make room for the icon
-- The plate has an `Amps` zone on top in both modes, then Blend (two amps only)
+- The plate has an `Amps` zone on top in both modes, then Blend (two amps only). With one amp the Amps frame is tall (Blend's place too, no bare stretch): the two drawings one over the other, the second unlit, and "Add Amp 2" under them
 - A lane's captions (Cabinet, In) are 15 px, as large as the head's panel lets them be
 
 - The strip has 50 px small footswitches with the LED beside the switch; its band tilts -1.5

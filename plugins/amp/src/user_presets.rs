@@ -878,25 +878,6 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_a_preset_reopens_in_the_mode_it_was_saved_in() {
-        // One amp or two is `amp2_on`: written out and read back, and loading sets it
-        let params = GuitarAmpParams::default();
-        for (text, on) in [("amp2_on = off\n", 0.0), ("amp2_on = on\n", 1.0)] {
-            let saved = UserPreset::parse(&params, text);
-            assert_eq!(saved.value(&params, "amp2_on"), on);
-            let written = saved.to_text(&params);
-            let line = if on == 1.0 { "amp2_on = on" } else { "amp2_on = off" };
-            assert!(written.lines().any(|each| each == line), "{line} is not in\n{written}");
-            let host = Host::default();
-            UserPreset::parse(&params, &written).load(&params, &ParamSetter::new(&host));
-            let set = host.set.lock().unwrap();
-            assert!(set
-                .iter()
-                .any(|(param, normalized)| *param == params.amp2_on.as_ptr() && *normalized == on));
-        }
-    }
-
-    #[test]
     fn test_the_second_amp_is_written_and_read_back() {
         let params = GuitarAmpParams::default();
         let saved = UserPreset::parse(

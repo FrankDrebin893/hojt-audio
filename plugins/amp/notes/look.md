@@ -39,7 +39,8 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   height of the pedals' plugs, and the Cab switch with its LED and caption. Mic, Res, Mic Type
   and Cab act on both amps' cabinets. The first lane's cabinet drawer offers the amp's
   own, the built-in cabinets and the files; the second's its own and the built-in ones (`cabinet2`,
-  never a file). - **Head and cabinet:** each amp has a head of its own (`looks.rs`, drawn by `ui::amp_head`),
+  never a file)
+- **Head and cabinet:** each amp has a head of its own (`looks.rs`, drawn by `ui::amp_head`),
   which changes the moment another amp is picked:
 
   | Amp | Covering | Grille | Panel, print | Knobs | Piping |

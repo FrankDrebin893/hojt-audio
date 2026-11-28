@@ -59,7 +59,10 @@ pub use frame::{
     SlimPrint, BENCH_MARGIN, MODEL_LEFT, PLUG_Y, SLIM_JACK_X, SLIM_JACK_Y, SLIM_KNOBS,
     SLIM_KNOB_RADIUS, SLIM_LED, SLIM_PRINT_REACH, SLIM_STRIP_HEIGHT, SLIM_SWITCH, STRIP_BAND_WIDTH,
 };
-pub use icons::{amps_icon, icon_switch, Icon, IconSwitch, AMPS_GLYPH_GAP, AMPS_GLYPH_SIZE};
+pub use icons::{
+    amps_glyphs, amps_icon, icon_switch, Icon, IconSwitch, AMPS_GLYPH_GAP, AMPS_GLYPH_SIZE,
+    AMPS_TALL,
+};
 pub use led::{led_display, led_width, tuner_display, LED_HEIGHT};
 pub use plate::{plate, Close};
 pub use raster::{Grille, KnobCap, Plate, Tolex};

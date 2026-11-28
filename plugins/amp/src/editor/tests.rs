@@ -3089,6 +3089,11 @@ fn test_one_amp_stands_in_the_middle_of_the_stack_and_two_fill_it() {
     assert_eq!(lane_top(true, 1) + LANE_HEIGHT, STACK_HEIGHT);
     // The first amp moves up to make room for the second
     assert!(lane_top(true, 0) < one);
+    // With one amp the Amps frame fills the Blend's place, tall enough to stack its drawings
+    const {
+        assert!(BLEND_FRAME_BOTTOM - AMPS_FRAME_TOP >= suite_common::ui::AMPS_TALL);
+        assert!(AMPS_FRAME_BOTTOM - AMPS_FRAME_TOP < suite_common::ui::AMPS_TALL);
+    }
 }
 
 /// The middle of the Amps icon, in window points
@@ -3115,6 +3120,83 @@ fn test_a_click_on_the_amps_icon_switches_the_second_amp_both_ways() {
         let sets = host.sets.lock().unwrap().clone();
         let now = if was { 0.0 } else { 1.0 };
         assert_eq!(sets, vec![(params.amp2_on.as_ptr(), now)], "from {was}");
+    }
+}
+
+/// The colour of the window's pixel at a point (full size)
+#[cfg(target_os = "linux")]
+fn pixel_at(image: &nih_plug_egui::egui::ColorImage, at: Pos2) -> Color32 {
+    let ppp = image.width() as f32 / WINDOW_WIDTH as f32;
+    image[((at.x * ppp) as usize, (at.y * ppp) as usize)]
+}
+
+// The jacks and the cables' ends are where the layout says in both modes: the input jack of each
+// lane in view (the nut's middle is dark chrome), a cable running into the first, the plate's
+// output jack, and with one amp no nut under the first lane where the second one stands
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_jacks_and_the_cables_stand_where_the_layout_says_in_both_modes() {
+    use suite_common::ui::theme::{CABLE, CHROME_DARK};
+    for two in [false, true] {
+        let params =
+            GuitarAmpParams { amp2_on: BoolParam::new("Amp 2", two), ..GuitarAmpParams::default() };
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, _) = bank_harness(&params, &setter);
+        let image = harness.render().unwrap();
+        let image = nih_plug_egui::egui::ColorImage::from_rgba_unmultiplied(
+            [image.width() as usize, image.height() as usize],
+            image.as_raw(),
+        );
+        let stack = Line::of_chain(&params.chain.get()).stack_for_test();
+        let input = |lane: usize| {
+            let head = Rect::from_min_size(
+                Pos2::new(stack, STACK_TOP + lane_top(two, lane)),
+                vec2(LANE_HEAD_WIDTH, LANE_HEIGHT),
+            );
+            let faces = ui::head_faces(head, &looks::look(params.amp.value()).head);
+            faces.panel.left_top() + vec2(LANE_JACK_X, DIAL_Y)
+        };
+        let nut = |at: Pos2| pixel_at(&image, at) == CHROME_DARK;
+        assert!(nut(input(0)), "two {two}: the first head's input jack");
+        // The cable that comes in from the pedals ends at the last jack in view
+        let last = input(usize::from(two));
+        let cabled = (-20..0).any(|dx| pixel_at(&image, last + vec2(dx as f32, 8.0)) == CABLE)
+            || (-20..0).any(|dx| pixel_at(&image, last + vec2(dx as f32, 0.0)) == CABLE);
+        assert!(cabled, "two {two}: a cable runs into the jack at {last:?}");
+        // The second head's jack is there with two amps only
+        if two {
+            assert!(nut(input(1)), "the second head's input jack");
+        } else {
+            let (_, bow) = (input(0), input(0) + vec2(-70.0, 50.0));
+            assert!(!nut(bow), "no link cable's jack with one amp");
+        }
+        // The plate's output jack, in both
+        let out = Pos2::new(stack + MIX_X + MIX_WIDTH / 2.0 + MIX_JACK_DX, STACK_TOP + MIX_JACK_Y);
+        assert!(nut(out), "two {two}: the output jack");
+    }
+}
+
+// The Blend fader is on the plate with two amps and answers a click there; with one it is not
+// drawn and the same click sets nothing
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_blend_fader_is_there_with_two_amps_and_gone_with_one() {
+    for two in [false, true] {
+        let params =
+            GuitarAmpParams { amp2_on: BoolParam::new("Amp 2", two), ..GuitarAmpParams::default() };
+        let host = RecordHost::default();
+        let setter = ParamSetter::new(&host);
+        let (mut harness, _) = bank_harness(&params, &setter);
+        let stack = Line::of_chain(&params.chain.get()).stack_for_test();
+        let slot = Pos2::new(
+            stack + MIX_X + MIX_WIDTH / 2.0 + FADER_DX,
+            STACK_TOP + FADER_TOP + 3.0 * FADER_LENGTH / 4.0,
+        );
+        drag(&mut harness, slot, slot + vec2(0.0, -8.0));
+        let sets = host.sets.lock().unwrap().clone();
+        let blend = sets.iter().any(|(param, _)| *param == params.amp_blend.as_ptr());
+        assert_eq!(blend, two, "two {two}: {sets:?}");
     }
 }
 

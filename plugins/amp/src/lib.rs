@@ -2379,6 +2379,34 @@ mod tests {
         assert!(!GuitarAmpParams::default().delay_sync.default_plain_value());
     }
 
+    // #474: the mode is `amp2_on`, saved in every project: a project saved with two amps opens as
+    // two, one from before names nothing and opens as one
+    #[test]
+    fn test_a_project_saved_with_two_amps_opens_as_two() {
+        let mut state = PluginState {
+            version: "0.2.0".to_owned(),
+            params: [("amp2_on".to_owned(), nih_plug::wrapper::state::ParamValue::Bool(true))]
+                .into_iter()
+                .collect(),
+            fields: Default::default(),
+        };
+        GuitarAmpPlugin::filter_state(&mut state);
+        assert!(
+            matches!(
+                state.params.get("amp2_on"),
+                Some(nih_plug::wrapper::state::ParamValue::Bool(true))
+            ),
+            "the state keeps the mode"
+        );
+        assert!(!GuitarAmpParams::default().amp2_on.value(), "a project from before is one amp");
+        // The value the host restores plays and draws as two amps
+        let params = GuitarAmpParams {
+            amp2_on: BoolParam::new("Amp 2", true),
+            ..GuitarAmpParams::default()
+        };
+        assert!(params.amp2_on.value() && params.settings(None).second.on);
+    }
+
     #[test]
     fn test_parameter_ranges_are_the_limits_of_the_chain() {
         let params = GuitarAmpParams::default();

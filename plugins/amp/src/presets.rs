@@ -1014,6 +1014,22 @@ pub(crate) fn set_together(setter: &ParamSetter, edits: &[Edit]) {
 
 #[cfg(test)]
 mod tests {
+    // #474: the Amps icon shows one amp or two by `amp2_on`, which a preset sets. The one factory
+    // preset with a second amp is "Heavy & Clear" (Thunder and Clear); every other opens as one amp
+    #[test]
+    fn test_only_heavy_and_clear_opens_as_two_amps() {
+        let two: Vec<&str> = PRESETS.iter().filter(|p| p.second.on).map(|p| p.name).collect();
+        assert_eq!(two, ["Heavy & Clear"]);
+        for preset in &PRESETS {
+            let params = GuitarAmpParams::default();
+            let host = crate::user_presets::tests::Host::default();
+            preset.load(&params, &ParamSetter::new(&host));
+            let set = host.set.lock().unwrap();
+            let on = set.iter().find(|(param, _)| *param == params.amp2_on.as_ptr()).map(|s| s.1);
+            assert_eq!(on, Some(if preset.second.on { 1.0 } else { 0.0 }), "{}", preset.name);
+        }
+    }
+
     #[test]
     fn test_a_preset_is_loaded_as_one_edit_of_every_parameter_it_holds() {
         use crate::user_presets::tests::{as_one_edit, Host};
