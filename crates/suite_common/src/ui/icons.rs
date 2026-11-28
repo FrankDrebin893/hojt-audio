@@ -5,7 +5,7 @@
 //! for a tuner), the switch turns the thing on and off.
 
 use nih_plug_egui::egui::{
-    vec2, Color32, Id, Painter, Pos2, Rect, Response, Sense, Shape, Stroke, Ui,
+    vec2, Color32, Id, Painter, Pos2, Rect, Response, Sense, Shape, Stroke, StrokeKind, Ui, Vec2,
 };
 
 use super::theme::*;
@@ -121,9 +121,60 @@ pub fn paint_icon(painter: &Painter, center: Pos2, icon: Icon, color: Color32) {
     }
 }
 
+/// How wide one of the two amp-head drawings of `amps_icon` is, and how high
+pub const AMPS_GLYPH_SIZE: Vec2 = vec2(44.0, 24.0);
+/// The space between the two drawings
+pub const AMPS_GLYPH_GAP: f32 = 10.0;
+
+/// The mode icon of a rig that holds one amp or two: a silk frame titled `Amps` round two small
+/// amp-head drawings, the first always lit and the second lit when `two`. The whole frame is one
+/// click target; the caller flips the mode when it is clicked
+pub fn amps_icon(ui: &mut Ui, frame: Rect, paint: Color32, two: bool, id_source: &str) -> Response {
+    let response = ui.interact(frame, Id::new(("amps-icon", id_source)), Sense::click());
+    if response.hovered() {
+        ui.ctx().set_cursor_icon(nih_plug_egui::egui::CursorIcon::PointingHand);
+    }
+    let painter = ui.painter();
+    super::widgets::silk_frame(painter, frame, "Amps", paint);
+    let reach = AMPS_GLYPH_SIZE.x + AMPS_GLYPH_GAP / 2.0;
+    for (side, lit) in [(-1.0, true), (1.0, two)] {
+        let at = frame.center() + vec2(side * reach, 4.0);
+        amp_glyph(painter, Rect::from_center_size(at, AMPS_GLYPH_SIZE), lit);
+    }
+    response
+}
+
+/// A small amp head in screen print: four dots, the pilot lamp and the grille's lines
+fn amp_glyph(painter: &Painter, rect: Rect, lit: bool) {
+    let ink = if lit { SILK } else { SILK.gamma_multiply(0.28) };
+    painter.rect_stroke(rect, 4.0, Stroke::new(2.0_f32, ink), StrokeKind::Inside);
+    let inner = rect.shrink(5.0);
+    for dot in 0..4 {
+        painter.circle_filled(inner.left_top() + vec2(2.0 + 9.0 * dot as f32, 2.0), 2.5, ink);
+    }
+    let lamp = if lit { LED_ON } else { LED_OFF_DARK };
+    painter.circle_filled(inner.right_top() + vec2(-2.0, 2.0), 3.0, lamp);
+    for line in 0..((inner.width() / 4.0) as usize) {
+        let x = inner.left() + 1.0 + 4.0 * line as f32;
+        painter.line_segment(
+            [Pos2::new(x, inner.bottom() - 6.0), Pos2::new(x, inner.bottom())],
+            Stroke::new(1.0_f32, ink),
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_the_two_amp_drawings_fit_the_frame_they_sit_in() {
+        // The plate's frame is 128 wide at the amp's, and the drawings stand clear of each other
+        const {
+            assert!(2.0 * AMPS_GLYPH_SIZE.x + AMPS_GLYPH_GAP < 128.0 - 20.0);
+            assert!(AMPS_GLYPH_GAP >= 6.0);
+        }
+    }
 
     #[test]
     fn test_the_lamp_and_the_switch_stand_clear_of_the_icon_and_of_each_other() {

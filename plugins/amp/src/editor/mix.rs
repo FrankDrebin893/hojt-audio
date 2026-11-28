@@ -1,17 +1,20 @@
 use super::*;
 
-// On the plate, from its top, in three zones: the Blend frame (the fader with its end captions
+// On the plate, from its top, in four zones: the Amps frame (the icon that says one amp or two,
+// in view in both modes), the Blend frame (only with two amps) (the fader with its end captions
 // and its value beside the slot, to the left of the middle), the Cabinets frame (Mic and Res,
 // Mic Type, and the Cab switch with its LED, all of them for both cabinets), and under them the
 // output jack. Across, from the plate's middle
 pub(super) const PLATE_FRAME_INSET: f32 = 10.0;
-pub(super) const BLEND_FRAME_TOP: f32 = 14.0;
+pub(super) const AMPS_FRAME_TOP: f32 = 14.0;
+pub(super) const AMPS_FRAME_BOTTOM: f32 = 58.0;
+pub(super) const BLEND_FRAME_TOP: f32 = 72.0;
 pub(super) const BLEND_FRAME_BOTTOM: f32 = 192.0;
 pub(super) const FADER_DX: f32 = -12.0;
-pub(super) const MIX_AMP1_CAPTION_Y: f32 = 40.0;
-pub(super) const FADER_TOP: f32 = 66.0;
-pub(super) const FADER_LENGTH: f32 = 80.0;
-pub(super) const MIX_AMP2_CAPTION_Y: f32 = 176.0;
+pub(super) const MIX_AMP1_CAPTION_Y: f32 = 92.0;
+pub(super) const FADER_TOP: f32 = 117.0;
+pub(super) const FADER_LENGTH: f32 = 38.0;
+pub(super) const MIX_AMP2_CAPTION_Y: f32 = 180.0;
 pub(super) const MIX_END_CAPTION_SIZE: f32 = 15.0;
 pub(super) const MIX_BLEND_TAPE_DX: f32 = 38.0;
 pub(super) const MIX_BLEND_TAPE_Y: f32 = FADER_TOP + FADER_LENGTH / 2.0 - 8.0;
@@ -33,8 +36,8 @@ pub(super) const MIX_JACK_DX: f32 = 16.0;
 pub(super) const MIX_JACK_CAPTION_DX: f32 = -24.0;
 
 impl Pedals<'_> {
-    /// The plate where the lanes meet: the Blend fader between the two amps, then what both
-    /// share. Returns the output jack
+    /// The plate where the lanes meet: the Amps icon, with two amps the Blend fader between
+    /// them, then what both share. Returns the output jack
     pub(super) fn mix_plate(&self, ui: &mut Ui, plate: Rect) -> Pos2 {
         let (params, setter) = (self.params, self.setter);
         let x = plate.center().x;
@@ -47,29 +50,45 @@ impl Pedals<'_> {
         };
         let paint = Plate::BlackAnodised.color();
 
-        // Blend, the plate's lead: its frame, the fader and the value on a tape beside it
-        silk_frame(ui.painter(), frame(BLEND_FRAME_TOP, BLEND_FRAME_BOTTOM), "Blend", paint);
-        let fader = at(0.0) + vec2(FADER_DX, 0.0);
-        let end = |ui: &Ui, dy: f32, caption: &str| {
-            silk_label(ui.painter(), fader + vec2(0.0, dy), caption, MIX_END_CAPTION_SIZE);
-        };
-        end(ui, MIX_AMP1_CAPTION_Y, "Amp 1");
-        ui::crossfader(
-            ui,
-            setter,
-            &params.amp_blend,
-            fader + vec2(0.0, FADER_TOP),
-            FADER_LENGTH,
-            theme::SILK,
-        );
-        end(ui, MIX_AMP2_CAPTION_Y, "Amp 2");
-        let blend = params.amp_blend.unmodulated_normalized_value();
-        ui::widgets::label_tape(
-            ui.painter(),
-            at(MIX_BLEND_TAPE_Y) + vec2(MIX_BLEND_TAPE_DX, 0.0),
-            &params.amp_blend.normalized_value_to_string(blend, true),
-            12.0,
-        );
+        // The mode: one amp or two, the second amp's switch
+        let two = params.amp2_on.value();
+        let icon = ui::amps_icon(ui, frame(AMPS_FRAME_TOP, AMPS_FRAME_BOTTOM), paint, two, "amps");
+        if icon.clicked() {
+            setter.begin_set_parameter(&params.amp2_on);
+            setter.set_parameter(&params.amp2_on, !two);
+            setter.end_set_parameter(&params.amp2_on);
+        }
+        icon.on_hover_text(if two {
+            "Two amps: click for one"
+        } else {
+            "One amp: click to add a second"
+        });
+
+        // Blend, with two amps: its frame, the fader and the value on a tape beside it
+        if two {
+            silk_frame(ui.painter(), frame(BLEND_FRAME_TOP, BLEND_FRAME_BOTTOM), "Blend", paint);
+            let fader = at(0.0) + vec2(FADER_DX, 0.0);
+            let end = |ui: &Ui, dy: f32, caption: &str| {
+                silk_label(ui.painter(), fader + vec2(0.0, dy), caption, MIX_END_CAPTION_SIZE);
+            };
+            end(ui, MIX_AMP1_CAPTION_Y, "Amp 1");
+            ui::crossfader(
+                ui,
+                setter,
+                &params.amp_blend,
+                fader + vec2(0.0, FADER_TOP),
+                FADER_LENGTH,
+                theme::SILK,
+            );
+            end(ui, MIX_AMP2_CAPTION_Y, "Amp 2");
+            let blend = params.amp_blend.unmodulated_normalized_value();
+            ui::widgets::label_tape(
+                ui.painter(),
+                at(MIX_BLEND_TAPE_Y) + vec2(MIX_BLEND_TAPE_DX, 0.0),
+                &params.amp_blend.normalized_value_to_string(blend, true),
+                12.0,
+            );
+        }
 
         // What both cabinets share
         silk_frame(ui.painter(), frame(CABS_FRAME_TOP, CABS_FRAME_BOTTOM), "Cabinets", paint);

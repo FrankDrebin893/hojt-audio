@@ -300,9 +300,15 @@ The reasons behind choices that the code alone does not explain. What it does is
   cable that leaves is the plate's. Mic and Res are radius 15, the lane dials' size, not the 19 of a
   secondary row in a frame: the plate is 148 px wide and two 19s with their ticks do not fit
   inside a frame. All four screws are on, as `mounted_plate` puts them
-- Amp 1 has no switch and Amp 2 has On and a lamp: the first amp is always in the signal (its
-  lamp is always lit, the rig's one exception to a footswitch per path), and Amp 2 with its
-  switch is what Blend balances it against
+- Amp 1 has no switch and Amp 2 has none on its head either (#474): the first amp is always in
+  the signal, and the one switch for the second is the Amps icon at the top of the plate, a silk
+  frame with two small heads, one or two lit, so one control says one amp or two. Most players
+  use one amp, so with one the window shows that lane alone, centred in the stack's height with no
+  empty slot drawn and no Blend (picked on #474 out of an empty-slot, a grown-lane and a
+  short-window layout: the first, with the amp centred); adding the second moves the first up. The
+  window, the cables' ends and the output jack stay where they were, so a flip never resizes the
+  window. In two-amp mode the Blend frame is 120 high and its fader 38 long, to make room for the icon
+- The plate has an `Amps` zone on top in both modes, then Blend (two amps only)
 - A lane's captions (Cabinet, In) are 15 px, as large as the head's panel lets them be
 
 - The strip has 50 px small footswitches with the LED beside the switch; its band tilts -1.5
