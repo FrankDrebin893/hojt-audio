@@ -1073,9 +1073,13 @@ impl AmpChain {
         if second_runs {
             second_high[..high.len()].copy_from_slice(high);
         }
-        self.preamp.process(high);
-        self.tone.process(high);
-        self.power.process(high);
+        crate::amp::process_amp_block(
+            self.amp.model().topology,
+            &mut self.preamp,
+            &mut self.tone,
+            &mut self.power,
+            high,
+        );
         self.oversampler.downsample(high, &mut signal[..len]);
 
         self.fade_amp(&mut signal[..len]);
@@ -1093,9 +1097,13 @@ impl AmpChain {
         // 1 and the other 0
         if second_runs {
             let high_second = &mut second_high[..len * self.factor];
-            self.second.preamp.process(high_second);
-            self.second.tone.process(high_second);
-            self.second.power.process(high_second);
+            crate::amp::process_amp_block(
+                self.second.amp.model().topology,
+                &mut self.second.preamp,
+                &mut self.second.tone,
+                &mut self.second.power,
+                high_second,
+            );
             let mut second_signal = [0.0f32; CHUNK];
             self.second.down.downsample(high_second, &mut second_signal[..len]);
             self.second.fade_amp(&mut second_signal[..len], self.amp_fade_len);

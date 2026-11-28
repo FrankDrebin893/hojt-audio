@@ -21,6 +21,10 @@ name = "amp_standalone"
 path = "src/main.rs"
 required-features = ["standalone"]
 
+[[bin]]
+name = "amp_bench"
+path = "src/bin/amp_bench.rs"
+
 [dependencies]
 nih_plug = { workspace = true }
 nih_plug_egui = { workspace = true }

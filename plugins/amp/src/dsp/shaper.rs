@@ -171,6 +171,11 @@ fn power_integral(x: f64) -> f64 {
     }
 }
 
+/// Clean-headroom curve: strictly linear up to `knee`, then smoothly bends to `1.0`.
+pub fn kneed_clip(x: f32, knee: f32) -> f32 {
+    kneed_curve(x as f64, knee as f64) as f32
+}
+
 /// Power stage curve of an amp that stays clean: straight up to `knee`, then bending over
 /// to the same ceiling of 1.0, which it reaches at `2.0 - knee`. A note that stays under
 /// the knee is not touched at all; only what goes over it, the attack of a string picked

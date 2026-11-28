@@ -9,3 +9,5 @@ nul
 *.new.png
 *.diff.png
 *.old.png
+/bench/
+__pycache__/
