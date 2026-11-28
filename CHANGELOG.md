@@ -14,6 +14,12 @@ GitHub release.
 
 ### Guitar Amp
 
+- One amp or two is a choice on the amp's window now. An Amps icon at the top of the black plate (two small amp
+  heads, one or two lit) switches the second amp on and off. With one amp, which is what most presets are, the window shows
+  only that amp and its cabinet, centred, and no Blend; adding the second amp moves the first up to make room and
+  brings Blend back. The amp's own On switch on the second head is gone, since the icon is it. Nothing about the
+  sound changes, presets and projects open in the mode they were saved in, and the second amp's dials, cabinet and
+  Blend are as you left them when you switch it back on.
 - A MIDI footcontroller changes presets in the standalone amp. Pick the MIDI input in the Settings plate (the new
   MIDI input row, and MIDI channel, Omni to start with; also `--midi-input`), press Apply and the amp starts again
   listening to it. A program change `n` then loads preset `n` (counted from 0) of the bank showing, in the order the

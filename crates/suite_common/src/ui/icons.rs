@@ -5,7 +5,7 @@
 //! for a tuner), the switch turns the thing on and off.
 
 use nih_plug_egui::egui::{
-    vec2, Color32, Id, Painter, Pos2, Rect, Response, Sense, Shape, Stroke, Ui,
+    vec2, Color32, Id, Painter, Pos2, Rect, Response, Sense, Shape, Stroke, StrokeKind, Ui, Vec2,
 };
 
 use super::theme::*;
@@ -121,9 +121,107 @@ pub fn paint_icon(painter: &Painter, center: Pos2, icon: Icon, color: Color32) {
     }
 }
 
+/// How wide one of the two amp-head drawings of `amps_icon` is, and how high, in a frame that is a
+/// row (a frame under `AMPS_TALL` high)
+pub const AMPS_GLYPH_SIZE: Vec2 = vec2(40.0, 22.0);
+/// The space between the two drawings in a row
+pub const AMPS_GLYPH_GAP: f32 = 12.0;
+/// A frame this high or higher shows the drawings one over the other, twice the size
+pub const AMPS_TALL: f32 = 100.0;
+const AMPS_TALL_GAP: f32 = 16.0;
+// How far under a frame's top its drawings begin when they are stacked
+const AMPS_TALL_TOP: f32 = 28.0;
+// How far a row's drawings stand under the frame's middle: clear of the title on the top line
+const AMPS_ROW_DROP: f32 = 4.0;
+
+/// Where the two drawings of `amps_icon` stand in `frame`: side by side in a low frame, one over
+/// the other and twice the size in a tall one
+pub fn amps_glyphs(frame: Rect) -> [Rect; 2] {
+    if frame.height() >= AMPS_TALL {
+        let size = AMPS_GLYPH_SIZE * 2.0;
+        let top = frame.top() + AMPS_TALL_TOP;
+        let first = Rect::from_min_size(Pos2::new(frame.center().x - size.x / 2.0, top), size);
+        [first, first.translate(vec2(0.0, size.y + AMPS_TALL_GAP))]
+    } else {
+        let reach = (AMPS_GLYPH_SIZE.x + AMPS_GLYPH_GAP) / 2.0;
+        [-1.0, 1.0].map(|side| {
+            let at = frame.center() + vec2(side * reach, AMPS_ROW_DROP);
+            Rect::from_center_size(at, AMPS_GLYPH_SIZE)
+        })
+    }
+}
+
+/// The mode icon of a rig that holds one amp or two: a silk frame titled `Amps` round two small
+/// amp-head drawings, the first always lit and the second lit when `two`. The whole frame is one
+/// click target; the caller flips the mode when it is clicked. A tall frame (one amp, with room
+/// to spare) also says what a click does
+pub fn amps_icon(ui: &mut Ui, frame: Rect, paint: Color32, two: bool, id_source: &str) -> Response {
+    let response = ui.interact(frame, Id::new(("amps-icon", id_source)), Sense::click());
+    if response.hovered() {
+        ui.ctx().set_cursor_icon(nih_plug_egui::egui::CursorIcon::PointingHand);
+    }
+    let painter = ui.painter();
+    super::widgets::silk_frame(painter, frame, "Amps", paint);
+    let glyphs = amps_glyphs(frame);
+    for (rect, lit) in glyphs.into_iter().zip([true, two]) {
+        amp_glyph(painter, rect, lit);
+    }
+    if frame.height() >= AMPS_TALL {
+        let at = Pos2::new(frame.center().x, frame.bottom() - 20.0);
+        super::widgets::silk_label(painter, at, "Add Amp 2", 14.0);
+    }
+    response
+}
+
+/// A small amp head in screen print: dots, the pilot lamp and the grille's lines, all in
+/// proportion to the drawing's width
+fn amp_glyph(painter: &Painter, rect: Rect, lit: bool) {
+    let scale = rect.width() / AMPS_GLYPH_SIZE.x;
+    let ink = if lit { SILK } else { SILK.gamma_multiply(0.6) };
+    painter.rect_stroke(rect, 4.0 * scale, Stroke::new(2.0 * scale, ink), StrokeKind::Inside);
+    let inner = rect.shrink(5.0 * scale);
+    for dot in 0..3 {
+        let at = inner.left_top() + vec2((2.0 + 8.0 * dot as f32) * scale, 2.0 * scale);
+        painter.circle_filled(at, 2.0 * scale, ink);
+    }
+    let lamp = if lit { LED_ON } else { LED_OFF };
+    painter.circle_filled(inner.right_top() + vec2(-2.0 * scale, 2.0 * scale), 2.5 * scale, lamp);
+    let step = 4.0 * scale;
+    for line in 0..((inner.width() / step) as usize) {
+        let x = inner.left() + scale + step * line as f32;
+        painter.line_segment(
+            [Pos2::new(x, inner.bottom() - 6.0 * scale), Pos2::new(x, inner.bottom())],
+            Stroke::new(scale.max(1.0), ink),
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_the_two_amp_drawings_stay_inside_their_frame_and_apart() {
+        // A row as the plate has it with two amps (128 across), and a tall frame with one
+        for (width, height) in [(128.0, 44.0), (128.0, 178.0), (200.0, 60.0)] {
+            let frame = Rect::from_min_size(Pos2::new(30.0, 50.0), vec2(width, height));
+            let [first, second] = amps_glyphs(frame);
+            for glyph in [first, second] {
+                // Inside the frame's line, clear of it, and below the title on the top line
+                assert!(frame.shrink(6.0).contains_rect(glyph), "{frame:?}: {glyph:?}");
+                assert!(glyph.top() > frame.top() + 14.0, "{frame:?}: under the title");
+            }
+            assert!(!first.expand(3.0).intersects(second), "{frame:?}: apart");
+        }
+    }
+
+    #[test]
+    fn test_a_tall_frame_has_room_for_its_caption_under_the_drawings() {
+        let frame = Rect::from_min_size(Pos2::ZERO, vec2(128.0, 178.0));
+        let [_, second] = amps_glyphs(frame);
+        // The caption's middle is 20 above the foot and 14 high
+        assert!(second.bottom() + 4.0 < frame.bottom() - 20.0 - 7.0);
+    }
 
     #[test]
     fn test_the_lamp_and_the_switch_stand_clear_of_the_icon_and_of_each_other() {

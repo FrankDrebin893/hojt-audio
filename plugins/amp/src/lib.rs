@@ -2379,6 +2379,46 @@ mod tests {
         assert!(!GuitarAmpParams::default().delay_sync.default_plain_value());
     }
 
+    // #474: the mode is `amp2_on`, saved in every project. A host's load is the wrapper's, which
+    // only the host reaches (its setters are private to nih-plug): `filter_state`, then each saved
+    // value into the parameter of its id. Here the plugin's half is run for real (the state keeps
+    // the switch, and its id is the one parameter `amp2_on`) and the value the wrapper would
+    // restore starts the params; they play as two amps. One from before names nothing: one amp
+    #[test]
+    fn test_a_project_saved_with_two_amps_opens_as_two() {
+        use nih_plug::wrapper::state::ParamValue;
+        let open = |saved: &[bool]| {
+            let mut state = PluginState {
+                version: "0.2.0".to_owned(),
+                params: saved
+                    .iter()
+                    .map(|on| ("amp2_on".to_owned(), ParamValue::Bool(*on)))
+                    .collect(),
+                fields: Default::default(),
+            };
+            GuitarAmpPlugin::filter_state(&mut state);
+            let defaults = GuitarAmpParams::default();
+            let on = match state.params.get("amp2_on") {
+                Some(ParamValue::Bool(on)) => {
+                    let (_, ptr, _) = defaults
+                        .param_map()
+                        .into_iter()
+                        .find(|(id, _, _)| id == "amp2_on")
+                        .expect("the project's id is a parameter");
+                    assert!(ptr == defaults.amp2_on.as_ptr());
+                    *on
+                }
+                _ => defaults.amp2_on.value(),
+            };
+            GuitarAmpParams { amp2_on: BoolParam::new("Amp 2", on), ..GuitarAmpParams::default() }
+        };
+        for (saved, two) in [(vec![true], true), (vec![false], false), (vec![], false)] {
+            let params = open(&saved);
+            assert_eq!(params.amp2_on.value(), two, "{saved:?}");
+            assert_eq!(params.settings(None).second.on, two, "{saved:?}");
+        }
+    }
+
     #[test]
     fn test_parameter_ranges_are_the_limits_of_the_chain() {
         let params = GuitarAmpParams::default();

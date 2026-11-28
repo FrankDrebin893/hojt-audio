@@ -20,23 +20,26 @@ The style guide (`crates/suite_common/src/ui/STYLE.md`) applies; these are the r
   output meter, Clip, On, Tuner). Its jack captions read `In` at the left and `Stereo Out` at
   the right, arrows left to right: the signal runs along the window. Nothing in a wing reaches
   the band (a test holds it)
-- **The stack is two lanes** (#177): the first amp's head with the cabinet beside it, and under
-  it the second amp's, as tall as the pedals together (`LANE_HEIGHT`). Each lane has a head
+- **The stack is one lane or two** (#177, #474): the first amp's head with the cabinet beside it, and,
+  with two amps, under it the second amp's, as tall as the pedals together (`LANE_HEIGHT`). The mode is
+  `amp2_on`, switched by the `Amps` icon at the top of the plate (`ui::amps_icon`: two small amp-head
+  drawings in a silk frame, one or two lit; one click flips it). With one amp the first lane stands in the
+  middle of the stack's height (`lane_top`), with no empty slot drawn, the plate has no Blend frame, the
+  input cable goes into its one jack and one coupler joins it to the plate; a second amp makes the
+  first move up and takes the lower half. Amp 2's dials, cabinet and Blend keep their values while hidden. Each lane has a head
   that looks as its amp (below), a nameplate, six dials of radius 15, and a line under the dials
-  with the lane's name (`Amp 1`, `Amp 2`) and, on the second lane, its `On` switch with a
-  `rig_led`. The cabinet beside it (`LANE_CAB_WIDTH`, 210 wide since #446) looks as the cabinet
+  with the lane's name (`Amp 1`, `Amp 2`); the second lane has no `On` of its own, the icon is it. The cabinet beside it (`LANE_CAB_WIDTH`, 210 wide since #446) looks as the cabinet
   that plays through that amp and has no control plate; its choice is a nameplate at its foot
   (a `nameplate_opener` on brushed chrome: the name and one chrome button at its right, #448), and
-  a double-click on the cabinet, or that button, opens the cabinets' drawer (below). Both input jacks take the guitar (a cable links
-  them), and both lanes end at a black plate, `MIX_WIDTH` wide, through a coupler each. The
-  plate holds, from the top: `Blend` over a `crossfader` (`ui::crossfader`: `Amp 1` at the
+  a double-click on the cabinet, or that button, opens the cabinets' drawer (below). With two amps both input jacks take the guitar (a cable links
+  them), and each lane ends at a black plate, `MIX_WIDTH` wide, through a coupler. The
+  plate holds, from the top: the `Amps` icon (both modes), with two amps `Blend` over a `crossfader` (`ui::crossfader`: `Amp 1` at the
   top of the slot, `Amp 2` at the bottom, the value on label tape under it), the Mic and Res
   knobs (radius 17), the `Mic Type` stepper, the output jack with its `Out` caption, at the
   height of the pedals' plugs, and the Cab switch with its LED and caption. Mic, Res, Mic Type
   and Cab act on both amps' cabinets. The first lane's cabinet drawer offers the amp's
   own, the built-in cabinets and the files; the second's its own and the built-in ones (`cabinet2`,
-  never a file). Nothing of the lanes is dimmed while
-  the second amp is off: its lamp and its switch say so
+  never a file)
 - **Head and cabinet:** each amp has a head of its own (`looks.rs`, drawn by `ui::amp_head`),
   which changes the moment another amp is picked:
 

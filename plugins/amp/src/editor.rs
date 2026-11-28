@@ -220,7 +220,7 @@ const MIX_GAP: f32 = 12.0;
 const MIX_X: f32 = LANE_HEAD_WIDTH + LANE_CAB_WIDTH + LANE_CAB_GAP + MIX_GAP - LANE_CAB_GAP;
 const MIX_WIDTH: f32 = STACK_WIDTH - MIX_X;
 // On a lane's head, from the panel's top left corner: the dials in a row, the lane's name,
-// and, on the second lane, its switch, on the line under the dials
+// on the line under the dials
 const LANE_JACK_X: f32 = 16.0;
 const LANE_DIAL_FIRST_X: f32 = 54.0;
 const LANE_DIAL_SPACING: f32 = 55.0;
@@ -232,10 +232,6 @@ const LANE_NAME_X: f32 = 48.0;
 const CAB_PLATE_WIDTH: f32 = 128.0;
 const CAB_PLATE_FOOT: f32 = 28.0;
 const CAB_PLATE_TEXT_SIZE: f32 = 15.0;
-// From the panel's right edge
-const LANE_ON_CAPTION_DX: f32 = -116.0;
-const LANE_ON_LED_DX: f32 = -88.0;
-const LANE_ON_SWITCH_DX: f32 = -46.0;
 const CAB_NAME_CHARS: usize = 10;
 const JACK_RADIUS: f32 = 8.0;
 
@@ -286,6 +282,16 @@ const GATE_LAMP: Vec2 = vec2(58.0, 71.0);
 const SYNC_CAPTION: Vec2 = vec2(60.0, 156.0);
 const SYNC_LED: Vec2 = vec2(60.0, 180.0);
 const SYNC_BUTTON: Vec2 = vec2(60.0, 212.0);
+
+/// How far down the stack a lane's top is: with one amp the lane stands in the middle of the
+/// stack's height, with two the first is at the top and the second under it
+pub(crate) fn lane_top(two: bool, lane: usize) -> f32 {
+    if two {
+        (LANE_HEIGHT + LANE_GAP) * lane as f32
+    } else {
+        (STACK_HEIGHT - LANE_HEIGHT) / 2.0
+    }
+}
 
 /// Where the patch cables go into the stack: the head's input and the cabinet's output
 #[derive(Clone, Copy)]
@@ -674,18 +680,29 @@ impl Pedals<'_> {
     /// head with its cabinet beside it and the second amp's under it, and the plate where
     /// they meet. Returns where the cables go in and out
     pub(crate) fn stack(&self, ui: &mut Ui, top_left: Pos2) -> Jacks {
+        let two = self.params.amp2_on.value();
         let mut jacks = [Pos2::ZERO; 2];
         let mut ends = [Pos2::ZERO; 2];
-        for lane in 0..2 {
-            let origin = top_left + vec2(0.0, (LANE_HEIGHT + LANE_GAP) * lane as f32);
+        // One amp stands in the middle of the stack's height; the second amp's coming moves it
+        // up to make room
+        let lanes = if two { 2 } else { 1 };
+        for lane in 0..lanes {
+            let origin = top_left + vec2(0.0, lane_top(two, lane));
             (jacks[lane], ends[lane]) = self.lane(ui, origin, lane == 1);
         }
-        // The guitar goes into both heads: a link from the first jack to the second's, round
-        // the left edge of the panels
-        let bow = vec2(-70.0, 50.0);
-        link_cable(ui, [jacks[1], jacks[1] + vec2(bow.x, -bow.y), jacks[0] + bow, jacks[0]]);
-        for jack in jacks {
-            jack_socket(ui, jack);
+        if !two {
+            // A hidden lane answers nothing: no drawer is anchored on it
+            self.heads.set([self.heads.get()[0], Rect::NOTHING]);
+            self.cabs.set([self.cabs.get()[0], Rect::NOTHING]);
+        }
+        // With two amps the guitar goes into both heads: a link from the first jack to the
+        // second's, round the left edge of the panels
+        if two {
+            let bow = vec2(-70.0, 50.0);
+            link_cable(ui, [jacks[1], jacks[1] + vec2(bow.x, -bow.y), jacks[0] + bow, jacks[0]]);
+        }
+        for jack in &jacks[..lanes] {
+            jack_socket(ui, *jack);
         }
 
         let plate = Rect::from_min_size(
@@ -693,10 +710,10 @@ impl Pedals<'_> {
             vec2(MIX_WIDTH, 2.0 * LANE_HEIGHT + LANE_GAP),
         );
         ui::amp::mounted_plate(ui.painter(), plate, Plate::BlackAnodised);
-        for end in ends {
+        for end in &ends[..lanes] {
             ui::coupler(ui.painter(), end.x, plate.left(), end.y);
         }
-        Jacks { input: jacks[1], output: self.mix_plate(ui, plate) }
+        Jacks { input: jacks[lanes - 1], output: self.mix_plate(ui, plate) }
     }
 
     /// The first amp's cabinet choice: the amp's own, a built-in one or a file
@@ -706,14 +723,14 @@ impl Pedals<'_> {
 
     /// One lane at `origin`: the head of its amp with its nameplate and six dials, the cabinet
     /// it plays through beside it with its choice on a nameplate at its foot, and the line under
-    /// the dials with its name and, for the second, its On switch. Returns the middle of the head's input jack
+    /// the dials with its name. Returns the middle of the head's input jack
     /// and where its cabinet ends on the right
     fn lane(&self, ui: &mut Ui, origin: Pos2, second: bool) -> (Pos2, Pos2) {
         let (params, setter) = (self.params, self.setter);
         let amp = if second { params.amp2.value() } else { params.amp.value() };
         let look = looks::look(amp);
         let (panel, print) = (look.head.panel, look.head.print);
-        let on = if second { params.amp2_on.value() } else { true } && !params.bypass.value();
+        let on = !params.bypass.value();
 
         // The head
         let head = Rect::from_min_size(origin, vec2(LANE_HEAD_WIDTH, LANE_HEIGHT));
@@ -767,23 +784,6 @@ impl Pedals<'_> {
             18.0,
             print,
         );
-        if second {
-            let right = faces.panel.right();
-            print_label(
-                ui.painter(),
-                Pos2::new(right + LANE_ON_CAPTION_DX, line),
-                "On",
-                15.0,
-                print,
-            );
-            param_switch(
-                ui,
-                setter,
-                &params.amp2_on,
-                Pos2::new(right + LANE_ON_SWITCH_DX, line),
-                Pos2::new(right + LANE_ON_LED_DX, line),
-            );
-        }
 
         // The cabinet it plays through
         let chosen = if second { params.cabinet_second.choice() } else { self.chosen() };

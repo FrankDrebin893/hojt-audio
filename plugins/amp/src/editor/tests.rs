@@ -2026,32 +2026,20 @@ fn test_the_head_panel_holds_the_jack_the_dials_and_the_lamp_in_a_row() {
 }
 
 #[test]
-fn test_the_line_under_the_dials_holds_the_name_and_the_switch_apart() {
+fn test_the_line_under_the_dials_holds_the_name_and_stays_on_the_panel() {
     for (amp, _, faces) in heads() {
         let line = DIAL_Y + LANE_LINE_DY;
-        let right = faces.panel.width();
-        // Across: the name, the switch's caption, LED and switch; the cabinet's choice is no
-        // longer on this line
+        // Across: the name, from the panel's edge; the second amp's On switch is gone, the
+        // Amps icon on the plate is the one switch
         in_a_row(&[
             ("the panel's edge", 0.0, 0.0),
             ("the name", LANE_NAME_X - 32.0, LANE_NAME_X + 32.0),
-            (
-                "the On caption",
-                right + LANE_ON_CAPTION_DX - 10.0,
-                right + LANE_ON_CAPTION_DX + 10.0,
-            ),
-            ("the On LED", right + LANE_ON_LED_DX - LAMP, right + LANE_ON_LED_DX + LAMP),
-            (
-                "the On switch",
-                right + LANE_ON_SWITCH_DX - SWITCH,
-                right + LANE_ON_SWITCH_DX + SWITCH,
-            ),
-            ("the panel's edge", right, right),
+            ("the panel's edge", faces.panel.width(), faces.panel.width()),
         ]);
-        // Down: the dials' tapes, then the line, and the switch inside the panel
+        // Down: the dials' tapes, then the line, inside the panel
         let tape = ui::panel_knob_rect(Pos2::new(0.0, DIAL_Y), LANE_DIAL_RADIUS).bottom();
         assert!(tape + 2.0 < line - 11.0, "{amp:?}: the line is under the dials' tapes");
-        assert!(line + SWITCH < faces.panel.height(), "{amp:?}: the switch is off the panel");
+        assert!(line + 11.0 < faces.panel.height(), "{amp:?}: the line is off the panel");
     }
 }
 
@@ -2118,6 +2106,9 @@ fn test_the_plate_holds_the_fader_and_what_the_cabinets_share_in_order() {
     let knob_tape = MIX_KNOB_Y + MIX_KNOB_RADIUS + 18.0 + 15.0 + 2.0 + 16.0;
     in_a_row(&[
         ("the plate's top", 0.0, 0.0),
+        ("the Amps frame's title", AMPS_FRAME_TOP - 8.0, AMPS_FRAME_TOP + 8.0),
+        ("the Amps drawings", AMPS_FRAME_TOP + 14.0, AMPS_FRAME_BOTTOM - 6.0),
+        ("the Amps frame", AMPS_FRAME_BOTTOM, AMPS_FRAME_BOTTOM),
         ("the Blend frame's title", BLEND_FRAME_TOP - 8.0, BLEND_FRAME_TOP + 8.0),
         ("the Amp 1 caption", MIX_AMP1_CAPTION_Y - end, MIX_AMP1_CAPTION_Y + end),
         ("the fader", FADER_TOP - cap_half, FADER_TOP + FADER_LENGTH + cap_half),
@@ -2974,8 +2965,9 @@ fn test_the_no_audio_lamp_and_the_update_line_have_room_on_the_strip() {
 #[cfg(target_os = "linux")]
 fn cabinet_places(params: &GuitarAmpParams) -> [(Rect, Pos2); 2] {
     let stack = Line::of_chain(&params.chain.get()).stack_for_test();
-    [0.0, LANE_HEIGHT + LANE_GAP].map(|down| {
-        let origin = Pos2::new(stack, STACK_TOP + down);
+    let two = params.amp2_on.value();
+    [0, 1].map(|lane| {
+        let origin = Pos2::new(stack, STACK_TOP + lane_top(two, lane));
         let cab = Rect::from_min_size(
             origin + vec2(LANE_HEAD_WIDTH + LANE_CAB_GAP, 0.0),
             vec2(LANE_CAB_WIDTH, LANE_HEIGHT),
@@ -3010,8 +3002,12 @@ fn double_click(harness: &mut Harness, at: Pos2) {
 #[cfg(target_os = "linux")]
 fn head_places(params: &GuitarAmpParams) -> [Rect; 2] {
     let stack = Line::of_chain(&params.chain.get()).stack_for_test();
-    [0.0, LANE_HEIGHT + LANE_GAP].map(|down| {
-        Rect::from_min_size(Pos2::new(stack, STACK_TOP + down), vec2(LANE_HEAD_WIDTH, LANE_HEIGHT))
+    let two = params.amp2_on.value();
+    [0, 1].map(|lane| {
+        Rect::from_min_size(
+            Pos2::new(stack, STACK_TOP + lane_top(two, lane)),
+            vec2(LANE_HEAD_WIDTH, LANE_HEIGHT),
+        )
     })
 }
 
@@ -3029,7 +3025,8 @@ fn drawer_lane(view: &Rc<RefCell<View>>) -> Option<usize> {
 #[cfg(target_os = "linux")]
 fn test_a_double_click_on_the_grille_opens_the_amp_drawer_for_that_lane_and_one_on_a_dial_does_not()
 {
-    let params = GuitarAmpParams::default();
+    let params =
+        GuitarAmpParams { amp2_on: BoolParam::new("Amp 2", true), ..GuitarAmpParams::default() };
     let host = NoHost;
     let setter = ParamSetter::new(&host);
     let (mut harness, view) = bank_harness(&params, &setter);
@@ -3080,6 +3077,153 @@ impl GuiContext for RecordHost {
         unreachable!()
     }
     fn set_state(&self, _: PluginState) {}
+}
+
+#[test]
+fn test_one_amp_stands_in_the_middle_of_the_stack_and_two_fill_it() {
+    // One amp: as far from the stack's top as from its foot, whole inside it
+    let one = lane_top(false, 0);
+    assert_eq!(one, STACK_HEIGHT - (one + LANE_HEIGHT));
+    // Two: the first at the top, the second under it down to the foot
+    assert_eq!(lane_top(true, 0), 0.0);
+    assert_eq!(lane_top(true, 1) + LANE_HEIGHT, STACK_HEIGHT);
+    // The first amp moves up to make room for the second
+    assert!(lane_top(true, 0) < one);
+    // With one amp the Amps frame fills the Blend's place, tall enough to stack its drawings
+    const {
+        assert!(BLEND_FRAME_BOTTOM - AMPS_FRAME_TOP >= suite_common::ui::AMPS_TALL);
+        assert!(AMPS_FRAME_BOTTOM - AMPS_FRAME_TOP < suite_common::ui::AMPS_TALL);
+    }
+}
+
+/// The middle of the Amps icon, in window points
+#[cfg(target_os = "linux")]
+fn amps_icon_at(params: &GuitarAmpParams) -> Pos2 {
+    let stack = Line::of_chain(&params.chain.get()).stack_for_test();
+    Pos2::new(
+        stack + MIX_X + MIX_WIDTH / 2.0,
+        STACK_TOP + (AMPS_FRAME_TOP + AMPS_FRAME_BOTTOM) / 2.0,
+    )
+}
+
+// The icon is the second amp's switch: a click flips `amp2_on`, both ways, and sets nothing else
+#[test]
+#[cfg(target_os = "linux")]
+fn test_a_click_on_the_amps_icon_switches_the_second_amp_both_ways() {
+    for was in [false, true] {
+        let params =
+            GuitarAmpParams { amp2_on: BoolParam::new("Amp 2", was), ..GuitarAmpParams::default() };
+        let host = RecordHost::default();
+        let setter = ParamSetter::new(&host);
+        let (mut harness, _) = bank_harness(&params, &setter);
+        click(&mut harness, amps_icon_at(&params));
+        let sets = host.sets.lock().unwrap().clone();
+        let now = if was { 0.0 } else { 1.0 };
+        assert_eq!(sets, vec![(params.amp2_on.as_ptr(), now)], "from {was}");
+    }
+}
+
+/// The colour of the window's pixel at a point (full size)
+#[cfg(target_os = "linux")]
+fn pixel_at(image: &nih_plug_egui::egui::ColorImage, at: Pos2) -> Color32 {
+    let ppp = image.width() as f32 / WINDOW_WIDTH as f32;
+    image[((at.x * ppp) as usize, (at.y * ppp) as usize)]
+}
+
+// The jacks and the cables' ends are where the layout says in both modes: the input jack of each
+// lane in view (the nut's middle is dark chrome), a cable running into the first, the plate's
+// output jack, and with one amp no nut under the first lane where the second one stands
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_jacks_and_the_cables_stand_where_the_layout_says_in_both_modes() {
+    use suite_common::ui::theme::{CABLE, CHROME_DARK};
+    for two in [false, true] {
+        let params =
+            GuitarAmpParams { amp2_on: BoolParam::new("Amp 2", two), ..GuitarAmpParams::default() };
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let (mut harness, _) = bank_harness(&params, &setter);
+        let image = harness.render().unwrap();
+        let image = nih_plug_egui::egui::ColorImage::from_rgba_unmultiplied(
+            [image.width() as usize, image.height() as usize],
+            image.as_raw(),
+        );
+        let stack = Line::of_chain(&params.chain.get()).stack_for_test();
+        let input = |lane: usize| {
+            let head = Rect::from_min_size(
+                Pos2::new(stack, STACK_TOP + lane_top(two, lane)),
+                vec2(LANE_HEAD_WIDTH, LANE_HEIGHT),
+            );
+            let faces = ui::head_faces(head, &looks::look(params.amp.value()).head);
+            faces.panel.left_top() + vec2(LANE_JACK_X, DIAL_Y)
+        };
+        let nut = |at: Pos2| pixel_at(&image, at) == CHROME_DARK;
+        assert!(nut(input(0)), "two {two}: the first head's input jack");
+        // The cable that comes in from the pedals ends at the last jack in view
+        let last = input(usize::from(two));
+        let cabled = (-20..0).any(|dx| pixel_at(&image, last + vec2(dx as f32, 8.0)) == CABLE)
+            || (-20..0).any(|dx| pixel_at(&image, last + vec2(dx as f32, 0.0)) == CABLE);
+        assert!(cabled, "two {two}: a cable runs into the jack at {last:?}");
+        // The second head's jack is there with two amps only
+        if two {
+            assert!(nut(input(1)), "the second head's input jack");
+        } else {
+            // Where the second head's jack stands with two amps is empty: no nut, no cable
+            let empty = Pos2::new(
+                input(0).x,
+                STACK_TOP + lane_top(true, 1) + (input(0).y - STACK_TOP - lane_top(false, 0)),
+            );
+            assert!(!nut(empty), "no second jack with one amp at {empty:?}");
+            assert_ne!(pixel_at(&image, empty), CABLE);
+        }
+        // The plate's output jack, in both
+        let out = Pos2::new(stack + MIX_X + MIX_WIDTH / 2.0 + MIX_JACK_DX, STACK_TOP + MIX_JACK_Y);
+        assert!(nut(out), "two {two}: the output jack");
+    }
+}
+
+// The Blend fader is on the plate with two amps and answers a click there; with one it is not
+// drawn and the same click sets nothing
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_blend_fader_is_there_with_two_amps_and_gone_with_one() {
+    for two in [false, true] {
+        let params =
+            GuitarAmpParams { amp2_on: BoolParam::new("Amp 2", two), ..GuitarAmpParams::default() };
+        let host = RecordHost::default();
+        let setter = ParamSetter::new(&host);
+        let (mut harness, _) = bank_harness(&params, &setter);
+        let stack = Line::of_chain(&params.chain.get()).stack_for_test();
+        let slot = Pos2::new(
+            stack + MIX_X + MIX_WIDTH / 2.0 + FADER_DX,
+            STACK_TOP + FADER_TOP + 3.0 * FADER_LENGTH / 4.0,
+        );
+        drag(&mut harness, slot, slot + vec2(0.0, -8.0));
+        let sets = host.sets.lock().unwrap().clone();
+        let blend = sets.iter().any(|(param, _)| *param == params.amp_blend.as_ptr());
+        assert_eq!(blend, two, "two {two}: {sets:?}");
+    }
+}
+
+// With one amp the second head is not there to answer a double-click, and the first stands
+// in the middle; with two the second answers where it stands
+#[test]
+#[cfg(target_os = "linux")]
+fn test_with_one_amp_only_the_first_lane_answers_and_stands_in_the_middle() {
+    let params = GuitarAmpParams::default();
+    let host = NoHost;
+    let setter = ParamSetter::new(&host);
+    let (mut harness, view) = bank_harness(&params, &setter);
+    let [first, _] = head_places(&params);
+    assert!(first.top() > STACK_TOP + 100.0, "{first:?}");
+    // Under the first lane, where the second head stands with two amps: nothing opens
+    let stack = Line::of_chain(&params.chain.get()).stack_for_test();
+    let second_home = Pos2::new(stack + 30.0, STACK_TOP + STACK_HEIGHT - 20.0);
+    double_click(&mut harness, second_home);
+    assert_eq!(drawer_lane(&view), None);
+    let faces = ui::head_faces(first, &looks::look(params.amp.value()).head);
+    double_click(&mut harness, faces.grille.left_center() + vec2(30.0, 0.0));
+    assert_eq!(drawer_lane(&view), Some(0));
 }
 
 #[test]
@@ -3270,6 +3414,7 @@ fn test_the_amp_drawer_looks_as_it_did() {
 #[cfg(target_os = "linux")]
 fn test_the_amp_drawer_for_the_second_lane_looks_as_it_did() {
     let params = GuitarAmpParams {
+        amp2_on: BoolParam::new("Amp 2", true),
         amp2: EnumParam::new("Amp 2", Amp::Thunder),
         ..GuitarAmpParams::default()
     };
@@ -3348,7 +3493,8 @@ fn with_cabinet_files(name: &str, names: &[&str], body: impl FnOnce()) {
 #[test]
 #[cfg(target_os = "linux")]
 fn test_a_double_click_on_a_cabinet_or_its_nameplate_button_opens_its_drawer_and_not_the_amps() {
-    let params = GuitarAmpParams::default();
+    let params =
+        GuitarAmpParams { amp2_on: BoolParam::new("Amp 2", true), ..GuitarAmpParams::default() };
     let host = NoHost;
     let setter = ParamSetter::new(&host);
     let (mut harness, view) = bank_harness(&params, &setter);
@@ -3688,6 +3834,7 @@ fn test_the_cabinet_drawer_looks_as_it_did() {
 #[cfg(target_os = "linux")]
 fn test_the_cabinet_drawer_for_the_second_lane_looks_as_it_did() {
     let params = GuitarAmpParams {
+        amp2_on: BoolParam::new("Amp 2", true),
         amp2: EnumParam::new("Amp 2", Amp::Thunder),
         ..GuitarAmpParams::default()
     };
