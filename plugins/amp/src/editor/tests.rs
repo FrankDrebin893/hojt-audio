@@ -3795,9 +3795,36 @@ fn test_the_drawer_the_bank_and_a_plate_are_never_open_together_for_cabinets_too
     assert!(view.borrow().drawer.is_none());
     assert!(view.borrow().is_open(Plates::Settings));
     // The plate stands over the cabinet's upper part: the lower part is clear of it
-    double_click(&mut harness, Pos2::new(cab.center().x, cab.bottom() - 20.0));
+    double_click(&mut harness, spot_below_settings_plate(cab, 1));
     assert!(view.borrow().drawer.is_some());
     assert!(view.borrow().plate.is_none());
+}
+
+/// A spot on `cab` that the settings plate with `rows` rows (the test's harness is a DAW's: 1) does not
+/// cover: a little under the plate's own bottom, which follows `settings_height`, so a taller
+/// plate moves it instead of covering a spot taken as an offset from the cabinet's bottom
+#[cfg(target_os = "linux")]
+fn spot_below_settings_plate(cab: Rect, rows: usize) -> Pos2 {
+    Pos2::new(cab.center().x, PLATE_TOP + settings_height(rows) + SETTINGS_PAD)
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_the_spot_below_the_settings_plate_is_on_the_cabinet_for_every_plate() {
+    let params = GuitarAmpParams::default();
+    let [(cab, _), _] = cabinet_places(&params);
+    // A DAW's plate (the cabinet's row alone): the standalone's eleven rows reach past the
+    // cabinet by design, and its window never shows a cabinet's drawer under that plate
+    let rows = 1;
+    let spot = spot_below_settings_plate(cab, rows);
+    assert!(
+        cab.contains(spot),
+        "with {rows} rows the settings plate reaches {} and the cabinet ends at {}: \
+         no spot of the cabinet is left clear of it",
+        PLATE_TOP + settings_height(rows),
+        cab.bottom()
+    );
+    assert!(spot.y > PLATE_TOP + settings_height(rows));
 }
 
 #[test]
