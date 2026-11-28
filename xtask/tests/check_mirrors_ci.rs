@@ -67,12 +67,12 @@ fn test_steps_are_read_as_written() {
 fn test_ci_does_not_read_the_xtask_test_paths() {
     let list = read("scripts/xtask-test-paths.txt");
     assert!(list.contains("xtask/tests"), "scripts/xtask-test-paths.txt is empty or moved");
-    for workflow in ["ci.yml"] {
-        let text = read(&format!(".github/workflows/{workflow}"));
-        assert!(
-            !text.contains("xtask-test-paths"),
-            "{workflow} reads scripts/xtask-test-paths.txt: only the local gate may skip the workspace tests for an xtask test file"
-        );
-    }
-    assert!(read("scripts/check.sh").contains("xtask-test-paths.txt"), "check.sh does not read the list");
+    assert!(
+        !read(".github/workflows/ci.yml").contains("xtask-test-paths"),
+        "ci.yml reads scripts/xtask-test-paths.txt: only the local gate may skip the workspace tests for an xtask test file"
+    );
+    assert!(
+        read("scripts/check.sh").contains("xtask-test-paths.txt"),
+        "check.sh does not read the list"
+    );
 }
