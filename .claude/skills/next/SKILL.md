@@ -213,6 +213,7 @@ What every sub-session is asked to do, for issue `<n>`:
   `scripts/check.sh quick` and the touched crates' tests, say in the pull request that the full gate did not finish and
   CI's `Test` is the only proof, and post a "Progress" comment (step 7) with "Next: full gate owed, CI is
   the proof"; the orchestrator's review reads that line
+- Before the first full gate run `scripts/check.sh scope`: for a change of only skill text and xtask tests it must say `skills`; when it says `full`, something else is in the diff, and the gate's first line (`== Scope: full because <file>`) names it
 - Run `scripts/check.sh quick` after every edit batch and before any `cargo test` that takes minutes: a clippy error
   found after a 300 s test run costs the run
 - A change that alters text or shapes an editor draws (a name, a label, a plate) fails that editor's snapshot tests in

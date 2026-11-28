@@ -8,6 +8,7 @@
 #                               and xtask's tests if a skill changed
 #   scripts/check.sh full       every step, whatever the diff
 #   scripts/check.sh scope      prints light, skills or full: what the run above would do
+#   scripts/check.sh scope-line prints the `== Scope: ...` line a run starts with (full says because of which file)
 #   scripts/check.sh quick      the package check, the script modes, format and clippy only
 #   scripts/check.sh deps       installs the Linux packages CI installs that are missing (sudo apt-get, no sudo
 #                               as root); quick and the full run only name them when they are missing
@@ -215,7 +216,8 @@ quick() {
 
 # What a run has to do, from the files this branch changes against origin/main (CHECK_BASE, to test it):
 #   light   only light paths (scripts/light-paths.txt, the list the `changes` job of ci.yml reads too)
-#   skills  light, and some of it under .claude/skills/, which xtask's tests read
+#   skills  light, and some of it under .claude/skills/, which xtask's tests read, or xtask's own test files
+#           (scripts/xtask-test-paths.txt: read here only, never by ci.yml, whose Test runs in full for a .rs file)
 #   full    anything else, no diff, or no base to compare with
 # Committed, uncommitted and untracked files all count.
 scope() {
@@ -236,14 +238,38 @@ scope() {
         echo full
         return 0
     fi
-    rest="$(printf '%s\n' "$files" | grep -vEf scripts/light-paths.txt || true)"
+    rest="$(printf '%s\n' "$files" | grep -vEf scripts/light-paths.txt -f scripts/xtask-test-paths.txt || true)"
     if [[ -n "$rest" ]]; then
         echo full
-    elif printf '%s\n' "$files" | grep -qE '^\.claude/skills/'; then
+    elif printf '%s\n' "$files" | grep -qEf scripts/xtask-test-paths.txt -e '^\.claude/skills/'; then
         echo skills
     else
         echo light
     fi
+}
+
+# The first line of a run: the scope, and for full why (the first changed file that is neither a light path nor an
+# xtask test, or no diff, or no base). Shares scope()'s reading of the diff.
+scope_line() {
+    local kind base first
+    kind="$(scope "${1:-}")"
+    if [[ "$kind" != full ]]; then
+        echo "== Scope: $kind"
+        return 0
+    fi
+    if [[ "${1:-}" == full ]]; then
+        echo "== Scope: full because it was forced (scripts/check.sh full)"
+        return 0
+    fi
+    base="$(git merge-base "${CHECK_BASE:-origin/main}" HEAD 2> /dev/null)" || {
+        echo "== Scope: full because no base to compare with"
+        return 0
+    }
+    first="$({
+        git diff --name-only "$base"
+        git ls-files --others --exclude-standard
+    } | sort -u | grep -vEf scripts/light-paths.txt -f scripts/xtask-test-paths.txt | head -n 1 || true)"
+    echo "== Scope: full because ${first:-no diff}"
 }
 
 # Prints one line per target/ directory of the main checkout and every worktree, largest first, then the total
@@ -336,6 +362,7 @@ check_target_dir() {
 
 full() {
     local kind
+    scope_line "${1:-}"
     kind="$(scope "${1:-}")"
     if [[ "$kind" != full ]]; then
         echo "== Only light paths changed against origin/main: the same as CI, no Rust tests (scripts/check.sh full forces them)"
@@ -413,6 +440,7 @@ case "${1:-}" in
 "") gate full ;;
 full) gate full full ;;
 scope) scope "${2:-}" ;;
+scope-line) scope_line "${2:-}" ;;
 quick) gate quick ;;
 modes) script_modes ;;
 notes) amp_notes ;;
